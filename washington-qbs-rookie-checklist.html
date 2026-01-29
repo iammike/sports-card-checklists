@@ -371,6 +371,16 @@
         </div>
 
         <div class="filters">
+            <select id="sort-filter">
+                <option value="default">Sort: Default (Era)</option>
+                <option value="year">Sort: Card Year</option>
+                <option value="price-low">Sort: Price (Low→High)</option>
+                <option value="price-high">Sort: Price (High→Low)</option>
+                <option value="winpct">Sort: Win %</option>
+                <option value="superbowl">Sort: Super Bowl Winners</option>
+                <option value="owned">Sort: Owned First</option>
+                <option value="needed">Sort: Needed First</option>
+            </select>
             <select id="era-filter">
                 <option value="all">All Eras</option>
                 <option value="gibbs1">Gibbs Era I (1982-1992)</option>
@@ -570,7 +580,112 @@
             document.getElementById('sync-status').textContent = '';
         }
 
+        function getCardYear(qb) {
+            const match = qb.set.match(/(\d{4})/);
+            return match ? parseInt(match[1]) : 0;
+        }
+
+        function getWinPct(qb) {
+            if (!qb.record || qb.record === '-') return 0;
+            const parts = qb.record.split('-');
+            if (parts.length < 2) return 0;
+            const wins = parseInt(parts[0]) || 0;
+            const losses = parseInt(parts[1]) || 0;
+            const total = wins + losses;
+            return total > 0 ? wins / total : 0;
+        }
+
+        function sortQbs(qbsToSort, sortBy) {
+            const sorted = [...qbsToSort];
+            switch (sortBy) {
+                case 'year':
+                    sorted.sort((a, b) => getCardYear(a) - getCardYear(b));
+                    break;
+                case 'price-low':
+                    sorted.sort((a, b) => (a.price || 0) - (b.price || 0));
+                    break;
+                case 'price-high':
+                    sorted.sort((a, b) => (b.price || 0) - (a.price || 0));
+                    break;
+                case 'winpct':
+                    sorted.sort((a, b) => getWinPct(b) - getWinPct(a));
+                    break;
+                case 'superbowl':
+                    sorted.sort((a, b) => (b.superBowl ? 1 : 0) - (a.superBowl ? 1 : 0));
+                    break;
+                case 'owned':
+                    sorted.sort((a, b) => {
+                        const ownedA = owned.includes(a.name) ? 0 : 1;
+                        const ownedB = owned.includes(b.name) ? 0 : 1;
+                        return ownedA - ownedB;
+                    });
+                    break;
+                case 'needed':
+                    sorted.sort((a, b) => {
+                        const ownedA = owned.includes(a.name) ? 1 : 0;
+                        const ownedB = owned.includes(b.name) ? 1 : 0;
+                        return ownedA - ownedB;
+                    });
+                    break;
+            }
+            return sorted;
+        }
+
+        function renderQbCard(qb) {
+            const isOwned = owned.includes(qb.name);
+
+            // Special handling for collection link cards
+            if (qb.collectionLink) {
+                const jdBadge = jaydenDanielsStats.owned > 0
+                    ? `${jaydenDanielsStats.owned} / ${qb.cardCount}`
+                    : `${qb.cardCount} CARDS`;
+                return `<div class="card collection-link" onclick="window.location.href='${qb.collectionLink}'">
+                    <div class="card-image-wrapper">
+                        <span class="collection-badge">${jdBadge}</span>
+                        <div class="card-stack">
+                            <img src="jayden-daniels-cards/card_00_wm8AAeSw.webp" alt="">
+                            <img src="jayden-daniels-cards/card_03_MuMAAOSw.webp" alt="">
+                            <img src="jayden-daniels-cards/card_07_mlEAAeSw.webp" alt="">
+                        </div>
+                    </div>
+                    <div class="player-name">${qb.name}</div>
+                    <div class="player-years">${qb.years} &bull; ${qb.record}</div>
+                    ${qb.playoff !== '-' ? `<div class="player-record">Playoffs: ${qb.playoff}</div>` : ''}
+                    ${qb.achievement ? `<span class="achievement">${qb.achievement}</span>` : ''}
+                    <a href="${qb.collectionLink}" class="collection-cta">View Full Collection →</a>
+                </div>`;
+            }
+
+            const cardClass = `card ${isOwned ? 'owned' : ''} ${qb.superBowl ? 'super-bowl' : ''}`;
+
+            return `<div class="${cardClass}">
+                <div class="card-image-wrapper">
+                    ${qb.superBowl ? '<span class="super-bowl-badge">SUPER BOWL</span>' : ''}
+                    <span class="price-badge">$${Math.max(1, Math.round(qb.price))}</span>
+                    <img class="card-image" src="${qb.img}" alt="${qb.name}" onerror="this.style.display='none'">
+                </div>
+                <div class="player-name">${qb.name}</div>
+                <div class="player-years">${qb.years} &bull; ${qb.record}</div>
+                ${qb.playoff !== '-' ? `<div class="player-record">Playoffs: ${qb.playoff}</div>` : ''}
+                <div class="card-info">
+                    <span class="card-set">${qb.set}</span> ${qb.num}
+                </div>
+                ${qb.achievement ? `<span class="achievement">${qb.achievement}</span>` : ''}
+                <div class="card-actions">
+                    ${!isReadOnly ? `<label class="checkbox-wrapper">
+                        <input type="checkbox" ${isOwned ? 'checked' : ''} onchange="toggleOwned('${qb.name}')">
+                        <span>Owned</span>
+                    </label>` : (isOwned ? '<span class="owned-badge">✓ Owned</span>' : '<span></span>')}
+                    <span class="links">
+                        <a href="https://www.ebay.com/sch/i.html?_nkw=${qb.search}&LH_BIN=1&_sop=15" target="_blank">eBay</a>
+                        <a href="https://www.sportscardspro.com/search-products?q=${encodeURIComponent(qb.name + ' rookie')}&type=prices" target="_blank">More</a>
+                    </span>
+                </div>
+            </div>`;
+        }
+
         function render() {
+            const sortBy = document.getElementById('sort-filter').value;
             const eraFilter = document.getElementById('era-filter').value;
             const statusFilter = document.getElementById('status-filter').value;
             const searchTerm = document.getElementById('search').value.toLowerCase();
@@ -584,6 +699,21 @@
             });
 
             const container = document.getElementById('cards-container');
+
+            // For non-default sort, render as flat list
+            if (sortBy !== 'default') {
+                const sorted = sortQbs(filtered, sortBy);
+                let html = '<div class="era-section"><div class="cards-grid">';
+                sorted.forEach(qb => {
+                    html += renderQbCard(qb);
+                });
+                html += '</div></div>';
+                container.innerHTML = html;
+                updateStats(filtered);
+                return;
+            }
+
+            // Default: group by era
             const eras = {
                 gibbs1: { title: "Gibbs Era I (1982-1992) - 3 Super Bowls", cards: [] },
                 wilderness: { title: "Wilderness Years (1993-2003)", cards: [] },
@@ -602,61 +732,9 @@
                 html += `<div class="era-section">
                     <h2 class="era-title">${era.title}</h2>
                     <div class="cards-grid">`;
-
                 era.cards.forEach(qb => {
-                    const isOwned = owned.includes(qb.name);
-
-                    // Special handling for collection link cards
-                    if (qb.collectionLink) {
-                        const jdBadge = jaydenDanielsStats.owned > 0
-                            ? `${jaydenDanielsStats.owned} / ${qb.cardCount}`
-                            : `${qb.cardCount} CARDS`;
-                        html += `<div class="card collection-link" onclick="window.location.href='${qb.collectionLink}'">
-                            <div class="card-image-wrapper">
-                                <span class="collection-badge">${jdBadge}</span>
-                                <div class="card-stack">
-                                    <img src="jayden-daniels-cards/card_00_wm8AAeSw.webp" alt="">
-                                    <img src="jayden-daniels-cards/card_03_MuMAAOSw.webp" alt="">
-                                    <img src="jayden-daniels-cards/card_07_mlEAAeSw.webp" alt="">
-                                </div>
-                            </div>
-                            <div class="player-name">${qb.name}</div>
-                            <div class="player-years">${qb.years} &bull; ${qb.record}</div>
-                            ${qb.playoff !== '-' ? `<div class="player-record">Playoffs: ${qb.playoff}</div>` : ''}
-                            ${qb.achievement ? `<span class="achievement">${qb.achievement}</span>` : ''}
-                            <a href="${qb.collectionLink}" class="collection-cta">View Full Collection →</a>
-                        </div>`;
-                        return;
-                    }
-
-                    const cardClass = `card ${isOwned ? 'owned' : ''} ${qb.superBowl ? 'super-bowl' : ''}`;
-
-                    html += `<div class="${cardClass}">
-                        <div class="card-image-wrapper">
-                            ${qb.superBowl ? '<span class="super-bowl-badge">SUPER BOWL</span>' : ''}
-                            <span class="price-badge">$${Math.max(1, Math.round(qb.price))}</span>
-                            <img class="card-image" src="${qb.img}" alt="${qb.name}" onerror="this.style.display='none'">
-                        </div>
-                        <div class="player-name">${qb.name}</div>
-                        <div class="player-years">${qb.years} &bull; ${qb.record}</div>
-                        ${qb.playoff !== '-' ? `<div class="player-record">Playoffs: ${qb.playoff}</div>` : ''}
-                        <div class="card-info">
-                            <span class="card-set">${qb.set}</span> ${qb.num}
-                        </div>
-                        ${qb.achievement ? `<span class="achievement">${qb.achievement}</span>` : ''}
-                        <div class="card-actions">
-                            ${!isReadOnly ? `<label class="checkbox-wrapper">
-                                <input type="checkbox" ${isOwned ? 'checked' : ''} onchange="toggleOwned('${qb.name}')">
-                                <span>Owned</span>
-                            </label>` : (isOwned ? '<span class="owned-badge">✓ Owned</span>' : '<span></span>')}
-                            <span class="links">
-                                <a href="https://www.ebay.com/sch/i.html?_nkw=${qb.search}&LH_BIN=1&_sop=15" target="_blank">eBay</a>
-                                <a href="https://www.sportscardspro.com/search-products?q=${encodeURIComponent(qb.name + ' rookie')}&type=prices" target="_blank">More</a>
-                            </span>
-                        </div>
-                    </div>`;
+                    html += renderQbCard(qb);
                 });
-
                 html += '</div></div>';
             });
 
@@ -678,6 +756,7 @@
             document.getElementById('total-value').textContent = '$' + Math.round(totalValue);
         }
 
+        document.getElementById('sort-filter').addEventListener('change', render);
         document.getElementById('era-filter').addEventListener('change', render);
         document.getElementById('status-filter').addEventListener('change', render);
         document.getElementById('search').addEventListener('input', render);

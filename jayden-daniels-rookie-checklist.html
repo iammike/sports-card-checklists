@@ -333,6 +333,13 @@
     </div>
 
     <div class="filters">
+        <select id="sort-filter">
+            <option value="default">Sort: Default</option>
+            <option value="year">Sort: Year</option>
+            <option value="set">Sort: Set/Brand</option>
+            <option value="owned">Sort: Owned First</option>
+            <option value="needed">Sort: Needed First</option>
+        </select>
         <select id="status-filter">
             <option value="all">All Cards</option>
             <option value="owned">Owned Only</option>
@@ -341,32 +348,38 @@
         <input type="text" id="search" placeholder="Search cards...">
     </div>
 
+    <!-- SORTED CARDS (shown when sorting is active) -->
+    <div class="section" id="sorted-section" style="display: none;">
+        <div class="section-header">All Cards</div>
+        <div class="card-grid" id="sorted-cards"></div>
+    </div>
+
     <!-- COLLEGE CARDS -->
-    <div class="section">
+    <div class="section default-section">
         <div class="section-header college">2023 College Cards (LSU - Heisman Year)</div>
         <div class="card-grid" id="college-cards"></div>
     </div>
 
     <!-- PANINI 2024 -->
-    <div class="section">
+    <div class="section default-section">
         <div class="section-header">2024 Panini NFL Cards</div>
         <div class="card-grid" id="panini-cards"></div>
     </div>
 
     <!-- TOPPS 2024 -->
-    <div class="section">
+    <div class="section default-section">
         <div class="section-header topps">2024 Topps NFL Cards</div>
         <div class="card-grid" id="topps-cards"></div>
     </div>
 
     <!-- OTHER 2024 -->
-    <div class="section">
+    <div class="section default-section">
         <div class="section-header other">2024 Other Brands</div>
         <div class="card-grid" id="other-cards"></div>
     </div>
 
     <!-- INSERTS 2024 -->
-    <div class="section">
+    <div class="section default-section">
         <div class="section-header inserts">2024 Inserts</div>
         <div class="card-grid" id="insert-cards"></div>
     </div>
@@ -653,16 +666,88 @@
             `;
         }
 
+        function getAllCards() {
+            // Flatten all cards with category info for sorting
+            return [
+                ...cards.college.map(c => ({...c, category: 'college', sortOrder: 0})),
+                ...cards.panini.map(c => ({...c, category: 'panini', sortOrder: 1})),
+                ...cards.topps.map(c => ({...c, category: 'topps', sortOrder: 2})),
+                ...cards.other.map(c => ({...c, category: 'other', sortOrder: 3})),
+                ...cards.inserts.map(c => ({...c, category: 'inserts', sortOrder: 4}))
+            ];
+        }
+
+        function getYear(card) {
+            const match = card.set.match(/^(\d{4})/);
+            return match ? parseInt(match[1]) : 0;
+        }
+
+        function getSetName(card) {
+            return card.set.replace(/^\d{4}\s*/, '').toLowerCase();
+        }
+
+        function sortCards(cardsToSort, sortBy) {
+            const sorted = [...cardsToSort];
+            switch (sortBy) {
+                case 'year':
+                    sorted.sort((a, b) => getYear(a) - getYear(b) || getSetName(a).localeCompare(getSetName(b)));
+                    break;
+                case 'set':
+                    sorted.sort((a, b) => getSetName(a).localeCompare(getSetName(b)));
+                    break;
+                case 'owned':
+                    sorted.sort((a, b) => {
+                        const cardIdA = (a.set + ' ' + a.num).replace(/[^a-zA-Z0-9]/g, '-');
+                        const cardIdB = (b.set + ' ' + b.num).replace(/[^a-zA-Z0-9]/g, '-');
+                        const ownedA = ownedCards.includes(cardIdA) ? 0 : 1;
+                        const ownedB = ownedCards.includes(cardIdB) ? 0 : 1;
+                        return ownedA - ownedB || a.sortOrder - b.sortOrder;
+                    });
+                    break;
+                case 'needed':
+                    sorted.sort((a, b) => {
+                        const cardIdA = (a.set + ' ' + a.num).replace(/[^a-zA-Z0-9]/g, '-');
+                        const cardIdB = (b.set + ' ' + b.num).replace(/[^a-zA-Z0-9]/g, '-');
+                        const ownedA = ownedCards.includes(cardIdA) ? 1 : 0;
+                        const ownedB = ownedCards.includes(cardIdB) ? 1 : 0;
+                        return ownedA - ownedB || a.sortOrder - b.sortOrder;
+                    });
+                    break;
+                default:
+                    sorted.sort((a, b) => a.sortOrder - b.sortOrder);
+            }
+            return sorted;
+        }
+
         function renderCards() {
-            document.getElementById('college-cards').innerHTML = cards.college.map(createCardElement).join('');
-            document.getElementById('panini-cards').innerHTML = cards.panini.map(createCardElement).join('');
-            document.getElementById('topps-cards').innerHTML = cards.topps.map(createCardElement).join('');
-            document.getElementById('other-cards').innerHTML = cards.other.map(createCardElement).join('');
-            document.getElementById('insert-cards').innerHTML = cards.inserts.map(createCardElement).join('');
+            const sortBy = document.getElementById('sort-filter').value;
+            const defaultSections = document.querySelectorAll('.default-section');
+            const sortedSection = document.getElementById('sorted-section');
+
+            if (sortBy === 'default') {
+                // Show default sections, hide sorted section
+                defaultSections.forEach(s => s.style.display = '');
+                sortedSection.style.display = 'none';
+
+                document.getElementById('college-cards').innerHTML = cards.college.map(createCardElement).join('');
+                document.getElementById('panini-cards').innerHTML = cards.panini.map(createCardElement).join('');
+                document.getElementById('topps-cards').innerHTML = cards.topps.map(createCardElement).join('');
+                document.getElementById('other-cards').innerHTML = cards.other.map(createCardElement).join('');
+                document.getElementById('insert-cards').innerHTML = cards.inserts.map(createCardElement).join('');
+            } else {
+                // Hide default sections, show sorted section
+                defaultSections.forEach(s => s.style.display = 'none');
+                sortedSection.style.display = '';
+
+                const allCards = getAllCards();
+                const sorted = sortCards(allCards, sortBy);
+                document.getElementById('sorted-cards').innerHTML = sorted.map(createCardElement).join('');
+            }
             updateStats();
         }
 
         // Set up filter event listeners
+        document.getElementById('sort-filter').addEventListener('change', renderCards);
         document.getElementById('status-filter').addEventListener('change', applyFilters);
         document.getElementById('search').addEventListener('input', applyFilters);
 
