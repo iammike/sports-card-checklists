@@ -290,18 +290,6 @@
     </div>
 
     <div class="filters">
-        <select id="price-filter">
-            <option value="all">All Prices</option>
-            <option value="cheap">Under $3</option>
-            <option value="mid">$3-$10</option>
-            <option value="high">$10+</option>
-        </select>
-        <select id="type-filter">
-            <option value="all">All Types</option>
-            <option value="base">Base Only</option>
-            <option value="parallel">Parallels</option>
-            <option value="insert">Inserts</option>
-        </select>
         <select id="status-filter">
             <option value="all">All Cards</option>
             <option value="owned">Owned Only</option>
@@ -341,87 +329,45 @@
 
     <script src="github-sync.js"></script>
     <script>
+        // BASE CARDS ONLY - no parallels or inserts
         const cards = {
             college: [
-                // Verified 2023 college cards that actually exist for Jayden Daniels
                 { set: "2023 SAGE", num: "#8", name: "Base", type: "Base", search: "jayden+daniels+2023+sage+8", img: "jayden-daniels-cards/card_2023_sage_base.webp" },
-                { set: "2023 Leaf Trinity", num: "#98", name: "Base RC", type: "Base", search: "jayden+daniels+2023+leaf+trinity+98", img: "jayden-daniels-cards/card_2023_leaf_trinity_base.webp" },
+                { set: "2023 Leaf Trinity", num: "#98", name: "Base", type: "Base", search: "jayden+daniels+2023+leaf+trinity+98", img: "jayden-daniels-cards/card_2023_leaf_trinity_base.webp" },
             ],
             panini: [
-                { set: "2024 Score", num: "#302", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+score+302", img: "jayden-daniels-cards/card_04_T-QAAeSw.webp" },
-                { set: "2024 Score", num: "#302", name: "Gold Zone", type: "Parallel", search: "jayden+daniels+2024+score+gold+zone", img: "jayden-daniels-cards/card_05_-wAAAeSw.webp" },
-                { set: "2024 Score", num: "#302", name: "End Zone", type: "Parallel", search: "jayden+daniels+2024+score+end+zone", img: "jayden-daniels-cards/card_jayden_daniels_2024_score_end_zone.webp" },
-                { set: "2024 Score 35th Anniversary", num: "#2", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+score+35th+anniversary+2", img: "jayden-daniels-cards/card_2024_score_35th_anniversary.webp" },
-                { set: "2024 Donruss", num: "#389", name: "Rated Rookie", type: "Base RC", search: "jayden+daniels+2024+donruss+rated+rookie+389", img: "jayden-daniels-cards/card_06_xRQAAeSw.webp" },
-                { set: "2024 Donruss", num: "#389", name: "Press Proof Blue", type: "Parallel", search: "jayden+daniels+2024+donruss+press+proof+blue", img: "jayden-daniels-cards/card_jayden_daniels_2024_donruss_press_p.webp" },
-                { set: "2024 Donruss", num: "", name: "The Rookies", type: "Insert", search: "jayden+daniels+2024+donruss+the+rookies", img: "jayden-daniels-cards/card_07_mlEAAeSw.webp" },
-                { set: "2024 Donruss", num: "", name: "Downtown", type: "Insert SSP", search: "jayden+daniels+2024+donruss+downtown", img: "jayden-daniels-cards/card_08_Ho4AAeSw.webp" },
-                { set: "2024 Donruss Optic", num: "", name: "Rated Rookie", type: "Base RC", search: "jayden+daniels+2024+donruss+optic+rated+rookie", img: "jayden-daniels-cards/card_09_IHoAAeSw.webp" },
-                { set: "2024 Donruss Optic", num: "", name: "Holo", type: "Parallel", search: "jayden+daniels+2024+donruss+optic+holo", img: "jayden-daniels-cards/card_10_vZwAAeSw.webp" },
-                { set: "2024 Donruss Optic", num: "", name: "Purple Shock", type: "Parallel", search: "jayden+daniels+2024+donruss+optic+purple+shock", img: "jayden-daniels-cards/card_jayden_daniels_2024_donruss_optic_p.webp" },
-                { set: "2024 Prizm", num: "#347", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+prizm+347+base", img: "jayden-daniels-cards/card_11_lBUAAeSw.webp" },
-                { set: "2024 Prizm", num: "#347", name: "Silver", type: "Parallel", search: "jayden+daniels+2024+prizm+silver", img: "jayden-daniels-cards/card_12_n-gAAeSw.webp" },
-                { set: "2024 Prizm", num: "#347", name: "Red White Blue", type: "Parallel", search: "jayden+daniels+2024+prizm+red+white+blue", img: "jayden-daniels-cards/card_jayden_daniels_2024_prizm_red_white.webp" },
-                { set: "2024 Prizm", num: "#347", name: "Blue /199", type: "Parallel", search: "jayden+daniels+2024+prizm+blue+199", img: "jayden-daniels-cards/card_jayden_daniels_2024_prizm_blue_199.webp" },
-                { set: "2024 Prizm", num: "#347", name: "Green /75", type: "Parallel", search: "jayden+daniels+2024+prizm+green", img: "jayden-daniels-cards/card_jayden_daniels_2024_prizm_green.webp" },
-                { set: "2024 Prizm", num: "", name: "Rookie Introductions", type: "Insert", search: "jayden+daniels+2024+prizm+rookie+introductions", img: "jayden-daniels-cards/card_13_fq8AAeSw.webp" },
-                { set: "2024 Select", num: "#47", name: "Concourse", type: "Base RC", search: "jayden+daniels+2024+select+concourse", img: "jayden-daniels-cards/card_14_4LwAAeSw.webp" },
-                { set: "2024 Select", num: "#147", name: "Premier Level", type: "Base RC", search: "jayden+daniels+2024+select+premier+level", img: "jayden-daniels-cards/card_15_MAkAAeSw.webp" },
-                { set: "2024 Select", num: "#247", name: "Club Level", type: "Base RC", search: "jayden+daniels+2024+select+club+level", img: "jayden-daniels-cards/card_select_club_fix.webp" },
-                { set: "2024 Select", num: "", name: "Silver Prizm", type: "Parallel", search: "jayden+daniels+2024+select+silver+prizm", img: "jayden-daniels-cards/card_jayden_daniels_2024_select_silver_p.webp" },
-                { set: "2024 Select", num: "", name: "Tie-Dye /25", type: "Parallel", search: "jayden+daniels+2024+select+tie+dye", img: "jayden-daniels-cards/card_jayden_daniels_2024_select_tie_dye.webp" },
-                { set: "2024 Mosaic", num: "", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+mosaic+base+rookie", img: "jayden-daniels-cards/card_17_eggAAeSw.webp" },
-                { set: "2024 Mosaic", num: "", name: "Silver Prizm", type: "Parallel", search: "jayden+daniels+2024+mosaic+silver", img: "jayden-daniels-cards/card_18_IAQAAeSw.webp" },
-                { set: "2024 Mosaic", num: "", name: "Pink Camo", type: "Parallel", search: "jayden+daniels+2024+mosaic+pink+camo", img: "jayden-daniels-cards/card_jayden_daniels_2024_mosaic_pink_cam.webp" },
-                { set: "2024 Mosaic", num: "#272", name: "NFL Debut", type: "Insert", search: "jayden+daniels+2024+mosaic+nfl+debut", img: "jayden-daniels-cards/card_19_alwAAeSw.webp" },
-                { set: "2024 Absolute", num: "#102", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+absolute+102", img: "jayden-daniels-cards/card_20_HoAAAeSw.webp" },
-                { set: "2024 Absolute", num: "", name: "Retail Yellow", type: "Parallel", search: "jayden+daniels+2024+absolute+yellow", img: "jayden-daniels-cards/card_jayden_daniels_2024_absolute_yellow.webp" },
-                { set: "2024 Absolute", num: "", name: "Star Gazing", type: "Insert", search: "jayden+daniels+2024+absolute+star+gazing", img: "jayden-daniels-cards/card_21_S7cAAeSw.webp" },
-                { set: "2024 Absolute", num: "", name: "Introductions", type: "Insert", search: "jayden+daniels+2024+absolute+introductions", img: "jayden-daniels-cards/card_jayden_daniels_2024_absolute_introd.webp" },
+                { set: "2024 Score", num: "#302", name: "Base", type: "Base RC", search: "jayden+daniels+2024+score+302", img: "https://storage.googleapis.com/images.pricecharting.com/biirejxdw6e5ygrq/400.jpg" },
+                { set: "2024 Score 35th Anniversary", num: "#2", name: "Base", type: "Base RC", search: "jayden+daniels+2024+score+35th+anniversary+2", img: "https://storage.googleapis.com/images.pricecharting.com/ppwfnrvpczxu2qc5/400.jpg" },
+                { set: "2024 Donruss", num: "#389", name: "Rated Rookie", type: "Base RC", search: "jayden+daniels+2024+donruss+389", img: "jayden-daniels-cards/card_06_xRQAAeSw.webp" },
+                { set: "2024 Donruss Optic", num: "#248", name: "Rated Rookie", type: "Base RC", search: "jayden+daniels+2024+donruss+optic+248", img: "jayden-daniels-cards/card_09_IHoAAeSw.webp" },
+                { set: "2024 Prizm", num: "#347", name: "Base", type: "Base RC", search: "jayden+daniels+2024+prizm+347", img: "https://storage.googleapis.com/images.pricecharting.com/vqxwiyzykvqizxes/400.jpg" },
+                { set: "2024 Prizm Draft Picks", num: "#108", name: "Base", type: "Base RC", search: "jayden+daniels+2024+prizm+draft+picks+108", img: "https://storage.googleapis.com/images.pricecharting.com/corrha3nooihpsekytnr/400.jpg" },
+                { set: "2024 Select", num: "#26", name: "Concourse", type: "Base RC", search: "jayden+daniels+2024+select+26", img: "https://storage.googleapis.com/images.pricecharting.com/f4gbujrmiafmn226/400.jpg" },
+                { set: "2024 Mosaic", num: "#302", name: "Base", type: "Base RC", search: "jayden+daniels+2024+mosaic+302", img: "https://storage.googleapis.com/images.pricecharting.com/jsalckgalouyd75k/400.jpg" },
+                { set: "2024 Absolute", num: "#102", name: "Base", type: "Base RC", search: "jayden+daniels+2024+absolute+102", img: "jayden-daniels-cards/card_20_HoAAAeSw.webp" },
                 { set: "2024 Contenders", num: "", name: "Rookie Ticket", type: "Base RC", search: "jayden+daniels+2024+contenders+rookie+ticket", img: "jayden-daniels-cards/card_22_tUcAAeSw.webp" },
-                { set: "2024 Contenders", num: "", name: "Draft Class", type: "Insert", search: "jayden+daniels+2024+contenders+draft+class", img: "jayden-daniels-cards/card_jayden_daniels_2024_contenders_draf.webp" },
-                { set: "2024 Contenders", num: "", name: "Rookie Stallions", type: "Insert", search: "jayden+daniels+2024+contenders+rookie+stallions", img: "jayden-daniels-cards/card_jayden_daniels_2024_contenders_rook.webp" },
-                { set: "2024 Phoenix", num: "", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+phoenix+base+rookie", img: "jayden-daniels-cards/card_23_s0IAAeSw.webp" },
-                { set: "2024 Phoenix", num: "", name: "Fire Burst", type: "Parallel", search: "jayden+daniels+2024+phoenix+fire+burst", img: "jayden-daniels-cards/card_jayden_daniels_2024_phoenix_fire_bu.webp" },
-                { set: "2024 Phoenix", num: "", name: "Rookie Rising", type: "Insert", search: "jayden+daniels+2024+phoenix+rookie+rising", img: "jayden-daniels-cards/card_24_3zMAAeSw.webp" },
-                { set: "2024 Prestige", num: "", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+prestige+rookie", img: "jayden-daniels-cards/card_25_4vYAAeSw.webp" },
-                { set: "2024 Prestige", num: "", name: "Xtra Points Blue", type: "Parallel", search: "jayden+daniels+2024+prestige+xtra+points", img: "jayden-daniels-cards/card_jayden_daniels_2024_prestige_xtra_p.webp" },
+                { set: "2024 Phoenix", num: "#198", name: "Base", type: "Base RC", search: "jayden+daniels+2024+phoenix+198", img: "https://storage.googleapis.com/images.pricecharting.com/2qcux22c2ijctv5x/400.jpg" },
+                { set: "2024 Prestige", num: "#302", name: "Base", type: "Base RC", search: "jayden+daniels+2024+prestige+302", img: "https://storage.googleapis.com/images.pricecharting.com/llvhbd2nil6giteu/400.jpg" },
                 { set: "2024 Chronicles", num: "", name: "Base", type: "Base RC", search: "jayden+daniels+2024+chronicles+base", img: "jayden-daniels-cards/card_26_NhkAAeSw.webp" },
-                { set: "2024 Chronicles", num: "", name: "Playoff", type: "Insert", search: "jayden+daniels+2024+chronicles+playoff", img: "jayden-daniels-cards/card_27_5CUAAeSw.webp" },
-                { set: "2024 Certified", num: "", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+certified+rookie", img: "jayden-daniels-cards/card_28_PpcAAeSw.webp" },
-                { set: "2024 Certified", num: "", name: "Mirror", type: "Parallel", search: "jayden+daniels+2024+certified+mirror", img: "jayden-daniels-cards/card_jayden_daniels_2024_certified_mirro.webp" },
-                { set: "2024 Luminance", num: "", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+luminance+rookie", img: "jayden-daniels-cards/card_29_-ysAAeSw.webp" },
-                { set: "2024 Origins", num: "#144", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+origins+144", img: "jayden-daniels-cards/card_30_dpoAAeSw.webp" },
-                { set: "2024 Origins", num: "", name: "Turquoise /75", type: "Parallel", search: "jayden+daniels+2024+origins+turquoise", img: "jayden-daniels-cards/card_jayden_daniels_2024_origins_turquoi.webp" },
-                { set: "2024 Origins", num: "", name: "Hometown Roots", type: "Insert", search: "jayden+daniels+2024+origins+hometown+roots", img: "jayden-daniels-cards/card_31_OvoAAeSw.webp" },
-                { set: "2024 Rookies & Stars", num: "", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+rookies+stars+base", img: "jayden-daniels-cards/card_32_FnsAAOSw.webp" },
-                { set: "2024 Rookies & Stars", num: "", name: "Crusade", type: "Insert", search: "jayden+daniels+2024+rookies+stars+crusade", img: "jayden-daniels-cards/card_33_uWkAAOSw.webp" },
-                { set: "2024 Rookies & Stars", num: "", name: "Longevity", type: "Parallel", search: "jayden+daniels+2024+rookies+stars+longevity", img: "jayden-daniels-cards/card_jayden_daniels_2024_rookies_stars_l.webp" },
-                { set: "2024 Totally Certified", num: "", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+totally+certified+rookie", img: "jayden-daniels-cards/card_34_5pwAAeSw.webp" },
-                { set: "2024 Totally Certified", num: "", name: "Franchise Foundation", type: "Insert", search: "jayden+daniels+2024+totally+certified+franchise", img: "jayden-daniels-cards/card_jayden_daniels_2024_totally_certifi.webp" },
-                { set: "2024 Zenith", num: "", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+zenith+rookie", img: "jayden-daniels-cards/card_jayden_daniels_2024_zenith_rookie.webp" },
-                { set: "2024 Zenith", num: "", name: "First Look", type: "Insert", search: "jayden+daniels+2024+zenith+first+look", img: "jayden-daniels-cards/card_36_2PMAAeSw.webp" },
+                { set: "2024 Certified", num: "", name: "Base", type: "Base RC", search: "jayden+daniels+2024+certified+base", img: "jayden-daniels-cards/card_28_PpcAAeSw.webp" },
+                { set: "2024 Luminance", num: "", name: "Base", type: "Base RC", search: "jayden+daniels+2024+luminance+base", img: "jayden-daniels-cards/card_29_-ysAAeSw.webp" },
+                { set: "2024 Origins", num: "#144", name: "Base", type: "Base RC", search: "jayden+daniels+2024+origins+144", img: "jayden-daniels-cards/card_30_dpoAAeSw.webp" },
+                { set: "2024 Rookies & Stars", num: "", name: "Base", type: "Base RC", search: "jayden+daniels+2024+rookies+stars+base", img: "jayden-daniels-cards/card_32_FnsAAOSw.webp" },
+                { set: "2024 Totally Certified", num: "", name: "Base", type: "Base RC", search: "jayden+daniels+2024+totally+certified+base", img: "jayden-daniels-cards/card_34_5pwAAeSw.webp" },
+                { set: "2024 Zenith", num: "#148", name: "Base", type: "Base RC", search: "jayden+daniels+2024+zenith+148", img: "https://storage.googleapis.com/images.pricecharting.com/corrscvhckgkxhbcc7ck/400.jpg" },
+                { set: "2024 Illusions", num: "#93", name: "Base", type: "Base RC", search: "jayden+daniels+2024+illusions+93", img: "https://storage.googleapis.com/images.pricecharting.com/uevip6vykk6o4if5/400.jpg" },
             ],
             topps: [
-                { set: "2024 Topps Chrome", num: "#201", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+topps+chrome+201", img: "jayden-daniels-cards/card_37_BFIAAeSw.webp" },
-                { set: "2024 Topps Chrome", num: "#201", name: "Refractor", type: "Parallel", search: "jayden+daniels+2024+topps+chrome+refractor", img: "jayden-daniels-cards/card_jayden_daniels_2024_topps_chrome_re.webp" },
-                { set: "2024 Topps Chrome", num: "#201", name: "Pink Refractor", type: "Parallel", search: "jayden+daniels+2024+topps+chrome+pink+refractor", img: "jayden-daniels-cards/card_jayden_daniels_2024_topps_chrome_pi.webp" },
-                { set: "2024 Topps Chrome", num: "#201", name: "Gold /50", type: "Parallel", search: "jayden+daniels+2024+topps+chrome+gold+refractor", img: "jayden-daniels-cards/card_jayden_daniels_2024_topps_chrome_go.webp" },
+                { set: "2024 Topps Chrome", num: "#201", name: "Base", type: "Base RC", search: "jayden+daniels+2024+topps+chrome+201", img: "https://storage.googleapis.com/images.pricecharting.com/cno2vffqtkgivbuz/400.jpg" },
                 { set: "2024 Topps Now", num: "#23", name: "NFL Debut", type: "Base", search: "jayden+daniels+2024+topps+now+23", img: "jayden-daniels-cards/card_39_fA4AAeSw.webp" },
-                { set: "2024 Topps Now", num: "", name: "Playoff Moments", type: "Base", search: "jayden+daniels+2024+topps+now+playoff", img: "jayden-daniels-cards/card_jayden_daniels_2024_topps_now_playo.webp" },
-                { set: "2024 Topps Now", num: "", name: "OROY Award", type: "Base", search: "jayden+daniels+2024+topps+now+oroy", img: "jayden-daniels-cards/card_jayden_daniels_2024_topps_now_oroy.webp" },
-                { set: "2024 Topps Cosmic Chrome", num: "", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+topps+cosmic+chrome", img: "jayden-daniels-cards/card_40_ifwAAeSw.webp" },
-                { set: "2024 Topps Cosmic Chrome", num: "", name: "Planetary Pursuit", type: "Insert", search: "jayden+daniels+2024+cosmic+chrome+planetary+pursuit", img: "jayden-daniels-cards/card_jayden_daniels_2024_cosmic_chrome_p.webp" },
+                { set: "2024 Topps Cosmic Chrome", num: "", name: "Base", type: "Base RC", search: "jayden+daniels+2024+topps+cosmic+chrome", img: "jayden-daniels-cards/card_40_ifwAAeSw.webp" },
+                { set: "2024 Topps Resurgence", num: "#196", name: "Base", type: "Base RC", search: "jayden+daniels+2024+topps+resurgence+196", img: "https://storage.googleapis.com/images.pricecharting.com/6z6mml7xalsmmgx5/400.jpg" },
+                { set: "2024 Topps Signature Class", num: "#194", name: "Base", type: "Base RC", search: "jayden+daniels+2024+topps+signature+class+194", img: "https://storage.googleapis.com/images.pricecharting.com/l4qa234umlrtvtvp/400.jpg" },
             ],
             other: [
-                { set: "2024 Leaf Metal", num: "", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+leaf+metal", img: "jayden-daniels-cards/card_41_lIsAAeSw.webp" },
-                { set: "2024 Leaf Trinity", num: "", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+leaf+trinity", img: "jayden-daniels-cards/card_42_Fj8AAeSw.webp" },
-                { set: "2024 Leaf Hype!", num: "", name: "Base", type: "Base", search: "jayden+daniels+2024+leaf+hype", img: "jayden-daniels-cards/card_leaf_hype_fix.webp" },
-                { set: "2024 Leaf Vaunted", num: "", name: "Base", type: "Base", search: "jayden+daniels+2024+leaf+vaunted", img: "jayden-daniels-cards/card_jayden_daniels_2024_leaf_vaunted.webp" },
-                { set: "2024 SAGE Hit", num: "", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+sage+hit", img: "jayden-daniels-cards/card_44_C2MAAeSw.webp" },
-                { set: "2024 SAGE Hit", num: "", name: "Gold", type: "Parallel", search: "jayden+daniels+2024+sage+hit+gold", img: "jayden-daniels-cards/card_jayden_daniels_2024_sage_hit_gold.webp" },
-                // NOTE: Wild Card as standalone brand may not exist for Jayden Daniels - needs verification
-                // { set: "2024 Wild Card", num: "", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+wild+card", img: "" },
+                { set: "2024 Leaf Metal", num: "", name: "Base", type: "Base RC", search: "jayden+daniels+2024+leaf+metal", img: "jayden-daniels-cards/card_41_lIsAAeSw.webp" },
+                { set: "2024 Leaf Trinity", num: "", name: "Base", type: "Base RC", search: "jayden+daniels+2024+leaf+trinity", img: "jayden-daniels-cards/card_42_Fj8AAeSw.webp" },
+                { set: "2024 SAGE Hit", num: "", name: "Base", type: "Base RC", search: "jayden+daniels+2024+sage+hit", img: "jayden-daniels-cards/card_44_C2MAAeSw.webp" },
             ]
         };
 
@@ -462,25 +408,13 @@
         }
 
         function applyFilters() {
-            const priceFilter = document.getElementById('price-filter').value;
-            const typeFilter = document.getElementById('type-filter').value;
             const statusFilter = document.getElementById('status-filter').value;
             const searchTerm = document.getElementById('search').value.toLowerCase();
 
             document.querySelectorAll('.card').forEach(c => {
-                const price = parseFloat(c.dataset.price);
-                const type = c.dataset.type;
                 const owned = c.classList.contains('owned');
                 const cardText = c.textContent.toLowerCase();
                 let show = true;
-                // Price filter
-                if (priceFilter === 'cheap' && price >= 3) show = false;
-                if (priceFilter === 'mid' && (price < 3 || price >= 10)) show = false;
-                if (priceFilter === 'high' && price < 10) show = false;
-                // Type filter
-                if (typeFilter === 'base' && !type.includes('Base')) show = false;
-                if (typeFilter === 'parallel' && !type.includes('Parallel')) show = false;
-                if (typeFilter === 'insert' && !type.includes('Insert')) show = false;
                 // Status filter
                 if (statusFilter === 'owned' && !owned) show = false;
                 if (statusFilter === 'need' && owned) show = false;
@@ -677,8 +611,6 @@
         }
 
         // Set up filter event listeners
-        document.getElementById('price-filter').addEventListener('change', applyFilters);
-        document.getElementById('type-filter').addEventListener('change', applyFilters);
         document.getElementById('status-filter').addEventListener('change', applyFilters);
         document.getElementById('search').addEventListener('input', applyFilters);
 
