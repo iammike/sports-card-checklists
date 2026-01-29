@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Washington Redskins/Commanders QB Rookie Cards (1982-2025)</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #5A1414 0%, #2a0a0a 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #fff;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        h1 {
+            text-align: center;
+            font-size: 2em;
+            margin-bottom: 5px;
+            color: #FFB612;
+        }
+        .subtitle {
+            text-align: center;
+            color: #ccc;
+            margin-bottom: 20px;
+        }
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .stat {
+            text-align: center;
+            background: rgba(255,255,255,0.1);
+            padding: 15px 25px;
+            border-radius: 10px;
+        }
+        .stat-value { font-size: 2em; font-weight: bold; color: #FFB612; }
+        .stat-label { font-size: 0.85em; color: #aaa; }
+        .filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        select, input[type="text"] {
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            font-size: 14px;
+        }
+        .era-section {
+            margin-bottom: 30px;
+        }
+        .era-title {
+            font-size: 1.3em;
+            color: #FFB612;
+            margin-bottom: 15px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid rgba(255,182,18,0.3);
+        }
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 12px;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .card:hover {
+            border-color: rgba(255,182,18,0.5);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .card.owned {
+            border-color: #27ae60;
+            background: rgba(39,174,96,0.15);
+        }
+        .card.super-bowl {
+            background: rgba(255,215,0,0.1);
+        }
+        .card.super-bowl.owned {
+            background: rgba(39,174,96,0.2);
+        }
+        .card-image-wrapper {
+            position: relative;
+            width: 100%;
+            padding-top: 140%;
+            margin-bottom: 10px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .card-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: #1a1a1a;
+        }
+        .card-image.no-image {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-size: 0.8em;
+        }
+        .price-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: bold;
+            z-index: 1;
+        }
+        .super-bowl-badge {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: linear-gradient(135deg, #f1c40f, #f39c12);
+            color: #000;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.65em;
+            font-weight: bold;
+            z-index: 1;
+        }
+        .player-name {
+            font-size: 1em;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 2px;
+        }
+        .player-years {
+            font-size: 0.75em;
+            color: #888;
+        }
+        .player-record {
+            font-size: 0.7em;
+            color: #aaa;
+        }
+        .card-info {
+            font-size: 0.75em;
+            color: #bbb;
+            margin: 6px 0;
+        }
+        .card-set {
+            color: #FFB612;
+        }
+        .achievement {
+            display: inline-block;
+            background: rgba(255,182,18,0.2);
+            color: #FFB612;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.65em;
+            margin-top: 4px;
+        }
+        .card-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+        .checkbox-wrapper input {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+        .links a {
+            color: #3498db;
+            text-decoration: none;
+            font-size: 0.75em;
+            margin-left: 8px;
+        }
+        .links a:hover { text-decoration: underline; }
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding: 20px;
+            color: #666;
+            font-size: 0.85em;
+        }
+        @media (max-width: 600px) {
+            .cards-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+            h1 { font-size: 1.5em; }
+            .card { padding: 8px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Washington Redskins/Commanders</h1>
+        <p class="subtitle">Starting QB Rookie Cards (1982-2025)</p>
+
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-value" id="owned-count">0</div>
+                <div class="stat-label">Owned</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="total-count">0</div>
+                <div class="stat-label">Total Cards</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="total-value">$0</div>
+                <div class="stat-label">Est. Raw Value</div>
+            </div>
+        </div>
+
+        <div class="filters">
+            <select id="era-filter">
+                <option value="all">All Eras</option>
+                <option value="gibbs1">Gibbs Era I (1982-1992)</option>
+                <option value="wilderness">Wilderness Years (1993-2003)</option>
+                <option value="gibbs2">Gibbs Era II (2004-2007)</option>
+                <option value="snyder">Snyder Era (2008-2019)</option>
+                <option value="modern">Modern Era (2020-2025)</option>
+            </select>
+            <select id="status-filter">
+                <option value="all">All Cards</option>
+                <option value="owned">Owned Only</option>
+                <option value="needed">Needed Only</option>
+            </select>
+            <input type="text" id="search" placeholder="Search player...">
+        </div>
+
+        <div id="cards-container"></div>
+
+        <footer>
+            <p>Prices are estimates for raw/ungraded cards. Data from SportsCardsPro.</p>
+            <p>Super Bowl champions highlighted with gold badge.</p>
+        </footer>
+    </div>
+
+    <script>
+        const qbs = [
+            // Gibbs Era I (1982-1992) - 3 Super Bowls
+            { name: "Joe Theismann", years: "1982-1985", record: "39-13", playoff: "4-1", era: "gibbs1", set: "1975 Topps", num: "#416", price: 14.50, img: "washington-qbs-cards/theismann_1975_topps.webp", search: "joe+theismann+1975+topps+416", achievement: "SB XVII, 1983 MVP", superBowl: true },
+            { name: "Jay Schroeder", years: "1986-1987", record: "12-4", playoff: "1-1", era: "gibbs1", set: "1986 Topps", num: "#172", price: 1.79, img: "washington-qbs-cards/schroeder_1986_topps.webp", search: "jay+schroeder+1986+topps+172" },
+            { name: "Doug Williams", years: "1986-1989", record: "9-5", playoff: "4-0", era: "gibbs1", set: "1979 Topps", num: "#48", price: 3.99, img: "washington-qbs-cards/williams_1979_topps.webp", search: "doug+williams+1979+topps+48", achievement: "SB XXII MVP", superBowl: true },
+            { name: "Ed Rubbert", years: "1987", record: "3-0", playoff: "-", era: "gibbs1", set: "1989 Collegiate", num: "#125", price: 3.00, img: "washington-qbs-cards/rubbert_1989_collegiate.webp", search: "ed+rubbert+1989+collegiate+collection+louisville", achievement: "3-0 in '87 strike" },
+            { name: "Mark Rypien", years: "1988-1993", record: "42-24", playoff: "4-2", era: "gibbs1", set: "1989 Score", num: "#105", price: 1.81, img: "washington-qbs-cards/rypien_1989_score.webp", search: "mark+rypien+1989+score+105", achievement: "SB XXVI MVP", superBowl: true },
+            { name: "Cary Conklin", years: "1990-1991", record: "0-2", playoff: "-", era: "gibbs1", set: "1990 Score", num: "#645", price: 1.34, img: "washington-qbs-cards/conklin_1990_score.webp", search: "cary+conklin+1990+score+645" },
+
+            // Wilderness Years (1993-2003)
+            { name: "Rich Gannon", years: "1993", record: "1-3", playoff: "-", era: "wilderness", set: "1990 Pro Set", num: "#568", price: 1.34, img: "washington-qbs-cards/gannon_1990_proset.webp", search: "rich+gannon+1990+pro+set+568", achievement: "2002 MVP (OAK)" },
+            { name: "John Friesz", years: "1994", record: "1-3", playoff: "-", era: "wilderness", set: "1990 Score", num: "#309", price: 1.54, img: "washington-qbs-cards/friesz_1990_score.webp", search: "john+friesz+1990+score+309" },
+            { name: "Heath Shuler", years: "1994-1996", record: "4-9", playoff: "-", era: "wilderness", set: "1994 Topps", num: "#206", price: 1.74, img: "washington-qbs-cards/shuler_1994_topps.webp", search: "heath+shuler+1994+topps+206", achievement: "#3 Overall Pick" },
+            { name: "Gus Frerotte", years: "1994-1998", record: "19-26-1", playoff: "-", era: "wilderness", set: "1995 Bowman's Best", num: "#4", price: 1.75, img: "washington-qbs-cards/frerotte_1995_bowmans-best.webp", search: "gus+frerotte+1995+bowmans+best+4" },
+            { name: "Jeff Hostetler", years: "1997", record: "2-1", playoff: "-", era: "wilderness", set: "1990 Pro Set", num: "#596", price: 1.74, img: "washington-qbs-cards/hostetler_1990_pro-set.webp", search: "jeff+hostetler+1990+pro+set+596", achievement: "SB XXV (NYG)" },
+            { name: "Trent Green", years: "1998-1999", record: "6-8", playoff: "-", era: "wilderness", set: "1999 Leaf R&S", num: "#179", price: 0.99, img: "washington-qbs-cards/green_1999_leaf-rookies-stars.webp", search: "trent+green+1999+leaf+rookies+stars+179" },
+            { name: "Brad Johnson", years: "1999-2000", record: "17-10", playoff: "1-1", era: "wilderness", set: "1992 Wild Card", num: "#427", price: 3.90, img: "washington-qbs-cards/johnson_1992_wild-card.webp", search: "brad+johnson+1992+wild+card+427", achievement: "SB XXXVII (TB)" },
+            { name: "Jeff George", years: "2000-2001", record: "1-6", playoff: "-", era: "wilderness", set: "1990 Score", num: "#634", price: 0.78, img: "washington-qbs-cards/george_1990_score.webp", search: "jeff+george+1990+score+634", achievement: "#1 Overall Pick" },
+            { name: "Tony Banks", years: "2001-2002", record: "8-6", playoff: "-", era: "wilderness", set: "1996 Leaf", num: "#176", price: 1.06, img: "washington-qbs-cards/banks_1996_leaf.webp", search: "tony+banks+1996+leaf+176" },
+            { name: "Shane Matthews", years: "2002", record: "3-4", playoff: "-", era: "wilderness", set: "2001 UD Rookie F/X", num: "#158", price: 0.25, img: "washington-qbs-cards/matthews_2001_upper-deck-rookie-fx.webp", search: "shane+matthews+2001+upper+deck+rookie+fx+158" },
+            { name: "Danny Wuerffel", years: "2002", record: "2-2", playoff: "-", era: "wilderness", set: "1997 Ultra", num: "#226", price: 1.30, img: "washington-qbs-cards/wuerffel_1997_ultra.webp", search: "danny+wuerffel+1997+ultra+226", achievement: "1996 Heisman" },
+            { name: "Patrick Ramsey", years: "2002-2005", record: "10-14", playoff: "-", era: "wilderness", set: "2002 Bowman", num: "#150", price: 1.49, img: "washington-qbs-cards/ramsey_2002_bowman.webp", search: "patrick+ramsey+2002+bowman+150" },
+            { name: "Tim Hasselbeck", years: "2003-2004", record: "1-4", playoff: "-", era: "wilderness", set: "2001 Topps", num: "#367", price: 1.77, img: "washington-qbs-cards/hasselbeck_2001_topps.webp", search: "tim+hasselbeck+2001+topps+367" },
+
+            // Gibbs Era II (2004-2007)
+            { name: "Mark Brunell", years: "2004-2006", record: "15-18", playoff: "1-1", era: "gibbs2", set: "1993 SP", num: "#91", price: 1.99, img: "washington-qbs-cards/brunell_1993_sp.webp", search: "mark+brunell+1993+sp+91" },
+            { name: "Jason Campbell", years: "2006-2009", record: "20-32", playoff: "-", era: "gibbs2", set: "2005 Topps", num: "#412", price: 1.75, img: "washington-qbs-cards/campbell_2005_topps.webp", search: "jason+campbell+2005+topps+412" },
+            { name: "Todd Collins", years: "2007", record: "3-0", playoff: "0-1", era: "gibbs2", set: "1995 Topps", num: "#240", price: 0.30, img: "washington-qbs-cards/collins_1995_topps.webp", search: "todd+collins+1995+topps+240" },
+
+            // Snyder Era (2008-2019)
+            { name: "Donovan McNabb", years: "2010", record: "5-8", playoff: "-", era: "snyder", set: "1999 Topps", num: "#341", price: 1.54, img: "washington-qbs-cards/mcnabb_1999_topps.webp", search: "donovan+mcnabb+1999+topps+341", achievement: "6x Pro Bowl" },
+            { name: "Rex Grossman", years: "2010-2011", record: "6-10", playoff: "-", era: "snyder", set: "2003 Leaf R&S", num: "#98", price: 1.00, img: "washington-qbs-cards/grossman_2003_leaf-rookies-stars.webp", search: "rex+grossman+2003+leaf+rookies+stars+98", achievement: "SB XLI (CHI)" },
+            { name: "John Beck", years: "2011", record: "0-3", playoff: "-", era: "snyder", set: "2007 UD First Ed.", num: "#129", price: 1.02, img: "washington-qbs-cards/beck_2007_upper-deck-first-edition.webp", search: "john+beck+2007+upper+deck+first+edition+129" },
+            { name: "Robert Griffin III", years: "2012-2015", record: "14-21", playoff: "0-1", era: "snyder", set: "2012 Topps", num: "#340", price: 1.99, img: "washington-qbs-cards/griffin_2012_topps.webp", search: "robert+griffin+iii+2012+topps+340", achievement: "2012 OROY" },
+            { name: "Kirk Cousins", years: "2012-2017", record: "26-30-1", playoff: "0-1", era: "snyder", set: "2012 Topps", num: "#326", price: 1.63, img: "washington-qbs-cards/cousins_2012_topps.webp", search: "kirk+cousins+2012+topps+326", achievement: "4x Pro Bowl" },
+            { name: "Colt McCoy", years: "2014-2019", record: "1-6", playoff: "-", era: "snyder", set: "2010 Score", num: "#18", price: 1.10, img: "washington-qbs-cards/mccoy_2010_score.webp", search: "colt+mccoy+2010+score+hot+rookies+18" },
+            { name: "Alex Smith", years: "2018-2020", record: "11-5", playoff: "-", era: "snyder", set: "2005 Topps", num: "#371", price: 0.25, img: "washington-qbs-cards/smith_2005_topps.webp", search: "alex+smith+2005+topps+371", achievement: "2020 CPOY" },
+            { name: "Case Keenum", years: "2019", record: "1-7", playoff: "-", era: "snyder", set: "2012 Panini R&S", num: "#159", price: 1.03, img: "washington-qbs-cards/keenum_2012_panini-rookies-stars.webp", search: "case+keenum+2012+panini+rookies+stars+159" },
+            { name: "Dwayne Haskins", years: "2019-2020", record: "3-10", playoff: "-", era: "snyder", set: "2019 Score", num: "#332", price: 1.25, img: "washington-qbs-cards/haskins_2019_score.webp", search: "dwayne+haskins+2019+score+332", achievement: "1st Rd Pick, RIP" },
+
+            // Modern Era (2020-2025)
+            { name: "Ryan Fitzpatrick", years: "2021", record: "0-1", playoff: "-", era: "modern", set: "2005 UD Rookie Debut", num: "#173", price: 1.63, img: "washington-qbs-cards/fitzpatrick_2005_upper-deck-rookie-debut.webp", search: "ryan+fitzpatrick+2005+upper+deck+rookie+debut+173", achievement: "17-year career" },
+            { name: "Taylor Heinicke", years: "2020-2022", record: "12-11-1", playoff: "0-1", era: "modern", set: "2015 Prizm", num: "#288", price: 1.89, img: "washington-qbs-cards/heinicke_2015_prizm.webp", search: "taylor+heinicke+2015+prizm+288" },
+            { name: "Carson Wentz", years: "2022", record: "2-5", playoff: "-", era: "modern", set: "2016 Donruss", num: "#356", price: 1.73, img: "washington-qbs-cards/wentz_2016_donruss.webp", search: "carson+wentz+2016+donruss+356", achievement: "#2 Overall Pick" },
+            { name: "Sam Howell", years: "2022-2023", record: "5-13", playoff: "-", era: "modern", set: "2022 Score", num: "#305", price: 1.00, img: "washington-qbs-cards/howell_2022_score.webp", search: "sam+howell+2022+score+305" },
+            { name: "Jayden Daniels", years: "2024-2025", record: "14-10", playoff: "2-1", era: "modern", set: "2024 Score", num: "#302", price: 1.50, img: "washington-qbs-cards/daniels_2024_score.webp", search: "jayden+daniels+2024+score+302", achievement: "2024 OROY" },
+            { name: "Marcus Mariota", years: "2025", record: "2-6", playoff: "-", era: "modern", set: "2015 Prizm", num: "#264", price: 1.90, img: "washington-qbs-cards/mariota_2015_prizm.webp", search: "marcus+mariota+2015+prizm+264", achievement: "#2 Overall Pick" },
+            { name: "Josh Johnson", years: "2025", record: "1-1", playoff: "-", era: "modern", set: "2008 Leaf R&S", num: "#234", price: 2.00, img: "washington-qbs-cards/johnson_2008_leaf-rookies-stars.webp", search: "josh+johnson+2008+leaf+rookies+stars+234" },
+        ];
+
+        const STORAGE_KEY = 'washington-qbs-owned';
+        let owned = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+        function saveOwned() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(owned));
+        }
+
+        function toggleOwned(name) {
+            const idx = owned.indexOf(name);
+            if (idx === -1) {
+                owned.push(name);
+            } else {
+                owned.splice(idx, 1);
+            }
+            saveOwned();
+            render();
+        }
+
+        function render() {
+            const eraFilter = document.getElementById('era-filter').value;
+            const statusFilter = document.getElementById('status-filter').value;
+            const searchTerm = document.getElementById('search').value.toLowerCase();
+
+            let filtered = qbs.filter(qb => {
+                if (eraFilter !== 'all' && qb.era !== eraFilter) return false;
+                if (statusFilter === 'owned' && !owned.includes(qb.name)) return false;
+                if (statusFilter === 'needed' && owned.includes(qb.name)) return false;
+                if (searchTerm && !qb.name.toLowerCase().includes(searchTerm)) return false;
+                return true;
+            });
+
+            const container = document.getElementById('cards-container');
+            const eras = {
+                gibbs1: { title: "Gibbs Era I (1982-1992) - 3 Super Bowls", cards: [] },
+                wilderness: { title: "Wilderness Years (1993-2003)", cards: [] },
+                gibbs2: { title: "Gibbs Era II (2004-2007)", cards: [] },
+                snyder: { title: "Snyder Era (2008-2019)", cards: [] },
+                modern: { title: "Modern Era (2020-2025)", cards: [] }
+            };
+
+            filtered.forEach(qb => {
+                eras[qb.era].cards.push(qb);
+            });
+
+            let html = '';
+            Object.entries(eras).forEach(([key, era]) => {
+                if (era.cards.length === 0) return;
+                html += `<div class="era-section">
+                    <h2 class="era-title">${era.title}</h2>
+                    <div class="cards-grid">`;
+
+                era.cards.forEach(qb => {
+                    const isOwned = owned.includes(qb.name);
+                    const cardClass = `card ${isOwned ? 'owned' : ''} ${qb.superBowl ? 'super-bowl' : ''}`;
+
+                    html += `<div class="${cardClass}">
+                        <div class="card-image-wrapper">
+                            ${qb.superBowl ? '<span class="super-bowl-badge">SUPER BOWL</span>' : ''}
+                            <span class="price-badge">~$${qb.price.toFixed(2)}</span>
+                            <img class="card-image" src="${qb.img}" alt="${qb.name}" onerror="this.style.display='none'">
+                        </div>
+                        <div class="player-name">${qb.name}</div>
+                        <div class="player-years">${qb.years} &bull; ${qb.record}</div>
+                        ${qb.playoff !== '-' ? `<div class="player-record">Playoffs: ${qb.playoff}</div>` : ''}
+                        <div class="card-info">
+                            <span class="card-set">${qb.set}</span> ${qb.num}
+                        </div>
+                        ${qb.achievement ? `<span class="achievement">${qb.achievement}</span>` : ''}
+                        <div class="card-actions">
+                            <label class="checkbox-wrapper">
+                                <input type="checkbox" ${isOwned ? 'checked' : ''} onchange="toggleOwned('${qb.name}')">
+                                <span>Owned</span>
+                            </label>
+                            <span class="links">
+                                <a href="https://www.ebay.com/sch/i.html?_nkw=${qb.search}&LH_BIN=1&_sop=15" target="_blank">eBay</a>
+                            </span>
+                        </div>
+                    </div>`;
+                });
+
+                html += '</div></div>';
+            });
+
+            container.innerHTML = html;
+            updateStats();
+        }
+
+        function updateStats() {
+            const ownedCount = qbs.filter(qb => owned.includes(qb.name)).length;
+            const totalCount = qbs.length;
+            const totalValue = qbs.reduce((sum, qb) => sum + qb.price, 0);
+
+            document.getElementById('owned-count').textContent = ownedCount;
+            document.getElementById('total-count').textContent = totalCount;
+            document.getElementById('total-value').textContent = '$' + totalValue.toFixed(2);
+        }
+
+        document.getElementById('era-filter').addEventListener('change', render);
+        document.getElementById('status-filter').addEventListener('change', render);
+        document.getElementById('search').addEventListener('input', render);
+
+        render();
+    </script>
+</body>
+</html>
