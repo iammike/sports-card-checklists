@@ -443,6 +443,7 @@
         const STORAGE_KEY = 'washington-qbs-owned';
         let owned = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
         let syncPending = false;
+        let jaydenDanielsStats = { owned: 0, total: 75 }; // Will be updated from checklist data
 
         async function saveOwned() {
             // Always save to localStorage as backup
@@ -475,6 +476,24 @@
             }
             // Fall back to localStorage
             owned = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        }
+
+        async function loadJaydenDanielsStats() {
+            // Try to load Jayden Daniels checklist data to show owned count
+            try {
+                if (window.githubSync && githubSync.isLoggedIn()) {
+                    const jdOwned = await githubSync.loadChecklist('jayden-daniels');
+                    if (jdOwned) {
+                        jaydenDanielsStats.owned = jdOwned.length;
+                    }
+                } else {
+                    // Fall back to localStorage
+                    const localJD = JSON.parse(localStorage.getItem('jayden-daniels-owned') || '[]');
+                    jaydenDanielsStats.owned = localJD.length;
+                }
+            } catch (e) {
+                console.log('Could not load Jayden Daniels stats');
+            }
         }
 
         function toggleOwned(name) {
@@ -557,9 +576,12 @@
 
                     // Special handling for collection link cards
                     if (qb.collectionLink) {
+                        const jdBadge = jaydenDanielsStats.owned > 0
+                            ? `${jaydenDanielsStats.owned} / ${qb.cardCount}`
+                            : `${qb.cardCount} CARDS`;
                         html += `<div class="card collection-link" onclick="window.location.href='${qb.collectionLink}'">
                             <div class="card-image-wrapper">
-                                <span class="collection-badge">${qb.cardCount} CARDS</span>
+                                <span class="collection-badge">${jdBadge}</span>
                                 <div class="card-stack">
                                     <img src="jayden-daniels-cards/card_00_wm8AAeSw.webp" alt="">
                                     <img src="jayden-daniels-cards/card_03_MuMAAOSw.webp" alt="">
@@ -638,11 +660,13 @@
                     updateAuthUI();
                     if (loggedIn) {
                         await loadOwned();
+                        await loadJaydenDanielsStats();
                         render();
                     }
                 };
             }
             await loadOwned();
+            await loadJaydenDanielsStats();
             render();
         }
         init();
