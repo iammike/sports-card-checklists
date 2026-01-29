@@ -587,11 +587,12 @@
 
         function updateStats() {
             const allCards = document.querySelectorAll('.card');
-            const owned = document.querySelectorAll('.card.owned').length;
+            const visibleCards = document.querySelectorAll('.card:not([style*="display: none"])');
+            const ownedVisible = document.querySelectorAll('.card.owned:not([style*="display: none"])').length;
             let totalValue = 0;
-            allCards.forEach(c => totalValue += parseFloat(c.dataset.price));
-            document.getElementById('owned-count').textContent = owned;
-            document.getElementById('total-count').textContent = allCards.length;
+            visibleCards.forEach(c => totalValue += parseFloat(c.dataset.price));
+            document.getElementById('owned-count').textContent = ownedVisible;
+            document.getElementById('total-count').textContent = visibleCards.length;
             document.getElementById('total-value').textContent = '$' + totalValue.toFixed(0);
         }
 
