@@ -207,6 +207,47 @@
             color: #666;
             font-size: 0.85em;
         }
+        .auth-bar {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+        .auth-bar .user-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #aaa;
+            font-size: 0.85em;
+        }
+        .auth-bar .user-info img {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+        }
+        .auth-bar button {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.85em;
+            background: #238636;
+            color: white;
+        }
+        .auth-bar button:hover { background: #2ea043; }
+        .auth-bar button.logout { background: #444; }
+        .auth-bar button.logout:hover { background: #555; }
+        .sync-status {
+            font-size: 0.75em;
+            color: #888;
+        }
+        .sync-status.syncing { color: #f1c40f; }
+        .sync-status.synced { color: #2ecc71; }
+        .sync-status.error { color: #e74c3c; }
         @media (max-width: 600px) {
             .cards-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
             h1 { font-size: 1.5em; }
@@ -216,6 +257,13 @@
 </head>
 <body>
     <div class="container">
+        <div class="auth-bar" id="auth-bar">
+            <span class="sync-status" id="sync-status"></span>
+            <div id="auth-content">
+                <button onclick="githubSync.login()">Sign in with GitHub</button>
+            </div>
+        </div>
+
         <h1>Washington Redskins/Commanders</h1>
         <p class="subtitle">Starting QB Rookie Cards (1982-2025)</p>
 
@@ -259,7 +307,9 @@
         </footer>
     </div>
 
+    <script src="github-sync.js"></script>
     <script>
+        const CHECKLIST_ID = 'washington-qbs';
         const qbs = [
             // Gibbs Era I (1982-1992) - 3 Super Bowls
             { name: "Joe Theismann", years: "1982-1985", record: "39-13", playoff: "4-1", era: "gibbs1", set: "1975 Topps", num: "#416", price: 14.50, img: "washington-qbs-cards/theismann_1975_topps.webp", search: "joe+theismann+1975+topps+416", achievement: "SB XVII, 1983 MVP", superBowl: true },
@@ -312,9 +362,39 @@
 
         const STORAGE_KEY = 'washington-qbs-owned';
         let owned = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        let syncPending = false;
 
-        function saveOwned() {
+        async function saveOwned() {
+            // Always save to localStorage as backup
             localStorage.setItem(STORAGE_KEY, JSON.stringify(owned));
+
+            // Sync to GitHub if logged in
+            if (window.githubSync && githubSync.isLoggedIn()) {
+                setSyncStatus('syncing', 'Syncing...');
+                const success = await githubSync.saveChecklist(CHECKLIST_ID, owned);
+                if (success) {
+                    setSyncStatus('synced', 'Synced');
+                } else {
+                    setSyncStatus('error', 'Sync failed');
+                }
+            }
+        }
+
+        async function loadOwned() {
+            // Try to load from GitHub first
+            if (window.githubSync && githubSync.isLoggedIn()) {
+                setSyncStatus('syncing', 'Loading...');
+                const cloudOwned = await githubSync.loadChecklist(CHECKLIST_ID);
+                if (cloudOwned && cloudOwned.length > 0) {
+                    owned = cloudOwned;
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(owned));
+                    setSyncStatus('synced', 'Synced');
+                    return;
+                }
+                setSyncStatus('synced', 'Synced');
+            }
+            // Fall back to localStorage
+            owned = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
         }
 
         function toggleOwned(name) {
@@ -326,6 +406,37 @@
             }
             saveOwned();
             render();
+        }
+
+        function setSyncStatus(status, text) {
+            const el = document.getElementById('sync-status');
+            el.className = 'sync-status ' + status;
+            el.textContent = text;
+            if (status === 'synced') {
+                setTimeout(() => { el.textContent = ''; }, 2000);
+            }
+        }
+
+        function updateAuthUI() {
+            const authContent = document.getElementById('auth-content');
+            if (githubSync.isLoggedIn()) {
+                const user = githubSync.getUser();
+                authContent.innerHTML = `
+                    <span class="user-info">
+                        <img src="${user.avatar_url}" alt="">
+                        ${user.login}
+                    </span>
+                    <button class="logout" onclick="logout()">Sign out</button>
+                `;
+            } else {
+                authContent.innerHTML = '<button onclick="githubSync.login()">Sign in with GitHub</button>';
+            }
+        }
+
+        async function logout() {
+            githubSync.logout();
+            updateAuthUI();
+            document.getElementById('sync-status').textContent = '';
         }
 
         function render() {
@@ -385,6 +496,7 @@
                             </label>
                             <span class="links">
                                 <a href="https://www.ebay.com/sch/i.html?_nkw=${qb.search}&LH_BIN=1&_sop=15" target="_blank">eBay</a>
+                                <a href="https://www.sportscardspro.com/search-products?q=${encodeURIComponent(qb.name + ' rookie')}&type=prices" target="_blank">More</a>
                             </span>
                         </div>
                     </div>`;
@@ -411,7 +523,24 @@
         document.getElementById('status-filter').addEventListener('change', render);
         document.getElementById('search').addEventListener('input', render);
 
-        render();
+        // Initialize
+        async function init() {
+            // Handle OAuth callback
+            if (window.githubSync) {
+                await githubSync.handleCallback();
+                updateAuthUI();
+                githubSync.onAuthChange = async (loggedIn) => {
+                    updateAuthUI();
+                    if (loggedIn) {
+                        await loadOwned();
+                        render();
+                    }
+                };
+            }
+            await loadOwned();
+            render();
+        }
+        init();
     </script>
 </body>
 </html>

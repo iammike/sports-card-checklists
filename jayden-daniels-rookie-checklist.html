@@ -69,6 +69,47 @@
         .filter-btn:hover {
             background: #f0f0f0;
         }
+        .auth-bar {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            background: #1a1a2e;
+            border-radius: 8px;
+        }
+        .auth-bar .user-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #aaa;
+            font-size: 0.85em;
+        }
+        .auth-bar .user-info img {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+        }
+        .auth-bar button {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.85em;
+            background: #238636;
+            color: white;
+        }
+        .auth-bar button:hover { background: #2ea043; }
+        .auth-bar button.logout { background: #444; }
+        .auth-bar button.logout:hover { background: #555; }
+        .sync-status {
+            font-size: 0.75em;
+            color: #888;
+        }
+        .sync-status.syncing { color: #f1c40f; }
+        .sync-status.synced { color: #2ecc71; }
+        .sync-status.error { color: #e74c3c; }
         .price-badge {
             position: absolute;
             top: 8px;
@@ -224,6 +265,13 @@
     </style>
 </head>
 <body>
+    <div class="auth-bar" id="auth-bar">
+        <span class="sync-status" id="sync-status"></span>
+        <div id="auth-content">
+            <button onclick="githubSync.login()">Sign in with GitHub</button>
+        </div>
+    </div>
+
     <h1>Jayden Daniels Rookie Card Checklist</h1>
     <p class="subtitle">2023 College + 2024 NFL Rookie Cards</p>
     <div class="stats">
@@ -291,6 +339,7 @@
 
     <button class="clear-btn" onclick="clearAll()">Clear All</button>
 
+    <script src="github-sync.js"></script>
     <script>
         const cards = {
             college: [
@@ -441,48 +490,60 @@
             updateStats();
         }
 
+        const CHECKLIST_ID = 'jayden-daniels';
+        let ownedCards = [];  // Array of card IDs
+
         function getCardId(card) {
             return btoa(card.set + card.num + card.name).replace(/[^a-zA-Z0-9]/g, '');
         }
 
-        // Use server API if available, otherwise localStorage
-        const useServer = window.location.hostname === 'localhost';
-        let ownedCards = {};
-
         async function loadOwned() {
-            if (useServer) {
-                try {
-                    const res = await fetch('/api/owned');
-                    ownedCards = await res.json();
-                } catch (e) { console.log('Server not available, using localStorage'); }
+            // Try GitHub first
+            if (window.githubSync && githubSync.isLoggedIn()) {
+                setSyncStatus('syncing', 'Loading...');
+                const cloudOwned = await githubSync.loadChecklist(CHECKLIST_ID);
+                if (cloudOwned && cloudOwned.length > 0) {
+                    ownedCards = cloudOwned;
+                    // Also save to localStorage as backup
+                    localStorage.setItem('jaydenDanielsOwned', JSON.stringify(ownedCards));
+                    setSyncStatus('synced', 'Synced');
+                    return;
+                }
+                setSyncStatus('synced', 'Synced');
             }
+            // Fall back to localStorage
+            ownedCards = JSON.parse(localStorage.getItem('jaydenDanielsOwned') || '[]');
         }
 
         async function saveOwned() {
-            if (useServer) {
-                try {
-                    await fetch('/api/owned', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(ownedCards)
-                    });
-                } catch (e) { console.log('Save failed:', e); }
+            // Always save to localStorage as backup
+            localStorage.setItem('jaydenDanielsOwned', JSON.stringify(ownedCards));
+
+            // Sync to GitHub if logged in
+            if (window.githubSync && githubSync.isLoggedIn()) {
+                setSyncStatus('syncing', 'Syncing...');
+                const success = await githubSync.saveChecklist(CHECKLIST_ID, ownedCards);
+                if (success) {
+                    setSyncStatus('synced', 'Synced');
+                } else {
+                    setSyncStatus('error', 'Sync failed');
+                }
             }
         }
 
         function isOwned(cardId) {
-            if (useServer) return ownedCards[cardId] === true;
-            return localStorage.getItem('jd_' + cardId) === 'true';
+            return ownedCards.includes(cardId);
         }
 
         function toggleOwned(cardId, checkbox) {
             const owned = checkbox.checked;
-            if (useServer) {
-                ownedCards[cardId] = owned;
-                saveOwned();
+            if (owned) {
+                if (!ownedCards.includes(cardId)) ownedCards.push(cardId);
             } else {
-                localStorage.setItem('jd_' + cardId, owned);
+                ownedCards = ownedCards.filter(id => id !== cardId);
             }
+            saveOwned();
+
             const cardEl = checkbox.closest('.card');
             if (owned) {
                 cardEl.classList.add('owned');
@@ -491,6 +552,37 @@
             }
             updateStats();
             applyFilters();
+        }
+
+        function setSyncStatus(status, text) {
+            const el = document.getElementById('sync-status');
+            el.className = 'sync-status ' + status;
+            el.textContent = text;
+            if (status === 'synced') {
+                setTimeout(() => { el.textContent = ''; }, 2000);
+            }
+        }
+
+        function updateAuthUI() {
+            const authContent = document.getElementById('auth-content');
+            if (githubSync.isLoggedIn()) {
+                const user = githubSync.getUser();
+                authContent.innerHTML = `
+                    <span class="user-info">
+                        <img src="${user.avatar_url}" alt="">
+                        ${user.login}
+                    </span>
+                    <button class="logout" onclick="logout()">Sign out</button>
+                `;
+            } else {
+                authContent.innerHTML = '<button onclick="githubSync.login()">Sign in with GitHub</button>';
+            }
+        }
+
+        function logout() {
+            githubSync.logout();
+            updateAuthUI();
+            document.getElementById('sync-status').textContent = '';
         }
 
         function updateStats() {
@@ -505,12 +597,8 @@
 
         function clearAll() {
             if (confirm('Clear all checkmarks?')) {
-                if (useServer) {
-                    ownedCards = {};
-                    saveOwned();
-                } else {
-                    Object.keys(localStorage).filter(k => k.startsWith('jd_')).forEach(k => localStorage.removeItem(k));
-                }
+                ownedCards = [];
+                saveOwned();
                 document.querySelectorAll('.card').forEach(c => c.classList.remove('owned'));
                 document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
                 updateStats();
@@ -553,10 +641,10 @@
         }
 
         function exportOwned() {
-            const owned = JSON.parse(localStorage.getItem('jaydenDanielsCards') || '{}');
             const data = {
                 exported: new Date().toISOString(),
-                cards: owned
+                checklist: CHECKLIST_ID,
+                cards: ownedCards
             };
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
@@ -571,13 +659,13 @@
             const file = event.target.files[0];
             if (!file) return;
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = async function(e) {
                 try {
                     const data = JSON.parse(e.target.result);
-                    const cards = data.cards || data;
-                    localStorage.setItem('jaydenDanielsCards', JSON.stringify(cards));
+                    ownedCards = data.cards || data;
+                    await saveOwned();
                     renderCards();
-                    alert('Imported ' + Object.keys(cards).filter(k => cards[k]).length + ' owned cards!');
+                    alert('Imported ' + ownedCards.length + ' owned cards!');
                 } catch (err) {
                     alert('Error importing: ' + err.message);
                 }
@@ -592,8 +680,24 @@
         document.getElementById('status-filter').addEventListener('change', applyFilters);
         document.getElementById('search').addEventListener('input', applyFilters);
 
-        // Load owned cards then render
-        loadOwned().then(() => renderCards());
+        // Initialize
+        async function init() {
+            // Handle OAuth callback
+            if (window.githubSync) {
+                await githubSync.handleCallback();
+                updateAuthUI();
+                githubSync.onAuthChange = async (loggedIn) => {
+                    updateAuthUI();
+                    if (loggedIn) {
+                        await loadOwned();
+                        renderCards();
+                    }
+                };
+            }
+            await loadOwned();
+            renderCards();
+        }
+        init();
     </script>
 </body>
 </html>

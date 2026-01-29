@@ -73,10 +73,55 @@
             font-size: 0.6em;
             color: #666;
         }
+        .auth-bar {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 10px 15px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+        }
+        .auth-bar .user-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #aaa;
+            font-size: 0.85em;
+        }
+        .auth-bar .user-info img {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+        }
+        .auth-bar button {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.85em;
+            background: #238636;
+            color: white;
+        }
+        .auth-bar button:hover { background: #2ea043; }
+        .auth-bar button.logout { background: #444; }
+        .auth-bar button.logout:hover { background: #555; }
+        .auth-bar .note {
+            color: #666;
+            font-size: 0.75em;
+        }
     </style>
 </head>
 <body>
     <div class="container">
+        <div class="auth-bar" id="auth-bar">
+            <span class="note" id="auth-note">Sign in to sync your collection across browsers</span>
+            <div id="auth-content">
+                <button onclick="githubSync.login()">Sign in with GitHub</button>
+            </div>
+        </div>
+
         <h1>Sports Card Checklists</h1>
         <p class="subtitle">Interactive checklists for tracking your collection</p>
 
@@ -94,5 +139,41 @@
             </a>
         </div>
     </div>
+
+    <script src="github-sync.js"></script>
+    <script>
+        function updateAuthUI() {
+            const authContent = document.getElementById('auth-content');
+            const authNote = document.getElementById('auth-note');
+            if (githubSync.isLoggedIn()) {
+                const user = githubSync.getUser();
+                authNote.textContent = 'Collection syncs across all browsers';
+                authContent.innerHTML = `
+                    <span class="user-info">
+                        <img src="${user.avatar_url}" alt="">
+                        ${user.login}
+                    </span>
+                    <button class="logout" onclick="logout()">Sign out</button>
+                `;
+            } else {
+                authNote.textContent = 'Sign in to sync your collection across browsers';
+                authContent.innerHTML = '<button onclick="githubSync.login()">Sign in with GitHub</button>';
+            }
+        }
+
+        function logout() {
+            githubSync.logout();
+            updateAuthUI();
+        }
+
+        async function init() {
+            if (window.githubSync) {
+                await githubSync.handleCallback();
+                updateAuthUI();
+                githubSync.onAuthChange = updateAuthUI;
+            }
+        }
+        init();
+    </script>
 </body>
 </html>
