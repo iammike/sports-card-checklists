@@ -307,9 +307,7 @@
         <a href="index.html" class="back-link">← All Checklists</a>
         <div class="right-section">
             <span class="sync-status" id="sync-status"></span>
-            <div id="auth-content">
-                <button onclick="githubSync.login()">Sign in with GitHub</button>
-            </div>
+            <div id="auth-content"></div>
         </div>
     </div>
 
@@ -580,7 +578,7 @@
                     <button class="logout" onclick="logout()">Sign out</button>
                 `;
             } else {
-                authContent.innerHTML = '<button onclick="githubSync.login()">Sign in with GitHub</button>';
+                authContent.innerHTML = '';
             }
         }
 
