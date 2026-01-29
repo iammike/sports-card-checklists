@@ -368,7 +368,7 @@
             </div>
             <div class="stat">
                 <div class="stat-value" id="total-value">$0</div>
-                <div class="stat-label">Est. Raw Value</div>
+                <div class="stat-label">Est. Value</div>
             </div>
         </div>
 
@@ -664,7 +664,7 @@
 
             document.getElementById('owned-count').textContent = ownedCount;
             document.getElementById('total-count').textContent = totalCount;
-            document.getElementById('total-value').textContent = '$' + totalValue.toFixed(2);
+            document.getElementById('total-value').textContent = '$' + Math.round(totalValue);
         }
 
         document.getElementById('era-filter').addEventListener('change', render);
