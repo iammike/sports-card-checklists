@@ -507,7 +507,7 @@
                     }
                 } else {
                     // Fall back to localStorage
-                    const localJD = JSON.parse(localStorage.getItem('jayden-daniels-owned') || '[]');
+                    const localJD = JSON.parse(localStorage.getItem('jaydenDanielsOwned') || '[]');
                     jaydenDanielsStats.owned = localJD.length;
                 }
             } catch (e) {
