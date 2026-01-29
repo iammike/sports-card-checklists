@@ -37,6 +37,14 @@
         }
         .stat-value { font-size: 2em; font-weight: bold; color: #667eea; }
         .stat-label { font-size: 0.85em; color: #aaa; }
+        .stat-breakdown {
+            display: flex;
+            gap: 10px;
+            font-size: 0.7em;
+            margin-top: 4px;
+        }
+        .stat-breakdown .owned-value { color: #4caf50; }
+        .stat-breakdown .needed-value { color: #ff9800; }
         .filters {
             background: white;
             padding: 15px 20px;
@@ -319,6 +327,10 @@
         <div class="stat">
             <div class="stat-value" id="total-value">$0</div>
             <div class="stat-label">Est. Value</div>
+            <div class="stat-breakdown">
+                <span class="owned-value" id="owned-value">$0 owned</span>
+                <span class="needed-value" id="needed-value">$0 needed</span>
+            </div>
         </div>
     </div>
 
@@ -582,11 +594,21 @@
             const allCards = document.querySelectorAll('.card');
             const visibleCards = document.querySelectorAll('.card:not([style*="display: none"])');
             const ownedVisible = document.querySelectorAll('.card.owned:not([style*="display: none"])').length;
-            let totalValue = 0;
-            visibleCards.forEach(c => totalValue += parseFloat(c.dataset.price));
+            let totalValue = 0, ownedValue = 0, neededValue = 0;
+            visibleCards.forEach(c => {
+                const price = parseFloat(c.dataset.price);
+                totalValue += price;
+                if (c.classList.contains('owned')) {
+                    ownedValue += price;
+                } else {
+                    neededValue += price;
+                }
+            });
             document.getElementById('owned-count').textContent = ownedVisible;
             document.getElementById('total-count').textContent = visibleCards.length;
             document.getElementById('total-value').textContent = '$' + totalValue.toFixed(0);
+            document.getElementById('owned-value').textContent = '$' + ownedValue.toFixed(0) + ' owned';
+            document.getElementById('needed-value').textContent = '$' + neededValue.toFixed(0) + ' needed';
         }
 
         function clearAll() {
