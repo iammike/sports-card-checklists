@@ -266,6 +266,67 @@
             h1 { font-size: 1.5em; }
             .card { padding: 8px; }
         }
+        .card.collection-link {
+            background: linear-gradient(135deg, rgba(255,182,18,0.2), rgba(255,182,18,0.05));
+            border: 2px solid rgba(255,182,18,0.4);
+            cursor: pointer;
+        }
+        .card.collection-link:hover {
+            border-color: #FFB612;
+            background: linear-gradient(135deg, rgba(255,182,18,0.3), rgba(255,182,18,0.1));
+        }
+        .card.collection-link .card-image-wrapper {
+            position: relative;
+        }
+        .card.collection-link .card-stack {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .card.collection-link .card-stack img {
+            position: absolute;
+            width: 70%;
+            height: auto;
+            object-fit: contain;
+            border-radius: 4px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        .card.collection-link .card-stack img:nth-child(1) { transform: rotate(-8deg) translateX(-15%); opacity: 0.7; }
+        .card.collection-link .card-stack img:nth-child(2) { transform: rotate(5deg) translateX(15%); opacity: 0.85; }
+        .card.collection-link .card-stack img:nth-child(3) { transform: rotate(0deg); z-index: 2; }
+        .collection-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: linear-gradient(135deg, #FFB612, #f39c12);
+            color: #000;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: bold;
+            z-index: 3;
+        }
+        .collection-cta {
+            display: block;
+            text-align: center;
+            background: linear-gradient(135deg, #FFB612, #f39c12);
+            color: #000;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 0.85em;
+            margin-top: 8px;
+            text-decoration: none;
+            transition: transform 0.2s;
+        }
+        .collection-cta:hover {
+            transform: scale(1.02);
+        }
     </style>
 </head>
 <body>
@@ -373,7 +434,7 @@
             { name: "Taylor Heinicke", years: "2020-2022", record: "12-11-1", playoff: "0-1", era: "modern", set: "2015 Prizm", num: "#288", price: 1.89, img: "washington-qbs-cards/heinicke_2015_prizm.webp", search: "taylor+heinicke+2015+prizm+288" },
             { name: "Carson Wentz", years: "2022", record: "2-5", playoff: "-", era: "modern", set: "2016 Donruss Optic", num: "#156", price: 1.99, img: "washington-qbs-cards/wentz_2016_optic.webp", search: "carson+wentz+2016+donruss+optic+156", achievement: "#2 Overall Pick" },
             { name: "Sam Howell", years: "2022-2023", record: "5-13", playoff: "-", era: "modern", set: "2022 Prizm Jersey", num: "#PJ-SH", price: 2.17, img: "washington-qbs-cards/howell_2022_prizm_jersey.webp", search: "sam+howell+2022+panini+prizm+premier+jerseys+pj-sh" },
-            { name: "Jayden Daniels", years: "2024-2025", record: "14-10", playoff: "2-1", era: "modern", set: "2024 Score", num: "#302", price: 1.50, img: "washington-qbs-cards/daniels_2024_score.webp", search: "jayden+daniels+2024+score+302", achievement: "2024 OROY" },
+            { name: "Jayden Daniels", years: "2024-2025", record: "14-10", playoff: "2-1", era: "modern", collectionLink: "jayden-daniels-rookie-checklist.html", cardCount: "75+", achievement: "2024 OROY" },
             { name: "Marcus Mariota", years: "2025", record: "2-6", playoff: "-", era: "modern", set: "2015 Prizm", num: "#264", price: 1.90, img: "washington-qbs-cards/mariota_2015_prizm.webp", search: "marcus+mariota+2015+prizm+264", achievement: "#2 Overall Pick" },
             { name: "Josh Johnson", years: "2025", record: "1-1", playoff: "-", era: "modern", set: "2008 Leaf R&S", num: "#234", price: 2.00, img: "washington-qbs-cards/johnson_2008_leaf-rookies-stars.webp", search: "josh+johnson+2008+leaf+rookies+stars+234" },
         ];
@@ -492,6 +553,27 @@
 
                 era.cards.forEach(qb => {
                     const isOwned = owned.includes(qb.name);
+
+                    // Special handling for collection link cards
+                    if (qb.collectionLink) {
+                        html += `<div class="card collection-link" onclick="window.location.href='${qb.collectionLink}'">
+                            <div class="card-image-wrapper">
+                                <span class="collection-badge">${qb.cardCount} CARDS</span>
+                                <div class="card-stack">
+                                    <img src="jayden-daniels-cards/prizm_301.webp" alt="">
+                                    <img src="jayden-daniels-cards/optic_151.webp" alt="">
+                                    <img src="jayden-daniels-cards/select_141.webp" alt="">
+                                </div>
+                            </div>
+                            <div class="player-name">${qb.name}</div>
+                            <div class="player-years">${qb.years} &bull; ${qb.record}</div>
+                            ${qb.playoff !== '-' ? `<div class="player-record">Playoffs: ${qb.playoff}</div>` : ''}
+                            ${qb.achievement ? `<span class="achievement">${qb.achievement}</span>` : ''}
+                            <a href="${qb.collectionLink}" class="collection-cta">View Full Collection →</a>
+                        </div>`;
+                        return;
+                    }
+
                     const cardClass = `card ${isOwned ? 'owned' : ''} ${qb.superBowl ? 'super-bowl' : ''}`;
 
                     html += `<div class="${cardClass}">
@@ -530,9 +612,11 @@
         function updateStats(filteredQbs) {
             // Use filtered list if provided, otherwise use all
             const visibleQbs = filteredQbs || qbs;
-            const ownedCount = visibleQbs.filter(qb => owned.includes(qb.name)).length;
-            const totalCount = visibleQbs.length;
-            const totalValue = visibleQbs.reduce((sum, qb) => sum + qb.price, 0);
+            // Exclude collection link cards from counts
+            const countableQbs = visibleQbs.filter(qb => !qb.collectionLink);
+            const ownedCount = countableQbs.filter(qb => owned.includes(qb.name)).length;
+            const totalCount = countableQbs.length;
+            const totalValue = countableQbs.reduce((sum, qb) => sum + (qb.price || 0), 0);
 
             document.getElementById('owned-count').textContent = ownedCount;
             document.getElementById('total-count').textContent = totalCount;
