@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sports Card Checklists</title>
+    <title>Mike's Sports Card Checklists</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -115,27 +115,24 @@
 </head>
 <body>
     <div class="container">
-        <div class="auth-bar" id="auth-bar">
-            <span class="note" id="auth-note">Sign in to sync your collection across browsers</span>
-            <div id="auth-content">
-                <button onclick="githubSync.login()">Sign in with GitHub</button>
-            </div>
+        <div class="auth-bar" id="auth-bar" style="display: none;">
+            <div id="auth-content"></div>
         </div>
 
-        <h1>Sports Card Checklists</h1>
-        <p class="subtitle">Interactive checklists for tracking your collection</p>
+        <h1><span id="mike-link" style="cursor: pointer;">Mike's</span> Sports Card Checklists</h1>
+        <p class="subtitle">Tracking my collection</p>
 
         <div class="checklist-grid">
             <a href="jayden-daniels-rookie-checklist.html" class="checklist-card">
                 <h2>Jayden Daniels Rookie Cards</h2>
                 <p>2023 college cards and 2024 NFL rookie cards for the Commanders QB and 2024 Offensive Rookie of the Year.</p>
-                <div class="meta">~75 cards • Panini, Topps, Leaf, SAGE</div>
+                <div class="meta">41 cards • Panini, Topps, Leaf, SAGE</div>
             </a>
 
             <a href="washington-qbs-rookie-checklist.html" class="checklist-card">
                 <h2>Washington QBs Collection</h2>
                 <p>Main rookie cards for every starting quarterback in Washington Redskins/Commanders history (1982-2025).</p>
-                <div class="meta">36 cards • Vintage to Modern • ~$57 total raw value</div>
+                <div class="meta">39 cards • Vintage to Modern</div>
             </a>
         </div>
     </div>
@@ -143,11 +140,11 @@
     <script src="github-sync.js"></script>
     <script>
         function updateAuthUI() {
+            const authBar = document.getElementById('auth-bar');
             const authContent = document.getElementById('auth-content');
-            const authNote = document.getElementById('auth-note');
             if (githubSync.isLoggedIn()) {
                 const user = githubSync.getUser();
-                authNote.textContent = 'Collection syncs across all browsers';
+                authBar.style.display = 'flex';
                 authContent.innerHTML = `
                     <span class="user-info">
                         <img src="${user.avatar_url}" alt="">
@@ -156,8 +153,7 @@
                     <button class="logout" onclick="logout()">Sign out</button>
                 `;
             } else {
-                authNote.textContent = 'Sign in to sync your collection across browsers';
-                authContent.innerHTML = '<button onclick="githubSync.login()">Sign in with GitHub</button>';
+                authBar.style.display = 'none';
             }
         }
 
@@ -172,6 +168,12 @@
                 updateAuthUI();
                 githubSync.onAuthChange = updateAuthUI;
             }
+            // Secret login: click "Mike's" to sign in
+            document.getElementById('mike-link').addEventListener('click', () => {
+                if (!githubSync.isLoggedIn()) {
+                    githubSync.login();
+                }
+            });
         }
         init();
     </script>
