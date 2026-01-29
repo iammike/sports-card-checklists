@@ -246,6 +246,20 @@
             cursor: pointer;
             line-height: 1;
         }
+        .owned-badge {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #27ae60;
+            font-weight: bold;
+        }
+        .read-only-notice {
+            background: rgba(255,182,18,0.2);
+            color: #FFB612;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            margin-right: auto;
+        }
         .search-link {
             display: inline-block;
             margin-top: 6px;
@@ -440,7 +454,16 @@
         }
 
         const CHECKLIST_ID = 'jayden-daniels';
+        const OWNER_USERNAME = 'iammike';
+        const OWNER_GIST_ID = localStorage.getItem('github_gist_id'); // Will be set when owner logs in
         let ownedCards = [];  // Array of card IDs
+        let isReadOnly = false;
+
+        function isOwner() {
+            if (!window.githubSync || !githubSync.isLoggedIn()) return false;
+            const user = githubSync.getUser();
+            return user && user.login === OWNER_USERNAME;
+        }
 
         function getCardId(card) {
             return btoa(card.set + card.num + card.name).replace(/[^a-zA-Z0-9]/g, '');
@@ -573,10 +596,10 @@
                     <div class="card-title">${card.set}</div>
                     <div class="card-number">${card.num} ${card.name}</div>
                     <div class="card-type">${card.type}</div>
-                    <div class="checkbox-wrapper">
+                    ${!isReadOnly ? `<div class="checkbox-wrapper">
                         <input type="checkbox" id="${cardId}" ${owned ? 'checked' : ''} onchange="toggleOwned('${cardId}', this)">
                         <label for="${cardId}">Owned</label>
-                    </div>
+                    </div>` : (owned ? '<div class="owned-badge">✓ Owned</div>' : '')}
                     <a href="${searchUrl}" target="_blank" class="search-link">eBay</a> · <a href="${scpSearch}" target="_blank" class="search-link">Prices</a>
                 </div>
             `;
@@ -599,17 +622,40 @@
             // Handle OAuth callback
             if (window.githubSync) {
                 await githubSync.handleCallback();
+                isReadOnly = !isOwner();
                 updateAuthUI();
                 githubSync.onAuthChange = async (loggedIn) => {
+                    isReadOnly = !isOwner();
                     updateAuthUI();
                     if (loggedIn) {
                         await loadOwned();
                         renderCards();
                     }
                 };
+            } else {
+                isReadOnly = true;
             }
             await loadOwned();
             renderCards();
+            updateReadOnlyUI();
+        }
+
+        function updateReadOnlyUI() {
+            // Hide clear button in read-only mode
+            const clearBtn = document.querySelector('button[onclick*="clearAll"]');
+            if (clearBtn) clearBtn.style.display = isReadOnly ? 'none' : '';
+
+            // Show read-only notice
+            const authBar = document.getElementById('auth-bar');
+            const existingNotice = document.querySelector('.read-only-notice');
+            if (isReadOnly && !existingNotice) {
+                const notice = document.createElement('span');
+                notice.className = 'read-only-notice';
+                notice.textContent = "Viewing iammike's collection";
+                authBar.insertBefore(notice, authBar.querySelector('.right-section'));
+            } else if (!isReadOnly && existingNotice) {
+                existingNotice.remove();
+            }
         }
         init();
     </script>
