@@ -71,13 +71,26 @@
         }
         .auth-bar {
             display: flex;
-            justify-content: flex-end;
+            justify-content: space-between;
             align-items: center;
             gap: 10px;
             margin-bottom: 15px;
             padding: 10px 15px;
             background: #1a1a2e;
             border-radius: 8px;
+        }
+        .auth-bar .back-link {
+            color: #aaa;
+            text-decoration: none;
+            font-size: 0.85em;
+        }
+        .auth-bar .back-link:hover {
+            color: #fff;
+        }
+        .auth-bar .right-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
         .auth-bar .user-info {
             display: flex;
@@ -266,9 +279,12 @@
 </head>
 <body>
     <div class="auth-bar" id="auth-bar">
-        <span class="sync-status" id="sync-status"></span>
-        <div id="auth-content">
-            <button onclick="githubSync.login()">Sign in with GitHub</button>
+        <a href="index.html" class="back-link">← All Checklists</a>
+        <div class="right-section">
+            <span class="sync-status" id="sync-status"></span>
+            <div id="auth-content">
+                <button onclick="githubSync.login()">Sign in with GitHub</button>
+            </div>
         </div>
     </div>
 
@@ -296,9 +312,6 @@
             <option value="need">Needed Only</option>
         </select>
         <input type="text" id="search" placeholder="Search cards...">
-        <button class="filter-btn" onclick="exportOwned()" title="Download owned cards as JSON">Export</button>
-        <button class="filter-btn" onclick="document.getElementById('import-file').click()" title="Import owned cards from JSON">Import</button>
-        <input type="file" id="import-file" accept=".json" style="display:none" onchange="importOwned(event)">
     </div>
 
     <!-- COLLEGE CARDS -->
@@ -337,21 +350,21 @@
             ],
             panini: [
                 { set: "2024 Score", num: "#302", name: "Base", type: "Base RC", search: "jayden+daniels+2024+score+302", img: "jayden-daniels-cards/card_04_T-QAAeSw.webp" },
-                { set: "2024 Score 35th Anniversary", num: "#2", name: "Base", type: "Base RC", search: "jayden+daniels+2024+score+35th+anniversary+2", img: "jayden-daniels-cards/card_2024_score_35th_anniversary.webp" },
+                { set: "2024 Score 35th Anniversary", num: "#2", name: "Base", type: "Base RC", search: "jayden+daniels+2024+score+35th+anniversary+2", img: "jayden-daniels-cards/score_35th_2.webp" },
                 { set: "2024 Donruss", num: "#389", name: "Rated Rookie", type: "Base RC", search: "jayden+daniels+2024+donruss+389", img: "jayden-daniels-cards/card_06_xRQAAeSw.webp" },
-                { set: "2024 Donruss Optic", num: "#248", name: "Rated Rookie", type: "Base RC", search: "jayden+daniels+2024+donruss+optic+248", img: "jayden-daniels-cards/card_09_IHoAAeSw.webp" },
+                { set: "2024 Donruss Optic", num: "#248", name: "Rated Rookie", type: "Base RC", search: "jayden+daniels+2024+donruss+optic+248", img: "jayden-daniels-cards/optic_248.webp" },
+                { set: "2024 Donruss Elite", num: "#15", name: "Rookie Elitist", type: "Base RC", search: "jayden+daniels+2024+donruss+elite+15", img: "jayden-daniels-cards/elite_15.webp" },
                 { set: "2024 Prizm", num: "#347", name: "Base", type: "Base RC", search: "jayden+daniels+2024+prizm+347", img: "jayden-daniels-cards/card_11_lBUAAeSw.webp" },
                 { set: "2024 Prizm Draft Picks", num: "#108", name: "Base", type: "Base RC", search: "jayden+daniels+2024+prizm+draft+picks+108", img: "jayden-daniels-cards/prizm_draft_108.webp" },
                 { set: "2024 Select", num: "#26", name: "Concourse", type: "Base RC", search: "jayden+daniels+2024+select+26", img: "jayden-daniels-cards/card_14_4LwAAeSw.webp" },
-                { set: "2024 Mosaic", num: "#302", name: "Base", type: "Base RC", search: "jayden+daniels+2024+mosaic+302", img: "jayden-daniels-cards/card_17_eggAAeSw.webp" },
+                { set: "2024 Mosaic", num: "#302", name: "Base", type: "Base RC", search: "jayden+daniels+2024+mosaic+302", img: "jayden-daniels-cards/mosaic_302.webp" },
                 { set: "2024 Absolute", num: "#102", name: "Base", type: "Base RC", search: "jayden+daniels+2024+absolute+102", img: "jayden-daniels-cards/card_20_HoAAAeSw.webp" },
                 { set: "2024 Contenders", num: "", name: "Rookie Ticket", type: "Base RC", search: "jayden+daniels+2024+contenders+rookie+ticket", img: "jayden-daniels-cards/card_22_tUcAAeSw.webp" },
                 { set: "2024 Phoenix", num: "#198", name: "Base", type: "Base RC", search: "jayden+daniels+2024+phoenix+198", img: "jayden-daniels-cards/card_23_s0IAAeSw.webp" },
                 { set: "2024 Prestige", num: "#302", name: "Base", type: "Base RC", search: "jayden+daniels+2024+prestige+302", img: "jayden-daniels-cards/card_25_4vYAAeSw.webp" },
-                { set: "2024 Chronicles", num: "", name: "Base", type: "Base RC", search: "jayden+daniels+2024+chronicles+base", img: "jayden-daniels-cards/card_26_NhkAAeSw.webp" },
-                { set: "2024 Certified", num: "", name: "Base", type: "Base RC", search: "jayden+daniels+2024+certified+base", img: "jayden-daniels-cards/card_28_PpcAAeSw.webp" },
+                { set: "2024 Certified", num: "", name: "Base", type: "Base RC", search: "jayden+daniels+2024+certified+base", img: "jayden-daniels-cards/certified_base.webp" },
                 { set: "2024 Luminance", num: "", name: "Base", type: "Base RC", search: "jayden+daniels+2024+luminance+base", img: "jayden-daniels-cards/card_29_-ysAAeSw.webp" },
-                { set: "2024 Origins", num: "#144", name: "Base", type: "Base RC", search: "jayden+daniels+2024+origins+144", img: "jayden-daniels-cards/card_30_dpoAAeSw.webp" },
+                { set: "2024 Origins", num: "#144", name: "Base", type: "Base RC", search: "jayden+daniels+2024+origins+144", img: "jayden-daniels-cards/origins_144.webp" },
                 { set: "2024 Rookies & Stars", num: "", name: "Base", type: "Base RC", search: "jayden+daniels+2024+rookies+stars+base", img: "jayden-daniels-cards/card_32_FnsAAOSw.webp" },
                 { set: "2024 Totally Certified", num: "", name: "Base", type: "Base RC", search: "jayden+daniels+2024+totally+certified+base", img: "jayden-daniels-cards/card_34_5pwAAeSw.webp" },
                 { set: "2024 Zenith", num: "#148", name: "Base", type: "Base RC", search: "jayden+daniels+2024+zenith+148", img: "jayden-daniels-cards/card_jayden_daniels_2024_zenith_rookie.webp" },
@@ -574,40 +587,6 @@
             document.getElementById('topps-cards').innerHTML = cards.topps.map(createCardElement).join('');
             document.getElementById('other-cards').innerHTML = cards.other.map(createCardElement).join('');
             updateStats();
-        }
-
-        function exportOwned() {
-            const data = {
-                exported: new Date().toISOString(),
-                checklist: CHECKLIST_ID,
-                cards: ownedCards
-            };
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'jayden-daniels-checklist.json';
-            a.click();
-            URL.revokeObjectURL(url);
-        }
-
-        function importOwned(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = async function(e) {
-                try {
-                    const data = JSON.parse(e.target.result);
-                    ownedCards = data.cards || data;
-                    await saveOwned();
-                    renderCards();
-                    alert('Imported ' + ownedCards.length + ' owned cards!');
-                } catch (err) {
-                    alert('Error importing: ' + err.message);
-                }
-            };
-            reader.readAsText(file);
-            event.target.value = '';
         }
 
         // Set up filter event listeners

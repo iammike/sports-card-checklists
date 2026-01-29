@@ -209,7 +209,7 @@
         }
         .auth-bar {
             display: flex;
-            justify-content: flex-end;
+            justify-content: space-between;
             align-items: center;
             gap: 10px;
             margin-bottom: 15px;
@@ -241,6 +241,19 @@
         .auth-bar button:hover { background: #2ea043; }
         .auth-bar button.logout { background: #444; }
         .auth-bar button.logout:hover { background: #555; }
+        .auth-bar .back-link {
+            color: #aaa;
+            text-decoration: none;
+            font-size: 0.85em;
+        }
+        .auth-bar .back-link:hover {
+            color: #fff;
+        }
+        .auth-bar .right-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
         .sync-status {
             font-size: 0.75em;
             color: #888;
@@ -258,9 +271,12 @@
 <body>
     <div class="container">
         <div class="auth-bar" id="auth-bar">
-            <span class="sync-status" id="sync-status"></span>
-            <div id="auth-content">
-                <button onclick="githubSync.login()">Sign in with GitHub</button>
+            <a href="index.html" class="back-link">← All Checklists</a>
+            <div class="right-section">
+                <span class="sync-status" id="sync-status"></span>
+                <div id="auth-content">
+                    <button onclick="githubSync.login()">Sign in with GitHub</button>
+                </div>
             </div>
         </div>
 
