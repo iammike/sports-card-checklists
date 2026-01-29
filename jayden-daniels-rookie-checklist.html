@@ -23,14 +23,20 @@
             margin-bottom: 20px;
         }
         .stats {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .stat {
             text-align: center;
             background: #1a1a2e;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-size: 18px;
+            padding: 15px 25px;
+            border-radius: 10px;
         }
+        .stat-value { font-size: 2em; font-weight: bold; color: #667eea; }
+        .stat-label { font-size: 0.85em; color: #aaa; }
         .filters {
             background: white;
             padding: 15px 20px;
@@ -41,36 +47,27 @@
             flex-wrap: wrap;
             gap: 15px;
             align-items: center;
+            justify-content: center;
         }
-        .filter-group {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .filter-group label {
-            font-weight: 500;
-            color: #333;
-        }
-        .filter-group select, .filter-group input {
-            padding: 6px 10px;
+        select, input[type="text"] {
+            padding: 10px 15px;
+            border-radius: 8px;
             border: 1px solid #ccc;
-            border-radius: 4px;
+            background: white;
+            color: #333;
             font-size: 14px;
         }
         .filter-btn {
-            padding: 6px 12px;
-            border: none;
-            border-radius: 4px;
+            padding: 8px 14px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 13px;
-        }
-        .filter-btn.active {
-            background: #667eea;
-            color: white;
-        }
-        .filter-btn:not(.active) {
-            background: #e0e0e0;
+            background: white;
             color: #333;
+        }
+        .filter-btn:hover {
+            background: #f0f0f0;
         }
         .price-badge {
             position: absolute;
@@ -230,35 +227,42 @@
     <h1>Jayden Daniels Rookie Card Checklist</h1>
     <p class="subtitle">2023 College + 2024 NFL Rookie Cards</p>
     <div class="stats">
-        Owned: <span id="owned-count">0</span> / <span id="total-count">0</span> cards | Showing: <span id="visible-count">0</span>
+        <div class="stat">
+            <div class="stat-value" id="owned-count">0</div>
+            <div class="stat-label">Owned</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="total-count">0</div>
+            <div class="stat-label">Total Cards</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="total-value">$0</div>
+            <div class="stat-label">Est. Value</div>
+        </div>
     </div>
 
     <div class="filters">
-        <div class="filter-group">
-            <label>Price:</label>
-            <button class="filter-btn active" onclick="setFilter('all')">All</button>
-            <button class="filter-btn" onclick="setFilter('cheap')">Under $3</button>
-            <button class="filter-btn" onclick="setFilter('mid')">$3-$10</button>
-            <button class="filter-btn" onclick="setFilter('high')">$10+</button>
-        </div>
-        <div class="filter-group">
-            <label>Type:</label>
-            <button class="filter-btn active" onclick="setTypeFilter('all')">All</button>
-            <button class="filter-btn" onclick="setTypeFilter('base')">Base Only</button>
-            <button class="filter-btn" onclick="setTypeFilter('parallel')">Parallels</button>
-            <button class="filter-btn" onclick="setTypeFilter('insert')">Inserts</button>
-        </div>
-        <div class="filter-group">
-            <label>Status:</label>
-            <button class="filter-btn active" onclick="setStatusFilter('all')">All</button>
-            <button class="filter-btn" onclick="setStatusFilter('need')">Need</button>
-            <button class="filter-btn" onclick="setStatusFilter('owned')">Owned</button>
-        </div>
-        <div class="filter-group" style="margin-left: auto;">
-            <button class="filter-btn" onclick="exportOwned()" title="Download owned cards as JSON">📥 Export</button>
-            <button class="filter-btn" onclick="document.getElementById('import-file').click()" title="Import owned cards from JSON">📤 Import</button>
-            <input type="file" id="import-file" accept=".json" style="display:none" onchange="importOwned(event)">
-        </div>
+        <select id="price-filter">
+            <option value="all">All Prices</option>
+            <option value="cheap">Under $3</option>
+            <option value="mid">$3-$10</option>
+            <option value="high">$10+</option>
+        </select>
+        <select id="type-filter">
+            <option value="all">All Types</option>
+            <option value="base">Base Only</option>
+            <option value="parallel">Parallels</option>
+            <option value="insert">Inserts</option>
+        </select>
+        <select id="status-filter">
+            <option value="all">All Cards</option>
+            <option value="owned">Owned Only</option>
+            <option value="need">Needed Only</option>
+        </select>
+        <input type="text" id="search" placeholder="Search cards...">
+        <button class="filter-btn" onclick="exportOwned()" title="Download owned cards as JSON">Export</button>
+        <button class="filter-btn" onclick="document.getElementById('import-file').click()" title="Import owned cards from JSON">Import</button>
+        <input type="file" id="import-file" accept=".json" style="display:none" onchange="importOwned(event)">
     </div>
 
     <!-- COLLEGE CARDS -->
@@ -407,34 +411,17 @@
             return Math.round(base * 10) / 10;
         }
 
-        let priceFilter = 'all';
-        let typeFilter = 'all';
-        let statusFilter = 'all';
-
-        function setFilter(f) {
-            priceFilter = f;
-            document.querySelectorAll('.filters .filter-group:nth-child(1) .filter-btn').forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
-            applyFilters();
-        }
-        function setTypeFilter(f) {
-            typeFilter = f;
-            document.querySelectorAll('.filters .filter-group:nth-child(2) .filter-btn').forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
-            applyFilters();
-        }
-        function setStatusFilter(f) {
-            statusFilter = f;
-            document.querySelectorAll('.filters .filter-group:nth-child(3) .filter-btn').forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
-            applyFilters();
-        }
-
         function applyFilters() {
+            const priceFilter = document.getElementById('price-filter').value;
+            const typeFilter = document.getElementById('type-filter').value;
+            const statusFilter = document.getElementById('status-filter').value;
+            const searchTerm = document.getElementById('search').value.toLowerCase();
+
             document.querySelectorAll('.card').forEach(c => {
                 const price = parseFloat(c.dataset.price);
                 const type = c.dataset.type;
                 const owned = c.classList.contains('owned');
+                const cardText = c.textContent.toLowerCase();
                 let show = true;
                 // Price filter
                 if (priceFilter === 'cheap' && price >= 3) show = false;
@@ -447,6 +434,8 @@
                 // Status filter
                 if (statusFilter === 'owned' && !owned) show = false;
                 if (statusFilter === 'need' && owned) show = false;
+                // Search filter
+                if (searchTerm && !cardText.includes(searchTerm)) show = false;
                 c.style.display = show ? '' : 'none';
             });
             updateStats();
@@ -506,11 +495,12 @@
 
         function updateStats() {
             const allCards = document.querySelectorAll('.card');
-            const visibleCards = document.querySelectorAll('.card:not([style*="display: none"])');
             const owned = document.querySelectorAll('.card.owned').length;
+            let totalValue = 0;
+            allCards.forEach(c => totalValue += parseFloat(c.dataset.price));
             document.getElementById('owned-count').textContent = owned;
             document.getElementById('total-count').textContent = allCards.length;
-            document.getElementById('visible-count').textContent = visibleCards.length;
+            document.getElementById('total-value').textContent = '$' + totalValue.toFixed(0);
         }
 
         function clearAll() {
@@ -595,6 +585,12 @@
             reader.readAsText(file);
             event.target.value = '';
         }
+
+        // Set up filter event listeners
+        document.getElementById('price-filter').addEventListener('change', applyFilters);
+        document.getElementById('type-filter').addEventListener('change', applyFilters);
+        document.getElementById('status-filter').addEventListener('change', applyFilters);
+        document.getElementById('search').addEventListener('input', applyFilters);
 
         // Load owned cards then render
         loadOwned().then(() => renderCards());
