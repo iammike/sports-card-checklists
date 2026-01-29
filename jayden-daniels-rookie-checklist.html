@@ -164,6 +164,9 @@
         .section-header.other {
             background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
         }
+        .section-header.inserts {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
         .card-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -352,6 +355,12 @@
         <div class="card-grid" id="other-cards"></div>
     </div>
 
+    <!-- INSERTS 2024 -->
+    <div class="section">
+        <div class="section-header inserts">2024 Inserts (Non-Parallel)</div>
+        <div class="card-grid" id="insert-cards"></div>
+    </div>
+
     <button class="clear-btn" onclick="clearAll()">Clear All</button>
 
     <script src="github-sync.js"></script>
@@ -375,7 +384,6 @@
                 { set: "2024 Absolute", num: "#102", name: "Base", type: "Base RC", search: "jayden+daniels+2024+absolute+102", img: "jayden-daniels-cards/card_20_HoAAAeSw.webp" },
                 { set: "2024 Contenders", num: "", name: "Rookie Ticket", type: "Base RC", search: "jayden+daniels+2024+contenders+rookie+ticket", img: "jayden-daniels-cards/card_22_tUcAAeSw.webp" },
                 { set: "2024 Phoenix", num: "#198", name: "Base", type: "Base RC", search: "jayden+daniels+2024+phoenix+198", img: "jayden-daniels-cards/phoenix_198.webp" },
-                { set: "2024 Phoenix", num: "#RR-JDS", name: "Rookie Rising", type: "Insert", search: "jayden+daniels+2024+phoenix+rookie+rising", img: "jayden-daniels-cards/phoenix_rookie_rising.webp" },
                 { set: "2024 Prestige", num: "#302", name: "Base", type: "Base RC", search: "jayden+daniels+2024+prestige+302", img: "jayden-daniels-cards/card_25_4vYAAeSw.webp" },
                 { set: "2024 Certified", num: "", name: "Base", type: "Base RC", search: "jayden+daniels+2024+certified+base", img: "jayden-daniels-cards/certified_base.webp" },
                 { set: "2024 Luminance", num: "", name: "Base", type: "Base RC", search: "jayden+daniels+2024+luminance+base", img: "jayden-daniels-cards/card_29_-ysAAeSw.webp" },
@@ -396,6 +404,19 @@
                 { set: "2024 Leaf Metal", num: "", name: "Base", type: "Base RC", search: "jayden+daniels+2024+leaf+metal", img: "jayden-daniels-cards/leaf_metal.webp" },
                 { set: "2024 Leaf Trinity", num: "", name: "Base", type: "Base RC", search: "jayden+daniels+2024+leaf+trinity", img: "jayden-daniels-cards/card_42_Fj8AAeSw.webp" },
                 { set: "2024 SAGE Hit", num: "", name: "Base", type: "Base RC", search: "jayden+daniels+2024+sage+hit", img: "jayden-daniels-cards/card_44_C2MAAeSw.webp" },
+            ],
+            inserts: [
+                { set: "2024 Prizm Emergent", num: "#E-11", name: "Base", type: "Insert", search: "jayden+daniels+2024+prizm+emergent+E-11", img: "jayden-daniels-cards/prizm_emergent.webp" },
+                { set: "2024 Prizm Fireworks", num: "#24", name: "Base", type: "Insert", search: "jayden+daniels+2024+prizm+fireworks+24", img: "jayden-daniels-cards/prizm_fireworks.webp" },
+                { set: "2024 Mosaic Notoriety", num: "#19", name: "Base", type: "Insert", search: "jayden+daniels+2024+mosaic+notoriety+19", img: "jayden-daniels-cards/mosaic_notoriety.webp" },
+                { set: "2024 Mosaic Center Stage", num: "#8", name: "Base", type: "Insert", search: "jayden+daniels+2024+mosaic+center+stage+8", img: "jayden-daniels-cards/mosaic_center_stage.webp" },
+                { set: "2024 Mosaic Overdrive", num: "#5", name: "Base", type: "Insert", search: "jayden+daniels+2024+mosaic+overdrive+5", img: "jayden-daniels-cards/mosaic_overdrive.webp" },
+                { set: "2024 Score Hot Rookies", num: "#4", name: "Base", type: "Insert", search: "jayden+daniels+2024+score+hot+rookies+4", img: "jayden-daniels-cards/score_hot_rookies.webp" },
+                { set: "2024 Illusions Instant Impact", num: "#4", name: "Base", type: "Insert", search: "jayden+daniels+2024+illusions+instant+impact+4", img: "jayden-daniels-cards/illusions_instant_impact.webp" },
+                { set: "2024 Illusions Mystique", num: "#M-4", name: "Base", type: "Insert", search: "jayden+daniels+2024+illusions+mystique+M-4", img: "jayden-daniels-cards/illusions_mystique.webp" },
+                { set: "2024 Illusions Great Expectations", num: "#GE-JDS", name: "Base", type: "Insert", search: "jayden+daniels+2024+illusions+great+expectations", img: "jayden-daniels-cards/illusions_great_expectations.webp" },
+                { set: "2024 Donruss Rated Rookie Retro", num: "#11", name: "Base", type: "Insert", search: "jayden+daniels+2024+donruss+rated+rookie+retro+11", img: "jayden-daniels-cards/donruss_rated_rookie_retro.webp" },
+                { set: "2024 Phoenix Rookie Rising", num: "#RR-JDS", name: "Base", type: "Insert", search: "jayden+daniels+2024+phoenix+rookie+rising", img: "jayden-daniels-cards/phoenix_rookie_rising.webp" },
             ]
         };
 
@@ -610,6 +631,7 @@
             document.getElementById('panini-cards').innerHTML = cards.panini.map(createCardElement).join('');
             document.getElementById('topps-cards').innerHTML = cards.topps.map(createCardElement).join('');
             document.getElementById('other-cards').innerHTML = cards.other.map(createCardElement).join('');
+            document.getElementById('insert-cards').innerHTML = cards.inserts.map(createCardElement).join('');
             updateStats();
         }
 
