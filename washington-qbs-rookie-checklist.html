@@ -346,7 +346,7 @@
             { name: "Robert Griffin III", years: "2012-2015", record: "14-21", playoff: "0-1", era: "snyder", set: "2012 Topps", num: "#340", price: 1.99, img: "washington-qbs-cards/griffin_2012_topps.webp", search: "robert+griffin+iii+2012+topps+340", achievement: "2012 OROY" },
             { name: "Kirk Cousins", years: "2012-2017", record: "26-30-1", playoff: "0-1", era: "snyder", set: "2012 Topps", num: "#326", price: 1.63, img: "washington-qbs-cards/cousins_2012_topps.webp", search: "kirk+cousins+2012+topps+326", achievement: "4x Pro Bowl" },
             { name: "Colt McCoy", years: "2014-2019", record: "1-6", playoff: "-", era: "snyder", set: "2010 Score", num: "#18", price: 1.10, img: "washington-qbs-cards/mccoy_2010_score.webp", search: "colt+mccoy+2010+score+hot+rookies+18" },
-            { name: "Alex Smith", years: "2018-2020", record: "11-5", playoff: "-", era: "snyder", set: "2005 Topps", num: "#371", price: 0.25, img: "washington-qbs-cards/smith_2005_topps.webp", search: "alex+smith+2005+topps+371", achievement: "2020 CPOY" },
+            { name: "Alex Smith", years: "2018-2020", record: "11-5", playoff: "-", era: "snyder", set: "2005 Topps", num: "#435", price: 0.25, img: "washington-qbs-cards/smith_2005_topps.webp", search: "alex+smith+2005+topps+435", achievement: "2020 CPOY" },
             { name: "Case Keenum", years: "2019", record: "1-7", playoff: "-", era: "snyder", set: "2012 Panini R&S", num: "#159", price: 1.03, img: "washington-qbs-cards/keenum_2012_panini-rookies-stars.webp", search: "case+keenum+2012+panini+rookies+stars+159" },
             { name: "Dwayne Haskins", years: "2019-2020", record: "3-10", playoff: "-", era: "snyder", set: "2019 Score", num: "#332", price: 1.25, img: "washington-qbs-cards/haskins_2019_score.webp", search: "dwayne+haskins+2019+score+332", achievement: "1st Rd Pick, RIP" },
 
@@ -506,13 +506,15 @@
             });
 
             container.innerHTML = html;
-            updateStats();
+            updateStats(filtered);
         }
 
-        function updateStats() {
-            const ownedCount = qbs.filter(qb => owned.includes(qb.name)).length;
-            const totalCount = qbs.length;
-            const totalValue = qbs.reduce((sum, qb) => sum + qb.price, 0);
+        function updateStats(filteredQbs) {
+            // Use filtered list if provided, otherwise use all
+            const visibleQbs = filteredQbs || qbs;
+            const ownedCount = visibleQbs.filter(qb => owned.includes(qb.name)).length;
+            const totalCount = visibleQbs.length;
+            const totalValue = visibleQbs.reduce((sum, qb) => sum + qb.price, 0);
 
             document.getElementById('owned-count').textContent = ownedCount;
             document.getElementById('total-count').textContent = totalCount;
