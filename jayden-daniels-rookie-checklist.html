@@ -588,7 +588,7 @@
 
             return `
                 <div class="card ${owned ? 'owned' : ''}" data-price="${price}" data-type="${card.type}">
-                    <span class="price-badge ${priceClass}">~$${price < 1 ? price.toFixed(2) : Math.round(price)}</span>
+                    <span class="price-badge ${priceClass}">$${Math.max(1, Math.round(price))}</span>
                     ${card.img
                         ? `<a href="${searchUrl}" target="_blank"><img class="card-image" src="${card.img}" alt="${card.set}" onerror="this.outerHTML='<a href=\\'${searchUrl}\\' target=\\'_blank\\' class=\\'card-image placeholder\\'>Click to view</a>'"></a>`
                         : `<a href="${searchUrl}" target="_blank" class="card-image placeholder">Click to view on eBay</a>`

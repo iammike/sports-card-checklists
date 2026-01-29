@@ -622,7 +622,7 @@
                     html += `<div class="${cardClass}">
                         <div class="card-image-wrapper">
                             ${qb.superBowl ? '<span class="super-bowl-badge">SUPER BOWL</span>' : ''}
-                            <span class="price-badge">~$${qb.price.toFixed(2)}</span>
+                            <span class="price-badge">$${Math.max(1, Math.round(qb.price))}</span>
                             <img class="card-image" src="${qb.img}" alt="${qb.name}" onerror="this.style.display='none'">
                         </div>
                         <div class="player-name">${qb.name}</div>
