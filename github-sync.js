@@ -6,6 +6,7 @@ const CONFIG = {
     OAUTH_PROXY_URL: 'https://cards-oauth.iammikec.workers.dev',
     GIST_FILENAME: 'sports-card-checklists.json',
     GIST_DESCRIPTION: 'Sports Card Checklist Collection Data',
+    PUBLIC_GIST_ID: '5f2b43f0588d72892273ae8f24f68c2d',
 };
 
 // Storage keys
@@ -136,7 +137,7 @@ class GitHubSync {
             },
             body: JSON.stringify({
                 description: CONFIG.GIST_DESCRIPTION,
-                public: false,
+                public: true,
                 files: {
                     [CONFIG.GIST_FILENAME]: {
                         content: JSON.stringify({ checklists: {} }, null, 2),
@@ -170,6 +171,24 @@ class GitHubSync {
             return JSON.parse(content);
         } catch (error) {
             console.error('Failed to load from gist:', error);
+            return null;
+        }
+    }
+
+    // Load from public gist (no auth required)
+    async loadPublicData() {
+        try {
+            const response = await fetch(`https://api.github.com/gists/${CONFIG.PUBLIC_GIST_ID}`);
+            if (!response.ok) return null;
+
+            const gist = await response.json();
+            const content = gist.files[CONFIG.GIST_FILENAME]?.content;
+
+            if (!content) return null;
+
+            return JSON.parse(content);
+        } catch (error) {
+            console.error('Failed to load public gist:', error);
             return null;
         }
     }
@@ -208,6 +227,11 @@ class GitHubSync {
     // Checklist-specific helpers
     async loadChecklist(checklistId) {
         const data = await this.loadData();
+        return data?.checklists?.[checklistId] || [];
+    }
+
+    async loadPublicChecklist(checklistId) {
+        const data = await this.loadPublicData();
         return data?.checklists?.[checklistId] || [];
     }
 

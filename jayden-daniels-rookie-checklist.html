@@ -501,7 +501,7 @@
         }
 
         async function loadOwned() {
-            // Try GitHub first
+            // Try GitHub first if logged in
             if (window.githubSync && githubSync.isLoggedIn()) {
                 setSyncStatus('syncing', 'Loading...');
                 const cloudOwned = await githubSync.loadChecklist(CHECKLIST_ID);
@@ -513,6 +513,13 @@
                     return;
                 }
                 setSyncStatus('synced', 'Synced');
+            } else if (window.githubSync) {
+                // Load from public gist for visitors
+                const publicOwned = await githubSync.loadPublicChecklist(CHECKLIST_ID);
+                if (publicOwned && publicOwned.length > 0) {
+                    ownedCards = publicOwned;
+                    return;
+                }
             }
             // Fall back to localStorage
             ownedCards = JSON.parse(localStorage.getItem('jaydenDanielsOwned') || '[]');

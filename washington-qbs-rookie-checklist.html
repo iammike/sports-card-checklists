@@ -481,7 +481,7 @@
         }
 
         async function loadOwned() {
-            // Try to load from GitHub first
+            // Try to load from GitHub first if logged in
             if (window.githubSync && githubSync.isLoggedIn()) {
                 setSyncStatus('syncing', 'Loading...');
                 const cloudOwned = await githubSync.loadChecklist(CHECKLIST_ID);
@@ -492,6 +492,13 @@
                     return;
                 }
                 setSyncStatus('synced', 'Synced');
+            } else if (window.githubSync) {
+                // Load from public gist for visitors
+                const publicOwned = await githubSync.loadPublicChecklist(CHECKLIST_ID);
+                if (publicOwned && publicOwned.length > 0) {
+                    owned = publicOwned;
+                    return;
+                }
             }
             // Fall back to localStorage
             owned = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
@@ -502,6 +509,12 @@
             try {
                 if (window.githubSync && githubSync.isLoggedIn()) {
                     const jdOwned = await githubSync.loadChecklist('jayden-daniels');
+                    if (jdOwned) {
+                        jaydenDanielsStats.owned = jdOwned.length;
+                    }
+                } else if (window.githubSync) {
+                    // Load from public gist for visitors
+                    const jdOwned = await githubSync.loadPublicChecklist('jayden-daniels');
                     if (jdOwned) {
                         jaydenDanielsStats.owned = jdOwned.length;
                     }
