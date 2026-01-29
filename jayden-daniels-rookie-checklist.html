@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jayden Daniels Rookie Card Checklist</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #1a1a2e;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 20px;
+        }
+        .stats {
+            text-align: center;
+            background: #1a1a2e;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+        .filters {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+        }
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .filter-group label {
+            font-weight: 500;
+            color: #333;
+        }
+        .filter-group select, .filter-group input {
+            padding: 6px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .filter-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        .filter-btn:not(.active) {
+            background: #e0e0e0;
+            color: #333;
+        }
+        .price-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #4caf50;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .price-badge.mid { background: #ff9800; }
+        .price-badge.high { background: #f44336; }
+        .price-link {
+            display: inline-block;
+            margin-top: 4px;
+            font-size: 10px;
+            color: #999;
+            text-decoration: none;
+        }
+        .price-link:hover { color: #667eea; text-decoration: underline; }
+        .section {
+            margin-bottom: 30px;
+        }
+        .section-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px 8px 0 0;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .section-header.college {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        .section-header.topps {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        .section-header.other {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            background: white;
+            padding: 20px;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .card {
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            transition: all 0.2s;
+            background: white;
+            position: relative;
+        }
+        .card:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 15px rgba(102,126,234,0.3);
+            transform: translateY(-2px);
+        }
+        .card.owned {
+            background: #e8f5e9;
+            border-color: #4caf50;
+        }
+        .card-image {
+            width: 100%;
+            height: 150px;
+            object-fit: contain;
+            border-radius: 4px;
+            background: #fafafa;
+            cursor: pointer;
+        }
+        .card-image.placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+            font-size: 12px;
+            text-decoration: none;
+            border: 1px dashed #ccc;
+        }
+        .card-image.placeholder:hover {
+            background: #f0f0f0;
+            color: #667eea;
+        }
+        .card-title {
+            font-weight: bold;
+            font-size: 13px;
+            margin: 8px 0 4px;
+            color: #333;
+        }
+        .card-number {
+            font-size: 12px;
+            color: #666;
+        }
+        .card-type {
+            font-size: 11px;
+            color: #999;
+            margin-top: 4px;
+        }
+        .checkbox-wrapper {
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .checkbox-wrapper input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            margin: 0;
+        }
+        .checkbox-wrapper label {
+            font-size: 12px;
+            color: #666;
+            cursor: pointer;
+            line-height: 1;
+        }
+        .search-link {
+            display: inline-block;
+            margin-top: 6px;
+            font-size: 11px;
+            color: #667eea;
+            text-decoration: none;
+        }
+        .search-link:hover {
+            text-decoration: underline;
+        }
+        @media print {
+            .card { break-inside: avoid; }
+            .search-link { display: none; }
+            body { background: white; }
+        }
+        .clear-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #ff5252;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .clear-btn:hover { background: #ff1744; }
+    </style>
+</head>
+<body>
+    <h1>Jayden Daniels Rookie Card Checklist</h1>
+    <p class="subtitle">2023 College + 2024 NFL Rookie Cards</p>
+    <div class="stats">
+        Owned: <span id="owned-count">0</span> / <span id="total-count">0</span> cards | Showing: <span id="visible-count">0</span>
+    </div>
+
+    <div class="filters">
+        <div class="filter-group">
+            <label>Price:</label>
+            <button class="filter-btn active" onclick="setFilter('all')">All</button>
+            <button class="filter-btn" onclick="setFilter('cheap')">Under $3</button>
+            <button class="filter-btn" onclick="setFilter('mid')">$3-$10</button>
+            <button class="filter-btn" onclick="setFilter('high')">$10+</button>
+        </div>
+        <div class="filter-group">
+            <label>Type:</label>
+            <button class="filter-btn active" onclick="setTypeFilter('all')">All</button>
+            <button class="filter-btn" onclick="setTypeFilter('base')">Base Only</button>
+            <button class="filter-btn" onclick="setTypeFilter('parallel')">Parallels</button>
+            <button class="filter-btn" onclick="setTypeFilter('insert')">Inserts</button>
+        </div>
+        <div class="filter-group">
+            <label>Status:</label>
+            <button class="filter-btn active" onclick="setStatusFilter('all')">All</button>
+            <button class="filter-btn" onclick="setStatusFilter('need')">Need</button>
+            <button class="filter-btn" onclick="setStatusFilter('owned')">Owned</button>
+        </div>
+        <div class="filter-group" style="margin-left: auto;">
+            <button class="filter-btn" onclick="exportOwned()" title="Download owned cards as JSON">📥 Export</button>
+            <button class="filter-btn" onclick="document.getElementById('import-file').click()" title="Import owned cards from JSON">📤 Import</button>
+            <input type="file" id="import-file" accept=".json" style="display:none" onchange="importOwned(event)">
+        </div>
+    </div>
+
+    <!-- COLLEGE CARDS -->
+    <div class="section">
+        <div class="section-header college">2023 College Cards (LSU - Heisman Year)</div>
+        <div class="card-grid" id="college-cards"></div>
+    </div>
+
+    <!-- PANINI 2024 -->
+    <div class="section">
+        <div class="section-header">2024 Panini NFL Cards</div>
+        <div class="card-grid" id="panini-cards"></div>
+    </div>
+
+    <!-- TOPPS 2024 -->
+    <div class="section">
+        <div class="section-header topps">2024 Topps NFL Cards</div>
+        <div class="card-grid" id="topps-cards"></div>
+    </div>
+
+    <!-- OTHER 2024 -->
+    <div class="section">
+        <div class="section-header other">2024 Other Brands</div>
+        <div class="card-grid" id="other-cards"></div>
+    </div>
+
+    <button class="clear-btn" onclick="clearAll()">Clear All</button>
+
+    <script>
+        const cards = {
+            college: [
+                // Verified 2023 college cards that actually exist for Jayden Daniels
+                { set: "2023 SAGE", num: "#8", name: "Base", type: "Base", search: "jayden+daniels+2023+sage+8", img: "jayden-daniels-cards/card_2023_sage_base.webp" },
+                { set: "2023 Leaf Trinity", num: "#98", name: "Base RC", type: "Base", search: "jayden+daniels+2023+leaf+trinity+98", img: "jayden-daniels-cards/card_2023_leaf_trinity_base.webp" },
+            ],
+            panini: [
+                { set: "2024 Score", num: "#302", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+score+302", img: "jayden-daniels-cards/card_04_T-QAAeSw.webp" },
+                { set: "2024 Score", num: "#302", name: "Gold Zone", type: "Parallel", search: "jayden+daniels+2024+score+gold+zone", img: "jayden-daniels-cards/card_05_-wAAAeSw.webp" },
+                { set: "2024 Score", num: "#302", name: "End Zone", type: "Parallel", search: "jayden+daniels+2024+score+end+zone", img: "jayden-daniels-cards/card_jayden_daniels_2024_score_end_zone.webp" },
+                { set: "2024 Donruss", num: "#389", name: "Rated Rookie", type: "Base RC", search: "jayden+daniels+2024+donruss+rated+rookie+389", img: "jayden-daniels-cards/card_06_xRQAAeSw.webp" },
+                { set: "2024 Donruss", num: "#389", name: "Press Proof Blue", type: "Parallel", search: "jayden+daniels+2024+donruss+press+proof+blue", img: "jayden-daniels-cards/card_jayden_daniels_2024_donruss_press_p.webp" },
+                { set: "2024 Donruss", num: "", name: "The Rookies", type: "Insert", search: "jayden+daniels+2024+donruss+the+rookies", img: "jayden-daniels-cards/card_07_mlEAAeSw.webp" },
+                { set: "2024 Donruss", num: "", name: "Downtown", type: "Insert SSP", search: "jayden+daniels+2024+donruss+downtown", img: "jayden-daniels-cards/card_08_Ho4AAeSw.webp" },
+                { set: "2024 Donruss Optic", num: "", name: "Rated Rookie", type: "Base RC", search: "jayden+daniels+2024+donruss+optic+rated+rookie", img: "jayden-daniels-cards/card_09_IHoAAeSw.webp" },
+                { set: "2024 Donruss Optic", num: "", name: "Holo", type: "Parallel", search: "jayden+daniels+2024+donruss+optic+holo", img: "jayden-daniels-cards/card_10_vZwAAeSw.webp" },
+                { set: "2024 Donruss Optic", num: "", name: "Purple Shock", type: "Parallel", search: "jayden+daniels+2024+donruss+optic+purple+shock", img: "jayden-daniels-cards/card_jayden_daniels_2024_donruss_optic_p.webp" },
+                { set: "2024 Prizm", num: "#347", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+prizm+347+base", img: "jayden-daniels-cards/card_11_lBUAAeSw.webp" },
+                { set: "2024 Prizm", num: "#347", name: "Silver", type: "Parallel", search: "jayden+daniels+2024+prizm+silver", img: "jayden-daniels-cards/card_12_n-gAAeSw.webp" },
+                { set: "2024 Prizm", num: "#347", name: "Red White Blue", type: "Parallel", search: "jayden+daniels+2024+prizm+red+white+blue", img: "jayden-daniels-cards/card_jayden_daniels_2024_prizm_red_white.webp" },
+                { set: "2024 Prizm", num: "#347", name: "Blue /199", type: "Parallel", search: "jayden+daniels+2024+prizm+blue+199", img: "jayden-daniels-cards/card_jayden_daniels_2024_prizm_blue_199.webp" },
+                { set: "2024 Prizm", num: "#347", name: "Green /75", type: "Parallel", search: "jayden+daniels+2024+prizm+green", img: "jayden-daniels-cards/card_jayden_daniels_2024_prizm_green.webp" },
+                { set: "2024 Prizm", num: "", name: "Rookie Introductions", type: "Insert", search: "jayden+daniels+2024+prizm+rookie+introductions", img: "jayden-daniels-cards/card_13_fq8AAeSw.webp" },
+                { set: "2024 Select", num: "#47", name: "Concourse", type: "Base RC", search: "jayden+daniels+2024+select+concourse", img: "jayden-daniels-cards/card_14_4LwAAeSw.webp" },
+                { set: "2024 Select", num: "#147", name: "Premier Level", type: "Base RC", search: "jayden+daniels+2024+select+premier+level", img: "jayden-daniels-cards/card_15_MAkAAeSw.webp" },
+                { set: "2024 Select", num: "#247", name: "Club Level", type: "Base RC", search: "jayden+daniels+2024+select+club+level", img: "jayden-daniels-cards/card_select_club_fix.webp" },
+                { set: "2024 Select", num: "", name: "Silver Prizm", type: "Parallel", search: "jayden+daniels+2024+select+silver+prizm", img: "jayden-daniels-cards/card_jayden_daniels_2024_select_silver_p.webp" },
+                { set: "2024 Select", num: "", name: "Tie-Dye /25", type: "Parallel", search: "jayden+daniels+2024+select+tie+dye", img: "jayden-daniels-cards/card_jayden_daniels_2024_select_tie_dye.webp" },
+                { set: "2024 Mosaic", num: "", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+mosaic+base+rookie", img: "jayden-daniels-cards/card_17_eggAAeSw.webp" },
+                { set: "2024 Mosaic", num: "", name: "Silver Prizm", type: "Parallel", search: "jayden+daniels+2024+mosaic+silver", img: "jayden-daniels-cards/card_18_IAQAAeSw.webp" },
+                { set: "2024 Mosaic", num: "", name: "Pink Camo", type: "Parallel", search: "jayden+daniels+2024+mosaic+pink+camo", img: "jayden-daniels-cards/card_jayden_daniels_2024_mosaic_pink_cam.webp" },
+                { set: "2024 Mosaic", num: "#272", name: "NFL Debut", type: "Insert", search: "jayden+daniels+2024+mosaic+nfl+debut", img: "jayden-daniels-cards/card_19_alwAAeSw.webp" },
+                { set: "2024 Absolute", num: "#102", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+absolute+102", img: "jayden-daniels-cards/card_20_HoAAAeSw.webp" },
+                { set: "2024 Absolute", num: "", name: "Retail Yellow", type: "Parallel", search: "jayden+daniels+2024+absolute+yellow", img: "jayden-daniels-cards/card_jayden_daniels_2024_absolute_yellow.webp" },
+                { set: "2024 Absolute", num: "", name: "Star Gazing", type: "Insert", search: "jayden+daniels+2024+absolute+star+gazing", img: "jayden-daniels-cards/card_21_S7cAAeSw.webp" },
+                { set: "2024 Absolute", num: "", name: "Introductions", type: "Insert", search: "jayden+daniels+2024+absolute+introductions", img: "jayden-daniels-cards/card_jayden_daniels_2024_absolute_introd.webp" },
+                { set: "2024 Contenders", num: "", name: "Rookie Ticket", type: "Base RC", search: "jayden+daniels+2024+contenders+rookie+ticket", img: "jayden-daniels-cards/card_22_tUcAAeSw.webp" },
+                { set: "2024 Contenders", num: "", name: "Draft Class", type: "Insert", search: "jayden+daniels+2024+contenders+draft+class", img: "jayden-daniels-cards/card_jayden_daniels_2024_contenders_draf.webp" },
+                { set: "2024 Contenders", num: "", name: "Rookie Stallions", type: "Insert", search: "jayden+daniels+2024+contenders+rookie+stallions", img: "jayden-daniels-cards/card_jayden_daniels_2024_contenders_rook.webp" },
+                { set: "2024 Phoenix", num: "", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+phoenix+base+rookie", img: "jayden-daniels-cards/card_23_s0IAAeSw.webp" },
+                { set: "2024 Phoenix", num: "", name: "Fire Burst", type: "Parallel", search: "jayden+daniels+2024+phoenix+fire+burst", img: "jayden-daniels-cards/card_jayden_daniels_2024_phoenix_fire_bu.webp" },
+                { set: "2024 Phoenix", num: "", name: "Rookie Rising", type: "Insert", search: "jayden+daniels+2024+phoenix+rookie+rising", img: "jayden-daniels-cards/card_24_3zMAAeSw.webp" },
+                { set: "2024 Prestige", num: "", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+prestige+rookie", img: "jayden-daniels-cards/card_25_4vYAAeSw.webp" },
+                { set: "2024 Prestige", num: "", name: "Xtra Points Blue", type: "Parallel", search: "jayden+daniels+2024+prestige+xtra+points", img: "jayden-daniels-cards/card_jayden_daniels_2024_prestige_xtra_p.webp" },
+                { set: "2024 Chronicles", num: "", name: "Base", type: "Base RC", search: "jayden+daniels+2024+chronicles+base", img: "jayden-daniels-cards/card_26_NhkAAeSw.webp" },
+                { set: "2024 Chronicles", num: "", name: "Playoff", type: "Insert", search: "jayden+daniels+2024+chronicles+playoff", img: "jayden-daniels-cards/card_27_5CUAAeSw.webp" },
+                { set: "2024 Certified", num: "", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+certified+rookie", img: "jayden-daniels-cards/card_28_PpcAAeSw.webp" },
+                { set: "2024 Certified", num: "", name: "Mirror", type: "Parallel", search: "jayden+daniels+2024+certified+mirror", img: "jayden-daniels-cards/card_jayden_daniels_2024_certified_mirro.webp" },
+                { set: "2024 Luminance", num: "", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+luminance+rookie", img: "jayden-daniels-cards/card_29_-ysAAeSw.webp" },
+                { set: "2024 Origins", num: "#144", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+origins+144", img: "jayden-daniels-cards/card_30_dpoAAeSw.webp" },
+                { set: "2024 Origins", num: "", name: "Turquoise /75", type: "Parallel", search: "jayden+daniels+2024+origins+turquoise", img: "jayden-daniels-cards/card_jayden_daniels_2024_origins_turquoi.webp" },
+                { set: "2024 Origins", num: "", name: "Hometown Roots", type: "Insert", search: "jayden+daniels+2024+origins+hometown+roots", img: "jayden-daniels-cards/card_31_OvoAAeSw.webp" },
+                { set: "2024 Rookies & Stars", num: "", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+rookies+stars+base", img: "jayden-daniels-cards/card_32_FnsAAOSw.webp" },
+                { set: "2024 Rookies & Stars", num: "", name: "Crusade", type: "Insert", search: "jayden+daniels+2024+rookies+stars+crusade", img: "jayden-daniels-cards/card_33_uWkAAOSw.webp" },
+                { set: "2024 Rookies & Stars", num: "", name: "Longevity", type: "Parallel", search: "jayden+daniels+2024+rookies+stars+longevity", img: "jayden-daniels-cards/card_jayden_daniels_2024_rookies_stars_l.webp" },
+                { set: "2024 Totally Certified", num: "", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+totally+certified+rookie", img: "jayden-daniels-cards/card_34_5pwAAeSw.webp" },
+                { set: "2024 Totally Certified", num: "", name: "Franchise Foundation", type: "Insert", search: "jayden+daniels+2024+totally+certified+franchise", img: "jayden-daniels-cards/card_jayden_daniels_2024_totally_certifi.webp" },
+                { set: "2024 Zenith", num: "", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+zenith+rookie", img: "jayden-daniels-cards/card_jayden_daniels_2024_zenith_rookie.webp" },
+                { set: "2024 Zenith", num: "", name: "First Look", type: "Insert", search: "jayden+daniels+2024+zenith+first+look", img: "jayden-daniels-cards/card_36_2PMAAeSw.webp" },
+            ],
+            topps: [
+                { set: "2024 Topps Chrome", num: "#201", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+topps+chrome+201", img: "jayden-daniels-cards/card_37_BFIAAeSw.webp" },
+                { set: "2024 Topps Chrome", num: "#201", name: "Refractor", type: "Parallel", search: "jayden+daniels+2024+topps+chrome+refractor", img: "jayden-daniels-cards/card_jayden_daniels_2024_topps_chrome_re.webp" },
+                { set: "2024 Topps Chrome", num: "#201", name: "Pink Refractor", type: "Parallel", search: "jayden+daniels+2024+topps+chrome+pink+refractor", img: "jayden-daniels-cards/card_jayden_daniels_2024_topps_chrome_pi.webp" },
+                { set: "2024 Topps Chrome", num: "#201", name: "Gold /50", type: "Parallel", search: "jayden+daniels+2024+topps+chrome+gold+refractor", img: "jayden-daniels-cards/card_jayden_daniels_2024_topps_chrome_go.webp" },
+                { set: "2024 Topps Now", num: "#23", name: "NFL Debut", type: "Base", search: "jayden+daniels+2024+topps+now+23", img: "jayden-daniels-cards/card_39_fA4AAeSw.webp" },
+                { set: "2024 Topps Now", num: "", name: "Playoff Moments", type: "Base", search: "jayden+daniels+2024+topps+now+playoff", img: "jayden-daniels-cards/card_jayden_daniels_2024_topps_now_playo.webp" },
+                { set: "2024 Topps Now", num: "", name: "OROY Award", type: "Base", search: "jayden+daniels+2024+topps+now+oroy", img: "jayden-daniels-cards/card_jayden_daniels_2024_topps_now_oroy.webp" },
+                { set: "2024 Topps Cosmic Chrome", num: "", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+topps+cosmic+chrome", img: "jayden-daniels-cards/card_40_ifwAAeSw.webp" },
+                { set: "2024 Topps Cosmic Chrome", num: "", name: "Planetary Pursuit", type: "Insert", search: "jayden+daniels+2024+cosmic+chrome+planetary+pursuit", img: "jayden-daniels-cards/card_jayden_daniels_2024_cosmic_chrome_p.webp" },
+            ],
+            other: [
+                { set: "2024 Leaf Metal", num: "", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+leaf+metal", img: "jayden-daniels-cards/card_41_lIsAAeSw.webp" },
+                { set: "2024 Leaf Trinity", num: "", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+leaf+trinity", img: "jayden-daniels-cards/card_42_Fj8AAeSw.webp" },
+                { set: "2024 Leaf Hype!", num: "", name: "Base", type: "Base", search: "jayden+daniels+2024+leaf+hype", img: "jayden-daniels-cards/card_leaf_hype_fix.webp" },
+                { set: "2024 Leaf Vaunted", num: "", name: "Base", type: "Base", search: "jayden+daniels+2024+leaf+vaunted", img: "jayden-daniels-cards/card_jayden_daniels_2024_leaf_vaunted.webp" },
+                { set: "2024 SAGE Hit", num: "", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+sage+hit", img: "jayden-daniels-cards/card_44_C2MAAeSw.webp" },
+                { set: "2024 SAGE Hit", num: "", name: "Gold", type: "Parallel", search: "jayden+daniels+2024+sage+hit+gold", img: "jayden-daniels-cards/card_jayden_daniels_2024_sage_hit_gold.webp" },
+                // NOTE: Wild Card as standalone brand may not exist for Jayden Daniels - needs verification
+                // { set: "2024 Wild Card", num: "", name: "Base Rookie", type: "Base RC", search: "jayden+daniels+2024+wild+card", img: "" },
+            ]
+        };
+
+        // Price estimates (rough, may be outdated)
+        const priceGuide = {
+            // Base cards generally cheap
+            'Base': 1, 'Base RC': 1.5, 'Base Rookie': 1.5,
+            // Parallels more expensive
+            'Parallel': 5, 'Insert': 4, 'Insert SSP': 50,
+        };
+
+        // Set-specific price modifiers
+        const setMods = {
+            'Score': 0.5, 'Donruss': 0.8, 'Prizm': 2, 'Select': 1.5, 'Mosaic': 1.2,
+            'Optic': 1.8, 'Chrome': 2.5, 'Origins': 2, 'Contenders': 1.5, 'Phoenix': 1.2,
+            'Leaf': 0.5, 'SAGE': 0.3, 'Wild Card': 0.4, 'Bowman': 1, 'Topps Now': 3,
+            'Cosmic Chrome': 2, 'Certified': 1, 'Luminance': 1, 'Prestige': 0.8,
+            'Chronicles': 0.8, 'Absolute': 1, 'Zenith': 1, 'Rookies & Stars': 1, 'Totally Certified': 1
+        };
+
+        function estimatePrice(card) {
+            let base = priceGuide[card.type] || 2;
+            // Check set modifiers
+            for (const [setKey, mod] of Object.entries(setMods)) {
+                if (card.set.includes(setKey)) { base *= mod; break; }
+            }
+            // Numbered cards are pricier
+            if (card.name.includes('/')) {
+                const match = card.name.match(/\/(\d+)/);
+                if (match) base *= Math.max(3, 100 / parseInt(match[1]));
+            }
+            // Special types
+            if (card.name.includes('Silver') || card.name.includes('Refractor')) base *= 3;
+            if (card.name.includes('Holo')) base *= 2;
+            if (card.name.includes('Downtown')) base = 60;
+            if (card.name.includes('Gold') && card.name.includes('/')) base *= 5;
+            return Math.round(base * 10) / 10;
+        }
+
+        let priceFilter = 'all';
+        let typeFilter = 'all';
+        let statusFilter = 'all';
+
+        function setFilter(f) {
+            priceFilter = f;
+            document.querySelectorAll('.filters .filter-group:nth-child(1) .filter-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            applyFilters();
+        }
+        function setTypeFilter(f) {
+            typeFilter = f;
+            document.querySelectorAll('.filters .filter-group:nth-child(2) .filter-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            applyFilters();
+        }
+        function setStatusFilter(f) {
+            statusFilter = f;
+            document.querySelectorAll('.filters .filter-group:nth-child(3) .filter-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            applyFilters();
+        }
+
+        function applyFilters() {
+            document.querySelectorAll('.card').forEach(c => {
+                const price = parseFloat(c.dataset.price);
+                const type = c.dataset.type;
+                const owned = c.classList.contains('owned');
+                let show = true;
+                // Price filter
+                if (priceFilter === 'cheap' && price >= 3) show = false;
+                if (priceFilter === 'mid' && (price < 3 || price >= 10)) show = false;
+                if (priceFilter === 'high' && price < 10) show = false;
+                // Type filter
+                if (typeFilter === 'base' && !type.includes('Base')) show = false;
+                if (typeFilter === 'parallel' && !type.includes('Parallel')) show = false;
+                if (typeFilter === 'insert' && !type.includes('Insert')) show = false;
+                // Status filter
+                if (statusFilter === 'owned' && !owned) show = false;
+                if (statusFilter === 'need' && owned) show = false;
+                c.style.display = show ? '' : 'none';
+            });
+            updateStats();
+        }
+
+        function getCardId(card) {
+            return btoa(card.set + card.num + card.name).replace(/[^a-zA-Z0-9]/g, '');
+        }
+
+        // Use server API if available, otherwise localStorage
+        const useServer = window.location.hostname === 'localhost';
+        let ownedCards = {};
+
+        async function loadOwned() {
+            if (useServer) {
+                try {
+                    const res = await fetch('/api/owned');
+                    ownedCards = await res.json();
+                } catch (e) { console.log('Server not available, using localStorage'); }
+            }
+        }
+
+        async function saveOwned() {
+            if (useServer) {
+                try {
+                    await fetch('/api/owned', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(ownedCards)
+                    });
+                } catch (e) { console.log('Save failed:', e); }
+            }
+        }
+
+        function isOwned(cardId) {
+            if (useServer) return ownedCards[cardId] === true;
+            return localStorage.getItem('jd_' + cardId) === 'true';
+        }
+
+        function toggleOwned(cardId, checkbox) {
+            const owned = checkbox.checked;
+            if (useServer) {
+                ownedCards[cardId] = owned;
+                saveOwned();
+            } else {
+                localStorage.setItem('jd_' + cardId, owned);
+            }
+            const cardEl = checkbox.closest('.card');
+            if (owned) {
+                cardEl.classList.add('owned');
+            } else {
+                cardEl.classList.remove('owned');
+            }
+            updateStats();
+            applyFilters();
+        }
+
+        function updateStats() {
+            const allCards = document.querySelectorAll('.card');
+            const visibleCards = document.querySelectorAll('.card:not([style*="display: none"])');
+            const owned = document.querySelectorAll('.card.owned').length;
+            document.getElementById('owned-count').textContent = owned;
+            document.getElementById('total-count').textContent = allCards.length;
+            document.getElementById('visible-count').textContent = visibleCards.length;
+        }
+
+        function clearAll() {
+            if (confirm('Clear all checkmarks?')) {
+                if (useServer) {
+                    ownedCards = {};
+                    saveOwned();
+                } else {
+                    Object.keys(localStorage).filter(k => k.startsWith('jd_')).forEach(k => localStorage.removeItem(k));
+                }
+                document.querySelectorAll('.card').forEach(c => c.classList.remove('owned'));
+                document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+                updateStats();
+            }
+        }
+
+        function createCardElement(card) {
+            const cardId = getCardId(card);
+            const owned = isOwned(cardId);
+            const price = estimatePrice(card);
+            const priceClass = price < 3 ? '' : price < 10 ? 'mid' : 'high';
+            const searchUrl = `https://www.ebay.com/sch/i.html?_nkw=${card.search}&_sop=15&LH_BIN=1`;
+            const scpSearch = `https://www.sportscardspro.com/search-products?q=${card.search.replace(/\+/g, '+')}&type=prices`;
+
+            return `
+                <div class="card ${owned ? 'owned' : ''}" data-price="${price}" data-type="${card.type}">
+                    <span class="price-badge ${priceClass}">~$${price < 1 ? price.toFixed(2) : Math.round(price)}</span>
+                    ${card.img
+                        ? `<a href="${searchUrl}" target="_blank"><img class="card-image" src="${card.img}" alt="${card.set}" onerror="this.outerHTML='<a href=\\'${searchUrl}\\' target=\\'_blank\\' class=\\'card-image placeholder\\'>Click to view</a>'"></a>`
+                        : `<a href="${searchUrl}" target="_blank" class="card-image placeholder">Click to view on eBay</a>`
+                    }
+                    <div class="card-title">${card.set}</div>
+                    <div class="card-number">${card.num} ${card.name}</div>
+                    <div class="card-type">${card.type}</div>
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="${cardId}" ${owned ? 'checked' : ''} onchange="toggleOwned('${cardId}', this)">
+                        <label for="${cardId}">Owned</label>
+                    </div>
+                    <a href="${searchUrl}" target="_blank" class="search-link">eBay</a> · <a href="${scpSearch}" target="_blank" class="search-link">Prices</a>
+                </div>
+            `;
+        }
+
+        function renderCards() {
+            document.getElementById('college-cards').innerHTML = cards.college.map(createCardElement).join('');
+            document.getElementById('panini-cards').innerHTML = cards.panini.map(createCardElement).join('');
+            document.getElementById('topps-cards').innerHTML = cards.topps.map(createCardElement).join('');
+            document.getElementById('other-cards').innerHTML = cards.other.map(createCardElement).join('');
+            updateStats();
+        }
+
+        function exportOwned() {
+            const owned = JSON.parse(localStorage.getItem('jaydenDanielsCards') || '{}');
+            const data = {
+                exported: new Date().toISOString(),
+                cards: owned
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'jayden-daniels-checklist.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importOwned(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    const cards = data.cards || data;
+                    localStorage.setItem('jaydenDanielsCards', JSON.stringify(cards));
+                    renderCards();
+                    alert('Imported ' + Object.keys(cards).filter(k => cards[k]).length + ' owned cards!');
+                } catch (err) {
+                    alert('Error importing: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // Load owned cards then render
+        loadOwned().then(() => renderCards());
+    </script>
+</body>
+</html>
