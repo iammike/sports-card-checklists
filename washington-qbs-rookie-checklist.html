@@ -702,8 +702,12 @@
             } else {
                 isReadOnly = true;
             }
-            await loadOwned();
-            await loadJaydenDanielsStats();
+            try {
+                await loadOwned();
+                await loadJaydenDanielsStats();
+            } catch (e) {
+                console.error('Failed to load data:', e);
+            }
             render();
             updateReadOnlyUI();
         }

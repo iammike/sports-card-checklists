@@ -684,7 +684,11 @@
             } else {
                 isReadOnly = true;
             }
-            await loadOwned();
+            try {
+                await loadOwned();
+            } catch (e) {
+                console.error('Failed to load data:', e);
+            }
             renderCards();
             updateReadOnlyUI();
         }
