@@ -44,6 +44,22 @@
             text-decoration: none;
             color: inherit;
             display: block;
+            position: relative;
+            overflow: hidden;
+        }
+        .checklist-card .bg-progress {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, rgba(39, 174, 96, 0.15) 0%, rgba(39, 174, 96, 0.25) 100%);
+            transition: width 0.8s ease;
+            z-index: 0;
+        }
+        .checklist-card > *:not(.bg-progress) {
+            position: relative;
+            z-index: 1;
         }
         .checklist-card:hover {
             transform: translateY(-4px);
@@ -66,22 +82,44 @@
         }
         .checklist-card .progress-container {
             margin-top: 15px;
-            height: 6px;
+            height: 8px;
             background: rgba(255,255,255,0.1);
-            border-radius: 3px;
+            border-radius: 4px;
             overflow: hidden;
         }
         .checklist-card .progress-bar {
             height: 100%;
             background: linear-gradient(90deg, #f39c12, #27ae60);
-            border-radius: 3px;
+            border-radius: 4px;
             transition: width 0.5s ease;
             width: 0%;
         }
         .checklist-card .progress-text {
             margin-top: 6px;
-            font-size: 0.75em;
-            color: #888;
+            font-size: 0.8em;
+            color: #aaa;
+        }
+        .checklist-card .progress-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        .checklist-card .secondary-progress {
+            margin-top: 12px;
+            opacity: 0.6;
+        }
+        .checklist-card .secondary-progress .progress-container {
+            height: 4px;
+            margin-top: 4px;
+        }
+        .checklist-card .secondary-progress .progress-bar {
+            background: linear-gradient(90deg, #9b59b6, #3498db);
+        }
+        .checklist-card .secondary-progress .progress-text {
+            font-size: 0.7em;
+            color: #666;
         }
         .coming-soon {
             opacity: 0.5;
@@ -142,23 +180,26 @@
         <p class="subtitle">Tracking my collection</p>
 
         <div class="checklist-grid">
-            <a href="jayden-daniels-rookie-checklist.html" class="checklist-card" data-checklist="jayden-daniels">
+            <a href="jayden-daniels-rookie-checklist.html" class="checklist-card" data-checklist="jayden-daniels" id="card-jayden-daniels">
+                <div class="bg-progress" id="bg-progress-jayden-daniels"></div>
                 <h2>Jayden Daniels Rookie Cards</h2>
                 <p>2023 college cards and 2024 NFL rookie cards for the Commanders QB and 2024 Offensive Rookie of the Year.</p>
                 <div class="meta" id="meta-jayden-daniels">Loading...</div>
-                <div class="progress-container">
-                    <div class="progress-bar" id="progress-jayden-daniels"></div>
-                </div>
                 <div class="progress-text" id="progress-text-jayden-daniels"></div>
+                <div class="secondary-progress">
+                    <div class="progress-label">Inserts (optional)</div>
+                    <div class="progress-container">
+                        <div class="progress-bar" id="progress-jayden-daniels-inserts"></div>
+                    </div>
+                    <div class="progress-text" id="progress-text-jayden-daniels-inserts"></div>
+                </div>
             </a>
 
-            <a href="washington-qbs-rookie-checklist.html" class="checklist-card" data-checklist="washington-qbs">
+            <a href="washington-qbs-rookie-checklist.html" class="checklist-card" data-checklist="washington-qbs" id="card-washington-qbs">
+                <div class="bg-progress" id="bg-progress-washington-qbs"></div>
                 <h2>Washington QBs Collection</h2>
                 <p>Main rookie cards for every starting quarterback in Washington Redskins/Commanders history (1982-2025).</p>
                 <div class="meta" id="meta-washington-qbs">Loading...</div>
-                <div class="progress-container">
-                    <div class="progress-bar" id="progress-washington-qbs"></div>
-                </div>
                 <div class="progress-text" id="progress-text-washington-qbs"></div>
             </a>
         </div>
@@ -238,8 +279,9 @@
 
                     document.getElementById(`meta-${checklist.id}`).textContent = metaText + checklist.suffix;
 
-                    // Store total for progress calculation
+                    // Store totals for progress calculation
                     checklist.totalBase = baseCount;
+                    checklist.totalInserts = insertCount;
                 } catch (error) {
                     console.error(`Failed to load ${checklist.id}:`, error);
                     document.getElementById(`meta-${checklist.id}`).textContent = 'Error loading count';
@@ -266,28 +308,44 @@
             }
 
             const checklistMap = {
-                'jayden-daniels': 'jayden-daniels-rookie',
-                'washington-qbs': 'washington-qbs-rookie'
+                'jayden-daniels': 'jayden-daniels',
+                'washington-qbs': 'washington-qbs'
             };
 
             for (const [id, checklistKey] of Object.entries(checklistMap)) {
                 const owned = ownedData.checklists[checklistKey] || [];
-                const progressBar = document.getElementById(`progress-${id}`);
+                const ownedInserts = ownedData.checklists[`${checklistKey}-inserts`] || [];
+                const bgProgress = document.getElementById(`bg-progress-${id}`);
                 const progressText = document.getElementById(`progress-text-${id}`);
 
-                // Get total from the meta text (parse it)
+                // Get totals from the meta text (parse it)
                 const metaEl = document.getElementById(`meta-${id}`);
                 const metaText = metaEl.textContent;
                 const baseMatch = metaText.match(/(\d+)\s*(?:base|cards)/);
+                const insertMatch = metaText.match(/(\d+)\s*inserts/);
                 const total = baseMatch ? parseInt(baseMatch[1]) : 0;
+                const totalInserts = insertMatch ? parseInt(insertMatch[1]) : 0;
 
-                if (total > 0 && owned.length > 0) {
-                    const percentage = Math.round((owned.length / total) * 100);
-                    progressBar.style.width = `${percentage}%`;
-                    progressText.textContent = `${owned.length}/${total} owned (${percentage}%)`;
-                } else if (total > 0) {
-                    progressBar.style.width = '0%';
-                    progressText.textContent = `0/${total} owned`;
+                // Base cards progress (fills card background)
+                if (total > 0) {
+                    const ownedCount = owned.length;
+                    const percentage = Math.round((ownedCount / total) * 100);
+                    bgProgress.style.width = `${percentage}%`;
+                    progressText.textContent = `Base: ${ownedCount}/${total} owned (${percentage}%)`;
+                }
+
+                // Inserts progress (Jayden Daniels only)
+                const insertsBar = document.getElementById(`progress-${id}-inserts`);
+                const insertsText = document.getElementById(`progress-text-${id}-inserts`);
+                if (insertsBar && totalInserts > 0) {
+                    if (ownedInserts.length > 0) {
+                        const pct = Math.round((ownedInserts.length / totalInserts) * 100);
+                        insertsBar.style.width = `${pct}%`;
+                        insertsText.textContent = `${ownedInserts.length}/${totalInserts} owned (${pct}%)`;
+                    } else {
+                        insertsBar.style.width = '0%';
+                        insertsText.textContent = `0/${totalInserts} owned`;
+                    }
                 }
             }
         }
