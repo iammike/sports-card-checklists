@@ -340,21 +340,26 @@
             cursor: pointer;
             user-select: none;
         }
-        .section-header.chase::after {
+        .section-header.chase::after,
+        .group-header.inserts::after {
             content: ' ▼';
             font-size: 12px;
             opacity: 0.7;
         }
-        .section-header.chase.collapsed::after {
+        .section-header.chase.collapsed::after,
+        .group-header.inserts.collapsed::after {
             content: ' ▶';
         }
-        .chase-section .card-grid {
+        .chase-section .card-grid,
+        .inserts-section .section-group {
             display: none;
         }
-        .chase-section.expanded .card-grid {
-            display: grid;
+        .chase-section.expanded .card-grid,
+        .inserts-section.expanded .section-group {
+            display: block;
         }
-        .chase-note {
+        .chase-note,
+        .inserts-note {
             background: rgba(243, 156, 18, 0.1);
             color: #b36b00;
             padding: 10px 15px;
@@ -445,11 +450,14 @@
         </div>
     </div>
 
-    <!-- INSERTS 2024 -->
-    <div class="group-header" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">2024 Inserts</div>
-    <div class="section-group">
-        <div class="section default-section">
-            <div class="card-grid" id="insert-cards"></div>
+    <!-- INSERTS 2024 (collapsed by default) -->
+    <div class="section inserts-section" id="inserts-section">
+        <div class="group-header inserts collapsed" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); cursor: pointer;" onclick="toggleInsertsSection()">2024 Inserts</div>
+        <div class="inserts-note">Optional insert cards. Not included in main checklist totals.</div>
+        <div class="section-group">
+            <div class="section default-section">
+                <div class="card-grid" id="insert-cards"></div>
+            </div>
         </div>
     </div>
 
@@ -761,6 +769,13 @@
         function toggleChaseSection() {
             const section = document.getElementById('chase-section');
             const header = section.querySelector('.section-header');
+            section.classList.toggle('expanded');
+            header.classList.toggle('collapsed');
+        }
+
+        function toggleInsertsSection() {
+            const section = document.getElementById('inserts-section');
+            const header = section.querySelector('.group-header');
             section.classList.toggle('expanded');
             header.classList.toggle('collapsed');
         }
