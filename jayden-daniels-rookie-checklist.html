@@ -337,6 +337,8 @@
             <option value="default">Sort: Default</option>
             <option value="year">Sort: Year</option>
             <option value="set">Sort: Set/Brand</option>
+            <option value="price-low">Sort: Price (Low→High)</option>
+            <option value="price-high">Sort: Price (High→Low)</option>
             <option value="owned">Sort: Owned First</option>
             <option value="needed">Sort: Needed First</option>
         </select>
@@ -694,6 +696,12 @@
                     break;
                 case 'set':
                     sorted.sort((a, b) => getSetName(a).localeCompare(getSetName(b)));
+                    break;
+                case 'price-low':
+                    sorted.sort((a, b) => estimatePrice(a) - estimatePrice(b));
+                    break;
+                case 'price-high':
+                    sorted.sort((a, b) => estimatePrice(b) - estimatePrice(a));
                     break;
                 case 'owned':
                     sorted.sort((a, b) => {
