@@ -312,6 +312,32 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.2);
         }
         .clear-btn:hover { background: #ff1744; }
+        .section-header.chase {
+            background: linear-gradient(135deg, #f39c12 0%, #e74c3c 100%);
+            cursor: pointer;
+            user-select: none;
+        }
+        .section-header.chase::after {
+            content: ' ▼';
+            font-size: 12px;
+            opacity: 0.7;
+        }
+        .section-header.chase.collapsed::after {
+            content: ' ▶';
+        }
+        .chase-section .card-grid {
+            display: none;
+        }
+        .chase-section.expanded .card-grid {
+            display: grid;
+        }
+        .chase-note {
+            background: rgba(243, 156, 18, 0.1);
+            color: #b36b00;
+            padding: 10px 15px;
+            font-size: 12px;
+            border-bottom: 1px solid rgba(243, 156, 18, 0.2);
+        }
     </style>
 </head>
 <body>
@@ -398,6 +424,13 @@
         <div class="card-grid" id="insert-cards"></div>
     </div>
 
+    <!-- CHASE CARDS (expensive/rare - collapsed by default) -->
+    <div class="section chase-section" id="chase-section">
+        <div class="section-header chase collapsed" onclick="toggleChaseSection()">Chase Cards (SSP/Case Hits)</div>
+        <div class="chase-note">These are rare, expensive inserts ($50+). Not included in main checklist totals.</div>
+        <div class="card-grid" id="chase-cards"></div>
+    </div>
+
     <button class="clear-btn" onclick="clearAll()">Clear All</button>
 
     <script src="github-sync.js"></script>
@@ -431,6 +464,8 @@
                 { set: "2024 Totally Certified", num: "", name: "Base", type: "Base RC", search: "jayden+daniels+2024+totally+certified+base", img: "jayden-daniels-cards/card_34_5pwAAeSw.webp" },
                 { set: "2024 Zenith", num: "#148", name: "Base", type: "Base RC", search: "jayden+daniels+2024+zenith+148", img: "jayden-daniels-cards/zenith_148.webp" },
                 { set: "2024 Illusions", num: "#93", name: "Base", type: "Base RC", search: "jayden+daniels+2024+illusions+93", img: "jayden-daniels-cards/illusions_93.webp" },
+                { set: "2024 Gold Standard", num: "#102", name: "Base", type: "Base RC", search: "jayden+daniels+2024+gold+standard+102", img: "" },
+                { set: "2024 Select", num: "#217", name: "Club Level", type: "Base RC", search: "jayden+daniels+2024+select+club+level+217", img: "" },
             ],
             topps: [
                 { set: "2024 Topps Chrome", num: "#201", name: "Base", type: "Base RC", search: "jayden+daniels+2024+topps+chrome+201", img: "jayden-daniels-cards/card_37_BFIAAeSw.webp" },
@@ -447,27 +482,55 @@
             inserts: [
                 { set: "2024 Prizm Emergent", num: "#E-11", name: "Base", type: "Insert", search: "jayden+daniels+2024+prizm+emergent+E-11", img: "jayden-daniels-cards/prizm_emergent.webp" },
                 { set: "2024 Prizm Fireworks", num: "#24", name: "Base", type: "Insert", search: "jayden+daniels+2024+prizm+fireworks+24", img: "jayden-daniels-cards/prizm_fireworks.webp" },
+                { set: "2024 Prizm Prizmatic", num: "#3", name: "Base", type: "Insert", search: "jayden+daniels+2024+prizm+prizmatic+3", img: "jayden-daniels-cards/prizm_prizmatic.webp" },
+                { set: "2024 Prizm Manga", num: "#M-JAD", name: "Base", type: "Insert", search: "jayden+daniels+2024+prizm+manga", img: "" },
                 { set: "2024 Mosaic Notoriety", num: "#19", name: "Base", type: "Insert", search: "jayden+daniels+2024+mosaic+notoriety+19", img: "jayden-daniels-cards/mosaic_notoriety.webp" },
                 { set: "2024 Mosaic Center Stage", num: "#8", name: "Base", type: "Insert", search: "jayden+daniels+2024+mosaic+center+stage+8", img: "jayden-daniels-cards/mosaic_center_stage.webp" },
                 { set: "2024 Mosaic Overdrive", num: "#5", name: "Base", type: "Insert", search: "jayden+daniels+2024+mosaic+overdrive+5", img: "jayden-daniels-cards/mosaic_overdrive.webp" },
+                { set: "2024 Mosaic Kaleidoscopic", num: "#21", name: "Base", type: "Insert", search: "jayden+daniels+2024+mosaic+kaleidoscopic+21", img: "" },
+                { set: "2024 Mosaic Stained Glass", num: "#SG-17", name: "Base", type: "Insert", search: "jayden+daniels+2024+mosaic+stained+glass", img: "" },
+                { set: "2024 Mosaic Micro", num: "#MM-JDS", name: "Base", type: "Insert", search: "jayden+daniels+2024+mosaic+micro", img: "" },
+                { set: "2024 Mosaic Money", num: "#10", name: "Base", type: "Insert", search: "jayden+daniels+2024+mosaic+money+10", img: "" },
                 { set: "2024 Score Hot Rookies", num: "#4", name: "Base", type: "Insert", search: "jayden+daniels+2024+score+hot+rookies+4", img: "jayden-daniels-cards/score_hot_rookies.webp" },
                 { set: "2024 Illusions Instant Impact", num: "#4", name: "Base", type: "Insert", search: "jayden+daniels+2024+illusions+instant+impact+4", img: "jayden-daniels-cards/illusions_instant_impact.webp" },
                 { set: "2024 Illusions Mystique", num: "#M-4", name: "Base", type: "Insert", search: "jayden+daniels+2024+illusions+mystique+M-4", img: "jayden-daniels-cards/illusions_mystique.webp" },
                 { set: "2024 Illusions Great Expectations", num: "#GE-JDS", name: "Base", type: "Insert", search: "jayden+daniels+2024+illusions+great+expectations", img: "jayden-daniels-cards/illusions_great_expectations.webp" },
                 { set: "2024 Donruss Rated Rookie Retro", num: "#11", name: "Base", type: "Insert", search: "jayden+daniels+2024+donruss+rated+rookie+retro+11", img: "jayden-daniels-cards/donruss_rated_rookie_retro.webp" },
+                { set: "2024 Donruss Bomb Squad", num: "#29", name: "Base", type: "Insert", search: "jayden+daniels+2024+donruss+bomb+squad+29", img: "jayden-daniels-cards/donruss_bomb_squad.webp" },
+                { set: "2024 Donruss Optic Passing Grade", num: "#2", name: "Base", type: "Insert", search: "jayden+daniels+2024+donruss+optic+passing+grade+2", img: "jayden-daniels-cards/donruss_optic_passing_grade.webp" },
                 { set: "2024 Phoenix Rookie Rising", num: "#RR-JDS", name: "Base", type: "Insert", search: "jayden+daniels+2024+phoenix+rookie+rising", img: "jayden-daniels-cards/phoenix_rookie_rising.webp" },
                 { set: "2024 Phoenix Contours", num: "#CON-JDS", name: "Base", type: "Insert", search: "jayden+daniels+2024+phoenix+contours", img: "jayden-daniels-cards/phoenix_contours.webp" },
                 { set: "2024 Absolute Star Gazing", num: "#SG-JDS", name: "Base", type: "Insert", search: "jayden+daniels+2024+absolute+star+gazing", img: "jayden-daniels-cards/absolute_star_gazing.webp" },
-                { set: "2024 Donruss Bomb Squad", num: "#29", name: "Base", type: "Insert", search: "jayden+daniels+2024+donruss+bomb+squad+29", img: "jayden-daniels-cards/donruss_bomb_squad.webp" },
-                { set: "2024 Donruss Optic Passing Grade", num: "#2", name: "Base", type: "Insert", search: "jayden+daniels+2024+donruss+optic+passing+grade+2", img: "jayden-daniels-cards/donruss_optic_passing_grade.webp" },
-                { set: "2024 Prizm Prizmatic", num: "#3", name: "Base", type: "Insert", search: "jayden+daniels+2024+prizm+prizmatic+3", img: "jayden-daniels-cards/prizm_prizmatic.webp" },
+                { set: "2024 Absolute Introductions", num: "#I-JDS", name: "Base", type: "Insert", search: "jayden+daniels+2024+absolute+introductions", img: "" },
+                { set: "2024 Absolute Explosive", num: "#EX-JDS", name: "Base", type: "Insert", search: "jayden+daniels+2024+absolute+explosive", img: "" },
+                { set: "2024 Absolute By Storm", num: "#BS-JDS", name: "Base", type: "Insert", search: "jayden+daniels+2024+absolute+by+storm", img: "" },
+                { set: "2024 Absolute Rock Out", num: "#RO-JDS", name: "Base", type: "Insert", search: "jayden+daniels+2024+absolute+rock+out", img: "" },
                 { set: "2024 Select Future", num: "#4", name: "Base", type: "Insert", search: "jayden+daniels+2024+select+future+4", img: "jayden-daniels-cards/select_future.webp" },
                 { set: "2024 Select Turbocharged", num: "#12", name: "Base", type: "Insert", search: "jayden+daniels+2024+select+turbocharged+12", img: "jayden-daniels-cards/select_turbocharged.webp" },
                 { set: "2024 Select Numbers", num: "#23", name: "Base", type: "Insert", search: "jayden+daniels+2024+select+numbers+23", img: "jayden-daniels-cards/select_numbers.webp" },
                 { set: "2024 Contenders Rookie Stallions", num: "#3", name: "Base", type: "Insert", search: "jayden+daniels+2024+contenders+rookie+stallions+3", img: "jayden-daniels-cards/contenders_rookie_stallions.webp" },
+                { set: "2024 Zenith State of the Art", num: "#19", name: "Base", type: "Insert", search: "jayden+daniels+2024+zenith+state+of+the+art+19", img: "" },
+                { set: "2024 Zenith Z Marquee", num: "#2", name: "Base", type: "Insert", search: "jayden+daniels+2024+zenith+z+marquee+2", img: "" },
+                { set: "2024 Totally Certified Franchise Foundations", num: "#20", name: "Base", type: "Insert", search: "jayden+daniels+2024+totally+certified+franchise+foundations", img: "" },
+                { set: "2024 Totally Certified Portraits", num: "#1", name: "Base", type: "Insert", search: "jayden+daniels+2024+totally+certified+portraits+1", img: "" },
+                { set: "2024 Totally Certified The Mighty", num: "#18", name: "Base", type: "Insert", search: "jayden+daniels+2024+totally+certified+the+mighty+18", img: "" },
                 { set: "2024 Cosmic Chrome Star Command", num: "#SC-25", name: "Base", type: "Insert", search: "jayden+daniels+2024+cosmic+chrome+star+command", img: "jayden-daniels-cards/cosmic_chrome_star_command.webp" },
                 { set: "2024 Cosmic Chrome Launched Into Orbit", num: "#LIO-10", name: "Base", type: "Insert", search: "jayden+daniels+2024+cosmic+chrome+launched+into+orbit", img: "jayden-daniels-cards/cosmic_chrome_launched_into_orbit.webp" },
                 { set: "2024 Cosmic Chrome Star Clusters", num: "#SC-8", name: "w/ Hartman", type: "Insert", search: "jayden+daniels+2024+cosmic+chrome+star+clusters", img: "jayden-daniels-cards/card_40_ifwAAeSw.webp" },
+                { set: "2024 Chrome Finesse", num: "#F-3", name: "Base", type: "Insert", search: "jayden+daniels+2024+topps+chrome+finesse", img: "" },
+                { set: "2024 Chrome Future Stars", num: "#FS-2", name: "Base", type: "Insert", search: "jayden+daniels+2024+topps+chrome+future+stars", img: "" },
+                { set: "2024 Chrome 1974", num: "#74TF-2", name: "Base", type: "Insert", search: "jayden+daniels+2024+topps+chrome+1974", img: "" },
+                { set: "2024 Chrome Youthquake", num: "#Y-3", name: "Base", type: "Insert", search: "jayden+daniels+2024+topps+chrome+youthquake", img: "" },
+                { set: "2024 Chrome All-Etch", num: "#CAE-JD", name: "Base", type: "Insert", search: "jayden+daniels+2024+topps+chrome+all+etch", img: "" },
+                { set: "2024 Signature Class Fluidity", num: "#F-2", name: "Base", type: "Insert", search: "jayden+daniels+2024+topps+signature+class+fluidity", img: "" },
+                { set: "2024 Signature Class After Image", num: "#AI-7", name: "Base", type: "Insert", search: "jayden+daniels+2024+topps+signature+class+after+image", img: "" },
+            ],
+            chase: [
+                { set: "2024 Donruss Downtown", num: "#16", name: "Base", type: "Chase SSP", search: "jayden+daniels+2024+donruss+downtown+16", img: "" },
+                { set: "2024 Donruss Optic Uptowns", num: "#2", name: "Base", type: "Chase SSP", search: "jayden+daniels+2024+donruss+optic+uptowns+2", img: "" },
+                { set: "2024 Absolute Kaboom", num: "#7", name: "Horizontal", type: "Chase SSP", search: "jayden+daniels+2024+absolute+kaboom+7", img: "" },
+                { set: "2024 Prizm Color Blast", num: "#3", name: "Base", type: "Chase SSP", search: "jayden+daniels+2024+prizm+color+blast+3", img: "" },
+                { set: "2024 Phoenix Color Blast", num: "#CB-JDS", name: "Base", type: "Chase SSP", search: "jayden+daniels+2024+phoenix+color+blast", img: "" },
             ]
         };
 
@@ -477,6 +540,8 @@
             'Base': 1, 'Base RC': 1.5, 'Base Rookie': 1.5,
             // Parallels more expensive
             'Parallel': 5, 'Insert': 4, 'Insert SSP': 50,
+            // Chase cards are expensive
+            'Chase SSP': 100,
         };
 
         // Set-specific price modifiers
@@ -637,11 +702,11 @@
         }
 
         function updateStats() {
-            const allCards = document.querySelectorAll('.card');
-            const visibleCards = document.querySelectorAll('.card:not([style*="display: none"])');
-            const ownedVisible = document.querySelectorAll('.card.owned:not([style*="display: none"])').length;
+            // Exclude chase cards from main stats
+            const mainCards = document.querySelectorAll('.default-section .card:not([style*="display: none"]), #sorted-section .card:not([style*="display: none"])');
+            const ownedVisible = document.querySelectorAll('.default-section .card.owned:not([style*="display: none"]), #sorted-section .card.owned:not([style*="display: none"])').length;
             let totalValue = 0, ownedValue = 0, neededValue = 0;
-            visibleCards.forEach(c => {
+            mainCards.forEach(c => {
                 const price = parseFloat(c.dataset.price);
                 totalValue += price;
                 if (c.classList.contains('owned')) {
@@ -651,10 +716,17 @@
                 }
             });
             document.getElementById('owned-count').textContent = ownedVisible;
-            document.getElementById('total-count').textContent = visibleCards.length;
+            document.getElementById('total-count').textContent = mainCards.length;
             document.getElementById('total-value').textContent = '$' + totalValue.toFixed(0);
             document.getElementById('owned-value').textContent = '$' + ownedValue.toFixed(0) + ' owned';
             document.getElementById('needed-value').textContent = '$' + neededValue.toFixed(0) + ' needed';
+        }
+
+        function toggleChaseSection() {
+            const section = document.getElementById('chase-section');
+            const header = section.querySelector('.section-header');
+            section.classList.toggle('expanded');
+            header.classList.toggle('collapsed');
         }
 
         function clearAll() {
@@ -781,6 +853,8 @@
                 const sorted = sortCards(allCards, sortBy);
                 document.getElementById('sorted-cards').innerHTML = sorted.map(createCardElement).join('');
             }
+            // Always render chase cards (separate from sorting)
+            document.getElementById('chase-cards').innerHTML = cards.chase.map(createCardElement).join('');
             updateStats();
         }
 
