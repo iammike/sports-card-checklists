@@ -78,10 +78,21 @@
             color: #aaa;
             line-height: 1.5;
         }
-        .checklist-card .meta {
-            margin-top: 12px;
-            font-size: 0.85em;
-            color: #666;
+        /* Brand tags */
+        .checklist-card .brand-tags {
+            display: flex;
+            gap: 6px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .checklist-card .brand-tag {
+            font-size: 0.65em;
+            padding: 2px 6px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 3px;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         /* Main progress section */
         .checklist-card .progress-section {
@@ -220,7 +231,12 @@
             <a href="jayden-daniels-rookie-checklist.html" class="checklist-card" data-checklist="jayden-daniels" id="card-jayden-daniels">
                 <h2>Jayden Daniels Rookie Cards</h2>
                 <p>2023 college cards and 2024 NFL rookie cards for the Commanders QB and 2024 Offensive Rookie of the Year.</p>
-                <div class="meta" id="meta-jayden-daniels">Loading...</div>
+                <div class="brand-tags">
+                    <span class="brand-tag">Panini</span>
+                    <span class="brand-tag">Topps</span>
+                    <span class="brand-tag">Leaf</span>
+                    <span class="brand-tag">SAGE</span>
+                </div>
                 <div class="progress-section" id="progress-section-jayden-daniels" style="display: none;">
                     <div class="main-progress">
                         <div class="progress-ring">
@@ -247,7 +263,10 @@
             <a href="washington-qbs-rookie-checklist.html" class="checklist-card" data-checklist="washington-qbs" id="card-washington-qbs">
                 <h2>Washington QBs Collection</h2>
                 <p>Main rookie cards for every starting quarterback in Washington Redskins/Commanders history (1982-2025).</p>
-                <div class="meta" id="meta-washington-qbs">Loading...</div>
+                <div class="brand-tags">
+                    <span class="brand-tag">Vintage</span>
+                    <span class="brand-tag">Modern</span>
+                </div>
                 <div class="progress-section" id="progress-section-washington-qbs" style="display: none;">
                     <div class="main-progress">
                         <div class="progress-ring">
@@ -292,68 +311,6 @@
         function logout() {
             githubSync.logout();
             updateAuthUI();
-        }
-
-        async function loadChecklistCounts() {
-            const checklists = [
-                {
-                    id: 'jayden-daniels',
-                    url: 'jayden-daniels-rookie-checklist.html',
-                    suffix: ' • Panini, Topps, Leaf, SAGE'
-                },
-                {
-                    id: 'washington-qbs',
-                    url: 'washington-qbs-rookie-checklist.html',
-                    suffix: ' • Vintage to Modern'
-                }
-            ];
-
-            for (const checklist of checklists) {
-                try {
-                    const response = await fetch(checklist.url);
-                    const html = await response.text();
-
-                    // Count cards by type using regex (Jayden Daniels format)
-                    const baseMatches = html.match(/type:\s*["']Base[^"']*["']/g) || [];
-                    const insertMatches = html.match(/type:\s*["']Insert["']/g) || [];
-                    const chaseMatches = html.match(/type:\s*["']Chase[^"']*["']/g) || [];
-
-                    let baseCount = baseMatches.length;
-                    const insertCount = insertMatches.length;
-                    const chaseCount = chaseMatches.length;
-
-                    // If no type fields found, try Washington QBs format (count by set: fields)
-                    if (baseCount === 0 && insertCount === 0 && chaseCount === 0) {
-                        const setMatches = html.match(/\{\s*name:\s*["'][^"']+["'],\s*years:/g) || [];
-                        baseCount = setMatches.length;
-                    }
-
-                    let metaText = '';
-                    if (insertCount > 0 || chaseCount > 0) {
-                        // Jayden Daniels style with multiple categories
-                        const parts = [];
-                        if (baseCount > 0) parts.push(`${baseCount} base`);
-                        if (insertCount > 0) parts.push(`${insertCount} inserts`);
-                        if (chaseCount > 0) parts.push(`${chaseCount} chase`);
-                        metaText = parts.join(' + ');
-                    } else {
-                        // Simple count for single-category checklists
-                        metaText = `${baseCount} cards`;
-                    }
-
-                    document.getElementById(`meta-${checklist.id}`).textContent = metaText + checklist.suffix;
-
-                    // Store totals for progress calculation
-                    checklist.totalBase = baseCount;
-                    checklist.totalInserts = insertCount;
-                } catch (error) {
-                    console.error(`Failed to load ${checklist.id}:`, error);
-                    document.getElementById(`meta-${checklist.id}`).textContent = 'Error loading count';
-                }
-            }
-
-            // Return checklists with totals for progress
-            return checklists;
         }
 
         async function loadProgress() {
@@ -435,26 +392,33 @@
 
             // Washington QBs progress
             const qbsOwned = ownedData.checklists['washington-qbs'] || [];
-            const metaQBs = document.getElementById('meta-washington-qbs');
-            const qbsMatch = metaQBs.textContent.match(/(\d+)\s*cards/);
-            const totalQBs = qbsMatch ? parseInt(qbsMatch[1]) : 0;
 
-            if (totalQBs > 0) {
+            // Fetch and count QBs cards
+            try {
+                const qbsResponse = await fetch('washington-qbs-rookie-checklist.html');
+                const qbsHtml = await qbsResponse.text();
+                const qbsMatches = qbsHtml.match(/\{\s*name:\s*["'][^"']+["'],\s*years:/g) || [];
+                const totalQBs = qbsMatches.length;
                 const ownedQBsCount = qbsOwned.length;
-                const pctQBs = Math.round((ownedQBsCount / totalQBs) * 100);
-                const circumference = 2 * Math.PI * 20;
-                const offsetQBs = circumference - (pctQBs / 100) * circumference;
 
-                // Show progress section
-                document.getElementById('progress-section-washington-qbs').style.display = 'block';
+                if (totalQBs > 0) {
+                    const pctQBs = Math.round((ownedQBsCount / totalQBs) * 100);
+                    const circumference = 2 * Math.PI * 20;
+                    const offsetQBs = circumference - (pctQBs / 100) * circumference;
 
-                // Update ring
-                const ringQBs = document.getElementById('progress-ring-washington-qbs');
-                ringQBs.style.strokeDashoffset = offsetQBs;
+                    // Show progress section
+                    document.getElementById('progress-section-washington-qbs').style.display = 'block';
 
-                document.getElementById('progress-pct-washington-qbs').textContent = `${pctQBs}%`;
-                document.getElementById('progress-owned-washington-qbs').textContent = ownedQBsCount;
-                document.getElementById('progress-total-washington-qbs').textContent = totalQBs;
+                    // Update ring
+                    const ringQBs = document.getElementById('progress-ring-washington-qbs');
+                    ringQBs.style.strokeDashoffset = offsetQBs;
+
+                    document.getElementById('progress-pct-washington-qbs').textContent = `${pctQBs}%`;
+                    document.getElementById('progress-owned-washington-qbs').textContent = ownedQBsCount;
+                    document.getElementById('progress-total-washington-qbs').textContent = totalQBs;
+                }
+            } catch (error) {
+                console.error('Failed to load Washington QBs progress:', error);
             }
         }
 
@@ -471,8 +435,8 @@
                 }
             });
 
-            // Load card counts, then progress (needs counts first)
-            loadChecklistCounts().then(() => loadProgress());
+            // Load progress data
+            loadProgress();
         }
         init();
     </script>
