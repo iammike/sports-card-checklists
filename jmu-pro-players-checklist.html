@@ -1348,6 +1348,11 @@
             return primaryCards[0] || playerCards[0];
         }
 
+        function getYear(card) {
+            const match = card.set.match(/\d{4}/);
+            return match ? parseInt(match[0]) : 9999;
+        }
+
         function renderCards() {
             // Combine all football cards (NFL + USFL) into one array
             const allFootballCards = [...cards.hof, ...cards.probowl, ...cards.usfl, ...cards.modern];
@@ -1407,6 +1412,7 @@
                         visibleCards.push(card);
                     }
                 });
+                visibleCards.sort((a, b) => getYear(a) - getYear(b));
                 document.getElementById(`${section}-cards`).innerHTML = visibleCards.map(createCardElement).join('');
             });
 
@@ -1416,6 +1422,7 @@
             if (allAlternates.length > 0) {
                 alternatesSection.style.display = '';
                 alternatesCount.textContent = `(${allAlternates.length} cards)`;
+                allAlternates.sort((a, b) => getYear(a) - getYear(b));
                 document.getElementById('alternates-cards').innerHTML = allAlternates.map(createCardElement).join('');
             } else {
                 alternatesSection.style.display = 'none';

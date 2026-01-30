@@ -524,10 +524,13 @@
                 const jmuResponse = await fetch('jmu-pro-players-checklist.html');
                 const jmuHtml = await jmuResponse.text();
 
-                // Parse cards with player, set, num, name, and price
+                // Parse cards with player, set, num, name, price - exclude alternates
                 const jmuCards = [];
-                const jmuCardMatches = jmuHtml.matchAll(/player:\s*["']([^"']+)["'].*?set:\s*["']([^"']+)["'],\s*num:\s*["']([^"']*)["'],\s*name:\s*["']([^"']+)["'].*?price:\s*([\d.]+)/gs);
+                const jmuCardMatches = jmuHtml.matchAll(/player:\s*["']([^"']+)["'].*?set:\s*["']([^"']+)["'],\s*num:\s*["']([^"']*)["'],\s*name:\s*["']([^"']+)["'].*?price:\s*([\d.]+).*?(?:alternate:\s*true)?/gs);
                 for (const match of jmuCardMatches) {
+                    const fullMatch = match[0];
+                    // Skip cards marked as alternate
+                    if (fullMatch.includes('alternate: true') || fullMatch.includes('alternate:true')) continue;
                     const [, player, set, num, name, price] = match;
                     jmuCards.push({
                         player, set, num, name,
