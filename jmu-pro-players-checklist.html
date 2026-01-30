@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JMU Pro Players Card Checklist</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #450084;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 20px;
+        }
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .stat {
+            text-align: center;
+            background: linear-gradient(135deg, #450084 0%, #2d0057 100%);
+            padding: 15px 25px;
+            border-radius: 10px;
+        }
+        .stat-value { font-size: 2em; font-weight: bold; color: #C9A227; }
+        .stat-label { font-size: 0.85em; color: #ccc; }
+        .stat-breakdown {
+            display: flex;
+            gap: 10px;
+            font-size: 0.7em;
+            margin-top: 4px;
+        }
+        .stat-breakdown .owned-value { color: #4caf50; }
+        .stat-breakdown .needed-value { color: #ff9800; }
+        .filters {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+            justify-content: center;
+        }
+        select, input[type="text"] {
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            background: white;
+            color: #333;
+            font-size: 14px;
+        }
+        .auth-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            background: linear-gradient(135deg, #450084 0%, #2d0057 100%);
+            border-radius: 8px;
+        }
+        .auth-bar .back-link {
+            color: #C9A227;
+            text-decoration: none;
+            font-size: 0.85em;
+        }
+        .auth-bar .back-link:hover {
+            color: #fff;
+        }
+        .auth-bar .right-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .auth-bar .user-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #aaa;
+            font-size: 0.85em;
+        }
+        .auth-bar .user-info img {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+        }
+        .auth-bar button {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.85em;
+            background: #238636;
+            color: white;
+        }
+        .auth-bar button:hover { background: #2ea043; }
+        .auth-bar button.logout { background: #444; }
+        .auth-bar button.logout:hover { background: #555; }
+        .sync-status {
+            font-size: 0.75em;
+            color: #888;
+        }
+        .sync-status.syncing { color: #f1c40f; }
+        .sync-status.synced { color: #2ecc71; }
+        .sync-status.error { color: #e74c3c; }
+        .price-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #4caf50;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            z-index: 10;
+        }
+        .price-badge.mid { background: #ff9800; }
+        .price-badge.high { background: #f44336; }
+        .price-link {
+            display: inline-block;
+            margin-top: 4px;
+            font-size: 10px;
+            color: #999;
+            text-decoration: none;
+        }
+        .price-link:hover { color: #450084; text-decoration: underline; }
+        .section {
+            margin-bottom: 30px;
+        }
+        .group-header {
+            background: linear-gradient(135deg, #450084 0%, #2d0057 100%);
+            color: white;
+            padding: 14px 20px;
+            border-radius: 8px 8px 0 0;
+            font-size: 20px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 3px solid #C9A227;
+        }
+        .section-group {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 0 0 8px 8px;
+            margin-bottom: 30px;
+        }
+        .section-group .section {
+            margin-bottom: 20px;
+        }
+        .section-group .section:last-child {
+            margin-bottom: 0;
+        }
+        .section-header {
+            background: linear-gradient(135deg, #450084 0%, #6b2fa0 100%);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px 8px 0 0;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .section-header.hof {
+            background: linear-gradient(135deg, #C9A227 0%, #a88420 100%);
+            color: #450084;
+        }
+        .section-header.usfl {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+        .section-header.mlb {
+            background: linear-gradient(135deg, #e74c3c 0%, #1a4789 100%);
+        }
+        .section-header.modern {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+        }
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            background: white;
+            padding: 20px;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .card {
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            transition: all 0.2s;
+            background: white;
+            position: relative;
+        }
+        .card:hover {
+            border-color: #450084;
+            box-shadow: 0 4px 15px rgba(69,0,132,0.3);
+            transform: translateY(-2px);
+        }
+        .card.owned {
+            background: #e8f5e9;
+            border-color: #4caf50;
+        }
+        .card-image-wrapper {
+            position: relative;
+            width: 100%;
+            padding-top: 140%;
+            margin-bottom: 8px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .card-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: #fafafa;
+            cursor: pointer;
+        }
+        .card-image.placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+            font-size: 12px;
+            text-decoration: none;
+            border: 1px dashed #ccc;
+        }
+        .card-image.placeholder:hover {
+            background: #f0f0f0;
+            color: #450084;
+        }
+        .card-title {
+            font-weight: bold;
+            font-size: 13px;
+            margin: 8px 0 4px;
+            color: #333;
+        }
+        .card-number {
+            font-size: 12px;
+            color: #666;
+        }
+        .card-type {
+            font-size: 11px;
+            color: #999;
+            margin-top: 4px;
+        }
+        .player-name {
+            font-size: 14px;
+            font-weight: bold;
+            color: #450084;
+            margin-bottom: 4px;
+        }
+        .player-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 9px;
+            font-weight: bold;
+            margin-left: 4px;
+        }
+        .player-badge.hof {
+            background: #C9A227;
+            color: #450084;
+        }
+        .player-badge.sb {
+            background: #450084;
+            color: #C9A227;
+        }
+        .player-badge.pb {
+            background: #6b2fa0;
+            color: white;
+        }
+        .checkbox-wrapper {
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .checkbox-wrapper input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            margin: 0;
+        }
+        .checkbox-wrapper label {
+            font-size: 12px;
+            color: #666;
+            cursor: pointer;
+            line-height: 1;
+        }
+        .owned-badge {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #27ae60;
+            font-weight: bold;
+        }
+        .read-only-notice {
+            background: rgba(201,162,39,0.2);
+            color: #C9A227;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            margin-right: auto;
+        }
+        .search-link {
+            display: inline-block;
+            margin-top: 6px;
+            font-size: 11px;
+            color: #450084;
+            text-decoration: none;
+        }
+        .search-link:hover {
+            text-decoration: underline;
+        }
+        @media print {
+            .card { break-inside: avoid; }
+            .search-link { display: none; }
+            body { background: white; }
+        }
+        .clear-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #ff5252;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .clear-btn:hover { background: #ff1744; }
+        .intro-text {
+            background: linear-gradient(135deg, rgba(69,0,132,0.05) 0%, rgba(201,162,39,0.05) 100%);
+            border: 1px solid rgba(69,0,132,0.1);
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #555;
+            line-height: 1.6;
+        }
+        .intro-text strong {
+            color: #450084;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-bar" id="auth-bar">
+        <a href="index.html" class="back-link">← All Checklists</a>
+        <div class="right-section">
+            <span class="sync-status" id="sync-status"></span>
+            <div id="auth-content"></div>
+        </div>
+    </div>
+
+    <h1>JMU Pro Players Card Checklist</h1>
+    <p class="subtitle">James Madison University Alumni in Professional Sports</p>
+
+    <div class="intro-text">
+        <strong>Go Dukes!</strong> This checklist features trading cards of James Madison University alumni who made it to the pros.
+        Highlights include <strong>Hall of Famer Charles Haley</strong> (5x Super Bowl champion),
+        <strong>Gary Clark</strong> (4x Pro Bowl, 2x Super Bowl), and <strong>Scott Norwood</strong> (famous for "Wide Right").
+    </div>
+
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-value" id="owned-count">0</div>
+            <div class="stat-label">Owned</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="total-count">0</div>
+            <div class="stat-label">Total Cards</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="total-value">$0</div>
+            <div class="stat-label">Est. Value</div>
+            <div class="stat-breakdown">
+                <span class="owned-value" id="owned-value">$0 owned</span>
+                <span class="needed-value" id="needed-value">$0 needed</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="filters">
+        <select id="status-filter">
+            <option value="all">All Cards</option>
+            <option value="owned">Owned Only</option>
+            <option value="need">Needed Only</option>
+        </select>
+        <select id="sport-filter">
+            <option value="all">All Sports</option>
+            <option value="nfl">NFL Only</option>
+            <option value="usfl">USFL Only</option>
+            <option value="mlb">MLB Only</option>
+            <option value="nba">NBA Only</option>
+            <option value="mls">MLS Only</option>
+        </select>
+        <input type="text" id="search" placeholder="Search cards...">
+    </div>
+
+    <!-- HALL OF FAME -->
+    <div class="section" id="hof-section">
+        <div class="section-header hof">Hall of Fame</div>
+        <div class="card-grid" id="hof-cards"></div>
+    </div>
+
+    <!-- PRO BOWL / ALL-STAR -->
+    <div class="section" id="probowl-section">
+        <div class="section-header">Pro Bowl Players</div>
+        <div class="card-grid" id="probowl-cards"></div>
+    </div>
+
+    <!-- USFL CARDS -->
+    <div class="section" id="usfl-section">
+        <div class="section-header usfl">USFL Cards (Pre-NFL)</div>
+        <div class="card-grid" id="usfl-cards"></div>
+    </div>
+
+    <!-- MODERN ERA (2000+) -->
+    <div class="section" id="modern-section">
+        <div class="section-header modern">Modern Era (2000+)</div>
+        <div class="card-grid" id="modern-cards"></div>
+    </div>
+
+    <!-- MLB -->
+    <div class="section" id="mlb-section">
+        <div class="section-header mlb">MLB</div>
+        <div class="card-grid" id="mlb-cards"></div>
+    </div>
+
+    <!-- NBA -->
+    <div class="section" id="nba-section">
+        <div class="section-header" style="background: linear-gradient(135deg, #1d428a 0%, #c9082a 100%);">NBA</div>
+        <div class="card-grid" id="nba-cards"></div>
+    </div>
+
+    <!-- MLS -->
+    <div class="section" id="mls-section">
+        <div class="section-header" style="background: linear-gradient(135deg, #013a5e 0%, #5c9e31 100%);">MLS</div>
+        <div class="card-grid" id="mls-cards"></div>
+    </div>
+
+    <button class="clear-btn" onclick="clearAll()">Clear All</button>
+
+    <script src="github-sync.js"></script>
+    <script>
+        const cards = {
+            hof: [
+                {
+                    player: "Charles Haley",
+                    badges: ["HOF", "5x SB"],
+                    set: "1987 Topps",
+                    num: "#125",
+                    name: "Rookie Card",
+                    type: "Base RC",
+                    sport: "nfl",
+                    price: 2,
+                    search: "charles+haley+1987+topps+125+rookie",
+                    img: "jmu-cards/haley_1987_topps.webp"
+                },
+            ],
+            probowl: [
+                {
+                    player: "Gary Clark",
+                    badges: ["4x PB", "2x SB"],
+                    set: "1986 Topps",
+                    num: "#176",
+                    name: "NFL Rookie Card",
+                    type: "Base RC",
+                    sport: "nfl",
+                    price: 2,
+                    search: "gary+clark+1986+topps+176+redskins+rookie",
+                    img: "jmu-cards/clark_1986_topps.webp"
+                },
+                {
+                    player: "Scott Norwood",
+                    badges: [],
+                    set: "1989 Score",
+                    num: "#290",
+                    name: "NFL Rookie Card",
+                    type: "Base RC",
+                    sport: "nfl",
+                    price: 1,
+                    search: "scott+norwood+1989+score+290+bills",
+                    img: "jmu-cards/norwood_1989_score.webp"
+                },
+                {
+                    player: "Scott Norwood",
+                    badges: [],
+                    set: "1989 Topps",
+                    num: "#42",
+                    name: "NFL Rookie Card",
+                    type: "Base RC",
+                    sport: "nfl",
+                    price: 1,
+                    search: "scott+norwood+1989+topps+42+bills",
+                    img: "jmu-cards/norwood_1989_topps.webp"
+                },
+            ],
+            usfl: [
+                {
+                    player: "Gary Clark",
+                    badges: [],
+                    set: "1985 Topps USFL",
+                    num: "#49",
+                    name: "Jacksonville Bulls",
+                    type: "XRC",
+                    sport: "usfl",
+                    price: 7,
+                    search: "gary+clark+1985+topps+usfl+49+bulls",
+                    img: "jmu-cards/clark_1985_usfl.webp"
+                },
+                {
+                    player: "Scott Norwood",
+                    badges: [],
+                    set: "1984 Topps USFL",
+                    num: "#14",
+                    name: "Birmingham Stallions",
+                    type: "XRC",
+                    sport: "usfl",
+                    price: 3,
+                    search: "scott+norwood+1984+topps+usfl+14+stallions",
+                    img: "jmu-cards/norwood_1984_usfl.webp"
+                },
+            ],
+            modern: [
+                {
+                    player: "Ed Perry",
+                    badges: [],
+                    set: "1997 Score Board NFL Rookies",
+                    num: "#44",
+                    name: "Base",
+                    type: "Base RC",
+                    sport: "nfl",
+                    price: 1,
+                    search: "ed+perry+1997+score+board+nfl+rookies+44+dolphins",
+                    img: "jmu-cards/perry_1997_scoreboard.webp"
+                },
+                {
+                    player: "Ed Perry",
+                    badges: [],
+                    set: "1997 Score Board NFL Rookies",
+                    num: "#44",
+                    name: "Dean's List",
+                    type: "Insert RC",
+                    sport: "nfl",
+                    price: 3,
+                    search: "ed+perry+1997+score+board+deans+list",
+                    img: "jmu-cards/perry_1997_deanslist.webp"
+                },
+                {
+                    player: "Macey Brooks",
+                    badges: [],
+                    set: "2000 Topps",
+                    num: "#76",
+                    name: "Base",
+                    type: "Base RC",
+                    sport: "nfl",
+                    price: 1,
+                    search: "macey+brooks+2000+topps+76+bears",
+                    img: "jmu-cards/brooks_2000_topps.webp"
+                },
+                {
+                    player: "Curtis Keaton",
+                    badges: [],
+                    set: "2000 Topps Stars",
+                    num: "#155",
+                    name: "Base",
+                    type: "Base RC",
+                    sport: "nfl",
+                    price: 1,
+                    search: "curtis+keaton+2000+topps+stars+155+bengals",
+                    img: "jmu-cards/keaton_2000_toppsstars.webp"
+                },
+                {
+                    player: "Curtis Keaton",
+                    badges: [],
+                    set: "2000 Topps Season Opener",
+                    num: "#201",
+                    name: "NFL Draft Pick",
+                    type: "Base RC",
+                    sport: "nfl",
+                    price: 1,
+                    search: "curtis+keaton+2000+topps+season+opener+201+bengals",
+                    img: "jmu-cards/keaton_2000_seasonopener.webp"
+                },
+                {
+                    player: "Jimmy Moreland",
+                    badges: [],
+                    set: "2019 Panini Contenders",
+                    num: "#289",
+                    name: "Rookie Ticket Auto",
+                    type: "Auto RC",
+                    sport: "nfl",
+                    price: 5,
+                    search: "jimmy+moreland+2019+contenders+289+redskins+auto",
+                    img: "jmu-cards/moreland_2019_contenders.webp"
+                },
+                {
+                    player: "Jimmy Moreland",
+                    badges: [],
+                    set: "2019 Panini Select",
+                    num: "#105",
+                    name: "Concourse",
+                    type: "Base RC",
+                    sport: "nfl",
+                    price: 1,
+                    search: "jimmy+moreland+2019+select+105+redskins",
+                    img: "jmu-cards/moreland_2019_select.webp"
+                },
+                {
+                    player: "Ben DiNucci",
+                    badges: [],
+                    set: "2020 Donruss",
+                    num: "#350",
+                    name: "Rated Rookie",
+                    type: "Base RC",
+                    sport: "nfl",
+                    price: 1,
+                    search: "ben+dinucci+2020+donruss+350+cowboys+rated+rookie",
+                    img: "jmu-cards/dinucci_2020_donruss.webp"
+                },
+                {
+                    player: "Ben DiNucci",
+                    badges: [],
+                    set: "2020 Donruss Optic",
+                    num: "#200",
+                    name: "Rated Rookie",
+                    type: "Base RC",
+                    sport: "nfl",
+                    price: 1,
+                    search: "ben+dinucci+2020+donruss+optic+200+cowboys+rated+rookie",
+                    img: "jmu-cards/dinucci_2020_optic.webp"
+                },
+                {
+                    player: "Ben DiNucci",
+                    badges: [],
+                    set: "2020 Panini Prestige",
+                    num: "#265",
+                    name: "Base",
+                    type: "Base RC",
+                    sport: "nfl",
+                    price: 1,
+                    search: "ben+dinucci+2020+prestige+265+cowboys",
+                    img: "jmu-cards/dinucci_2020_prestige.webp"
+                },
+                {
+                    player: "Aaron Stinnie",
+                    badges: ["SB"],
+                    set: "2020 Panini Instant Super Bowl LV",
+                    num: "#14",
+                    name: "Base",
+                    type: "Base RC",
+                    sport: "nfl",
+                    price: 2,
+                    search: "aaron+stinnie+2020+panini+instant+super+bowl+buccaneers",
+                    img: "jmu-cards/stinnie_2020_instant.webp"
+                },
+                {
+                    player: "Aaron Stinnie",
+                    badges: ["SB"],
+                    set: "2021 Donruss",
+                    num: "#CIH-18",
+                    name: "The Champ Is Here",
+                    type: "Insert",
+                    sport: "nfl",
+                    price: 2,
+                    search: "aaron+stinnie+2021+donruss+champ+is+here+buccaneers",
+                    img: ""
+                },
+                {
+                    player: "Arthur Moats",
+                    badges: [],
+                    set: "2017 Panini Contenders",
+                    num: "#205",
+                    name: "Ticket Auto",
+                    type: "Auto",
+                    sport: "nfl",
+                    price: 15,
+                    search: "arthur+moats+2017+panini+contenders+205+auto+steelers",
+                    img: "jmu-cards/moats_2017_contenders.webp"
+                },
+                {
+                    player: "Mike Cawley",
+                    badges: [],
+                    set: "2001 Topps XFL",
+                    num: "#6",
+                    name: "Base",
+                    type: "Base",
+                    sport: "nfl",
+                    price: 1,
+                    search: "mike+cawley+2001+topps+xfl+6+outlaws",
+                    img: "jmu-cards/cawley_2001_xfl.webp"
+                },
+            ],
+            mlb: [
+                {
+                    player: "Billy Sample",
+                    badges: [],
+                    set: "1979 Topps",
+                    num: "#713",
+                    name: "Rangers Prospects",
+                    type: "Base RC (Shared)",
+                    sport: "mlb",
+                    price: 1,
+                    search: "billy+sample+1979+topps+713+rangers+prospects",
+                    img: "jmu-cards/sample_1979_topps.webp"
+                },
+            ],
+            nba: [
+                {
+                    player: "Linton Townes",
+                    badges: [],
+                    set: "1991 Wild Card Collegiate",
+                    num: "#9",
+                    name: "Base",
+                    type: "Base",
+                    sport: "nba",
+                    price: 2,
+                    search: "linton+townes+1991+wild+card+collegiate",
+                    img: "jmu-cards/townes_1991_wildcard.webp"
+                },
+            ],
+            mls: [
+                {
+                    player: "CJ Sapong",
+                    badges: ["ROY"],
+                    set: "2011 Upper Deck Soccer",
+                    num: "#183",
+                    name: "Base",
+                    type: "Base RC",
+                    sport: "mls",
+                    price: 1,
+                    search: "cj+sapong+2011+upper+deck+soccer+183",
+                    img: "jmu-cards/sapong_2011_upperdeck.webp"
+                },
+                {
+                    player: "CJ Sapong",
+                    badges: ["ROY"],
+                    set: "2011 Upper Deck Soccer",
+                    num: "#CS",
+                    name: "Super Draft Exclusives Signatures",
+                    type: "Auto RC",
+                    sport: "mls",
+                    price: 4,
+                    search: "cj+sapong+2011+upper+deck+soccer+auto",
+                    img: "jmu-cards/sapong_2011_upperdeck_auto.webp"
+                },
+            ],
+        };
+
+        const CHECKLIST_ID = 'jmu-pro-players';
+        const OWNER_USERNAME = 'iammike';
+        let ownedCards = [];
+        let isReadOnly = false;
+
+        function isOwner() {
+            if (!window.githubSync || !githubSync.isLoggedIn()) return false;
+            const user = githubSync.getUser();
+            return user && user.login === OWNER_USERNAME;
+        }
+
+        function getCardId(card) {
+            return btoa(card.player + card.set + card.num + card.name).replace(/[^a-zA-Z0-9]/g, '');
+        }
+
+        async function loadOwned() {
+            if (window.githubSync && githubSync.isLoggedIn()) {
+                setSyncStatus('syncing', 'Loading...');
+                const cloudOwned = await githubSync.loadChecklist(CHECKLIST_ID);
+                if (cloudOwned && cloudOwned.length > 0) {
+                    ownedCards = cloudOwned;
+                    localStorage.setItem('jmuProPlayersOwned', JSON.stringify(ownedCards));
+                    setSyncStatus('synced', 'Synced');
+                    return;
+                }
+                setSyncStatus('synced', 'Synced');
+            } else if (window.githubSync) {
+                const publicOwned = await githubSync.loadPublicChecklist(CHECKLIST_ID);
+                if (publicOwned && publicOwned.length > 0) {
+                    ownedCards = publicOwned;
+                    return;
+                }
+            }
+            ownedCards = JSON.parse(localStorage.getItem('jmuProPlayersOwned') || '[]');
+        }
+
+        async function saveOwned() {
+            localStorage.setItem('jmuProPlayersOwned', JSON.stringify(ownedCards));
+            if (window.githubSync && githubSync.isLoggedIn()) {
+                setSyncStatus('syncing', 'Syncing...');
+                const success = await githubSync.saveChecklist(CHECKLIST_ID, ownedCards);
+                if (success) {
+                    setSyncStatus('synced', 'Synced');
+                } else {
+                    setSyncStatus('error', 'Sync failed');
+                }
+            }
+        }
+
+        function isOwned(cardId) {
+            return ownedCards.includes(cardId);
+        }
+
+        function toggleOwned(cardId, checkbox) {
+            const owned = checkbox.checked;
+            if (owned) {
+                if (!ownedCards.includes(cardId)) ownedCards.push(cardId);
+            } else {
+                ownedCards = ownedCards.filter(id => id !== cardId);
+            }
+            saveOwned();
+            const cardEl = checkbox.closest('.card');
+            if (owned) {
+                cardEl.classList.add('owned');
+            } else {
+                cardEl.classList.remove('owned');
+            }
+            updateStats();
+            applyFilters();
+        }
+
+        function setSyncStatus(status, text) {
+            const el = document.getElementById('sync-status');
+            el.className = 'sync-status ' + status;
+            el.textContent = text;
+            if (status === 'synced') {
+                setTimeout(() => { el.textContent = ''; }, 2000);
+            }
+        }
+
+        function updateAuthUI() {
+            const authContent = document.getElementById('auth-content');
+            if (githubSync.isLoggedIn()) {
+                const user = githubSync.getUser();
+                authContent.innerHTML = `
+                    <span class="user-info">
+                        <img src="${user.avatar_url}" alt="">
+                        ${user.login}
+                    </span>
+                    <button class="logout" onclick="logout()">Sign out</button>
+                `;
+            } else {
+                authContent.innerHTML = '';
+            }
+        }
+
+        function logout() {
+            githubSync.logout();
+            updateAuthUI();
+            document.getElementById('sync-status').textContent = '';
+        }
+
+        function applyFilters() {
+            const statusFilter = document.getElementById('status-filter').value;
+            const sportFilter = document.getElementById('sport-filter').value;
+            const searchTerm = document.getElementById('search').value.toLowerCase();
+
+            document.querySelectorAll('.card').forEach(c => {
+                const owned = c.classList.contains('owned');
+                const cardText = c.textContent.toLowerCase();
+                const sport = c.dataset.sport;
+                let show = true;
+                if (statusFilter === 'owned' && !owned) show = false;
+                if (statusFilter === 'need' && owned) show = false;
+                if (sportFilter !== 'all' && sport !== sportFilter) show = false;
+                if (searchTerm && !cardText.includes(searchTerm)) show = false;
+                c.style.display = show ? '' : 'none';
+            });
+            updateStats();
+        }
+
+        function updateStats() {
+            const visibleCards = document.querySelectorAll('.card:not([style*="display: none"])');
+            const ownedVisible = document.querySelectorAll('.card.owned:not([style*="display: none"])').length;
+            let totalValue = 0, ownedValue = 0, neededValue = 0;
+            visibleCards.forEach(c => {
+                const price = parseFloat(c.dataset.price);
+                totalValue += price;
+                if (c.classList.contains('owned')) {
+                    ownedValue += price;
+                } else {
+                    neededValue += price;
+                }
+            });
+            document.getElementById('owned-count').textContent = ownedVisible;
+            document.getElementById('total-count').textContent = visibleCards.length;
+            document.getElementById('total-value').textContent = '$' + totalValue.toFixed(0);
+            document.getElementById('owned-value').textContent = '$' + ownedValue.toFixed(0) + ' owned';
+            document.getElementById('needed-value').textContent = '$' + neededValue.toFixed(0) + ' needed';
+        }
+
+        function clearAll() {
+            const input = prompt('Type "CLEAR" to confirm clearing all checkmarks:');
+            if (input === 'CLEAR') {
+                ownedCards = [];
+                saveOwned();
+                document.querySelectorAll('.card').forEach(c => c.classList.remove('owned'));
+                document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+                updateStats();
+            } else if (input !== null) {
+                alert('Incorrect. Type "CLEAR" exactly to confirm.');
+            }
+        }
+
+        function getBadgeHtml(badges) {
+            return badges.map(b => {
+                if (b === 'HOF') return '<span class="player-badge hof">HOF</span>';
+                if (b.includes('SB')) return `<span class="player-badge sb">${b}</span>`;
+                if (b.includes('PB')) return `<span class="player-badge pb">${b}</span>`;
+                return '';
+            }).join('');
+        }
+
+        function createCardElement(card) {
+            const cardId = getCardId(card);
+            const owned = isOwned(cardId);
+            const price = card.price;
+            const priceClass = price < 5 ? '' : price < 15 ? 'mid' : 'high';
+            const searchUrl = `https://www.ebay.com/sch/i.html?_nkw=${card.search}&_sop=15&LH_BIN=1`;
+
+            return `
+                <div class="card ${owned ? 'owned' : ''}" data-price="${price}" data-sport="${card.sport}">
+                    <div class="card-image-wrapper">
+                        <span class="price-badge ${priceClass}">$${Math.round(price)}</span>
+                        ${card.img
+                            ? `<a href="${searchUrl}" target="_blank"><img class="card-image" src="${card.img}" alt="${card.set}" onerror="this.outerHTML='<a href=\\'${searchUrl}\\' target=\\'_blank\\' class=\\'card-image placeholder\\'>Click to view</a>'"></a>`
+                            : `<a href="${searchUrl}" target="_blank" class="card-image placeholder">Click to view on eBay</a>`
+                        }
+                    </div>
+                    <div class="player-name">${card.player}${getBadgeHtml(card.badges)}</div>
+                    <div class="card-title">${card.set}</div>
+                    <div class="card-number">${card.num} ${card.name}</div>
+                    <div class="card-type">${card.type}</div>
+                    ${!isReadOnly ? `<div class="checkbox-wrapper">
+                        <input type="checkbox" id="${cardId}" ${owned ? 'checked' : ''} onchange="toggleOwned('${cardId}', this)">
+                        <label for="${cardId}">Owned</label>
+                    </div>` : (owned ? '<div class="owned-badge">✓ Owned</div>' : '')}
+                    <a href="${searchUrl}" target="_blank" class="search-link">Search eBay</a>
+                </div>
+            `;
+        }
+
+        function renderCards() {
+            document.getElementById('hof-cards').innerHTML = cards.hof.map(createCardElement).join('');
+            document.getElementById('probowl-cards').innerHTML = cards.probowl.map(createCardElement).join('');
+            document.getElementById('usfl-cards').innerHTML = cards.usfl.map(createCardElement).join('');
+            document.getElementById('modern-cards').innerHTML = cards.modern.map(createCardElement).join('');
+            document.getElementById('mlb-cards').innerHTML = cards.mlb.map(createCardElement).join('');
+            document.getElementById('nba-cards').innerHTML = cards.nba.map(createCardElement).join('');
+            document.getElementById('mls-cards').innerHTML = cards.mls.map(createCardElement).join('');
+            updateStats();
+        }
+
+        document.getElementById('status-filter').addEventListener('change', applyFilters);
+        document.getElementById('sport-filter').addEventListener('change', applyFilters);
+        document.getElementById('search').addEventListener('input', applyFilters);
+
+        async function init() {
+            if (window.githubSync) {
+                await githubSync.handleCallback();
+                isReadOnly = !isOwner();
+                updateAuthUI();
+                githubSync.onAuthChange = async (loggedIn) => {
+                    isReadOnly = !isOwner();
+                    updateAuthUI();
+                    if (loggedIn) {
+                        await loadOwned();
+                        renderCards();
+                    }
+                };
+            } else {
+                isReadOnly = true;
+            }
+            try {
+                await loadOwned();
+            } catch (e) {
+                console.error('Failed to load data:', e);
+            }
+            renderCards();
+            updateReadOnlyUI();
+        }
+
+        function updateReadOnlyUI() {
+            const clearBtn = document.querySelector('button[onclick*="clearAll"]');
+            if (clearBtn) clearBtn.style.display = isReadOnly ? 'none' : '';
+            const authBar = document.getElementById('auth-bar');
+            const existingNotice = document.querySelector('.read-only-notice');
+            if (isReadOnly && !existingNotice) {
+                const notice = document.createElement('span');
+                notice.className = 'read-only-notice';
+                notice.textContent = "Viewing iammike's collection";
+                authBar.insertBefore(notice, authBar.querySelector('.right-section'));
+            } else if (!isReadOnly && existingNotice) {
+                existingNotice.remove();
+            }
+        }
+        init();
+    </script>
+</body>
+</html>

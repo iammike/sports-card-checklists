@@ -74,6 +74,13 @@
             border-left: 3px solid #773141;
             background: linear-gradient(135deg, rgba(119, 49, 65, 0.12) 0%, rgba(255, 182, 18, 0.05) 100%);
         }
+        /* JMU Pro Players - Purple/Gold */
+        #card-jmu-pro-players {
+            --card-accent: #C9A227;
+            --card-accent-rgb: 201, 162, 39;
+            border-left: 3px solid #450084;
+            background: linear-gradient(135deg, rgba(69, 0, 132, 0.12) 0%, rgba(201, 162, 39, 0.08) 100%);
+        }
         .checklist-card p {
             color: #aaa;
             line-height: 1.5;
@@ -268,6 +275,29 @@
                                 <span id="progress-owned-washington-qbs">0</span> of <span id="progress-total-washington-qbs">0</span> cards
                             </div>
                             <div class="value-line" id="value-stats-washington-qbs"></div>
+                        </div>
+                    </div>
+                </div>
+            </a>
+
+            <a href="jmu-pro-players-checklist.html" class="checklist-card" data-checklist="jmu-pro-players" id="card-jmu-pro-players">
+                <h2>JMU Pro Players</h2>
+                <p>Trading cards of James Madison University alumni in pro sports. Includes HOFer Charles Haley, Gary Clark, and more.</p>
+                <div class="progress-section" id="progress-section-jmu-pro-players" style="display: none;">
+                    <div class="main-progress">
+                        <div class="progress-ring">
+                            <svg viewBox="0 0 48 48">
+                                <circle class="bg" cx="24" cy="24" r="20"/>
+                                <circle class="fill" id="progress-ring-jmu-pro-players" cx="24" cy="24" r="20"
+                                    stroke-dasharray="125.6" stroke-dashoffset="125.6"/>
+                            </svg>
+                            <span class="percentage" id="progress-pct-jmu-pro-players">0%</span>
+                        </div>
+                        <div class="progress-details">
+                            <div class="progress-main-text">
+                                <span id="progress-owned-jmu-pro-players">0</span> of <span id="progress-total-jmu-pro-players">0</span> cards
+                            </div>
+                            <div class="value-line" id="value-stats-jmu-pro-players"></div>
                         </div>
                     </div>
                 </div>
@@ -480,6 +510,62 @@
                 }
             } catch (error) {
                 console.error('Failed to load Washington QBs progress:', error);
+            }
+
+            // JMU Pro Players progress
+            const jmuOwned = ownedData.checklists['jmu-pro-players'] || [];
+
+            // Helper to generate JMU card ID (matches their getCardId)
+            function getJmuCardId(player, set, num, name) {
+                return btoa(player + set + num + name).replace(/[^a-zA-Z0-9]/g, '');
+            }
+
+            try {
+                const jmuResponse = await fetch('jmu-pro-players-checklist.html');
+                const jmuHtml = await jmuResponse.text();
+
+                // Parse cards with player, set, num, name, and price
+                const jmuCards = [];
+                const jmuCardMatches = jmuHtml.matchAll(/player:\s*["']([^"']+)["'].*?set:\s*["']([^"']+)["'],\s*num:\s*["']([^"']*)["'],\s*name:\s*["']([^"']+)["'].*?price:\s*([\d.]+)/gs);
+                for (const match of jmuCardMatches) {
+                    const [, player, set, num, name, price] = match;
+                    jmuCards.push({
+                        player, set, num, name,
+                        price: parseFloat(price),
+                        id: getJmuCardId(player, set, num, name)
+                    });
+                }
+
+                const totalJmu = jmuCards.length;
+                let ownedJmuValue = 0, neededJmuValue = 0;
+                const ownedJmuCount = jmuCards.filter(c => {
+                    if (jmuOwned.includes(c.id)) {
+                        ownedJmuValue += c.price;
+                        return true;
+                    } else {
+                        neededJmuValue += c.price;
+                        return false;
+                    }
+                }).length;
+
+                if (totalJmu > 0) {
+                    const pctJmu = Math.round((ownedJmuCount / totalJmu) * 100);
+                    const circumference = 2 * Math.PI * 20;
+                    const offsetJmu = circumference - (pctJmu / 100) * circumference;
+
+                    document.getElementById('progress-section-jmu-pro-players').style.display = 'block';
+                    const ringJmu = document.getElementById('progress-ring-jmu-pro-players');
+                    ringJmu.style.strokeDashoffset = offsetJmu;
+
+                    document.getElementById('progress-pct-jmu-pro-players').textContent = `${pctJmu}%`;
+                    document.getElementById('progress-owned-jmu-pro-players').textContent = ownedJmuCount;
+                    document.getElementById('progress-total-jmu-pro-players').textContent = totalJmu;
+
+                    document.getElementById('value-stats-jmu-pro-players').innerHTML =
+                        `<span class="value-owned">$${Math.round(ownedJmuValue)} owned</span> · <span class="value-needed">$${Math.round(neededJmuValue)} to complete</span>`;
+                }
+            } catch (error) {
+                console.error('Failed to load JMU progress:', error);
             }
         }
 
