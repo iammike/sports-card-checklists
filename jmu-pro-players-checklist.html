@@ -424,8 +424,7 @@
         </select>
         <select id="sport-filter">
             <option value="all">All Sports</option>
-            <option value="nfl">NFL Only</option>
-            <option value="usfl">USFL Only</option>
+            <option value="football">Football Only</option>
             <option value="mlb">MLB Only</option>
             <option value="nba">NBA Only</option>
             <option value="mls">MLS Only</option>
@@ -433,28 +432,10 @@
         <input type="text" id="search" placeholder="Search cards...">
     </div>
 
-    <!-- HALL OF FAME -->
-    <div class="section" id="hof-section">
-        <div class="section-header hof">Hall of Fame</div>
-        <div class="card-grid" id="hof-cards"></div>
-    </div>
-
-    <!-- PRO BOWL / ALL-STAR -->
-    <div class="section" id="probowl-section">
-        <div class="section-header">Pro Bowl Players</div>
-        <div class="card-grid" id="probowl-cards"></div>
-    </div>
-
-    <!-- USFL CARDS -->
-    <div class="section" id="usfl-section">
-        <div class="section-header usfl">USFL Cards (Pre-NFL)</div>
-        <div class="card-grid" id="usfl-cards"></div>
-    </div>
-
-    <!-- MODERN ERA (2000+) -->
-    <div class="section" id="modern-section">
-        <div class="section-header modern">Modern Era (2000+)</div>
-        <div class="card-grid" id="modern-cards"></div>
+    <!-- Football (NFL + USFL) -->
+    <div class="section" id="football-section">
+        <div class="section-header">Football</div>
+        <div class="card-grid" id="football-cards"></div>
     </div>
 
     <!-- MLB -->
@@ -1260,7 +1241,8 @@
                 let show = true;
                 if (statusFilter === 'owned' && !owned) show = false;
                 if (statusFilter === 'need' && owned) show = false;
-                if (sportFilter !== 'all' && sport !== sportFilter) show = false;
+                if (sportFilter === 'football' && sport !== 'nfl' && sport !== 'usfl') show = false;
+                else if (sportFilter !== 'all' && sportFilter !== 'football' && sport !== sportFilter) show = false;
                 if (searchTerm && !cardText.includes(searchTerm)) show = false;
                 c.style.display = show ? '' : 'none';
             });
@@ -1367,12 +1349,12 @@
         }
 
         function renderCards() {
-            // Collect all cards across all sections
-            const allSectionCards = [
-                { section: 'hof', cards: cards.hof },
-                { section: 'probowl', cards: cards.probowl },
-                { section: 'usfl', cards: cards.usfl },
-                { section: 'modern', cards: cards.modern },
+            // Combine all football cards (NFL + USFL) into one array
+            const allFootballCards = [...cards.hof, ...cards.probowl, ...cards.usfl, ...cards.modern];
+
+            // Sport-based sections
+            const sportSections = [
+                { section: 'football', cards: allFootballCards },
                 { section: 'mlb', cards: cards.mlb },
                 { section: 'nba', cards: cards.nba },
                 { section: 'mls', cards: cards.mls },
@@ -1380,7 +1362,7 @@
 
             // Group cards by player AND sport to keep USFL/NFL cards separate
             const cardsByPlayerSport = {};
-            allSectionCards.forEach(({cards: sectionCards}) => {
+            sportSections.forEach(({cards: sectionCards}) => {
                 sectionCards.forEach(card => {
                     const key = `${card.player}|${card.sport}`;
                     if (!cardsByPlayerSport[key]) {
@@ -1410,7 +1392,7 @@
             const allAlternates = [];
 
             // Render each section, filtering out alternates (except display cards)
-            allSectionCards.forEach(({section, cards: sectionCards}) => {
+            sportSections.forEach(({section, cards: sectionCards}) => {
                 const visibleCards = [];
                 sectionCards.forEach(card => {
                     if (displayCards.has(card)) {
