@@ -64,6 +64,25 @@
             font-size: 0.85em;
             color: #666;
         }
+        .checklist-card .progress-container {
+            margin-top: 15px;
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .checklist-card .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #f39c12, #27ae60);
+            border-radius: 3px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+        .checklist-card .progress-text {
+            margin-top: 6px;
+            font-size: 0.75em;
+            color: #888;
+        }
         .coming-soon {
             opacity: 0.5;
             pointer-events: none;
@@ -127,12 +146,20 @@
                 <h2>Jayden Daniels Rookie Cards</h2>
                 <p>2023 college cards and 2024 NFL rookie cards for the Commanders QB and 2024 Offensive Rookie of the Year.</p>
                 <div class="meta" id="meta-jayden-daniels">Loading...</div>
+                <div class="progress-container">
+                    <div class="progress-bar" id="progress-jayden-daniels"></div>
+                </div>
+                <div class="progress-text" id="progress-text-jayden-daniels"></div>
             </a>
 
             <a href="washington-qbs-rookie-checklist.html" class="checklist-card" data-checklist="washington-qbs">
                 <h2>Washington QBs Collection</h2>
                 <p>Main rookie cards for every starting quarterback in Washington Redskins/Commanders history (1982-2025).</p>
                 <div class="meta" id="meta-washington-qbs">Loading...</div>
+                <div class="progress-container">
+                    <div class="progress-bar" id="progress-washington-qbs"></div>
+                </div>
+                <div class="progress-text" id="progress-text-washington-qbs"></div>
             </a>
         </div>
     </div>
@@ -210,9 +237,57 @@
                     }
 
                     document.getElementById(`meta-${checklist.id}`).textContent = metaText + checklist.suffix;
+
+                    // Store total for progress calculation
+                    checklist.totalBase = baseCount;
                 } catch (error) {
                     console.error(`Failed to load ${checklist.id}:`, error);
                     document.getElementById(`meta-${checklist.id}`).textContent = 'Error loading count';
+                }
+            }
+
+            // Return checklists with totals for progress
+            return checklists;
+        }
+
+        async function loadProgress() {
+            // Load owned data from public gist or user's gist
+            let ownedData = null;
+
+            if (window.githubSync && githubSync.isLoggedIn()) {
+                ownedData = await githubSync.loadData();
+            } else if (window.githubSync) {
+                ownedData = await githubSync.loadPublicData();
+            }
+
+            if (!ownedData || !ownedData.checklists) {
+                // No data available - hide progress bars
+                return;
+            }
+
+            const checklistMap = {
+                'jayden-daniels': 'jayden-daniels-rookie',
+                'washington-qbs': 'washington-qbs-rookie'
+            };
+
+            for (const [id, checklistKey] of Object.entries(checklistMap)) {
+                const owned = ownedData.checklists[checklistKey] || [];
+                const progressBar = document.getElementById(`progress-${id}`);
+                const progressText = document.getElementById(`progress-text-${id}`);
+
+                // Get total from the meta text (parse it)
+                const metaEl = document.getElementById(`meta-${id}`);
+                const metaText = metaEl.textContent;
+                const baseMatch = metaText.match(/(\d+)\s*(?:base|cards)/);
+                const total = baseMatch ? parseInt(baseMatch[1]) : 0;
+
+                if (total > 0 && owned.length > 0) {
+                    const percentage = Math.round((owned.length / total) * 100);
+                    progressBar.style.width = `${percentage}%`;
+                    progressText.textContent = `${owned.length}/${total} owned (${percentage}%)`;
+                } else if (total > 0) {
+                    progressBar.style.width = '0%';
+                    progressText.textContent = `0/${total} owned`;
                 }
             }
         }
@@ -230,8 +305,8 @@
                 }
             });
 
-            // Load card counts dynamically
-            loadChecklistCounts();
+            // Load card counts, then progress (needs counts first)
+            loadChecklistCounts().then(() => loadProgress());
         }
         init();
     </script>
