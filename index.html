@@ -80,46 +80,80 @@
             font-size: 0.85em;
             color: #666;
         }
-        .checklist-card .progress-container {
-            margin-top: 15px;
-            height: 8px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 4px;
-            overflow: hidden;
+        /* Main progress section */
+        .checklist-card .progress-section {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255,255,255,0.08);
         }
-        .checklist-card .progress-bar {
-            height: 100%;
-            background: linear-gradient(90deg, #f39c12, #27ae60);
-            border-radius: 4px;
-            transition: width 0.5s ease;
-            width: 0%;
+        .checklist-card .main-progress {
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
-        .checklist-card .progress-text {
-            margin-top: 6px;
-            font-size: 0.8em;
-            color: #aaa;
+        .checklist-card .progress-ring {
+            position: relative;
+            width: 48px;
+            height: 48px;
+            flex-shrink: 0;
         }
-        .checklist-card .progress-label {
+        .checklist-card .progress-ring svg {
+            transform: rotate(-90deg);
+            width: 48px;
+            height: 48px;
+        }
+        .checklist-card .progress-ring circle {
+            fill: none;
+            stroke-width: 4;
+        }
+        .checklist-card .progress-ring .bg {
+            stroke: rgba(255,255,255,0.1);
+        }
+        .checklist-card .progress-ring .fill {
+            stroke: #f39c12;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.8s ease;
+        }
+        .checklist-card .progress-ring .percentage {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             font-size: 0.7em;
-            color: #666;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 4px;
+            font-weight: 600;
+            color: #f39c12;
         }
-        .checklist-card .secondary-progress {
-            margin-top: 12px;
-            opacity: 0.6;
+        .checklist-card .progress-details {
+            flex: 1;
         }
-        .checklist-card .secondary-progress .progress-container {
-            height: 4px;
-            margin-top: 4px;
+        .checklist-card .progress-main-text {
+            font-size: 0.95em;
+            color: #ddd;
+            font-weight: 500;
         }
-        .checklist-card .secondary-progress .progress-bar {
-            background: linear-gradient(90deg, #9b59b6, #3498db);
+        .checklist-card .progress-main-text span {
+            color: #f39c12;
+            font-weight: 600;
         }
-        .checklist-card .secondary-progress .progress-text {
+        /* Secondary stats row */
+        .checklist-card .secondary-stats {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+        .checklist-card .stat-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
             font-size: 0.7em;
-            color: #666;
+            color: #777;
+        }
+        .checklist-card .stat-pill .count {
+            color: #999;
         }
         .coming-soon {
             opacity: 0.5;
@@ -185,20 +219,26 @@
                 <h2>Jayden Daniels Rookie Cards</h2>
                 <p>2023 college cards and 2024 NFL rookie cards for the Commanders QB and 2024 Offensive Rookie of the Year.</p>
                 <div class="meta" id="meta-jayden-daniels">Loading...</div>
-                <div class="progress-text" id="progress-text-jayden-daniels"></div>
-                <div class="secondary-progress">
-                    <div class="progress-label">Inserts (optional)</div>
-                    <div class="progress-container">
-                        <div class="progress-bar" id="progress-jayden-daniels-inserts"></div>
+                <div class="progress-section" id="progress-section-jayden-daniels" style="display: none;">
+                    <div class="main-progress">
+                        <div class="progress-ring">
+                            <svg viewBox="0 0 48 48">
+                                <circle class="bg" cx="24" cy="24" r="20"/>
+                                <circle class="fill" id="progress-ring-jayden-daniels" cx="24" cy="24" r="20"
+                                    stroke-dasharray="125.6" stroke-dashoffset="125.6"/>
+                            </svg>
+                            <span class="percentage" id="progress-pct-jayden-daniels">0%</span>
+                        </div>
+                        <div class="progress-details">
+                            <div class="progress-main-text">
+                                <span id="progress-owned-jayden-daniels">0</span> of <span id="progress-total-jayden-daniels">0</span> base cards
+                            </div>
+                            <div class="secondary-stats">
+                                <span class="stat-pill">Inserts <span class="count" id="stat-inserts-jayden-daniels">0/0</span></span>
+                                <span class="stat-pill">Chase <span class="count" id="stat-chase-jayden-daniels">0/0</span></span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="progress-text" id="progress-text-jayden-daniels-inserts"></div>
-                </div>
-                <div class="secondary-progress">
-                    <div class="progress-label">Chase SSPs (optional)</div>
-                    <div class="progress-container">
-                        <div class="progress-bar" id="progress-jayden-daniels-chase"></div>
-                    </div>
-                    <div class="progress-text" id="progress-text-jayden-daniels-chase"></div>
                 </div>
             </a>
 
@@ -315,7 +355,6 @@
             // For Jayden Daniels, we need to figure out which owned cards are base vs inserts vs chase
             const jaydenOwned = ownedData.checklists['jayden-daniels'] || [];
             const bgProgressJD = document.getElementById('bg-progress-jayden-daniels');
-            const progressTextJD = document.getElementById('progress-text-jayden-daniels');
 
             // Helper to generate card ID (must match checklist's getCardId function)
             function getCardId(set, num, name) {
@@ -354,29 +393,28 @@
                 const totalInserts = insertCardIds.size;
                 const totalChase = chaseCardIds.size;
 
-                if (totalBase > 0) {
-                    const percentage = Math.round((ownedBaseCount / totalBase) * 100);
-                    bgProgressJD.style.width = `${percentage}%`;
-                    progressTextJD.textContent = `Base: ${ownedBaseCount}/${totalBase} owned (${percentage}%)`;
-                }
+                // Show progress section
+                const progressSection = document.getElementById('progress-section-jayden-daniels');
+                progressSection.style.display = 'block';
 
-                // Inserts progress
-                const insertsBar = document.getElementById('progress-jayden-daniels-inserts');
-                const insertsText = document.getElementById('progress-text-jayden-daniels-inserts');
-                if (insertsBar && totalInserts > 0) {
-                    const pct = Math.round((ownedInsertCount / totalInserts) * 100);
-                    insertsBar.style.width = `${pct}%`;
-                    insertsText.textContent = `${ownedInsertCount}/${totalInserts} owned (${pct}%)`;
-                }
+                // Update circular progress ring
+                const percentage = totalBase > 0 ? Math.round((ownedBaseCount / totalBase) * 100) : 0;
+                const circumference = 2 * Math.PI * 20; // r=20
+                const offset = circumference - (percentage / 100) * circumference;
 
-                // Chase progress
-                const chaseBar = document.getElementById('progress-jayden-daniels-chase');
-                const chaseText = document.getElementById('progress-text-jayden-daniels-chase');
-                if (chaseBar && totalChase > 0) {
-                    const pct = Math.round((ownedChaseCount / totalChase) * 100);
-                    chaseBar.style.width = `${pct}%`;
-                    chaseText.textContent = `${ownedChaseCount}/${totalChase} owned (${pct}%)`;
-                }
+                const ring = document.getElementById('progress-ring-jayden-daniels');
+                ring.style.strokeDashoffset = offset;
+
+                document.getElementById('progress-pct-jayden-daniels').textContent = `${percentage}%`;
+                document.getElementById('progress-owned-jayden-daniels').textContent = ownedBaseCount;
+                document.getElementById('progress-total-jayden-daniels').textContent = totalBase;
+
+                // Background fill
+                bgProgressJD.style.width = `${percentage}%`;
+
+                // Secondary stats pills
+                document.getElementById('stat-inserts-jayden-daniels').textContent = `${ownedInsertCount}/${totalInserts}`;
+                document.getElementById('stat-chase-jayden-daniels').textContent = `${ownedChaseCount}/${totalChase}`;
             } catch (error) {
                 console.error('Failed to load Jayden Daniels progress:', error);
             }
