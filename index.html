@@ -153,22 +153,16 @@
         .checklist-card .stat-pill .count {
             color: #999;
         }
-        .checklist-card .value-inline {
-            margin-left: 6px;
-            font-size: 0.85em;
-            font-weight: 400;
+        .checklist-card .value-line {
+            font-size: 0.75em;
             color: #666;
+            margin-top: 2px;
         }
-        .checklist-card .value-inline::before {
-            content: "·";
-            margin-right: 6px;
-            color: #444;
-        }
-        .checklist-card .value-inline .value-owned {
+        .checklist-card .value-line .value-owned {
             color: #4caf50;
         }
-        .checklist-card .value-inline .value-needed {
-            color: #888;
+        .checklist-card .value-line .value-needed {
+            color: #ff9800;
         }
         .coming-soon {
             opacity: 0.5;
@@ -226,7 +220,7 @@
         </div>
 
         <h1><span id="mike-link" style="cursor: pointer;">Mike's</span> Sports Card Checklists</h1>
-        <p class="subtitle">Tracking my collection</p>
+        <p class="subtitle">Tracking my sub-collections</p>
 
         <div class="checklist-grid">
             <a href="jayden-daniels-rookie-checklist.html" class="checklist-card" data-checklist="jayden-daniels" id="card-jayden-daniels">
@@ -245,8 +239,8 @@
                         <div class="progress-details">
                             <div class="progress-main-text">
                                 <span id="progress-owned-jayden-daniels">0</span> of <span id="progress-total-jayden-daniels">0</span> base cards
-                                <span class="value-inline" id="value-stats-jayden-daniels"></span>
                             </div>
+                            <div class="value-line" id="value-stats-jayden-daniels"></div>
                             <div class="secondary-stats">
                                 <span class="stat-pill">Inserts <span class="count" id="stat-inserts-jayden-daniels">0/0</span></span>
                                 <span class="stat-pill">Chase <span class="count" id="stat-chase-jayden-daniels">0/0</span></span>
@@ -272,8 +266,8 @@
                         <div class="progress-details">
                             <div class="progress-main-text">
                                 <span id="progress-owned-washington-qbs">0</span> of <span id="progress-total-washington-qbs">0</span> cards
-                                <span class="value-inline" id="value-stats-washington-qbs"></span>
                             </div>
+                            <div class="value-line" id="value-stats-washington-qbs"></div>
                         </div>
                     </div>
                 </div>
@@ -420,9 +414,9 @@
                 document.getElementById('stat-inserts-jayden-daniels').textContent = `${ownedInsertCount}/${totalInserts}`;
                 document.getElementById('stat-chase-jayden-daniels').textContent = `${ownedChaseCount}/${totalChase}`;
 
-                // Value stats (inline with main text)
+                // Value stats (second line)
                 document.getElementById('value-stats-jayden-daniels').innerHTML =
-                    `<span class="value-owned">$${Math.round(ownedValue)}</span> / <span class="value-needed">$${Math.round(neededValue)} to go</span>`;
+                    `<span class="value-owned">$${Math.round(ownedValue)} owned</span> · <span class="value-needed">$${Math.round(neededValue)} to complete</span>`;
             } catch (error) {
                 console.error('Failed to load Jayden Daniels progress:', error);
             }
@@ -480,9 +474,9 @@
                     document.getElementById('progress-owned-washington-qbs').textContent = ownedQBsCount;
                     document.getElementById('progress-total-washington-qbs').textContent = totalQBs;
 
-                    // Value stats (inline with main text)
+                    // Value stats (second line)
                     document.getElementById('value-stats-washington-qbs').innerHTML =
-                        `<span class="value-owned">$${Math.round(ownedQBsValue)}</span> / <span class="value-needed">$${Math.round(neededQBsValue)} to go</span>`;
+                        `<span class="value-owned">$${Math.round(ownedQBsValue)} owned</span> · <span class="value-needed">$${Math.round(neededQBsValue)} to complete</span>`;
                 }
             } catch (error) {
                 console.error('Failed to load Washington QBs progress:', error);
