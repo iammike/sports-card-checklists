@@ -363,6 +363,20 @@
         .intro-text strong {
             color: #450084;
         }
+        .alternates-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .alternates-header:hover {
+            filter: brightness(1.1);
+        }
+        #alternates-toggle {
+            transition: transform 0.2s;
+        }
+        #alternates-toggle.expanded {
+            transform: rotate(90deg);
+        }
     </style>
 </head>
 <body>
@@ -461,6 +475,14 @@
         <div class="card-grid" id="mls-cards"></div>
     </div>
 
+    <!-- ALTERNATES (Collapsed by default) -->
+    <div class="section" id="alternates-section" style="display: none;">
+        <div class="section-header alternates-header" onclick="toggleAlternatesSection()" style="cursor: pointer; background: linear-gradient(135deg, #666 0%, #444 100%);">
+            <span id="alternates-toggle">▶</span> Alternate Cards <span id="alternates-count" style="font-weight: normal; font-size: 14px; opacity: 0.8;"></span>
+        </div>
+        <div class="card-grid" id="alternates-cards" style="display: none;"></div>
+    </div>
+
     <button class="clear-btn" onclick="clearAll()">Clear All</button>
 
     <script src="github-sync.js"></script>
@@ -515,7 +537,8 @@
                     sport: "nfl",
                     price: 1,
                     search: "scott+norwood+1989+topps+42+bills",
-                    img: "jmu-cards/norwood_1989_topps.webp"
+                    img: "jmu-cards/norwood_1989_topps.webp",
+                    alternate: true
                 },
             ],
             usfl: [
@@ -555,7 +578,8 @@
                     sport: "nfl",
                     price: 1,
                     search: "ed+perry+1997+score+board+nfl+rookies+44+dolphins",
-                    img: "jmu-cards/perry_1997_scoreboard.webp"
+                    img: "jmu-cards/perry_1997_scoreboard.webp",
+                    alternate: true
                 },
                 {
                     player: "Ed Perry",
@@ -591,7 +615,8 @@
                     sport: "nfl",
                     price: 1,
                     search: "curtis+keaton+2000+topps+stars+155+bengals",
-                    img: "jmu-cards/keaton_2000_toppsstars.webp"
+                    img: "jmu-cards/keaton_2000_toppsstars.webp",
+                    alternate: true
                 },
                 {
                     player: "Curtis Keaton",
@@ -603,7 +628,8 @@
                     sport: "nfl",
                     price: 1,
                     search: "curtis+keaton+2000+topps+season+opener+201+bengals",
-                    img: "jmu-cards/keaton_2000_seasonopener.webp"
+                    img: "jmu-cards/keaton_2000_seasonopener.webp",
+                    alternate: true
                 },
                 {
                     player: "Curtis Keaton",
@@ -615,7 +641,8 @@
                     sport: "nfl",
                     price: 2,
                     search: "curtis+keaton+2000+topps+374",
-                    img: "jmu-cards/keaton_2000_topps.webp"
+                    img: "jmu-cards/keaton_2000_topps.webp",
+                    alternate: true
                 },
                 {
                     player: "Curtis Keaton",
@@ -627,7 +654,8 @@
                     sport: "nfl",
                     price: 1,
                     search: "curtis+keaton+2000+skybox+243",
-                    img: "jmu-cards/keaton_2000_skybox.webp"
+                    img: "jmu-cards/keaton_2000_skybox.webp",
+                    alternate: true
                 },
                 {
                     player: "Curtis Keaton",
@@ -639,7 +667,8 @@
                     sport: "nfl",
                     price: 1,
                     search: "curtis+keaton+2000+bowman+chrome+182",
-                    img: "jmu-cards/keaton_2000_bowmanchrome.webp"
+                    img: "jmu-cards/keaton_2000_bowmanchrome.webp",
+                    alternate: true
                 },
                 {
                     player: "Curtis Keaton",
@@ -651,7 +680,8 @@
                     sport: "nfl",
                     price: 2,
                     search: "curtis+keaton+2000+fleer+e-x+136",
-                    img: "jmu-cards/keaton_2000_fleerex.webp"
+                    img: "jmu-cards/keaton_2000_fleerex.webp",
+                    alternate: true
                 },
                 {
                     player: "Curtis Keaton",
@@ -663,7 +693,8 @@
                     sport: "nfl",
                     price: 2,
                     search: "curtis+keaton+2000+playoff+absolute+216",
-                    img: "jmu-cards/keaton_2000_playoffabsolute.webp"
+                    img: "jmu-cards/keaton_2000_playoffabsolute.webp",
+                    alternate: true
                 },
                 {
                     player: "Curtis Keaton",
@@ -675,7 +706,8 @@
                     sport: "nfl",
                     price: 2,
                     search: "curtis+keaton+2000+ud+ionix+84",
-                    img: "jmu-cards/keaton_2000_ionix.webp"
+                    img: "jmu-cards/keaton_2000_ionix.webp",
+                    alternate: true
                 },
                 {
                     player: "Curtis Keaton",
@@ -687,7 +719,8 @@
                     sport: "nfl",
                     price: 1,
                     search: "curtis+keaton+2000+upper+deck+star+rookie+265",
-                    img: "jmu-cards/keaton_2000_upperdeck.webp"
+                    img: "jmu-cards/keaton_2000_upperdeck.webp",
+                    alternate: true
                 },
                 {
                     player: "Curtis Keaton",
@@ -699,7 +732,8 @@
                     sport: "nfl",
                     price: 1,
                     search: "curtis+keaton+2000+upper+deck+victory+284",
-                    img: "jmu-cards/keaton_2000_victory.webp"
+                    img: "jmu-cards/keaton_2000_victory.webp",
+                    alternate: true
                 },
                 {
                     player: "Curtis Keaton",
@@ -711,7 +745,8 @@
                     sport: "nfl",
                     price: 1,
                     search: "curtis+keaton+2000+score+295",
-                    img: "jmu-cards/keaton_2000_score.webp"
+                    img: "jmu-cards/keaton_2000_score.webp",
+                    alternate: true
                 },
                 {
                     player: "Curtis Keaton",
@@ -723,7 +758,8 @@
                     sport: "nfl",
                     price: 1,
                     search: "curtis+keaton+2000+fleer+tradition+341",
-                    img: "jmu-cards/keaton_2000_fleertradition.webp"
+                    img: "jmu-cards/keaton_2000_fleertradition.webp",
+                    alternate: true
                 },
                 {
                     player: "Curtis Keaton",
@@ -735,7 +771,8 @@
                     sport: "nfl",
                     price: 1,
                     search: "curtis+keaton+2000+playoff+absolute+rookie+reflex+RR29",
-                    img: "jmu-cards/keaton_2000_rookiereflex.webp"
+                    img: "jmu-cards/keaton_2000_rookiereflex.webp",
+                    alternate: true
                 },
                 {
                     player: "Curtis Keaton",
@@ -747,7 +784,8 @@
                     sport: "nfl",
                     price: 1,
                     search: "curtis+keaton+2000+bowman+182",
-                    img: "jmu-cards/keaton_2000_bowman.webp"
+                    img: "jmu-cards/keaton_2000_bowman.webp",
+                    alternate: true
                 },
                 {
                     player: "Curtis Keaton",
@@ -759,7 +797,8 @@
                     sport: "nfl",
                     price: 1,
                     search: "curtis+keaton+2000+metal",
-                    img: "jmu-cards/keaton_2000_metal.webp"
+                    img: "jmu-cards/keaton_2000_metal.webp",
+                    alternate: true
                 },
                 {
                     player: "Curtis Keaton",
@@ -771,7 +810,8 @@
                     sport: "nfl",
                     price: 1,
                     search: "curtis+keaton+2000+stadium+club+165",
-                    img: "jmu-cards/keaton_2000_stadiumclub.webp"
+                    img: "jmu-cards/keaton_2000_stadiumclub.webp",
+                    alternate: true
                 },
                 {
                     player: "Curtis Keaton",
@@ -783,7 +823,8 @@
                     sport: "nfl",
                     price: 1,
                     search: "curtis+keaton+2000+upper+deck+encore",
-                    img: "jmu-cards/keaton_2000_encore.webp"
+                    img: "jmu-cards/keaton_2000_encore.webp",
+                    alternate: true
                 },
                 {
                     player: "Curtis Keaton",
@@ -795,7 +836,8 @@
                     sport: "nfl",
                     price: 1,
                     search: "curtis+keaton+2000+sage+23",
-                    img: "jmu-cards/keaton_2000_sage.webp"
+                    img: "jmu-cards/keaton_2000_sage.webp",
+                    alternate: true
                 },
                 {
                     player: "Curtis Keaton",
@@ -807,7 +849,8 @@
                     sport: "nfl",
                     price: 1,
                     search: "curtis+keaton+2000+sage+hit+23",
-                    img: "jmu-cards/keaton_2000_sagehit.webp"
+                    img: "jmu-cards/keaton_2000_sagehit.webp",
+                    alternate: true
                 },
                 {
                     player: "Curtis Keaton",
@@ -819,7 +862,8 @@
                     sport: "nfl",
                     price: 2,
                     search: "curtis+keaton+2000+bowman+certified+auto",
-                    img: "jmu-cards/keaton_2000_bowmancertified.webp"
+                    img: "jmu-cards/keaton_2000_bowmancertified.webp",
+                    alternate: true
                 },
                 {
                     player: "Curtis Keaton",
@@ -843,7 +887,8 @@
                     sport: "nfl",
                     price: 2,
                     search: "curtis+keaton+2000+playoff+contenders+134+auto",
-                    img: "jmu-cards/keaton_2000_playoffcontenders.webp"
+                    img: "jmu-cards/keaton_2000_playoffcontenders.webp",
+                    alternate: true
                 },
                 {
                     player: "Curtis Keaton",
@@ -855,7 +900,8 @@
                     sport: "nfl",
                     price: 1,
                     search: "curtis+keaton+2000+sage+auto+A23",
-                    img: "jmu-cards/keaton_2000_sageauto.webp"
+                    img: "jmu-cards/keaton_2000_sageauto.webp",
+                    alternate: true
                 },
                 {
                     player: "Mike Cawley",
@@ -903,7 +949,8 @@
                     sport: "nfl",
                     price: 1,
                     search: "jimmy+moreland+2019+select+105+redskins",
-                    img: "jmu-cards/moreland_2019_select.webp"
+                    img: "jmu-cards/moreland_2019_select.webp",
+                    alternate: true
                 },
                 {
                     player: "Jimmy Moreland",
@@ -915,7 +962,8 @@
                     sport: "nfl",
                     price: 10,
                     search: "jimmy+moreland+2019+national+treasures+auto",
-                    img: "jmu-cards/moreland_2019_nationaltreasures.webp"
+                    img: "jmu-cards/moreland_2019_nationaltreasures.webp",
+                    alternate: true
                 },
                 {
                     player: "Ben DiNucci",
@@ -927,7 +975,8 @@
                     sport: "nfl",
                     price: 1,
                     search: "ben+dinucci+2020+donruss+350+cowboys+rated+rookie",
-                    img: "jmu-cards/dinucci_2020_donruss.webp"
+                    img: "jmu-cards/dinucci_2020_donruss.webp",
+                    alternate: true
                 },
                 {
                     player: "Ben DiNucci",
@@ -939,7 +988,8 @@
                     sport: "nfl",
                     price: 1,
                     search: "ben+dinucci+2020+donruss+optic+200+cowboys+rated+rookie",
-                    img: "jmu-cards/dinucci_2020_optic.webp"
+                    img: "jmu-cards/dinucci_2020_optic.webp",
+                    alternate: true
                 },
                 {
                     player: "Ben DiNucci",
@@ -951,7 +1001,8 @@
                     sport: "nfl",
                     price: 1,
                     search: "ben+dinucci+2020+prestige+265+cowboys",
-                    img: "jmu-cards/dinucci_2020_prestige.webp"
+                    img: "jmu-cards/dinucci_2020_prestige.webp",
+                    alternate: true
                 },
                 {
                     player: "Ben DiNucci",
@@ -963,7 +1014,8 @@
                     sport: "nfl",
                     price: 1,
                     search: "ben+dinucci+2020+prizm+337",
-                    img: "jmu-cards/dinucci_2020_prizm.webp"
+                    img: "jmu-cards/dinucci_2020_prizm.webp",
+                    alternate: true
                 },
                 {
                     player: "Ben DiNucci",
@@ -987,7 +1039,8 @@
                     sport: "nfl",
                     price: 1,
                     search: "ben+dinucci+2020+absolute+110",
-                    img: "jmu-cards/dinucci_2020_absolute.webp"
+                    img: "jmu-cards/dinucci_2020_absolute.webp",
+                    alternate: true
                 },
                 {
                     player: "Ben DiNucci",
@@ -999,7 +1052,8 @@
                     sport: "nfl",
                     price: 2,
                     search: "ben+dinucci+2020+certified+190",
-                    img: "jmu-cards/dinucci_2020_certified.webp"
+                    img: "jmu-cards/dinucci_2020_certified.webp",
+                    alternate: true
                 },
                 {
                     player: "Ben DiNucci",
@@ -1011,7 +1065,8 @@
                     sport: "nfl",
                     price: 1,
                     search: "ben+dinucci+2020+phoenix+rookie",
-                    img: "jmu-cards/dinucci_2020_phoenix.webp"
+                    img: "jmu-cards/dinucci_2020_phoenix.webp",
+                    alternate: true
                 },
                 {
                     player: "Ben DiNucci",
@@ -1023,7 +1078,8 @@
                     sport: "nfl",
                     price: 12,
                     search: "ben+dinucci+2020+contenders+217+auto",
-                    img: "jmu-cards/dinucci_2020_contenders.webp"
+                    img: "jmu-cards/dinucci_2020_contenders.webp",
+                    alternate: true
                 },
                 {
                     player: "Aaron Stinnie",
@@ -1077,7 +1133,8 @@
                     sport: "mls",
                     price: 1,
                     search: "cj+sapong+2011+upper+deck+soccer+183",
-                    img: "jmu-cards/sapong_2011_upperdeck.webp"
+                    img: "jmu-cards/sapong_2011_upperdeck.webp",
+                    alternate: true
                 },
                 {
                     player: "CJ Sapong",
@@ -1155,13 +1212,8 @@
                 ownedCards = ownedCards.filter(id => id !== cardId);
             }
             saveOwned();
-            const cardEl = checkbox.closest('.card');
-            if (owned) {
-                cardEl.classList.add('owned');
-            } else {
-                cardEl.classList.remove('owned');
-            }
-            updateStats();
+            // Re-render to handle alternate card swapping
+            renderCards();
             applyFilters();
         }
 
@@ -1286,14 +1338,106 @@
             `;
         }
 
+        function toggleAlternatesSection() {
+            const cardsEl = document.getElementById('alternates-cards');
+            const toggleEl = document.getElementById('alternates-toggle');
+            if (cardsEl.style.display === 'none') {
+                cardsEl.style.display = '';
+                toggleEl.classList.add('expanded');
+            } else {
+                cardsEl.style.display = 'none';
+                toggleEl.classList.remove('expanded');
+            }
+        }
+
+        // For players with alternates in the same sport, returns which card to show
+        // (owned alternate if available, otherwise the primary)
+        function getDisplayCard(playerCards) {
+            const primaryCards = playerCards.filter(c => !c.alternate);
+            const alternateCards = playerCards.filter(c => c.alternate);
+
+            // Check if any alternate is owned
+            const ownedAlternate = alternateCards.find(c => isOwned(getCardId(c)));
+            if (ownedAlternate) {
+                return ownedAlternate;
+            }
+            // Otherwise return the primary (or first card if no primary marked)
+            return primaryCards[0] || playerCards[0];
+        }
+
         function renderCards() {
-            document.getElementById('hof-cards').innerHTML = cards.hof.map(createCardElement).join('');
-            document.getElementById('probowl-cards').innerHTML = cards.probowl.map(createCardElement).join('');
-            document.getElementById('usfl-cards').innerHTML = cards.usfl.map(createCardElement).join('');
-            document.getElementById('modern-cards').innerHTML = cards.modern.map(createCardElement).join('');
-            document.getElementById('mlb-cards').innerHTML = cards.mlb.map(createCardElement).join('');
-            document.getElementById('nba-cards').innerHTML = cards.nba.map(createCardElement).join('');
-            document.getElementById('mls-cards').innerHTML = cards.mls.map(createCardElement).join('');
+            // Collect all cards across all sections
+            const allSectionCards = [
+                { section: 'hof', cards: cards.hof },
+                { section: 'probowl', cards: cards.probowl },
+                { section: 'usfl', cards: cards.usfl },
+                { section: 'modern', cards: cards.modern },
+                { section: 'mlb', cards: cards.mlb },
+                { section: 'nba', cards: cards.nba },
+                { section: 'mls', cards: cards.mls },
+            ];
+
+            // Group cards by player AND sport to keep USFL/NFL cards separate
+            const cardsByPlayerSport = {};
+            allSectionCards.forEach(({cards: sectionCards}) => {
+                sectionCards.forEach(card => {
+                    const key = `${card.player}|${card.sport}`;
+                    if (!cardsByPlayerSport[key]) {
+                        cardsByPlayerSport[key] = [];
+                    }
+                    cardsByPlayerSport[key].push(card);
+                });
+            });
+
+            // Determine which card should be displayed for each player+sport combo with alternates
+            const displayCards = new Map();
+            Object.entries(cardsByPlayerSport).forEach(([key, playerCards]) => {
+                const hasAlternates = playerCards.some(c => c.alternate);
+                if (hasAlternates) {
+                    const displayCard = getDisplayCard(playerCards);
+                    displayCards.set(displayCard, true);
+                    // Mark all cards in this group for alternate handling
+                    playerCards.forEach(c => {
+                        if (c !== displayCard) {
+                            displayCards.set(c, false); // false = should be hidden
+                        }
+                    });
+                }
+            });
+
+            // Collect all alternate cards (that aren't the display card)
+            const allAlternates = [];
+
+            // Render each section, filtering out alternates (except display cards)
+            allSectionCards.forEach(({section, cards: sectionCards}) => {
+                const visibleCards = [];
+                sectionCards.forEach(card => {
+                    if (displayCards.has(card)) {
+                        // This card is part of a group with alternates
+                        if (displayCards.get(card) === true) {
+                            visibleCards.push(card);
+                        } else {
+                            allAlternates.push(card);
+                        }
+                    } else {
+                        // No alternates for this player+sport - show normally
+                        visibleCards.push(card);
+                    }
+                });
+                document.getElementById(`${section}-cards`).innerHTML = visibleCards.map(createCardElement).join('');
+            });
+
+            // Render alternates section
+            const alternatesSection = document.getElementById('alternates-section');
+            const alternatesCount = document.getElementById('alternates-count');
+            if (allAlternates.length > 0) {
+                alternatesSection.style.display = '';
+                alternatesCount.textContent = `(${allAlternates.length} cards)`;
+                document.getElementById('alternates-cards').innerHTML = allAlternates.map(createCardElement).join('');
+            } else {
+                alternatesSection.style.display = 'none';
+            }
+
             updateStats();
         }
 
