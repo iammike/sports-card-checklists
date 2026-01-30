@@ -181,14 +181,20 @@
                     const response = await fetch(checklist.url);
                     const html = await response.text();
 
-                    // Count cards by type using regex
+                    // Count cards by type using regex (Jayden Daniels format)
                     const baseMatches = html.match(/type:\s*["']Base[^"']*["']/g) || [];
                     const insertMatches = html.match(/type:\s*["']Insert["']/g) || [];
                     const chaseMatches = html.match(/type:\s*["']Chase[^"']*["']/g) || [];
 
-                    const baseCount = baseMatches.length;
+                    let baseCount = baseMatches.length;
                     const insertCount = insertMatches.length;
                     const chaseCount = chaseMatches.length;
+
+                    // If no type fields found, try Washington QBs format (count by set: fields)
+                    if (baseCount === 0 && insertCount === 0 && chaseCount === 0) {
+                        const setMatches = html.match(/\{\s*name:\s*["'][^"']+["'],\s*years:/g) || [];
+                        baseCount = setMatches.length;
+                    }
 
                     let metaText = '';
                     if (insertCount > 0 || chaseCount > 0) {

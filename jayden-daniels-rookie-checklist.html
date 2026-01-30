@@ -746,9 +746,9 @@
         }
 
         function updateStats() {
-            // Exclude chase cards from main stats
-            const mainCards = document.querySelectorAll('.default-section .card:not([style*="display: none"]), #sorted-section .card:not([style*="display: none"])');
-            const ownedVisible = document.querySelectorAll('.default-section .card.owned:not([style*="display: none"]), #sorted-section .card.owned:not([style*="display: none"])').length;
+            // Exclude chase and insert cards from main stats
+            const mainCards = document.querySelectorAll('.default-section:not(.inserts-section .default-section) .card:not([style*="display: none"]), #sorted-section .card:not([style*="display: none"])');
+            const ownedVisible = document.querySelectorAll('.default-section:not(.inserts-section .default-section) .card.owned:not([style*="display: none"]), #sorted-section .card.owned:not([style*="display: none"])').length;
             let totalValue = 0, ownedValue = 0, neededValue = 0;
             mainCards.forEach(c => {
                 const price = parseFloat(c.dataset.price);
