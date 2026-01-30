@@ -247,6 +247,23 @@
                 <h2>Washington QBs Collection</h2>
                 <p>Main rookie cards for every starting quarterback in Washington Redskins/Commanders history (1982-2025).</p>
                 <div class="meta" id="meta-washington-qbs">Loading...</div>
+                <div class="progress-section" id="progress-section-washington-qbs" style="display: none;">
+                    <div class="main-progress">
+                        <div class="progress-ring">
+                            <svg viewBox="0 0 48 48">
+                                <circle class="bg" cx="24" cy="24" r="20"/>
+                                <circle class="fill" id="progress-ring-washington-qbs" cx="24" cy="24" r="20"
+                                    stroke-dasharray="125.6" stroke-dashoffset="125.6"/>
+                            </svg>
+                            <span class="percentage" id="progress-pct-washington-qbs">0%</span>
+                        </div>
+                        <div class="progress-details">
+                            <div class="progress-main-text">
+                                <span id="progress-owned-washington-qbs">0</span> of <span id="progress-total-washington-qbs">0</span> cards
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </a>
         </div>
     </div>
@@ -419,15 +436,32 @@
                 console.error('Failed to load Jayden Daniels progress:', error);
             }
 
-            // Washington QBs - just show background progress
+            // Washington QBs progress
             const qbsOwned = ownedData.checklists['washington-qbs'] || [];
             const bgProgressQBs = document.getElementById('bg-progress-washington-qbs');
             const metaQBs = document.getElementById('meta-washington-qbs');
             const qbsMatch = metaQBs.textContent.match(/(\d+)\s*cards/);
             const totalQBs = qbsMatch ? parseInt(qbsMatch[1]) : 0;
+
             if (totalQBs > 0) {
-                const pct = Math.round((qbsOwned.length / totalQBs) * 100);
-                bgProgressQBs.style.width = `${pct}%`;
+                const ownedQBsCount = qbsOwned.length;
+                const pctQBs = Math.round((ownedQBsCount / totalQBs) * 100);
+                const circumference = 2 * Math.PI * 20;
+                const offsetQBs = circumference - (pctQBs / 100) * circumference;
+
+                // Show progress section
+                document.getElementById('progress-section-washington-qbs').style.display = 'block';
+
+                // Update ring
+                const ringQBs = document.getElementById('progress-ring-washington-qbs');
+                ringQBs.style.strokeDashoffset = offsetQBs;
+
+                document.getElementById('progress-pct-washington-qbs').textContent = `${pctQBs}%`;
+                document.getElementById('progress-owned-washington-qbs').textContent = ownedQBsCount;
+                document.getElementById('progress-total-washington-qbs').textContent = totalQBs;
+
+                // Background fill
+                bgProgressQBs.style.width = `${pctQBs}%`;
             }
         }
 
