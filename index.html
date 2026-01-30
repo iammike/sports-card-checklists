@@ -193,6 +193,13 @@
                     </div>
                     <div class="progress-text" id="progress-text-jayden-daniels-inserts"></div>
                 </div>
+                <div class="secondary-progress">
+                    <div class="progress-label">Chase SSPs (optional)</div>
+                    <div class="progress-container">
+                        <div class="progress-bar" id="progress-jayden-daniels-chase"></div>
+                    </div>
+                    <div class="progress-text" id="progress-text-jayden-daniels-chase"></div>
+                </div>
             </a>
 
             <a href="washington-qbs-rookie-checklist.html" class="checklist-card" data-checklist="washington-qbs" id="card-washington-qbs">
@@ -305,37 +312,47 @@
                 return;
             }
 
-            // For Jayden Daniels, we need to figure out which owned cards are base vs inserts
+            // For Jayden Daniels, we need to figure out which owned cards are base vs inserts vs chase
             const jaydenOwned = ownedData.checklists['jayden-daniels'] || [];
             const bgProgressJD = document.getElementById('bg-progress-jayden-daniels');
             const progressTextJD = document.getElementById('progress-text-jayden-daniels');
+
+            // Helper to generate card ID (must match checklist's getCardId function)
+            function getCardId(set, num, name) {
+                return btoa(set + num + name).replace(/[^a-zA-Z0-9]/g, '');
+            }
 
             // Fetch checklist to get base card IDs
             try {
                 const response = await fetch('jayden-daniels-rookie-checklist.html');
                 const html = await response.text();
 
-                // Extract base card IDs (format: set + num or set + name)
+                // Extract card IDs by type
                 const baseCardIds = new Set();
                 const insertCardIds = new Set();
+                const chaseCardIds = new Set();
 
-                // Parse cards from the JavaScript - look for type: "Base" vs type: "Insert"
+                // Parse cards from the JavaScript - look for type field
                 const cardMatches = html.matchAll(/\{\s*set:\s*["']([^"']+)["'],\s*num:\s*["']([^"']*)["'],\s*name:\s*["']([^"']+)["'],\s*type:\s*["']([^"']+)["']/g);
                 for (const match of cardMatches) {
                     const [, set, num, name, type] = match;
-                    const cardId = `${set}|${num}|${name}`;
+                    const cardId = getCardId(set, num, name);
                     if (type.startsWith('Base')) {
                         baseCardIds.add(cardId);
                     } else if (type === 'Insert') {
                         insertCardIds.add(cardId);
+                    } else if (type.startsWith('Chase')) {
+                        chaseCardIds.add(cardId);
                     }
                 }
 
-                // Count owned base cards
+                // Count owned cards by type
                 const ownedBaseCount = jaydenOwned.filter(id => baseCardIds.has(id)).length;
                 const ownedInsertCount = jaydenOwned.filter(id => insertCardIds.has(id)).length;
+                const ownedChaseCount = jaydenOwned.filter(id => chaseCardIds.has(id)).length;
                 const totalBase = baseCardIds.size;
                 const totalInserts = insertCardIds.size;
+                const totalChase = chaseCardIds.size;
 
                 if (totalBase > 0) {
                     const percentage = Math.round((ownedBaseCount / totalBase) * 100);
@@ -350,6 +367,15 @@
                     const pct = Math.round((ownedInsertCount / totalInserts) * 100);
                     insertsBar.style.width = `${pct}%`;
                     insertsText.textContent = `${ownedInsertCount}/${totalInserts} owned (${pct}%)`;
+                }
+
+                // Chase progress
+                const chaseBar = document.getElementById('progress-jayden-daniels-chase');
+                const chaseText = document.getElementById('progress-text-jayden-daniels-chase');
+                if (chaseBar && totalChase > 0) {
+                    const pct = Math.round((ownedChaseCount / totalChase) * 100);
+                    chaseBar.style.width = `${pct}%`;
+                    chaseText.textContent = `${ownedChaseCount}/${totalChase} owned (${pct}%)`;
                 }
             } catch (error) {
                 console.error('Failed to load Jayden Daniels progress:', error);
