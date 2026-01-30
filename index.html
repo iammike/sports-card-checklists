@@ -200,7 +200,6 @@
                 <h2>Washington QBs Collection</h2>
                 <p>Main rookie cards for every starting quarterback in Washington Redskins/Commanders history (1982-2025).</p>
                 <div class="meta" id="meta-washington-qbs">Loading...</div>
-                <div class="progress-text" id="progress-text-washington-qbs"></div>
             </a>
         </div>
     </div>
@@ -303,50 +302,68 @@
             }
 
             if (!ownedData || !ownedData.checklists) {
-                // No data available - hide progress bars
                 return;
             }
 
-            const checklistMap = {
-                'jayden-daniels': 'jayden-daniels',
-                'washington-qbs': 'washington-qbs'
-            };
+            // For Jayden Daniels, we need to figure out which owned cards are base vs inserts
+            const jaydenOwned = ownedData.checklists['jayden-daniels'] || [];
+            const bgProgressJD = document.getElementById('bg-progress-jayden-daniels');
+            const progressTextJD = document.getElementById('progress-text-jayden-daniels');
 
-            for (const [id, checklistKey] of Object.entries(checklistMap)) {
-                const owned = ownedData.checklists[checklistKey] || [];
-                const ownedInserts = ownedData.checklists[`${checklistKey}-inserts`] || [];
-                const bgProgress = document.getElementById(`bg-progress-${id}`);
-                const progressText = document.getElementById(`progress-text-${id}`);
+            // Fetch checklist to get base card IDs
+            try {
+                const response = await fetch('jayden-daniels-rookie-checklist.html');
+                const html = await response.text();
 
-                // Get totals from the meta text (parse it)
-                const metaEl = document.getElementById(`meta-${id}`);
-                const metaText = metaEl.textContent;
-                const baseMatch = metaText.match(/(\d+)\s*(?:base|cards)/);
-                const insertMatch = metaText.match(/(\d+)\s*inserts/);
-                const total = baseMatch ? parseInt(baseMatch[1]) : 0;
-                const totalInserts = insertMatch ? parseInt(insertMatch[1]) : 0;
+                // Extract base card IDs (format: set + num or set + name)
+                const baseCardIds = new Set();
+                const insertCardIds = new Set();
 
-                // Base cards progress (fills card background)
-                if (total > 0) {
-                    const ownedCount = owned.length;
-                    const percentage = Math.round((ownedCount / total) * 100);
-                    bgProgress.style.width = `${percentage}%`;
-                    progressText.textContent = `Base: ${ownedCount}/${total} owned (${percentage}%)`;
-                }
-
-                // Inserts progress (Jayden Daniels only)
-                const insertsBar = document.getElementById(`progress-${id}-inserts`);
-                const insertsText = document.getElementById(`progress-text-${id}-inserts`);
-                if (insertsBar && totalInserts > 0) {
-                    if (ownedInserts.length > 0) {
-                        const pct = Math.round((ownedInserts.length / totalInserts) * 100);
-                        insertsBar.style.width = `${pct}%`;
-                        insertsText.textContent = `${ownedInserts.length}/${totalInserts} owned (${pct}%)`;
-                    } else {
-                        insertsBar.style.width = '0%';
-                        insertsText.textContent = `0/${totalInserts} owned`;
+                // Parse cards from the JavaScript - look for type: "Base" vs type: "Insert"
+                const cardMatches = html.matchAll(/\{\s*set:\s*["']([^"']+)["'],\s*num:\s*["']([^"']*)["'],\s*name:\s*["']([^"']+)["'],\s*type:\s*["']([^"']+)["']/g);
+                for (const match of cardMatches) {
+                    const [, set, num, name, type] = match;
+                    const cardId = `${set}|${num}|${name}`;
+                    if (type.startsWith('Base')) {
+                        baseCardIds.add(cardId);
+                    } else if (type === 'Insert') {
+                        insertCardIds.add(cardId);
                     }
                 }
+
+                // Count owned base cards
+                const ownedBaseCount = jaydenOwned.filter(id => baseCardIds.has(id)).length;
+                const ownedInsertCount = jaydenOwned.filter(id => insertCardIds.has(id)).length;
+                const totalBase = baseCardIds.size;
+                const totalInserts = insertCardIds.size;
+
+                if (totalBase > 0) {
+                    const percentage = Math.round((ownedBaseCount / totalBase) * 100);
+                    bgProgressJD.style.width = `${percentage}%`;
+                    progressTextJD.textContent = `Base: ${ownedBaseCount}/${totalBase} owned (${percentage}%)`;
+                }
+
+                // Inserts progress
+                const insertsBar = document.getElementById('progress-jayden-daniels-inserts');
+                const insertsText = document.getElementById('progress-text-jayden-daniels-inserts');
+                if (insertsBar && totalInserts > 0) {
+                    const pct = Math.round((ownedInsertCount / totalInserts) * 100);
+                    insertsBar.style.width = `${pct}%`;
+                    insertsText.textContent = `${ownedInsertCount}/${totalInserts} owned (${pct}%)`;
+                }
+            } catch (error) {
+                console.error('Failed to load Jayden Daniels progress:', error);
+            }
+
+            // Washington QBs - just show background progress
+            const qbsOwned = ownedData.checklists['washington-qbs'] || [];
+            const bgProgressQBs = document.getElementById('bg-progress-washington-qbs');
+            const metaQBs = document.getElementById('meta-washington-qbs');
+            const qbsMatch = metaQBs.textContent.match(/(\d+)\s*cards/);
+            const totalQBs = qbsMatch ? parseInt(qbsMatch[1]) : 0;
+            if (totalQBs > 0) {
+                const pct = Math.round((qbsOwned.length / totalQBs) * 100);
+                bgProgressQBs.style.width = `${pct}%`;
             }
         }
 
