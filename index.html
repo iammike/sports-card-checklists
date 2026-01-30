@@ -524,19 +524,30 @@
                 const jmuResponse = await fetch('jmu-pro-players-checklist.html');
                 const jmuHtml = await jmuResponse.text();
 
-                // Parse cards with player, set, num, name, price - exclude alternates
+                // Parse cards - match full card objects and exclude alternates
                 const jmuCards = [];
-                const jmuCardMatches = jmuHtml.matchAll(/player:\s*["']([^"']+)["'].*?set:\s*["']([^"']+)["'],\s*num:\s*["']([^"']*)["'],\s*name:\s*["']([^"']+)["'].*?price:\s*([\d.]+).*?(?:alternate:\s*true)?/gs);
-                for (const match of jmuCardMatches) {
-                    const fullMatch = match[0];
+                // Match each card object from { to },
+                const cardBlockMatches = jmuHtml.matchAll(/\{\s*player:\s*["']([^"']+)["'][^}]+\}/gs);
+                for (const blockMatch of cardBlockMatches) {
+                    const block = blockMatch[0];
                     // Skip cards marked as alternate
-                    if (fullMatch.includes('alternate: true') || fullMatch.includes('alternate:true')) continue;
-                    const [, player, set, num, name, price] = match;
-                    jmuCards.push({
-                        player, set, num, name,
-                        price: parseFloat(price),
-                        id: getJmuCardId(player, set, num, name)
-                    });
+                    if (block.includes('alternate:') && block.includes('true')) continue;
+                    // Extract fields from block
+                    const playerMatch = block.match(/player:\s*["']([^"']+)["']/);
+                    const setMatch = block.match(/set:\s*["']([^"']+)["']/);
+                    const numMatch = block.match(/num:\s*["']([^"']*)["']/);
+                    const nameMatch = block.match(/name:\s*["']([^"']+)["']/);
+                    const priceMatch = block.match(/price:\s*([\d.]+)/);
+                    if (playerMatch && setMatch && numMatch && nameMatch && priceMatch) {
+                        jmuCards.push({
+                            player: playerMatch[1],
+                            set: setMatch[1],
+                            num: numMatch[1],
+                            name: nameMatch[1],
+                            price: parseFloat(priceMatch[1]),
+                            id: getJmuCardId(playerMatch[1], setMatch[1], numMatch[1], nameMatch[1])
+                        });
+                    }
                 }
 
                 const totalJmu = jmuCards.length;
