@@ -36,40 +36,43 @@
             gap: 20px;
         }
         .checklist-card {
+            --card-accent: #f39c12;
+            --card-accent-rgb: 243, 156, 18;
             background: rgba(255,255,255,0.05);
             border-radius: 12px;
             padding: 24px;
             border: 1px solid rgba(255,255,255,0.1);
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
             text-decoration: none;
             color: inherit;
             display: block;
             position: relative;
             overflow: hidden;
         }
-        .checklist-card .bg-progress {
-            position: absolute;
-            top: 0;
-            left: 0;
-            height: 100%;
-            width: 0%;
-            background: rgba(255, 255, 255, 0.03);
-            transition: width 0.8s ease;
-            z-index: 0;
-        }
-        .checklist-card > *:not(.bg-progress) {
-            position: relative;
-            z-index: 1;
-        }
         .checklist-card:hover {
             transform: translateY(-4px);
             box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-            border-color: rgba(243, 156, 18, 0.5);
+            border-color: rgba(var(--card-accent-rgb), 0.5);
         }
         .checklist-card h2 {
             font-size: 1.4em;
             margin-bottom: 8px;
-            color: #f39c12;
+            color: var(--card-accent);
+        }
+        /* Jayden Daniels - Commanders burgundy/gold with LSU purple accent */
+        #card-jayden-daniels {
+            --card-accent: #FFB612;
+            --card-accent-rgb: 255, 182, 18;
+            --card-secondary: #461D7C;
+            border-left: 3px solid #773141;
+            background: linear-gradient(135deg, rgba(70, 29, 124, 0.08) 0%, rgba(119, 49, 65, 0.08) 100%);
+        }
+        /* Washington QBs - Commanders burgundy/gold */
+        #card-washington-qbs {
+            --card-accent: #FFB612;
+            --card-accent-rgb: 255, 182, 18;
+            border-left: 3px solid #773141;
+            background: linear-gradient(135deg, rgba(119, 49, 65, 0.12) 0%, rgba(255, 182, 18, 0.05) 100%);
         }
         .checklist-card p {
             color: #aaa;
@@ -110,7 +113,7 @@
             stroke: rgba(255,255,255,0.1);
         }
         .checklist-card .progress-ring .fill {
-            stroke: #f39c12;
+            stroke: var(--card-accent);
             stroke-linecap: round;
             transition: stroke-dashoffset 0.8s ease;
         }
@@ -121,7 +124,7 @@
             transform: translate(-50%, -50%);
             font-size: 0.7em;
             font-weight: 600;
-            color: #f39c12;
+            color: var(--card-accent);
         }
         .checklist-card .progress-details {
             flex: 1;
@@ -132,7 +135,7 @@
             font-weight: 500;
         }
         .checklist-card .progress-main-text span {
-            color: #f39c12;
+            color: var(--card-accent);
             font-weight: 600;
         }
         /* Secondary stats row */
@@ -215,7 +218,6 @@
 
         <div class="checklist-grid">
             <a href="jayden-daniels-rookie-checklist.html" class="checklist-card" data-checklist="jayden-daniels" id="card-jayden-daniels">
-                <div class="bg-progress" id="bg-progress-jayden-daniels"></div>
                 <h2>Jayden Daniels Rookie Cards</h2>
                 <p>2023 college cards and 2024 NFL rookie cards for the Commanders QB and 2024 Offensive Rookie of the Year.</p>
                 <div class="meta" id="meta-jayden-daniels">Loading...</div>
@@ -243,7 +245,6 @@
             </a>
 
             <a href="washington-qbs-rookie-checklist.html" class="checklist-card" data-checklist="washington-qbs" id="card-washington-qbs">
-                <div class="bg-progress" id="bg-progress-washington-qbs"></div>
                 <h2>Washington QBs Collection</h2>
                 <p>Main rookie cards for every starting quarterback in Washington Redskins/Commanders history (1982-2025).</p>
                 <div class="meta" id="meta-washington-qbs">Loading...</div>
@@ -371,7 +372,6 @@
 
             // For Jayden Daniels, we need to figure out which owned cards are base vs inserts vs chase
             const jaydenOwned = ownedData.checklists['jayden-daniels'] || [];
-            const bgProgressJD = document.getElementById('bg-progress-jayden-daniels');
 
             // Helper to generate card ID (must match checklist's getCardId function)
             function getCardId(set, num, name) {
@@ -426,9 +426,6 @@
                 document.getElementById('progress-owned-jayden-daniels').textContent = ownedBaseCount;
                 document.getElementById('progress-total-jayden-daniels').textContent = totalBase;
 
-                // Background fill
-                bgProgressJD.style.width = `${percentage}%`;
-
                 // Secondary stats pills
                 document.getElementById('stat-inserts-jayden-daniels').textContent = `${ownedInsertCount}/${totalInserts}`;
                 document.getElementById('stat-chase-jayden-daniels').textContent = `${ownedChaseCount}/${totalChase}`;
@@ -438,7 +435,6 @@
 
             // Washington QBs progress
             const qbsOwned = ownedData.checklists['washington-qbs'] || [];
-            const bgProgressQBs = document.getElementById('bg-progress-washington-qbs');
             const metaQBs = document.getElementById('meta-washington-qbs');
             const qbsMatch = metaQBs.textContent.match(/(\d+)\s*cards/);
             const totalQBs = qbsMatch ? parseInt(qbsMatch[1]) : 0;
@@ -459,9 +455,6 @@
                 document.getElementById('progress-pct-washington-qbs').textContent = `${pctQBs}%`;
                 document.getElementById('progress-owned-washington-qbs').textContent = ownedQBsCount;
                 document.getElementById('progress-total-washington-qbs').textContent = totalQBs;
-
-                // Background fill
-                bgProgressQBs.style.width = `${pctQBs}%`;
             }
         }
 
