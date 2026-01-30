@@ -705,19 +705,15 @@
                     break;
                 case 'owned':
                     sorted.sort((a, b) => {
-                        const cardIdA = (a.set + ' ' + a.num).replace(/[^a-zA-Z0-9]/g, '-');
-                        const cardIdB = (b.set + ' ' + b.num).replace(/[^a-zA-Z0-9]/g, '-');
-                        const ownedA = ownedCards.includes(cardIdA) ? 0 : 1;
-                        const ownedB = ownedCards.includes(cardIdB) ? 0 : 1;
+                        const ownedA = ownedCards.includes(getCardId(a)) ? 0 : 1;
+                        const ownedB = ownedCards.includes(getCardId(b)) ? 0 : 1;
                         return ownedA - ownedB || a.sortOrder - b.sortOrder;
                     });
                     break;
                 case 'needed':
                     sorted.sort((a, b) => {
-                        const cardIdA = (a.set + ' ' + a.num).replace(/[^a-zA-Z0-9]/g, '-');
-                        const cardIdB = (b.set + ' ' + b.num).replace(/[^a-zA-Z0-9]/g, '-');
-                        const ownedA = ownedCards.includes(cardIdA) ? 1 : 0;
-                        const ownedB = ownedCards.includes(cardIdB) ? 1 : 0;
+                        const ownedA = ownedCards.includes(getCardId(a)) ? 1 : 0;
+                        const ownedB = ownedCards.includes(getCardId(b)) ? 1 : 0;
                         return ownedA - ownedB || a.sortOrder - b.sortOrder;
                     });
                     break;
