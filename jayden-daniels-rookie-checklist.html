@@ -781,12 +781,15 @@
         }
 
         function clearAll() {
-            if (confirm('Clear all checkmarks?')) {
+            const input = prompt('Type "CLEAR" to confirm clearing all checkmarks:');
+            if (input === 'CLEAR') {
                 ownedCards = [];
                 saveOwned();
                 document.querySelectorAll('.card').forEach(c => c.classList.remove('owned'));
                 document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
                 updateStats();
+            } else if (input !== null) {
+                alert('Incorrect. Type "CLEAR" exactly to confirm.');
             }
         }
 
