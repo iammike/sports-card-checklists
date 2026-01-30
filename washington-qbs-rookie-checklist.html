@@ -376,6 +376,8 @@
                 <option value="price-low">Sort: Price (Low→High)</option>
                 <option value="price-high">Sort: Price (High→Low)</option>
                 <option value="winpct">Sort: Win %</option>
+                <option value="wins">Sort: Games Won</option>
+                <option value="games">Sort: Games Played</option>
                 <option value="superbowl">Sort: Super Bowl Winners</option>
                 <option value="owned">Sort: Owned First</option>
                 <option value="needed">Sort: Needed First</option>
@@ -594,6 +596,21 @@
             return total > 0 ? wins / total : 0;
         }
 
+        function getWins(qb) {
+            if (!qb.record || qb.record === '-') return 0;
+            const parts = qb.record.split('-');
+            return parseInt(parts[0]) || 0;
+        }
+
+        function getGamesPlayed(qb) {
+            if (!qb.record || qb.record === '-') return 0;
+            const parts = qb.record.split('-');
+            if (parts.length < 2) return 0;
+            const wins = parseInt(parts[0]) || 0;
+            const losses = parseInt(parts[1]) || 0;
+            return wins + losses;
+        }
+
         function sortQbs(qbsToSort, sortBy) {
             const sorted = [...qbsToSort];
             switch (sortBy) {
@@ -608,6 +625,12 @@
                     break;
                 case 'winpct':
                     sorted.sort((a, b) => getWinPct(b) - getWinPct(a));
+                    break;
+                case 'wins':
+                    sorted.sort((a, b) => getWins(b) - getWins(a));
+                    break;
+                case 'games':
+                    sorted.sort((a, b) => getGamesPlayed(b) - getGamesPlayed(a));
                     break;
                 case 'superbowl':
                     sorted.sort((a, b) => (b.superBowl ? 1 : 0) - (a.superBowl ? 1 : 0));
