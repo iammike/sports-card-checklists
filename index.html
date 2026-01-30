@@ -123,16 +123,16 @@
         <p class="subtitle">Tracking my collection</p>
 
         <div class="checklist-grid">
-            <a href="jayden-daniels-rookie-checklist.html" class="checklist-card">
+            <a href="jayden-daniels-rookie-checklist.html" class="checklist-card" data-checklist="jayden-daniels">
                 <h2>Jayden Daniels Rookie Cards</h2>
                 <p>2023 college cards and 2024 NFL rookie cards for the Commanders QB and 2024 Offensive Rookie of the Year.</p>
-                <div class="meta">39 base cards + 45 inserts + 6 chase • Panini, Topps, Leaf, SAGE</div>
+                <div class="meta" id="meta-jayden-daniels">Loading...</div>
             </a>
 
-            <a href="washington-qbs-rookie-checklist.html" class="checklist-card">
+            <a href="washington-qbs-rookie-checklist.html" class="checklist-card" data-checklist="washington-qbs">
                 <h2>Washington QBs Collection</h2>
                 <p>Main rookie cards for every starting quarterback in Washington Redskins/Commanders history (1982-2025).</p>
-                <div class="meta">39 cards • Vintage to Modern</div>
+                <div class="meta" id="meta-washington-qbs">Loading...</div>
             </a>
         </div>
     </div>
@@ -162,6 +162,55 @@
             updateAuthUI();
         }
 
+        async function loadChecklistCounts() {
+            const checklists = [
+                {
+                    id: 'jayden-daniels',
+                    url: 'jayden-daniels-rookie-checklist.html',
+                    suffix: ' • Panini, Topps, Leaf, SAGE'
+                },
+                {
+                    id: 'washington-qbs',
+                    url: 'washington-qbs-rookie-checklist.html',
+                    suffix: ' • Vintage to Modern'
+                }
+            ];
+
+            for (const checklist of checklists) {
+                try {
+                    const response = await fetch(checklist.url);
+                    const html = await response.text();
+
+                    // Count cards by type using regex
+                    const baseMatches = html.match(/type:\s*["']Base[^"']*["']/g) || [];
+                    const insertMatches = html.match(/type:\s*["']Insert["']/g) || [];
+                    const chaseMatches = html.match(/type:\s*["']Chase[^"']*["']/g) || [];
+
+                    const baseCount = baseMatches.length;
+                    const insertCount = insertMatches.length;
+                    const chaseCount = chaseMatches.length;
+
+                    let metaText = '';
+                    if (insertCount > 0 || chaseCount > 0) {
+                        // Jayden Daniels style with multiple categories
+                        const parts = [];
+                        if (baseCount > 0) parts.push(`${baseCount} base`);
+                        if (insertCount > 0) parts.push(`${insertCount} inserts`);
+                        if (chaseCount > 0) parts.push(`${chaseCount} chase`);
+                        metaText = parts.join(' + ');
+                    } else {
+                        // Simple count for single-category checklists
+                        metaText = `${baseCount} cards`;
+                    }
+
+                    document.getElementById(`meta-${checklist.id}`).textContent = metaText + checklist.suffix;
+                } catch (error) {
+                    console.error(`Failed to load ${checklist.id}:`, error);
+                    document.getElementById(`meta-${checklist.id}`).textContent = 'Error loading count';
+                }
+            }
+        }
+
         async function init() {
             if (window.githubSync) {
                 await githubSync.handleCallback();
@@ -174,6 +223,9 @@
                     githubSync.login();
                 }
             });
+
+            // Load card counts dynamically
+            loadChecklistCounts();
         }
         init();
     </script>
