@@ -732,6 +732,7 @@
                 // Show default sections, hide sorted section
                 defaultSections.forEach(s => s.style.display = '');
                 sortedSection.style.display = 'none';
+                document.getElementById('sorted-cards').innerHTML = '';
 
                 document.getElementById('college-cards').innerHTML = cards.college.map(createCardElement).join('');
                 document.getElementById('panini-cards').innerHTML = cards.panini.map(createCardElement).join('');
@@ -739,8 +740,13 @@
                 document.getElementById('other-cards').innerHTML = cards.other.map(createCardElement).join('');
                 document.getElementById('insert-cards').innerHTML = cards.inserts.map(createCardElement).join('');
             } else {
-                // Hide default sections, show sorted section
+                // Hide default sections, clear their content, show sorted section
                 defaultSections.forEach(s => s.style.display = 'none');
+                document.getElementById('college-cards').innerHTML = '';
+                document.getElementById('panini-cards').innerHTML = '';
+                document.getElementById('topps-cards').innerHTML = '';
+                document.getElementById('other-cards').innerHTML = '';
+                document.getElementById('insert-cards').innerHTML = '';
                 sortedSection.style.display = '';
 
                 const allCards = getAllCards();
