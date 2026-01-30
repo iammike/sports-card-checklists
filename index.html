@@ -269,6 +269,7 @@
                             <div class="progress-main-text">
                                 <span id="progress-owned-washington-qbs">0</span> of <span id="progress-total-washington-qbs">0</span> cards
                             </div>
+                            <div class="value-stats" id="value-stats-washington-qbs"></div>
                         </div>
                     </div>
                 </div>
@@ -425,13 +426,39 @@
             // Washington QBs progress
             const qbsOwned = ownedData.checklists['washington-qbs'] || [];
 
-            // Fetch and count QBs cards
+            // Helper to generate QBs card ID (matches their getCardId)
+            function getQBsCardId(name, set, num) {
+                return btoa(name + set + num).replace(/[^a-zA-Z0-9]/g, '');
+            }
+
+            // Fetch and parse QBs cards with prices
             try {
                 const qbsResponse = await fetch('washington-qbs-rookie-checklist.html');
                 const qbsHtml = await qbsResponse.text();
-                const qbsMatches = qbsHtml.match(/\{\s*name:\s*["'][^"']+["'],\s*years:/g) || [];
-                const totalQBs = qbsMatches.length;
-                const ownedQBsCount = qbsOwned.length;
+
+                // Parse cards with name, set, num, and price
+                const qbsCards = [];
+                const qbsCardMatches = qbsHtml.matchAll(/\{\s*name:\s*["']([^"']+)["'].*?set:\s*["']([^"']+)["'],\s*num:\s*["']([^"']+)["'],\s*price:\s*([\d.]+)/g);
+                for (const match of qbsCardMatches) {
+                    const [, name, set, num, price] = match;
+                    qbsCards.push({
+                        name, set, num,
+                        price: parseFloat(price),
+                        id: getQBsCardId(name, set, num)
+                    });
+                }
+
+                const totalQBs = qbsCards.length;
+                let ownedQBsValue = 0, neededQBsValue = 0;
+                const ownedQBsCount = qbsCards.filter(c => {
+                    if (qbsOwned.includes(c.id)) {
+                        ownedQBsValue += c.price;
+                        return true;
+                    } else {
+                        neededQBsValue += c.price;
+                        return false;
+                    }
+                }).length;
 
                 if (totalQBs > 0) {
                     const pctQBs = Math.round((ownedQBsCount / totalQBs) * 100);
@@ -448,6 +475,10 @@
                     document.getElementById('progress-pct-washington-qbs').textContent = `${pctQBs}%`;
                     document.getElementById('progress-owned-washington-qbs').textContent = ownedQBsCount;
                     document.getElementById('progress-total-washington-qbs').textContent = totalQBs;
+
+                    // Value stats
+                    document.getElementById('value-stats-washington-qbs').innerHTML =
+                        `<span class="value-owned">$${Math.round(ownedQBsValue)} owned</span> · <span class="value-needed">$${Math.round(neededQBsValue)} to complete</span>`;
                 }
             } catch (error) {
                 console.error('Failed to load Washington QBs progress:', error);
