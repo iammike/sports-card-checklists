@@ -156,6 +156,29 @@
         .section {
             margin-bottom: 30px;
         }
+        .group-header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            padding: 14px 20px;
+            border-radius: 8px 8px 0 0;
+            font-size: 20px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 3px solid #f39c12;
+        }
+        .section-group {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 0 0 8px 8px;
+            margin-bottom: 30px;
+        }
+        .section-group .section {
+            margin-bottom: 20px;
+        }
+        .section-group .section:last-child {
+            margin-bottom: 0;
+        }
         .section-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -400,28 +423,34 @@
         <div class="card-grid" id="college-cards"></div>
     </div>
 
-    <!-- PANINI 2024 -->
-    <div class="section default-section">
-        <div class="section-header">2024 Panini NFL Cards</div>
-        <div class="card-grid" id="panini-cards"></div>
-    </div>
+    <!-- BASE CARDS 2024 -->
+    <div class="group-header">2024 Base Rookie Cards</div>
+    <div class="section-group">
+        <!-- PANINI 2024 -->
+        <div class="section default-section">
+            <div class="section-header">Panini</div>
+            <div class="card-grid" id="panini-cards"></div>
+        </div>
 
-    <!-- TOPPS 2024 -->
-    <div class="section default-section">
-        <div class="section-header topps">2024 Topps NFL Cards</div>
-        <div class="card-grid" id="topps-cards"></div>
-    </div>
+        <!-- TOPPS 2024 -->
+        <div class="section default-section">
+            <div class="section-header topps">Topps</div>
+            <div class="card-grid" id="topps-cards"></div>
+        </div>
 
-    <!-- OTHER 2024 -->
-    <div class="section default-section">
-        <div class="section-header other">2024 Other Brands</div>
-        <div class="card-grid" id="other-cards"></div>
+        <!-- OTHER 2024 -->
+        <div class="section default-section">
+            <div class="section-header other">Other Brands</div>
+            <div class="card-grid" id="other-cards"></div>
+        </div>
     </div>
 
     <!-- INSERTS 2024 -->
-    <div class="section default-section">
-        <div class="section-header inserts">2024 Inserts</div>
-        <div class="card-grid" id="insert-cards"></div>
+    <div class="group-header" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">2024 Inserts</div>
+    <div class="section-group">
+        <div class="section default-section">
+            <div class="card-grid" id="insert-cards"></div>
+        </div>
     </div>
 
     <!-- CHASE CARDS (expensive/rare - collapsed by default) -->
