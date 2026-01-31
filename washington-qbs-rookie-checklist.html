@@ -85,6 +85,8 @@
             border-radius: 12px;
             padding: 12px;
             border: 2px solid transparent;
+            display: flex;
+            flex-direction: column;
         }
 
         .card:hover {
@@ -155,7 +157,7 @@
             padding: 2px 6px;
             border-radius: 4px;
             font-size: 0.65em;
-            margin-top: 4px;
+            align-self: center;
         }
 
         /* Card actions */
@@ -163,7 +165,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-top: 8px;
+            margin-top: auto;
+            padding-top: 8px;
         }
         .card-actions.links-only {
             justify-content: center;
@@ -427,7 +430,18 @@
             } catch (e) {
                 console.log('Could not load base stats from gist');
             }
-            // Fallback: count all owned from gist (includes inserts)
+            // Second choice: localStorage (for testing, or if gist base stats not synced yet)
+            try {
+                const savedStats = JSON.parse(localStorage.getItem('jaydenDanielsBaseStats') || 'null');
+                if (savedStats) {
+                    jaydenDanielsStats.owned = savedStats.owned;
+                    jaydenDanielsStats.total = savedStats.total;
+                    return;
+                }
+            } catch (e) {
+                console.log('Could not load from localStorage');
+            }
+            // Final fallback: count all owned from gist (includes inserts)
             try {
                 if (window.githubSync) {
                     const jdOwned = githubSync.isLoggedIn()
@@ -439,16 +453,6 @@
                 }
             } catch (e) {
                 console.log('Could not load Jayden Daniels stats from gist');
-            }
-            // Final fallback: localStorage (for testing)
-            try {
-                const savedStats = JSON.parse(localStorage.getItem('jaydenDanielsBaseStats') || 'null');
-                if (savedStats && jaydenDanielsStats.owned === 0) {
-                    jaydenDanielsStats.owned = savedStats.owned;
-                    jaydenDanielsStats.total = savedStats.total;
-                }
-            } catch (e) {
-                console.log('Could not load from localStorage');
             }
         }
 
