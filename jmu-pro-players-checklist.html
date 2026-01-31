@@ -208,9 +208,10 @@
         <div class="card-grid" id="alternates-cards"></div>
     </div>
 
-    <button class="clear-btn" onclick="clearAll()">Clear All</button>
+    <button class="clear-btn" onclick="checklistManager.clearAll()">Clear All</button>
 
     <script src="github-sync.js"></script>
+    <script src="shared.js"></script>
     <script>
         const cards = {
             hof: [
@@ -876,100 +877,26 @@
             ],
         };
 
-        const CHECKLIST_ID = 'jmu-pro-players';
-        const OWNER_USERNAME = 'iammike';
-        let ownedCards = [];
-        let isReadOnly = false;
+        // Initialize checklist manager
+        const checklistManager = new ChecklistManager({
+            checklistId: 'jmu-pro-players',
+            ownerUsername: 'iammike',
+            localStorageKey: 'jmuProPlayersOwned',
+            onOwnedChange: () => { renderCards(); updateStats(); }
+        });
 
-        function isOwner() {
-            if (!window.githubSync || !githubSync.isLoggedIn()) return false;
-            const user = githubSync.getUser();
-            return user && user.login === OWNER_USERNAME;
-        }
-
+        // Custom getCardId includes player name for JMU
         function getCardId(card) {
             return btoa(card.player + card.set + card.num + card.name).replace(/[^a-zA-Z0-9]/g, '');
         }
 
-        async function loadOwned() {
-            if (window.githubSync && githubSync.isLoggedIn()) {
-                setSyncStatus('syncing', 'Loading...');
-                const cloudOwned = await githubSync.loadChecklist(CHECKLIST_ID);
-                if (cloudOwned && cloudOwned.length > 0) {
-                    ownedCards = cloudOwned;
-                    localStorage.setItem('jmuProPlayersOwned', JSON.stringify(ownedCards));
-                    setSyncStatus('synced', 'Synced');
-                    return;
-                }
-                setSyncStatus('synced', 'Synced');
-            } else if (window.githubSync) {
-                const publicOwned = await githubSync.loadPublicChecklist(CHECKLIST_ID);
-                if (publicOwned && publicOwned.length > 0) {
-                    ownedCards = publicOwned;
-                    return;
-                }
-            }
-            ownedCards = JSON.parse(localStorage.getItem('jmuProPlayersOwned') || '[]');
-        }
-
-        async function saveOwned() {
-            localStorage.setItem('jmuProPlayersOwned', JSON.stringify(ownedCards));
-            if (window.githubSync && githubSync.isLoggedIn()) {
-                setSyncStatus('syncing', 'Syncing...');
-                const success = await githubSync.saveChecklist(CHECKLIST_ID, ownedCards);
-                if (success) {
-                    setSyncStatus('synced', 'Synced');
-                } else {
-                    setSyncStatus('error', 'Sync failed');
-                }
-            }
-        }
-
-        function isOwned(cardId) {
-            return ownedCards.includes(cardId);
-        }
+        function isOwned(cardId) { return checklistManager.isOwned(cardId); }
 
         function toggleOwned(cardId, checkbox) {
-            const owned = checkbox.checked;
-            if (owned) {
-                if (!ownedCards.includes(cardId)) ownedCards.push(cardId);
-            } else {
-                ownedCards = ownedCards.filter(id => id !== cardId);
-            }
-            saveOwned();
+            checklistManager.toggleOwned(cardId, checkbox.checked);
             // Re-render to handle alternate card swapping
             renderCards();
             applyFilters();
-        }
-
-        function setSyncStatus(status, text) {
-            const el = document.getElementById('sync-status');
-            el.className = 'sync-status ' + status;
-            el.textContent = text;
-            if (status === 'synced') {
-                setTimeout(() => { el.textContent = ''; }, 2000);
-            }
-        }
-
-        function updateAuthUI() {
-            const authContent = document.getElementById('auth-content');
-            if (githubSync.isLoggedIn()) {
-                const user = githubSync.getUser();
-                authContent.innerHTML = `
-                    <span class="user-info">
-                        <img src="${user.avatar_url}" alt="">
-                        ${user.login}
-                    </span>
-                    <button class="logout" onclick="logout()">Sign out</button>
-                `;
-            } else {
-                authContent.innerHTML = '';
-            }
-        }
-
-        function logout() {
-            githubSync.logout();
-            location.reload();
         }
 
         function applyFilters() {
@@ -1013,18 +940,6 @@
             document.getElementById('needed-value').textContent = '$' + neededValue.toFixed(0) + ' needed';
         }
 
-        function clearAll() {
-            const input = prompt('Type "CLEAR" to confirm clearing all checkmarks:');
-            if (input === 'CLEAR') {
-                ownedCards = [];
-                saveOwned();
-                document.querySelectorAll('.card').forEach(c => c.classList.remove('owned'));
-                document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
-                updateStats();
-            } else if (input !== null) {
-                alert('Incorrect. Type "CLEAR" exactly to confirm.');
-            }
-        }
 
         function getBadgeHtml(badges) {
             return badges.map(b => {
@@ -1055,7 +970,7 @@
                     <div class="card-title">${card.set}</div>
                     <div class="card-number">${card.num} ${card.name}</div>
                     <div class="card-type">${card.type}</div>
-                    ${!isReadOnly ? `<div class="checkbox-wrapper">
+                    ${!checklistManager.isReadOnly ? `<div class="checkbox-wrapper">
                         <input type="checkbox" id="${cardId}" ${owned ? 'checked' : ''} onchange="toggleOwned('${cardId}', this)">
                         <label for="${cardId}">Owned</label>
                     </div>` : (owned ? '<div class="owned-badge">✓ Owned</div>' : '')}
@@ -1179,43 +1094,8 @@
         document.getElementById('search').addEventListener('input', applyFilters);
 
         async function init() {
-            if (window.githubSync) {
-                await githubSync.handleCallback();
-                isReadOnly = !isOwner();
-                updateAuthUI();
-                githubSync.onAuthChange = async (loggedIn) => {
-                    isReadOnly = !isOwner();
-                    updateAuthUI();
-                    if (loggedIn) {
-                        await loadOwned();
-                        renderCards();
-                    }
-                };
-            } else {
-                isReadOnly = true;
-            }
-            try {
-                await loadOwned();
-            } catch (e) {
-                console.error('Failed to load data:', e);
-            }
+            await checklistManager.init();
             renderCards();
-            updateReadOnlyUI();
-        }
-
-        function updateReadOnlyUI() {
-            const clearBtn = document.querySelector('button[onclick*="clearAll"]');
-            if (clearBtn) clearBtn.style.display = isReadOnly ? 'none' : '';
-            const authBar = document.getElementById('auth-bar');
-            const existingNotice = document.querySelector('.read-only-notice');
-            if (isReadOnly && !existingNotice) {
-                const notice = document.createElement('span');
-                notice.className = 'read-only-notice';
-                notice.textContent = "Viewing iammike's collection";
-                authBar.insertBefore(notice, authBar.querySelector('.right-section'));
-            } else if (!isReadOnly && existingNotice) {
-                existingNotice.remove();
-            }
         }
         init();
     </script>
