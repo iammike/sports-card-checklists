@@ -1225,8 +1225,7 @@
 
         function logout() {
             githubSync.logout();
-            updateAuthUI();
-            document.getElementById('sync-status').textContent = '';
+            location.reload();
         }
 
         function applyFilters() {
