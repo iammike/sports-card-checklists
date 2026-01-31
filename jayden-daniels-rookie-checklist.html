@@ -181,9 +181,10 @@
         <div class="card-grid" id="chase-cards"></div>
     </div>
 
-    <button class="clear-btn" onclick="clearAll()">Clear All</button>
+    <button class="clear-btn" onclick="checklistManager.clearAll()">Clear All</button>
 
     <script src="github-sync.js"></script>
+    <script src="shared.js"></script>
     <script>
         // BASE CARDS ONLY - no parallels or inserts
         const cards = {
@@ -293,170 +294,28 @@
             ]
         };
 
-        // Price estimates (rough, may be outdated)
-        const priceGuide = {
-            // Base cards generally cheap
-            'Base': 1, 'Base RC': 1.5, 'Base Rookie': 1.5,
-            // Parallels more expensive
-            'Parallel': 5, 'Insert': 4, 'Insert SSP': 50,
-            // Chase cards are expensive
-            'Chase SSP': 100,
-        };
+        // Initialize checklist manager
+        const checklistManager = new ChecklistManager({
+            checklistId: 'jayden-daniels',
+            ownerUsername: 'iammike',
+            localStorageKey: 'jaydenDanielsOwned',
+            onOwnedChange: () => { renderCards(); updateStats(); }
+        });
 
-        // Set-specific price modifiers
-        const setMods = {
-            'Score': 0.5, 'Donruss': 0.8, 'Prizm': 2, 'Select': 1.5, 'Mosaic': 1.2,
-            'Optic': 1.8, 'Chrome': 2.5, 'Origins': 2, 'Contenders': 1.5, 'Phoenix': 1.2,
-            'Leaf': 0.5, 'SAGE': 0.3, 'Wild Card': 0.4, 'Bowman': 1, 'Topps Now': 3,
-            'Cosmic Chrome': 2, 'Certified': 1, 'Luminance': 1, 'Prestige': 0.8,
-            'Chronicles': 0.8, 'Absolute': 1, 'Zenith': 1, 'Rookies & Stars': 1, 'Totally Certified': 1
-        };
+        // Use shared utilities
+        function estimatePrice(card) { return PriceUtils.estimate(card); }
+        function getCardId(card) { return checklistManager.getCardId(card); }
+        function isOwned(cardId) { return checklistManager.isOwned(cardId); }
 
-        function estimatePrice(card) {
-            let base = priceGuide[card.type] || 2;
-            // Check set modifiers
-            for (const [setKey, mod] of Object.entries(setMods)) {
-                if (card.set.includes(setKey)) { base *= mod; break; }
-            }
-            // Numbered cards are pricier
-            if (card.name.includes('/')) {
-                const match = card.name.match(/\/(\d+)/);
-                if (match) base *= Math.max(3, 100 / parseInt(match[1]));
-            }
-            // Special types
-            if (card.name.includes('Silver') || card.name.includes('Refractor')) base *= 3;
-            if (card.name.includes('Holo')) base *= 2;
-            if (card.name.includes('Downtown')) base = 60;
-            if (card.name.includes('Gold') && card.name.includes('/')) base *= 5;
-            return Math.round(base * 10) / 10;
+        function toggleOwned(cardId, checkbox) {
+            checklistManager.toggleOwned(cardId, checkbox.checked);
+            const cardEl = checkbox.closest('.card');
+            cardEl.classList.toggle('owned', checkbox.checked);
+            updateStats();
         }
 
         function applyFilters() {
-            const statusFilter = document.getElementById('status-filter').value;
-            const searchTerm = document.getElementById('search').value.toLowerCase();
-
-            document.querySelectorAll('.card').forEach(c => {
-                const owned = c.classList.contains('owned');
-                const cardText = c.textContent.toLowerCase();
-                let show = true;
-                // Status filter
-                if (statusFilter === 'owned' && !owned) show = false;
-                if (statusFilter === 'need' && owned) show = false;
-                // Search filter
-                if (searchTerm && !cardText.includes(searchTerm)) show = false;
-                c.style.display = show ? '' : 'none';
-            });
-            updateStats();
-        }
-
-        const CHECKLIST_ID = 'jayden-daniels';
-        const OWNER_USERNAME = 'iammike';
-        const OWNER_GIST_ID = localStorage.getItem('github_gist_id'); // Will be set when owner logs in
-        let ownedCards = [];  // Array of card IDs
-        let isReadOnly = false;
-
-        function isOwner() {
-            if (!window.githubSync || !githubSync.isLoggedIn()) return false;
-            const user = githubSync.getUser();
-            return user && user.login === OWNER_USERNAME;
-        }
-
-        function getCardId(card) {
-            return btoa(card.set + card.num + card.name).replace(/[^a-zA-Z0-9]/g, '');
-        }
-
-        async function loadOwned() {
-            // Try GitHub first if logged in
-            if (window.githubSync && githubSync.isLoggedIn()) {
-                setSyncStatus('syncing', 'Loading...');
-                const cloudOwned = await githubSync.loadChecklist(CHECKLIST_ID);
-                if (cloudOwned && cloudOwned.length > 0) {
-                    ownedCards = cloudOwned;
-                    // Also save to localStorage as backup
-                    localStorage.setItem('jaydenDanielsOwned', JSON.stringify(ownedCards));
-                    setSyncStatus('synced', 'Synced');
-                    return;
-                }
-                setSyncStatus('synced', 'Synced');
-            } else if (window.githubSync) {
-                // Load from public gist for visitors
-                const publicOwned = await githubSync.loadPublicChecklist(CHECKLIST_ID);
-                if (publicOwned && publicOwned.length > 0) {
-                    ownedCards = publicOwned;
-                    return;
-                }
-            }
-            // Fall back to localStorage
-            ownedCards = JSON.parse(localStorage.getItem('jaydenDanielsOwned') || '[]');
-        }
-
-        async function saveOwned() {
-            // Always save to localStorage as backup
-            localStorage.setItem('jaydenDanielsOwned', JSON.stringify(ownedCards));
-
-            // Sync to GitHub if logged in
-            if (window.githubSync && githubSync.isLoggedIn()) {
-                setSyncStatus('syncing', 'Syncing...');
-                const success = await githubSync.saveChecklist(CHECKLIST_ID, ownedCards);
-                if (success) {
-                    setSyncStatus('synced', 'Synced');
-                } else {
-                    setSyncStatus('error', 'Sync failed');
-                }
-            }
-        }
-
-        function isOwned(cardId) {
-            return ownedCards.includes(cardId);
-        }
-
-        function toggleOwned(cardId, checkbox) {
-            const owned = checkbox.checked;
-            if (owned) {
-                if (!ownedCards.includes(cardId)) ownedCards.push(cardId);
-            } else {
-                ownedCards = ownedCards.filter(id => id !== cardId);
-            }
-            saveOwned();
-
-            const cardEl = checkbox.closest('.card');
-            if (owned) {
-                cardEl.classList.add('owned');
-            } else {
-                cardEl.classList.remove('owned');
-            }
-            updateStats();
-            applyFilters();
-        }
-
-        function setSyncStatus(status, text) {
-            const el = document.getElementById('sync-status');
-            el.className = 'sync-status ' + status;
-            el.textContent = text;
-            if (status === 'synced') {
-                setTimeout(() => { el.textContent = ''; }, 2000);
-            }
-        }
-
-        function updateAuthUI() {
-            const authContent = document.getElementById('auth-content');
-            if (githubSync.isLoggedIn()) {
-                const user = githubSync.getUser();
-                authContent.innerHTML = `
-                    <span class="user-info">
-                        <img src="${user.avatar_url}" alt="">
-                        ${user.login}
-                    </span>
-                    <button class="logout" onclick="logout()">Sign out</button>
-                `;
-            } else {
-                authContent.innerHTML = '';
-            }
-        }
-
-        function logout() {
-            githubSync.logout();
-            location.reload();
+            FilterUtils.applyFilters({ onFilter: updateStats });
         }
 
         function updateStats() {
@@ -494,19 +353,6 @@
             header.classList.toggle('collapsed');
         }
 
-        function clearAll() {
-            const input = prompt('Type "CLEAR" to confirm clearing all checkmarks:');
-            if (input === 'CLEAR') {
-                ownedCards = [];
-                saveOwned();
-                document.querySelectorAll('.card').forEach(c => c.classList.remove('owned'));
-                document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
-                updateStats();
-            } else if (input !== null) {
-                alert('Incorrect. Type "CLEAR" exactly to confirm.');
-            }
-        }
-
         function createCardElement(card) {
             const cardId = getCardId(card);
             const owned = isOwned(cardId);
@@ -527,7 +373,7 @@
                     <div class="card-title">${card.set}</div>
                     <div class="card-number">${card.num} ${card.name}</div>
                     <div class="card-type">${card.type}</div>
-                    ${!isReadOnly ? `<div class="checkbox-wrapper">
+                    ${!checklistManager.isReadOnly ? `<div class="checkbox-wrapper">
                         <input type="checkbox" id="${cardId}" ${owned ? 'checked' : ''} onchange="toggleOwned('${cardId}', this)">
                         <label for="${cardId}">Owned</label>
                     </div>` : (owned ? '<div class="owned-badge">✓ Owned</div>' : '')}
@@ -573,15 +419,15 @@
                     break;
                 case 'owned':
                     sorted.sort((a, b) => {
-                        const ownedA = ownedCards.includes(getCardId(a)) ? 0 : 1;
-                        const ownedB = ownedCards.includes(getCardId(b)) ? 0 : 1;
+                        const ownedA = isOwned(getCardId(a)) ? 0 : 1;
+                        const ownedB = isOwned(getCardId(b)) ? 0 : 1;
                         return ownedA - ownedB || a.sortOrder - b.sortOrder;
                     });
                     break;
                 case 'needed':
                     sorted.sort((a, b) => {
-                        const ownedA = ownedCards.includes(getCardId(a)) ? 1 : 0;
-                        const ownedB = ownedCards.includes(getCardId(b)) ? 1 : 0;
+                        const ownedA = isOwned(getCardId(a)) ? 1 : 0;
+                        const ownedB = isOwned(getCardId(b)) ? 1 : 0;
                         return ownedA - ownedB || a.sortOrder - b.sortOrder;
                     });
                     break;
@@ -633,47 +479,8 @@
 
         // Initialize
         async function init() {
-            // Handle OAuth callback
-            if (window.githubSync) {
-                await githubSync.handleCallback();
-                isReadOnly = !isOwner();
-                updateAuthUI();
-                githubSync.onAuthChange = async (loggedIn) => {
-                    isReadOnly = !isOwner();
-                    updateAuthUI();
-                    if (loggedIn) {
-                        await loadOwned();
-                        renderCards();
-                    }
-                };
-            } else {
-                isReadOnly = true;
-            }
-            try {
-                await loadOwned();
-            } catch (e) {
-                console.error('Failed to load data:', e);
-            }
+            await checklistManager.init();
             renderCards();
-            updateReadOnlyUI();
-        }
-
-        function updateReadOnlyUI() {
-            // Hide clear button in read-only mode
-            const clearBtn = document.querySelector('button[onclick*="clearAll"]');
-            if (clearBtn) clearBtn.style.display = isReadOnly ? 'none' : '';
-
-            // Show read-only notice
-            const authBar = document.getElementById('auth-bar');
-            const existingNotice = document.querySelector('.read-only-notice');
-            if (isReadOnly && !existingNotice) {
-                const notice = document.createElement('span');
-                notice.className = 'read-only-notice';
-                notice.textContent = "Viewing iammike's collection";
-                authBar.insertBefore(notice, authBar.querySelector('.right-section'));
-            } else if (!isReadOnly && existingNotice) {
-                existingNotice.remove();
-            }
         }
         init();
     </script>
