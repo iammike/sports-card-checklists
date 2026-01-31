@@ -40,6 +40,14 @@
         }
         .stat-value { font-size: 2em; font-weight: bold; color: #FFB612; }
         .stat-label { font-size: 0.85em; color: #aaa; }
+        .stat-breakdown {
+            display: flex;
+            gap: 10px;
+            font-size: 0.7em;
+            margin-top: 4px;
+        }
+        .stat-breakdown .owned-value { color: #4caf50; }
+        .stat-breakdown .needed-value { color: #ff9800; }
         .filters {
             display: flex;
             gap: 15px;
@@ -367,6 +375,10 @@
             <div class="stat">
                 <div class="stat-value" id="total-value">$0</div>
                 <div class="stat-label">Est. Value</div>
+                <div class="stat-breakdown">
+                    <span class="owned-value" id="owned-value">$0 owned</span>
+                    <span class="needed-value" id="needed-value">$0 needed</span>
+                </div>
             </div>
         </div>
 
@@ -780,11 +792,22 @@
             const countableQbs = visibleQbs.filter(qb => !qb.collectionLink);
             const ownedCount = countableQbs.filter(qb => owned.includes(getCardId(qb))).length;
             const totalCount = countableQbs.length;
-            const totalValue = countableQbs.reduce((sum, qb) => sum + (qb.price || 0), 0);
+            let totalValue = 0, ownedValue = 0, neededValue = 0;
+            countableQbs.forEach(qb => {
+                const price = qb.price || 0;
+                totalValue += price;
+                if (owned.includes(getCardId(qb))) {
+                    ownedValue += price;
+                } else {
+                    neededValue += price;
+                }
+            });
 
             document.getElementById('owned-count').textContent = ownedCount;
             document.getElementById('total-count').textContent = totalCount;
             document.getElementById('total-value').textContent = '$' + Math.round(totalValue);
+            document.getElementById('owned-value').textContent = '$' + Math.round(ownedValue) + ' owned';
+            document.getElementById('needed-value').textContent = '$' + Math.round(neededValue) + ' needed';
         }
 
         document.getElementById('sort-filter').addEventListener('change', render);
