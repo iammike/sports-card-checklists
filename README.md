@@ -27,10 +27,10 @@ python3 -m http.server 8000
 
 ## Features
 
-- Track owned cards with checkboxes (saved to localStorage)
+- GitHub OAuth login to sync owned cards across devices
+- Track owned cards with checkboxes (synced to GitHub Gist)
 - Filter by price range, card type, and owned status
 - Direct links to eBay searches and price guides
-- Export/import owned cards as JSON
 - Print-friendly layout
 
 ## Structure
