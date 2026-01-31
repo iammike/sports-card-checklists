@@ -4,68 +4,66 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Washington Redskins/Commanders QB Rookie Cards (1982-2025)</title>
+    <link rel="stylesheet" href="shared.css">
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        /* Washington Commanders Theme - Burgundy and Gold (Dark) */
+        :root {
+            --color-primary: #FFB612;
+            --color-primary-dark: #5A1414;
+            --color-accent: #FFB612;
+            --color-background: linear-gradient(135deg, #5A1414 0%, #2a0a0a 100%);
+            --color-surface: rgba(255,255,255,0.05);
+            --color-text: #fff;
+            --color-text-muted: #ccc;
+            --color-text-light: #888;
+            --auth-bg: rgba(0,0,0,0.2);
+            --stat-bg: rgba(255,255,255,0.1);
+            --stat-value-color: #FFB612;
+            --card-border: transparent;
+            --card-hover-color: rgba(255,182,18,0.5);
+            --card-owned-bg: rgba(255,182,18,0.15);
+            --card-owned-border: #FFB612;
+        }
+
+        * { margin: 0; padding: 0; }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #5A1414 0%, #2a0a0a 100%);
             min-height: 100vh;
-            padding: 20px;
             color: #fff;
         }
+
         .container { max-width: 1400px; margin: 0 auto; }
+
         h1 {
-            text-align: center;
             font-size: 2em;
             margin-bottom: 5px;
             color: #FFB612;
         }
-        .subtitle {
-            text-align: center;
-            color: #ccc;
-            margin-bottom: 20px;
+
+        .subtitle { color: #ccc; }
+
+        .auth-bar {
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
         }
-        .stats {
-            display: flex;
-            justify-content: center;
-            gap: 30px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-        .stat {
-            text-align: center;
-            background: rgba(255,255,255,0.1);
-            padding: 15px 25px;
-            border-radius: 10px;
-        }
-        .stat-value { font-size: 2em; font-weight: bold; color: #FFB612; }
-        .stat-label { font-size: 0.85em; color: #aaa; }
-        .stat-breakdown {
-            display: flex;
-            gap: 10px;
-            font-size: 0.7em;
-            margin-top: 4px;
-        }
-        .stat-breakdown .owned-value { color: #4caf50; }
-        .stat-breakdown .needed-value { color: #ff9800; }
-        .filters {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
+
+        .stat { background: rgba(255,255,255,0.1); }
+
+        /* Dark theme form elements */
         select, input[type="text"] {
-            padding: 10px 15px;
-            border-radius: 8px;
             border: 1px solid rgba(255,255,255,0.2);
             background: rgba(0,0,0,0.3);
             color: #fff;
-            font-size: 14px;
         }
-        .era-section {
-            margin-bottom: 30px;
+
+        .filters {
+            background: transparent;
+            box-shadow: none;
         }
+
+        /* Era sections */
+        .era-section { margin-bottom: 30px; }
         .era-title {
             font-size: 1.3em;
             color: #FFB612;
@@ -73,52 +71,43 @@
             padding-bottom: 5px;
             border-bottom: 2px solid rgba(255,182,18,0.3);
         }
+
+        /* Card grid (uses different class name) */
         .cards-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
             gap: 20px;
         }
+
+        /* Dark theme cards */
         .card {
             background: rgba(255,255,255,0.05);
             border-radius: 12px;
             padding: 12px;
             border: 2px solid transparent;
-            transition: all 0.2s;
-            position: relative;
         }
+
         .card:hover {
             border-color: rgba(255,182,18,0.5);
             transform: translateY(-3px);
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
+
         .card.owned {
             border-color: #FFB612;
             background: rgba(255,182,18,0.15);
         }
-        .card.super-bowl {
-            background: rgba(255,215,0,0.1);
-        }
-        .card.super-bowl.owned {
-            background: rgba(39,174,96,0.2);
-        }
+
+        .card.super-bowl { background: rgba(255,215,0,0.1); }
+        .card.super-bowl.owned { background: rgba(39,174,96,0.2); }
+
         .card-image-wrapper {
-            position: relative;
-            width: 100%;
-            padding-top: 140%;
             margin-bottom: 10px;
             background: rgba(0,0,0,0.3);
             border-radius: 8px;
-            overflow: hidden;
         }
-        .card-image {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            background: #1a1a1a;
-        }
+
+        .card-image { background: #1a1a1a; }
         .card-image.no-image {
             display: flex;
             align-items: center;
@@ -126,18 +115,15 @@
             color: #666;
             font-size: 0.8em;
         }
+
+        /* Price badge - different style for dark theme */
         .price-badge {
-            position: absolute;
-            top: 8px;
-            right: 8px;
             background: linear-gradient(135deg, #27ae60, #2ecc71);
-            color: #fff;
             padding: 4px 10px;
             border-radius: 20px;
             font-size: 0.8em;
-            font-weight: bold;
-            z-index: 1;
         }
+
         .super-bowl-badge {
             position: absolute;
             top: 8px;
@@ -150,28 +136,18 @@
             font-weight: bold;
             z-index: 1;
         }
+
+        /* Player info */
         .player-name {
             font-size: 1em;
             font-weight: bold;
             color: #fff;
             margin-bottom: 2px;
         }
-        .player-years {
-            font-size: 0.75em;
-            color: #888;
-        }
-        .player-record {
-            font-size: 0.7em;
-            color: #aaa;
-        }
-        .card-info {
-            font-size: 0.75em;
-            color: #bbb;
-            margin: 6px 0;
-        }
-        .card-set {
-            color: #FFB612;
-        }
+        .player-years { font-size: 0.75em; color: #888; }
+        .player-record { font-size: 0.7em; color: #aaa; }
+        .card-info { font-size: 0.75em; color: #bbb; margin: 6px 0; }
+        .card-set { color: #FFB612; }
         .achievement {
             display: inline-block;
             background: rgba(255,182,18,0.2);
@@ -181,6 +157,8 @@
             font-size: 0.65em;
             margin-top: 4px;
         }
+
+        /* Card actions */
         .card-actions {
             display: flex;
             justify-content: space-between;
@@ -189,31 +167,19 @@
             padding-top: 8px;
             border-top: 1px solid rgba(255,255,255,0.1);
         }
+
         .checkbox-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            cursor: pointer;
             font-size: 0.8em;
+            margin-top: 0;
         }
-        .checkbox-wrapper input {
-            width: 16px;
-            height: 16px;
-            cursor: pointer;
-        }
+        .checkbox-wrapper input { width: 16px; height: 16px; }
+        .checkbox-wrapper label { color: inherit; }
+
         .owned-badge {
             font-size: 0.8em;
             color: #FFB612;
-            font-weight: bold;
         }
-        .read-only-notice {
-            background: rgba(255,182,18,0.2);
-            color: #FFB612;
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 0.85em;
-            margin-right: auto;
-        }
+
         .links a {
             color: #3498db;
             text-decoration: none;
@@ -221,6 +187,7 @@
             margin-left: 8px;
         }
         .links a:hover { text-decoration: underline; }
+
         footer {
             text-align: center;
             margin-top: 40px;
@@ -228,65 +195,8 @@
             color: #666;
             font-size: 0.85em;
         }
-        .auth-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 15px;
-            padding: 10px;
-            background: rgba(0,0,0,0.2);
-            border-radius: 8px;
-        }
-        .auth-bar .user-info {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #aaa;
-            font-size: 0.85em;
-        }
-        .auth-bar .user-info img {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-        }
-        .auth-bar button {
-            padding: 8px 16px;
-            border-radius: 6px;
-            border: none;
-            cursor: pointer;
-            font-size: 0.85em;
-            background: #238636;
-            color: white;
-        }
-        .auth-bar button:hover { background: #2ea043; }
-        .auth-bar button.logout { background: #444; }
-        .auth-bar button.logout:hover { background: #555; }
-        .auth-bar .back-link {
-            color: #aaa;
-            text-decoration: none;
-            font-size: 0.85em;
-        }
-        .auth-bar .back-link:hover {
-            color: #fff;
-        }
-        .auth-bar .right-section {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .sync-status {
-            font-size: 0.75em;
-            color: #888;
-        }
-        .sync-status.syncing { color: #f1c40f; }
-        .sync-status.synced { color: #2ecc71; }
-        .sync-status.error { color: #e74c3c; }
-        @media (max-width: 600px) {
-            .cards-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-            h1 { font-size: 1.5em; }
-            .card { padding: 8px; }
-        }
+
+        /* Collection link card (Jayden Daniels promo) */
         .card.collection-link {
             background: linear-gradient(135deg, rgba(255,182,18,0.2), rgba(255,182,18,0.05));
             border: 2px solid rgba(255,182,18,0.4);
@@ -295,9 +205,6 @@
         .card.collection-link:hover {
             border-color: #FFB612;
             background: linear-gradient(135deg, rgba(255,182,18,0.3), rgba(255,182,18,0.1));
-        }
-        .card.collection-link .card-image-wrapper {
-            position: relative;
         }
         .card.collection-link .card-stack {
             position: absolute;
@@ -345,8 +252,12 @@
             text-decoration: none;
             transition: transform 0.2s;
         }
-        .collection-cta:hover {
-            transform: scale(1.02);
+        .collection-cta:hover { transform: scale(1.02); }
+
+        @media (max-width: 600px) {
+            .cards-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+            h1 { font-size: 1.5em; }
+            .card { padding: 8px; }
         }
     </style>
 </head>
