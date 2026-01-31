@@ -299,6 +299,9 @@
                             </div>
                             <div class="value-line" id="value-stats-jmu-pro-players"></div>
                         </div>
+                        <div class="secondary-stats">
+                            <span class="stat-pill">Alternates <span class="count" id="stat-alternates-jmu">0/0</span></span>
+                        </div>
                     </div>
                 </div>
             </a>
@@ -524,14 +527,14 @@
                 const jmuResponse = await fetch('jmu-pro-players-checklist.html');
                 const jmuHtml = await jmuResponse.text();
 
-                // Parse cards - match full card objects and exclude alternates
+                // Parse cards - match full card objects, separate main from alternates
                 const jmuCards = [];
+                const jmuAlternates = [];
                 // Match each card object from { to },
                 const cardBlockMatches = jmuHtml.matchAll(/\{\s*player:\s*["']([^"']+)["'][^}]+\}/gs);
                 for (const blockMatch of cardBlockMatches) {
                     const block = blockMatch[0];
-                    // Skip cards marked as alternate
-                    if (block.includes('alternate:') && block.includes('true')) continue;
+                    const isAlternate = block.includes('alternate:') && block.includes('true');
                     // Extract fields from block
                     const playerMatch = block.match(/player:\s*["']([^"']+)["']/);
                     const setMatch = block.match(/set:\s*["']([^"']+)["']/);
@@ -539,14 +542,19 @@
                     const nameMatch = block.match(/name:\s*["']([^"']+)["']/);
                     const priceMatch = block.match(/price:\s*([\d.]+)/);
                     if (playerMatch && setMatch && numMatch && nameMatch && priceMatch) {
-                        jmuCards.push({
+                        const card = {
                             player: playerMatch[1],
                             set: setMatch[1],
                             num: numMatch[1],
                             name: nameMatch[1],
                             price: parseFloat(priceMatch[1]),
                             id: getJmuCardId(playerMatch[1], setMatch[1], numMatch[1], nameMatch[1])
-                        });
+                        };
+                        if (isAlternate) {
+                            jmuAlternates.push(card);
+                        } else {
+                            jmuCards.push(card);
+                        }
                     }
                 }
 
@@ -577,6 +585,10 @@
 
                     document.getElementById('value-stats-jmu-pro-players').innerHTML =
                         `<span class="value-owned">$${Math.round(ownedJmuValue)} owned</span> · <span class="value-needed">$${Math.round(neededJmuValue)} to complete</span>`;
+
+                    // Count owned alternates
+                    const ownedAlternatesCount = jmuAlternates.filter(c => jmuOwned.includes(c.id)).length;
+                    document.getElementById('stat-alternates-jmu').textContent = `${ownedAlternatesCount}/${jmuAlternates.length}`;
                 }
             } catch (error) {
                 console.error('Failed to load JMU progress:', error);
