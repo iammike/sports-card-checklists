@@ -331,8 +331,8 @@
     </div>
 
     <script src="github-sync.js"></script>
+    <script src="shared.js"></script>
     <script>
-        const CHECKLIST_ID = 'washington-qbs';
         const qbs = [
             // Gibbs Era I (1982-1992) - 3 Super Bowls
             { name: "Joe Theismann", years: "1982-1985", record: "39-13", playoff: "4-1", era: "gibbs1", set: "1975 Topps", num: "#416", price: 20, img: "washington-qbs-cards/theismann_1975_topps.webp", search: "joe+theismann+1975+topps+416", achievement: "SB XVII, 1983 MVP", superBowl: true },
@@ -387,62 +387,28 @@
             { name: "Josh Johnson", years: "2025", record: "1-1", playoff: "-", era: "modern", set: "2008 Upper Deck", num: "#258", price: 1.01, img: "washington-qbs-cards/johnson_2008_upper_deck.webp", search: "josh+johnson+2008+upper+deck+258" },
         ];
 
-        const STORAGE_KEY = 'washington-qbs-owned';
-        const OWNER_USERNAME = 'iammike';
-        let owned = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-        let syncPending = false;
+        // Initialize ChecklistManager
         let jaydenDanielsStats = { owned: 0, total: 41 };
-        let isReadOnly = false;
 
+        const checklistManager = new ChecklistManager({
+            checklistId: 'washington-qbs',
+            ownerUsername: 'iammike',
+            localStorageKey: 'washington-qbs-owned',
+            onOwnedChange: () => { render(); }
+        });
+
+        // Wrapper functions for backward compatibility
         function getCardId(qb) {
-            // Create unique ID from name + set + num
             return btoa(qb.name + qb.set + qb.num).replace(/[^a-zA-Z0-9]/g, '');
         }
 
-        function isOwner() {
-            if (!window.githubSync || !githubSync.isLoggedIn()) return false;
-            const user = githubSync.getUser();
-            return user && user.login === OWNER_USERNAME;
+        function isOwned(cardId) {
+            return checklistManager.isOwned(cardId);
         }
 
-        async function saveOwned() {
-            // Always save to localStorage as backup
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(owned));
-
-            // Sync to GitHub if logged in
-            if (window.githubSync && githubSync.isLoggedIn()) {
-                setSyncStatus('syncing', 'Syncing...');
-                const success = await githubSync.saveChecklist(CHECKLIST_ID, owned);
-                if (success) {
-                    setSyncStatus('synced', 'Synced');
-                } else {
-                    setSyncStatus('error', 'Sync failed');
-                }
-            }
-        }
-
-        async function loadOwned() {
-            // Try to load from GitHub first if logged in
-            if (window.githubSync && githubSync.isLoggedIn()) {
-                setSyncStatus('syncing', 'Loading...');
-                const cloudOwned = await githubSync.loadChecklist(CHECKLIST_ID);
-                if (cloudOwned && cloudOwned.length > 0) {
-                    owned = cloudOwned;
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(owned));
-                    setSyncStatus('synced', 'Synced');
-                    return;
-                }
-                setSyncStatus('synced', 'Synced');
-            } else if (window.githubSync) {
-                // Load from public gist for visitors
-                const publicOwned = await githubSync.loadPublicChecklist(CHECKLIST_ID);
-                if (publicOwned && publicOwned.length > 0) {
-                    owned = publicOwned;
-                    return;
-                }
-            }
-            // Fall back to localStorage
-            owned = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        function toggleOwned(cardId) {
+            const owned = isOwned(cardId);
+            checklistManager.toggleOwned(cardId, !owned);
         }
 
         async function loadJaydenDanielsStats() {
@@ -467,47 +433,6 @@
             } catch (e) {
                 console.log('Could not load Jayden Daniels stats');
             }
-        }
-
-        function toggleOwned(cardId) {
-            const idx = owned.indexOf(cardId);
-            if (idx === -1) {
-                owned.push(cardId);
-            } else {
-                owned.splice(idx, 1);
-            }
-            saveOwned();
-            render();
-        }
-
-        function setSyncStatus(status, text) {
-            const el = document.getElementById('sync-status');
-            el.className = 'sync-status ' + status;
-            el.textContent = text;
-            if (status === 'synced') {
-                setTimeout(() => { el.textContent = ''; }, 2000);
-            }
-        }
-
-        function updateAuthUI() {
-            const authContent = document.getElementById('auth-content');
-            if (githubSync.isLoggedIn()) {
-                const user = githubSync.getUser();
-                authContent.innerHTML = `
-                    <span class="user-info">
-                        <img src="${user.avatar_url}" alt="">
-                        ${user.login}
-                    </span>
-                    <button class="logout" onclick="logout()">Sign out</button>
-                `;
-            } else {
-                authContent.innerHTML = '';
-            }
-        }
-
-        function logout() {
-            githubSync.logout();
-            location.reload();
         }
 
         function getCardYear(qb) {
@@ -566,15 +491,15 @@
                     break;
                 case 'owned':
                     sorted.sort((a, b) => {
-                        const ownedA = owned.includes(getCardId(a)) ? 0 : 1;
-                        const ownedB = owned.includes(getCardId(b)) ? 0 : 1;
+                        const ownedA = isOwned(getCardId(a)) ? 0 : 1;
+                        const ownedB = isOwned(getCardId(b)) ? 0 : 1;
                         return ownedA - ownedB;
                     });
                     break;
                 case 'needed':
                     sorted.sort((a, b) => {
-                        const ownedA = owned.includes(getCardId(a)) ? 1 : 0;
-                        const ownedB = owned.includes(getCardId(b)) ? 1 : 0;
+                        const ownedA = isOwned(getCardId(a)) ? 1 : 0;
+                        const ownedB = isOwned(getCardId(b)) ? 1 : 0;
                         return ownedA - ownedB;
                     });
                     break;
@@ -584,7 +509,7 @@
 
         function renderQbCard(qb) {
             const cardId = qb.collectionLink ? null : getCardId(qb);
-            const isOwned = cardId ? owned.includes(cardId) : false;
+            const cardOwned = cardId ? isOwned(cardId) : false;
 
             // Special handling for collection link cards
             if (qb.collectionLink) {
@@ -608,7 +533,7 @@
                 </div>`;
             }
 
-            const cardClass = `card ${isOwned ? 'owned' : ''} ${qb.superBowl ? 'super-bowl' : ''}`;
+            const cardClass = `card ${cardOwned ? 'owned' : ''} ${qb.superBowl ? 'super-bowl' : ''}`;
 
             return `<div class="${cardClass}">
                 <div class="card-image-wrapper">
@@ -624,10 +549,10 @@
                 </div>
                 ${qb.achievement ? `<span class="achievement">${qb.achievement}</span>` : ''}
                 <div class="card-actions">
-                    ${!isReadOnly ? `<label class="checkbox-wrapper">
-                        <input type="checkbox" ${isOwned ? 'checked' : ''} onchange="toggleOwned('${cardId}')">
+                    ${!checklistManager.isReadOnly ? `<label class="checkbox-wrapper">
+                        <input type="checkbox" ${cardOwned ? 'checked' : ''} onchange="toggleOwned('${cardId}')">
                         <span>Owned</span>
-                    </label>` : (isOwned ? '<span class="owned-badge">✓ Owned</span>' : '<span></span>')}
+                    </label>` : (cardOwned ? '<span class="owned-badge">✓ Owned</span>' : '<span></span>')}
                     <span class="links">
                         <a href="https://www.ebay.com/sch/i.html?_nkw=${qb.search}&LH_BIN=1&_sop=15" target="_blank">eBay</a>
                         <a href="https://www.sportscardspro.com/search-products?q=${encodeURIComponent(qb.name + ' rookie')}&type=prices" target="_blank">More</a>
@@ -645,8 +570,8 @@
             let filtered = qbs.filter(qb => {
                 if (eraFilter !== 'all' && qb.era !== eraFilter) return false;
                 const cardId = qb.collectionLink ? null : getCardId(qb);
-                if (statusFilter === 'owned' && (!cardId || !owned.includes(cardId))) return false;
-                if (statusFilter === 'needed' && cardId && owned.includes(cardId)) return false;
+                if (statusFilter === 'owned' && (!cardId || !isOwned(cardId))) return false;
+                if (statusFilter === 'needed' && cardId && isOwned(cardId)) return false;
                 if (searchTerm && !qb.name.toLowerCase().includes(searchTerm)) return false;
                 return true;
             });
@@ -700,13 +625,13 @@
             const visibleQbs = filteredQbs || qbs;
             // Exclude collection link cards from counts
             const countableQbs = visibleQbs.filter(qb => !qb.collectionLink);
-            const ownedCount = countableQbs.filter(qb => owned.includes(getCardId(qb))).length;
+            const ownedCount = countableQbs.filter(qb => isOwned(getCardId(qb))).length;
             const totalCount = countableQbs.length;
             let totalValue = 0, ownedValue = 0, neededValue = 0;
             countableQbs.forEach(qb => {
                 const price = qb.price || 0;
                 totalValue += price;
-                if (owned.includes(getCardId(qb))) {
+                if (isOwned(getCardId(qb))) {
                     ownedValue += price;
                 } else {
                     neededValue += price;
@@ -727,49 +652,13 @@
 
         // Initialize
         async function init() {
-            // Handle OAuth callback
-            if (window.githubSync) {
-                await githubSync.handleCallback();
-                isReadOnly = !isOwner();
-                updateAuthUI();
-                githubSync.onAuthChange = async (loggedIn) => {
-                    isReadOnly = !isOwner();
-                    updateAuthUI();
-                    updateReadOnlyUI();
-                    if (loggedIn) {
-                        await loadOwned();
-                        await loadJaydenDanielsStats();
-                        render();
-                    }
-                };
-            } else {
-                isReadOnly = true;
-            }
+            await checklistManager.init();
             try {
-                await loadOwned();
                 await loadJaydenDanielsStats();
             } catch (e) {
-                console.error('Failed to load data:', e);
+                console.error('Failed to load Jayden Daniels stats:', e);
             }
             render();
-            updateReadOnlyUI();
-        }
-
-        function updateReadOnlyUI() {
-            // Show read-only notice
-            const authBar = document.getElementById('auth-bar');
-            const existingNotice = document.querySelector('.read-only-notice');
-            if (isReadOnly && !existingNotice && authBar) {
-                const notice = document.createElement('span');
-                notice.className = 'read-only-notice';
-                notice.textContent = "Viewing iammike's collection";
-                const rightSection = authBar.querySelector('.right-section');
-                if (rightSection) {
-                    authBar.insertBefore(notice, rightSection);
-                }
-            } else if (!isReadOnly && existingNotice) {
-                existingNotice.remove();
-            }
         }
         init();
     </script>
