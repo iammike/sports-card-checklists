@@ -184,7 +184,6 @@
             color: #3498db;
             text-decoration: none;
             font-size: 0.75em;
-            margin-left: 8px;
         }
         .links a:hover { text-decoration: underline; }
 
@@ -382,13 +381,13 @@
             { name: "Taylor Heinicke", years: "2020-2022", record: "12-11-1", playoff: "0-1", era: "modern", set: "2015 Prizm", num: "#288", price: 1.89, img: "washington-qbs-cards/heinicke_2015_prizm.webp", search: "taylor+heinicke+2015+prizm+288" },
             { name: "Carson Wentz", years: "2022", record: "2-5", playoff: "-", era: "modern", set: "2016 Donruss Optic", num: "#156", price: 1.99, img: "washington-qbs-cards/wentz_2016_donruss_optic.webp", search: "carson+wentz+2016+donruss+optic+156", achievement: "#2 Overall Pick" },
             { name: "Sam Howell", years: "2022-2023", record: "5-13", playoff: "-", era: "modern", set: "2022 Prizm Jersey", num: "#PJ-SH", price: 2.17, img: "washington-qbs-cards/howell_2022_prizm_jersey.webp", search: "sam+howell+2022+panini+prizm+premier+jerseys+pj-sh" },
-            { name: "Jayden Daniels", years: "2024-2025", record: "14-10", playoff: "2-1", era: "modern", collectionLink: "jayden-daniels-rookie-checklist.html", cardCount: 41, achievement: "2024 OROY" },
+            { name: "Jayden Daniels", years: "2024-2025", record: "14-10", playoff: "2-1", era: "modern", collectionLink: "jayden-daniels-rookie-checklist.html", cardCount: 40, achievement: "2024 OROY" },
             { name: "Marcus Mariota", years: "2025", record: "2-6", playoff: "-", era: "modern", set: "2015 Finest Atomic", num: "#ARDC-MM", price: 2.91, img: "washington-qbs-cards/mariota_2015_finest_die_cut.webp", search: "marcus+mariota+2015+topps+finest+atomic+rookie+die+cut", achievement: "#2 Overall Pick" },
             { name: "Josh Johnson", years: "2025", record: "1-1", playoff: "-", era: "modern", set: "2008 Upper Deck", num: "#258", price: 1.01, img: "washington-qbs-cards/johnson_2008_upper_deck.webp", search: "josh+johnson+2008+upper+deck+258" },
         ];
 
         // Initialize ChecklistManager
-        let jaydenDanielsStats = { owned: 0, total: 41 };
+        let jaydenDanielsStats = { owned: 0, total: 40 };
 
         const checklistManager = new ChecklistManager({
             checklistId: 'washington-qbs',
@@ -412,26 +411,43 @@
         }
 
         async function loadJaydenDanielsStats() {
-            // Try to load Jayden Daniels checklist data to show owned count
+            // Try gist base stats first (synced from JD page)
             try {
-                if (window.githubSync && githubSync.isLoggedIn()) {
-                    const jdOwned = await githubSync.loadChecklist('jayden-daniels');
-                    if (jdOwned) {
-                        jaydenDanielsStats.owned = jdOwned.length;
+                if (window.githubSync) {
+                    const baseStats = githubSync.isLoggedIn()
+                        ? await githubSync.loadChecklist('jayden-daniels-base-stats')
+                        : await githubSync.loadPublicChecklist('jayden-daniels-base-stats');
+                    if (baseStats && baseStats[0]) {
+                        jaydenDanielsStats.owned = baseStats[0].owned;
+                        jaydenDanielsStats.total = baseStats[0].total;
+                        return;
                     }
-                } else if (window.githubSync) {
-                    // Load from public gist for visitors
-                    const jdOwned = await githubSync.loadPublicChecklist('jayden-daniels');
-                    if (jdOwned) {
-                        jaydenDanielsStats.owned = jdOwned.length;
-                    }
-                } else {
-                    // Fall back to localStorage
-                    const localJD = JSON.parse(localStorage.getItem('jaydenDanielsOwned') || '[]');
-                    jaydenDanielsStats.owned = localJD.length;
                 }
             } catch (e) {
-                console.log('Could not load Jayden Daniels stats');
+                console.log('Could not load base stats from gist');
+            }
+            // Fallback: count all owned from gist (includes inserts)
+            try {
+                if (window.githubSync) {
+                    const jdOwned = githubSync.isLoggedIn()
+                        ? await githubSync.loadChecklist('jayden-daniels')
+                        : await githubSync.loadPublicChecklist('jayden-daniels');
+                    if (jdOwned) {
+                        jaydenDanielsStats.owned = jdOwned.length;
+                    }
+                }
+            } catch (e) {
+                console.log('Could not load Jayden Daniels stats from gist');
+            }
+            // Final fallback: localStorage (for testing)
+            try {
+                const savedStats = JSON.parse(localStorage.getItem('jaydenDanielsBaseStats') || 'null');
+                if (savedStats && jaydenDanielsStats.owned === 0) {
+                    jaydenDanielsStats.owned = savedStats.owned;
+                    jaydenDanielsStats.total = savedStats.total;
+                }
+            } catch (e) {
+                console.log('Could not load from localStorage');
             }
         }
 
@@ -513,9 +529,10 @@
 
             // Special handling for collection link cards
             if (qb.collectionLink) {
+                const total = jaydenDanielsStats.total || qb.cardCount;
                 const jdBadge = jaydenDanielsStats.owned > 0
-                    ? `${jaydenDanielsStats.owned} / ${qb.cardCount}`
-                    : `${qb.cardCount} CARDS`;
+                    ? `${jaydenDanielsStats.owned} / ${total}`
+                    : `${total} CARDS`;
                 return `<div class="card collection-link" onclick="window.location.href='${qb.collectionLink}'">
                     <div class="card-image-wrapper">
                         <span class="collection-badge">${jdBadge}</span>
@@ -554,8 +571,7 @@
                         <span>Owned</span>
                     </label>` : (cardOwned ? '<span class="owned-badge">✓ Owned</span>' : '<span></span>')}
                     <span class="links">
-                        <a href="https://www.ebay.com/sch/i.html?_nkw=${qb.search}&LH_BIN=1&_sop=15" target="_blank">eBay</a>
-                        <a href="https://www.sportscardspro.com/search-products?q=${encodeURIComponent(qb.name + ' rookie')}&type=prices" target="_blank">More</a>
+                        <a href="https://www.ebay.com/sch/i.html?_nkw=${qb.search}&LH_BIN=1&_sop=15" target="_blank">eBay</a> · <a href="https://www.sportscardspro.com/search-products?q=${encodeURIComponent(qb.name + ' rookie')}&type=prices" target="_blank">Prices</a>
                     </span>
                 </div>
             </div>`;
@@ -653,11 +669,7 @@
         // Initialize
         async function init() {
             await checklistManager.init();
-            try {
-                await loadJaydenDanielsStats();
-            } catch (e) {
-                console.error('Failed to load Jayden Daniels stats:', e);
-            }
+            await loadJaydenDanielsStats();
             render();
         }
         init();

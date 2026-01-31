@@ -337,6 +337,13 @@
             document.getElementById('total-value').textContent = '$' + totalValue.toFixed(0);
             document.getElementById('owned-value').textContent = '$' + ownedValue.toFixed(0) + ' owned';
             document.getElementById('needed-value').textContent = '$' + neededValue.toFixed(0) + ' needed';
+            // Save base card stats for other pages to use
+            const baseStats = { owned: ownedVisible, total: mainCards.length };
+            localStorage.setItem('jaydenDanielsBaseStats', JSON.stringify(baseStats));
+            // Also sync to gist for web visitors
+            if (window.githubSync && githubSync.isLoggedIn()) {
+                githubSync.saveChecklist('jayden-daniels-base-stats', [baseStats]);
+            }
         }
 
         function toggleChaseSection() {
