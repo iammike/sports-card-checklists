@@ -344,12 +344,13 @@
         function updateStats() {
             // Exclude chase and insert cards from main stats
             const mainCards = document.querySelectorAll('.default-section:not(.inserts-section .default-section) .card:not([style*="display: none"]), #sorted-section .card:not([style*="display: none"])');
-            const ownedVisible = document.querySelectorAll('.default-section:not(.inserts-section .default-section) .card.owned:not([style*="display: none"]), #sorted-section .card.owned:not([style*="display: none"])').length;
-            let totalValue = 0, ownedValue = 0, neededValue = 0;
+            let ownedVisible = 0, totalValue = 0, ownedValue = 0, neededValue = 0;
             mainCards.forEach(c => {
                 const price = parseFloat(c.dataset.price);
+                const isOwned = c.classList.contains('owned');
                 totalValue += price;
-                if (c.classList.contains('owned')) {
+                if (isOwned) {
+                    ownedVisible++;
                     ownedValue += price;
                 } else {
                     neededValue += price;
@@ -411,7 +412,7 @@
                     <div class="card-image-wrapper">
                         <span class="price-badge ${priceClass}">$${Math.max(1, Math.round(price))}</span>
                         ${card.img
-                            ? `<a href="${searchUrl}" target="_blank"><img class="card-image" src="${card.img}" alt="${card.set}" onerror="this.outerHTML='<a href=\\'${searchUrl}\\' target=\\'_blank\\' class=\\'card-image placeholder\\'>Click to view</a>'"></a>`
+                            ? `<a href="${searchUrl}" target="_blank"><img class="card-image" src="${card.img}" alt="${card.set}" loading="lazy" onerror="this.outerHTML='<a href=\\'${searchUrl}\\' target=\\'_blank\\' class=\\'card-image placeholder\\'>Click to view</a>'"></a>`
                             : `<a href="${searchUrl}" target="_blank" class="card-image placeholder">Click to view on eBay</a>`
                         }
                     </div>
