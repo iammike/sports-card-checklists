@@ -823,37 +823,60 @@
         // Track if we've animated yet (only animate once)
         let hasAnimatedStats = false;
 
-        function updateAggregateStats() {
+        async function updateAggregateStats() {
+            // Read exact stats from gist (source of truth, saved by each checklist page)
+            let allStats = {};
+            if (window.githubSync && githubSync.isLoggedIn()) {
+                allStats = await githubSync.loadAllStats();
+            } else if (window.githubSync) {
+                allStats = await githubSync.loadPublicStats();
+            }
+
+            const checklists = ['jayden-daniels', 'washington-qbs', 'jmu-pro-players'];
+            let totalOwned = 0, totalCards = 0, totalOwnedValue = 0, totalNeededValue = 0;
+            let hasAnyStats = false;
+
+            checklists.forEach(id => {
+                const stats = allStats[id];
+                if (stats) {
+                    hasAnyStats = true;
+                    totalOwned += stats.owned || 0;
+                    totalCards += stats.total || 0;
+                    totalOwnedValue += stats.ownedValue || 0;
+                    totalNeededValue += stats.neededValue || 0;
+                }
+            });
+
+            if (!hasAnyStats) return;
+
             const statsEl = document.getElementById('aggregate-stats');
             statsEl.style.display = 'block';
 
-            const totalValue = Math.round(aggOwnedValue + aggNeededValue);
-            const ownedValueRounded = Math.round(aggOwnedValue);
-            const neededValueRounded = Math.round(aggNeededValue);
+            const totalValue = totalOwnedValue + totalNeededValue;
 
             if (!hasAnimatedStats) {
                 hasAnimatedStats = true;
                 // Animate the main stats with staggered delays
                 setTimeout(() => {
-                    animateValue(document.getElementById('agg-owned'), 0, aggOwned, 1200);
+                    animateValue(document.getElementById('agg-owned'), 0, totalOwned, 1200);
                 }, 200);
                 setTimeout(() => {
-                    animateValue(document.getElementById('agg-total'), 0, aggTotal, 1200);
+                    animateValue(document.getElementById('agg-total'), 0, totalCards, 1200);
                 }, 350);
                 setTimeout(() => {
                     animateValue(document.getElementById('agg-value'), 0, totalValue, 1400, '$');
                 }, 500);
                 setTimeout(() => {
-                    animateValue(document.getElementById('agg-owned-value'), 0, ownedValueRounded, 1000, '$', ' owned');
-                    animateValue(document.getElementById('agg-needed-value'), 0, neededValueRounded, 1000, '$', ' needed');
+                    animateValue(document.getElementById('agg-owned-value'), 0, totalOwnedValue, 1000, '$', ' owned');
+                    animateValue(document.getElementById('agg-needed-value'), 0, totalNeededValue, 1000, '$', ' needed');
                 }, 650);
             } else {
                 // Just update without animation (e.g., when data changes)
-                document.getElementById('agg-owned').textContent = aggOwned;
-                document.getElementById('agg-total').textContent = aggTotal;
+                document.getElementById('agg-owned').textContent = totalOwned;
+                document.getElementById('agg-total').textContent = totalCards;
                 document.getElementById('agg-value').textContent = '$' + totalValue;
-                document.getElementById('agg-owned-value').textContent = '$' + ownedValueRounded + ' owned';
-                document.getElementById('agg-needed-value').textContent = '$' + neededValueRounded + ' needed';
+                document.getElementById('agg-owned-value').textContent = '$' + totalOwnedValue + ' owned';
+                document.getElementById('agg-needed-value').textContent = '$' + totalNeededValue + ' needed';
             }
         }
 
@@ -870,8 +893,9 @@
                 }
             });
 
-            // Load progress data
+            // Load progress data for individual cards and aggregate stats
             loadProgress();
+            updateAggregateStats();
         }
         init();
     </script>

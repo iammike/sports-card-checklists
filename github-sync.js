@@ -244,6 +244,31 @@ class GitHubSync {
         data.lastUpdated = new Date().toISOString();
         return await this.saveData(data);
     }
+
+    // Save computed stats for a checklist (for index page aggregate)
+    async saveChecklistStats(checklistId, stats) {
+        let data = await this.loadData();
+        if (!data) {
+            data = { checklists: {}, stats: {} };
+        }
+        if (!data.stats) {
+            data.stats = {};
+        }
+        data.stats[checklistId] = stats;
+        data.lastUpdated = new Date().toISOString();
+        return await this.saveData(data);
+    }
+
+    // Load stats for all checklists
+    async loadAllStats() {
+        const data = await this.loadData();
+        return data?.stats || {};
+    }
+
+    async loadPublicStats() {
+        const data = await this.loadPublicData();
+        return data?.stats || {};
+    }
 }
 
 // Export singleton

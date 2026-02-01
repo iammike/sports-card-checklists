@@ -978,6 +978,16 @@
                 ownedValue: { el: document.getElementById('owned-value'), value: Math.round(ownedValue) },
                 neededValue: { el: document.getElementById('needed-value'), value: Math.round(neededValue) }
             });
+
+            // Save stats for index page to read (gist is source of truth)
+            if (window.githubSync && githubSync.isLoggedIn()) {
+                githubSync.saveChecklistStats('jmu-pro-players', {
+                    owned: ownedMain,
+                    total: mainCards.length,
+                    ownedValue: Math.round(ownedValue),
+                    neededValue: Math.round(neededValue)
+                });
+            }
         }
 
 

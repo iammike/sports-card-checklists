@@ -346,12 +346,14 @@
                 neededValue: { el: document.getElementById('needed-value'), value: Math.round(neededValue) }
             });
 
-            // Save base card stats for other pages to use
-            const baseStats = { owned: ownedVisible, total: mainCards.length };
-            localStorage.setItem('jaydenDanielsBaseStats', JSON.stringify(baseStats));
-            // Also sync to gist for web visitors
+            // Save stats for index page to read (gist is source of truth)
             if (window.githubSync && githubSync.isLoggedIn()) {
-                githubSync.saveChecklist('jayden-daniels-base-stats', [baseStats]);
+                githubSync.saveChecklistStats('jayden-daniels', {
+                    owned: ownedVisible,
+                    total: mainCards.length,
+                    ownedValue: Math.round(ownedValue),
+                    neededValue: Math.round(neededValue)
+                });
             }
         }
 
