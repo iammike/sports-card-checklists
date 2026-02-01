@@ -35,20 +35,67 @@
 
         .container { max-width: 1400px; margin: 0 auto; }
 
-        h1 {
-            font-size: 2em;
-            margin-bottom: 5px;
-            color: #FFB612;
+        /* Page header section */
+        .page-header {
+            background: rgba(0,0,0,0.3);
+            padding: 20px 20px 24px;
+            margin-bottom: 24px;
+            position: relative;
+        }
+        .page-header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #FFB612, transparent);
         }
 
-        .subtitle { color: #ccc; }
+        .page-content {
+            padding: 0 20px 20px;
+        }
+
+        h1 {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 2.8em;
+            font-weight: 400;
+            letter-spacing: 0.05em;
+            margin: 0 0 6px 0;
+            background: linear-gradient(180deg, #d0d0d0 0%, #FFB612 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: #666;
+            text-align: center;
+            font-size: 0.75em;
+            font-weight: 600;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+        }
 
         .auth-bar {
-            padding: 10px;
+            padding: 10px 15px;
             background: rgba(0,0,0,0.2);
+            margin-bottom: 20px;
         }
 
-        .stat { background: rgba(255,255,255,0.1); }
+        .stat {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .stat-value {
+            color: #c8c8c8;
+        }
+        .stat-value.highlight {
+            color: #FFB612;
+        }
 
         /* Dark theme form elements */
         select, input[type="text"] {
@@ -58,8 +105,9 @@
         }
 
         .filters {
-            background: transparent;
+            background: rgba(255,255,255,0.03);
             box-shadow: none;
+            border: 1px solid rgba(255,255,255,0.05);
         }
 
         /* Era sections */
@@ -255,36 +303,39 @@
 </head>
 <body>
     <div class="container">
-        <div class="auth-bar" id="auth-bar">
-            <a href="index.html" class="back-link">← All Checklists</a>
-            <div class="right-section">
-                <span class="sync-status" id="sync-status"></span>
-                <div id="auth-content"></div>
+        <div class="page-header">
+            <div class="auth-bar" id="auth-bar">
+                <a href="index.html" class="back-link">← All Checklists</a>
+                <div class="right-section">
+                    <span class="sync-status" id="sync-status"></span>
+                    <div id="auth-content"></div>
+                </div>
             </div>
-        </div>
 
-        <h1>Washington Redskins/Commanders</h1>
-        <p class="subtitle">Starting QB Rookie Cards (1982-2025)</p>
+            <h1>Washington Redskins/Commanders</h1>
+            <p class="subtitle">Starting QB Rookie Cards (1982-2025)</p>
 
-        <div class="stats">
-            <div class="stat">
-                <div class="stat-value" id="owned-count">0</div>
-                <div class="stat-label">Owned</div>
-            </div>
-            <div class="stat">
-                <div class="stat-value" id="total-count">0</div>
-                <div class="stat-label">Total Cards</div>
-            </div>
-            <div class="stat">
-                <div class="stat-value" id="total-value">$0</div>
-                <div class="stat-label">Est. Value</div>
-                <div class="stat-breakdown">
-                    <span class="owned-value" id="owned-value">$0 owned</span>
-                    <span class="needed-value" id="needed-value">$0 needed</span>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value" id="owned-count">0</div>
+                    <div class="stat-label">Owned</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="total-count">0</div>
+                    <div class="stat-label">Total Cards</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value highlight" id="total-value">$0</div>
+                    <div class="stat-label">Est. Value</div>
+                    <div class="stat-breakdown">
+                        <span class="owned-value" id="owned-value">$0 owned</span>
+                        <span class="needed-value" id="needed-value">$0 needed</span>
+                    </div>
                 </div>
             </div>
         </div>
 
+        <div class="page-content">
         <div class="filters">
             <select id="sort-filter">
                 <option value="default">Sort: Default (Era)</option>
@@ -315,6 +366,7 @@
         </div>
 
         <div id="cards-container"></div>
+        </div><!-- end page-content -->
 
         <footer>
             <p>Prices are estimates for raw/ungraded cards. Data from SportsCardsPro.</p>
@@ -648,11 +700,14 @@
                 }
             });
 
-            document.getElementById('owned-count').textContent = ownedCount;
-            document.getElementById('total-count').textContent = totalCount;
-            document.getElementById('total-value').textContent = '$' + Math.round(totalValue);
-            document.getElementById('owned-value').textContent = '$' + Math.round(ownedValue) + ' owned';
-            document.getElementById('needed-value').textContent = '$' + Math.round(neededValue) + ' needed';
+            // Animate stats on first load
+            StatsAnimator.animateStats({
+                owned: { el: document.getElementById('owned-count'), value: ownedCount },
+                total: { el: document.getElementById('total-count'), value: totalCount },
+                totalValue: { el: document.getElementById('total-value'), value: Math.round(totalValue) },
+                ownedValue: { el: document.getElementById('owned-value'), value: Math.round(ownedValue) },
+                neededValue: { el: document.getElementById('needed-value'), value: Math.round(neededValue) }
+            });
         }
 
         document.getElementById('sort-filter').addEventListener('change', render);

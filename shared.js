@@ -320,8 +320,70 @@ const CardRenderer = {
     }
 };
 
+/**
+ * Stats animation utilities
+ */
+const StatsAnimator = {
+    hasAnimated: false,
+
+    // Animate a number counting up
+    animateValue(element, start, end, duration, prefix = '', suffix = '') {
+        const startTime = performance.now();
+        const update = (currentTime) => {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            // Ease out cubic for satisfying deceleration
+            const easeOut = 1 - Math.pow(1 - progress, 3);
+            const current = Math.round(start + (end - start) * easeOut);
+            element.textContent = prefix + current + suffix;
+            if (progress < 1) {
+                requestAnimationFrame(update);
+            }
+        };
+        requestAnimationFrame(update);
+    },
+
+    // Animate all stats on first load
+    animateStats(stats) {
+        if (this.hasAnimated) {
+            // Just update without animation
+            if (stats.owned) stats.owned.el.textContent = stats.owned.value;
+            if (stats.total) stats.total.el.textContent = stats.total.value;
+            if (stats.totalValue) stats.totalValue.el.textContent = '$' + stats.totalValue.value;
+            if (stats.ownedValue) stats.ownedValue.el.textContent = '$' + stats.ownedValue.value + ' owned';
+            if (stats.neededValue) stats.neededValue.el.textContent = '$' + stats.neededValue.value + ' needed';
+            return;
+        }
+
+        this.hasAnimated = true;
+
+        // Staggered animations
+        if (stats.owned) {
+            setTimeout(() => this.animateValue(stats.owned.el, 0, stats.owned.value, 1200), 100);
+        }
+        if (stats.total) {
+            setTimeout(() => this.animateValue(stats.total.el, 0, stats.total.value, 1200), 250);
+        }
+        if (stats.totalValue) {
+            setTimeout(() => this.animateValue(stats.totalValue.el, 0, stats.totalValue.value, 1400, '$'), 400);
+        }
+        if (stats.ownedValue && stats.neededValue) {
+            setTimeout(() => {
+                this.animateValue(stats.ownedValue.el, 0, stats.ownedValue.value, 1000, '$', ' owned');
+                this.animateValue(stats.neededValue.el, 0, stats.neededValue.value, 1000, '$', ' needed');
+            }, 550);
+        }
+    },
+
+    // Reset animation state (useful for testing)
+    reset() {
+        this.hasAnimated = false;
+    }
+};
+
 // Export for use in pages
 window.ChecklistManager = ChecklistManager;
 window.PriceUtils = PriceUtils;
 window.FilterUtils = FilterUtils;
 window.CardRenderer = CardRenderer;
+window.StatsAnimator = StatsAnimator;
