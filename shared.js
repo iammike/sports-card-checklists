@@ -1,5 +1,22 @@
 // Sports Card Checklists - Shared JavaScript Utilities
 
+// Sanitization helpers for XSS prevention
+function sanitizeText(text) {
+    const div = document.createElement('div');
+    div.textContent = text || '';
+    return div.innerHTML;
+}
+
+function sanitizeUrl(url) {
+    if (!url) return '';
+    try {
+        const parsed = new URL(url);
+        return ['http:', 'https:'].includes(parsed.protocol) ? url : '';
+    } catch {
+        return '';
+    }
+}
+
 /**
  * Checklist Manager - handles owned state, sync, and auth
  */
@@ -113,10 +130,12 @@ class ChecklistManager {
 
         if (githubSync.isLoggedIn()) {
             const user = githubSync.getUser();
+            const safeAvatarUrl = sanitizeUrl(user.avatar_url);
+            const safeLogin = sanitizeText(user.login);
             authContent.innerHTML = `
                 <div class="nav-user">
-                    <img src="${user.avatar_url}" alt="">
-                    <span>${user.login}</span>
+                    <img src="${safeAvatarUrl}" alt="">
+                    <span>${safeLogin}</span>
                 </div>
                 <button class="nav-btn logout" onclick="checklistManager.logout()">Sign out</button>
             `;

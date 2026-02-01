@@ -502,10 +502,12 @@
             const authContent = document.getElementById('auth-content');
             if (githubSync.isLoggedIn()) {
                 const user = githubSync.getUser();
+                const safeAvatarUrl = sanitizeUrl(user.avatar_url);
+                const safeLogin = sanitizeText(user.login);
                 authContent.innerHTML = `
                     <div class="nav-user">
-                        <img src="${user.avatar_url}" alt="">
-                        <span>${user.login}</span>
+                        <img src="${safeAvatarUrl}" alt="">
+                        <span>${safeLogin}</span>
                     </div>
                     <button class="nav-btn logout" onclick="logout()">Sign out</button>
                 `;
