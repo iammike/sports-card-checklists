@@ -938,7 +938,8 @@
             checklistId: 'jmu-pro-players',
             ownerUsername: 'iammike',
             localStorageKey: 'jmuProPlayersOwned',
-            onOwnedChange: () => { renderCards(); updateStats(); }
+            onOwnedChange: () => { renderCards(); updateStats(); },
+            getStats: () => computeStats()
         });
 
         // Custom getCardId includes player name for JMU
@@ -975,47 +976,47 @@
             updateStats();
         }
 
-        function updateStats() {
-            // Only count main cards, not alternates
+        // Compute stats for saving (used by both updateStats and getStats callback)
+        function computeStats() {
             const mainCards = document.querySelectorAll('.card:not([style*="display: none"]):not(#alternates-cards .card)');
             let ownedMain = 0, totalValue = 0, ownedValue = 0, neededValue = 0;
             mainCards.forEach(c => {
                 const price = parseFloat(c.dataset.price);
-                const isOwned = c.classList.contains('owned');
+                const owned = c.classList.contains('owned');
                 totalValue += price;
-                if (isOwned) {
+                if (owned) {
                     ownedMain++;
                     ownedValue += price;
                 } else {
                     neededValue += price;
                 }
             });
-
-            // Count alternates (extras) from all card arrays
             const allCards = [...cards.hof, ...cards.probowl, ...cards.usfl, ...cards.modern, ...cards.mlb, ...cards.nba, ...cards.mls];
             const alternates = allCards.filter(c => c.alternate);
             const ownedAlternates = alternates.filter(c => isOwned(getCardId(c))).length;
 
+            return {
+                owned: ownedMain,
+                total: mainCards.length,
+                ownedValue: Math.round(ownedValue),
+                neededValue: Math.round(neededValue),
+                extrasOwned: ownedAlternates,
+                extrasTotal: alternates.length
+            };
+        }
+
+        function updateStats() {
+            const stats = computeStats();
+
             // Animate stats on first load
             StatsAnimator.animateStats({
-                owned: { el: document.getElementById('owned-count'), value: ownedMain },
-                total: { el: document.getElementById('total-count'), value: mainCards.length },
-                totalValue: { el: document.getElementById('total-value'), value: Math.round(totalValue) },
-                ownedValue: { el: document.getElementById('owned-value'), value: Math.round(ownedValue) },
-                neededValue: { el: document.getElementById('needed-value'), value: Math.round(neededValue) }
+                owned: { el: document.getElementById('owned-count'), value: stats.owned },
+                total: { el: document.getElementById('total-count'), value: stats.total },
+                totalValue: { el: document.getElementById('total-value'), value: stats.ownedValue + stats.neededValue },
+                ownedValue: { el: document.getElementById('owned-value'), value: stats.ownedValue },
+                neededValue: { el: document.getElementById('needed-value'), value: stats.neededValue }
             });
-
-            // Save stats for index page to read (gist is source of truth)
-            if (window.githubSync && githubSync.isLoggedIn()) {
-                githubSync.saveChecklistStats('jmu-pro-players', {
-                    owned: ownedMain,
-                    total: mainCards.length,
-                    ownedValue: Math.round(ownedValue),
-                    neededValue: Math.round(neededValue),
-                    extrasOwned: ownedAlternates,
-                    extrasTotal: alternates.length
-                });
-            }
+            // Stats are now saved atomically with owned cards via getStats callback
         }
 
 

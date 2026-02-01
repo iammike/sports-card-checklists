@@ -22,6 +22,13 @@ class GitHubSync {
         this.onAuthChange = null;
         this._saveQueue = Promise.resolve(); // Queue to prevent concurrent saves
         this._cachedData = null; // Cache to avoid stale reads during saves
+
+        // Clear cache when tab becomes visible (handles multi-tab edits)
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                this._cachedData = null;
+            }
+        });
     }
 
     isLoggedIn() {

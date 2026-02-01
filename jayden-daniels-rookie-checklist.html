@@ -322,7 +322,8 @@
             checklistId: 'jayden-daniels',
             ownerUsername: 'iammike',
             localStorageKey: 'jaydenDanielsOwned',
-            onOwnedChange: () => { renderCards(); updateStats(); }
+            onOwnedChange: () => { renderCards(); updateStats(); },
+            getStats: () => computeStats()
         });
 
         // Use shared utilities
@@ -341,48 +342,48 @@
             FilterUtils.applyFilters({ onFilter: updateStats });
         }
 
-        function updateStats() {
-            // Exclude chase and insert cards from main stats
+        // Compute stats for display and saving (used by both updateStats and getStats callback)
+        function computeStats() {
             const mainCards = document.querySelectorAll('.default-section:not(.inserts-section .default-section) .card:not([style*="display: none"]), #sorted-section .card:not([style*="display: none"])');
             let ownedVisible = 0, totalValue = 0, ownedValue = 0, neededValue = 0;
             mainCards.forEach(c => {
                 const price = parseFloat(c.dataset.price);
-                const isOwned = c.classList.contains('owned');
+                const owned = c.classList.contains('owned');
                 totalValue += price;
-                if (isOwned) {
+                if (owned) {
                     ownedVisible++;
                     ownedValue += price;
                 } else {
                     neededValue += price;
                 }
             });
-
-            // Count inserts and chase (from card arrays, not DOM, for accuracy)
             const ownedInserts = cards.inserts.filter(c => isOwned(getCardId(c))).length;
             const ownedChase = cards.chase.filter(c => isOwned(getCardId(c))).length;
 
+            return {
+                owned: ownedVisible,
+                total: mainCards.length,
+                ownedValue: Math.round(ownedValue),
+                neededValue: Math.round(neededValue),
+                insertsOwned: ownedInserts,
+                insertsTotal: cards.inserts.length,
+                chaseOwned: ownedChase,
+                chaseTotal: cards.chase.length
+            };
+        }
+
+        function updateStats() {
+            const stats = computeStats();
+
             // Animate stats on first load
             StatsAnimator.animateStats({
-                owned: { el: document.getElementById('owned-count'), value: ownedVisible },
-                total: { el: document.getElementById('total-count'), value: mainCards.length },
-                totalValue: { el: document.getElementById('total-value'), value: Math.round(totalValue) },
-                ownedValue: { el: document.getElementById('owned-value'), value: Math.round(ownedValue) },
-                neededValue: { el: document.getElementById('needed-value'), value: Math.round(neededValue) }
+                owned: { el: document.getElementById('owned-count'), value: stats.owned },
+                total: { el: document.getElementById('total-count'), value: stats.total },
+                totalValue: { el: document.getElementById('total-value'), value: stats.ownedValue + stats.neededValue },
+                ownedValue: { el: document.getElementById('owned-value'), value: stats.ownedValue },
+                neededValue: { el: document.getElementById('needed-value'), value: stats.neededValue }
             });
-
-            // Save stats for index page to read (gist is source of truth)
-            if (window.githubSync && githubSync.isLoggedIn()) {
-                githubSync.saveChecklistStats('jayden-daniels', {
-                    owned: ownedVisible,
-                    total: mainCards.length,
-                    ownedValue: Math.round(ownedValue),
-                    neededValue: Math.round(neededValue),
-                    insertsOwned: ownedInserts,
-                    insertsTotal: cards.inserts.length,
-                    chaseOwned: ownedChase,
-                    chaseTotal: cards.chase.length
-                });
-            }
+            // Stats are now saved atomically with owned cards via getStats callback
         }
 
         function toggleChaseSection() {
