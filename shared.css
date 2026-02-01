@@ -292,6 +292,8 @@ h1 {
     font-size: 0.75em;
     font-weight: 500;
     color: #888;
+    min-width: 50px;
+    text-align: right;
 }
 
 .sync-status.syncing { color: var(--color-sync-syncing); }
