@@ -66,31 +66,41 @@ class ChecklistManager {
 
     // Load owned cards from GitHub or localStorage
     async loadOwned() {
-        // Try GitHub first if logged in
-        if (window.githubSync && githubSync.isLoggedIn()) {
-            this.setSyncStatus('syncing', 'Loading...');
-            const cloudOwned = await githubSync.loadChecklist(this.checklistId);
-            if (cloudOwned && cloudOwned.length > 0) {
-                this.ownedCards = cloudOwned;
-                // Also save to localStorage as backup
-                if (this.localStorageKey) {
-                    localStorage.setItem(this.localStorageKey, JSON.stringify(this.ownedCards));
+        try {
+            // Try GitHub first if logged in
+            if (window.githubSync && githubSync.isLoggedIn()) {
+                this.setSyncStatus('syncing', 'Loading...');
+                const cloudOwned = await githubSync.loadChecklist(this.checklistId);
+                if (cloudOwned && cloudOwned.length > 0) {
+                    this.ownedCards = cloudOwned;
+                    // Also save to localStorage as backup
+                    if (this.localStorageKey) {
+                        localStorage.setItem(this.localStorageKey, JSON.stringify(this.ownedCards));
+                    }
+                    this.setSyncStatus('synced', 'Synced');
+                    return;
                 }
                 this.setSyncStatus('synced', 'Synced');
-                return;
+            } else if (window.githubSync) {
+                // Load from public gist for visitors
+                const publicOwned = await githubSync.loadPublicChecklist(this.checklistId);
+                if (publicOwned && publicOwned.length > 0) {
+                    this.ownedCards = publicOwned;
+                    return;
+                }
             }
-            this.setSyncStatus('synced', 'Synced');
-        } else if (window.githubSync) {
-            // Load from public gist for visitors
-            const publicOwned = await githubSync.loadPublicChecklist(this.checklistId);
-            if (publicOwned && publicOwned.length > 0) {
-                this.ownedCards = publicOwned;
-                return;
-            }
+        } catch (error) {
+            console.error('Failed to load from cloud:', error);
+            this.setSyncStatus('error', 'Load failed - using cached data');
         }
         // Fall back to localStorage
         if (this.localStorageKey) {
-            this.ownedCards = JSON.parse(localStorage.getItem(this.localStorageKey) || '[]');
+            try {
+                this.ownedCards = JSON.parse(localStorage.getItem(this.localStorageKey) || '[]');
+            } catch (e) {
+                console.error('Failed to parse localStorage:', e);
+                this.ownedCards = [];
+            }
         }
     }
 
@@ -212,12 +222,7 @@ class ChecklistManager {
             this.isReadOnly = true;
         }
 
-        try {
-            await this.loadOwned();
-        } catch (e) {
-            console.error('Failed to load data:', e);
-        }
-
+        await this.loadOwned();
         this.updateReadOnlyUI();
     }
 }
