@@ -351,6 +351,9 @@ const FilterUtils = {
  * Card rendering utilities
  */
 const CardRenderer = {
+    // Default price thresholds for badge styling
+    defaultThresholds: { mid: 3, high: 10 },
+
     // Generate eBay search URL
     getEbayUrl(searchTerm) {
         return `https://www.ebay.com/sch/i.html?_nkw=${searchTerm}&_sop=15&LH_BIN=1`;
@@ -370,6 +373,54 @@ const CardRenderer = {
     // Get set name without year
     getSetName(card) {
         return (card.set || '').replace(/^\d{4}\s*/, '').toLowerCase();
+    },
+
+    // Get price badge CSS class based on thresholds
+    getPriceClass(price, thresholds = this.defaultThresholds) {
+        if (price < thresholds.mid) return '';
+        if (price < thresholds.high) return 'mid';
+        return 'high';
+    },
+
+    // Render price badge HTML
+    renderPriceBadge(price, thresholds = this.defaultThresholds) {
+        const priceClass = this.getPriceClass(price, thresholds);
+        const displayPrice = Math.max(1, Math.round(price));
+        return `<span class="price-badge ${priceClass}">$${displayPrice}</span>`;
+    },
+
+    // Render card image with fallback
+    renderCardImage(imgSrc, alt, searchUrl) {
+        if (imgSrc) {
+            return `<a href="${searchUrl}" target="_blank"><img class="card-image" src="${imgSrc}" alt="${alt}" loading="lazy" onerror="this.outerHTML='<a href=\\'${searchUrl}\\' target=\\'_blank\\' class=\\'card-image placeholder\\'>Click to view</a>'"></a>`;
+        }
+        return `<a href="${searchUrl}" target="_blank" class="card-image placeholder">Click to view on eBay</a>`;
+    },
+
+    // Render owned checkbox or badge based on read-only state
+    renderOwnedControl(cardId, owned, isReadOnly, onchangeFn = 'toggleOwned') {
+        if (!isReadOnly) {
+            return `<div class="checkbox-wrapper">
+                <input type="checkbox" id="${cardId}" ${owned ? 'checked' : ''} onchange="${onchangeFn}('${cardId}', this)">
+                <label for="${cardId}">Owned</label>
+            </div>`;
+        }
+        return owned ? '<span class="owned-badge">✓ Owned</span>' : '';
+    },
+
+    // Render search links (eBay only, or eBay + SCP)
+    renderSearchLinks(searchUrl, scpUrl = null) {
+        if (scpUrl) {
+            return `<span class="search-links"><a href="${searchUrl}" target="_blank" class="search-link">eBay</a> · <a href="${scpUrl}" target="_blank" class="search-link">Prices</a></span>`;
+        }
+        return `<a href="${searchUrl}" target="_blank" class="search-link">eBay</a>`;
+    },
+
+    // Render achievement badges
+    renderAchievements(badges) {
+        if (!badges || badges.length === 0) return '';
+        const text = Array.isArray(badges) ? badges.join(', ') : badges;
+        return `<span class="achievement">${text}</span>`;
     }
 };
 
