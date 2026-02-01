@@ -337,6 +337,10 @@
                 }
             });
 
+            // Count inserts and chase (from card arrays, not DOM, for accuracy)
+            const ownedInserts = cards.inserts.filter(c => isOwned(getCardId(c))).length;
+            const ownedChase = cards.chase.filter(c => isOwned(getCardId(c))).length;
+
             // Animate stats on first load
             StatsAnimator.animateStats({
                 owned: { el: document.getElementById('owned-count'), value: ownedVisible },
@@ -352,7 +356,11 @@
                     owned: ownedVisible,
                     total: mainCards.length,
                     ownedValue: Math.round(ownedValue),
-                    neededValue: Math.round(neededValue)
+                    neededValue: Math.round(neededValue),
+                    insertsOwned: ownedInserts,
+                    insertsTotal: cards.inserts.length,
+                    chaseOwned: ownedChase,
+                    chaseTotal: cards.chase.length
                 });
             }
         }
