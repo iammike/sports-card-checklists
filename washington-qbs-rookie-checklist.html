@@ -450,7 +450,8 @@
             checklistId: 'washington-qbs',
             ownerUsername: 'iammike',
             localStorageKey: 'washington-qbs-owned',
-            onOwnedChange: () => { render(); }
+            onOwnedChange: () => { render(); },
+            getStats: () => computeStats()
         });
 
         // Wrapper functions for backward compatibility
@@ -694,6 +695,29 @@
             updateStats(filtered);
         }
 
+        // Compute stats for saving (always uses all QBs, not filtered)
+        function computeStats() {
+            const countableQbs = qbs.filter(qb => !qb.collectionLink);
+            let ownedCount = 0, totalValue = 0, ownedValue = 0, neededValue = 0;
+            countableQbs.forEach(qb => {
+                const price = qb.price || 0;
+                const owned = isOwned(getCardId(qb));
+                totalValue += price;
+                if (owned) {
+                    ownedCount++;
+                    ownedValue += price;
+                } else {
+                    neededValue += price;
+                }
+            });
+            return {
+                owned: ownedCount,
+                total: countableQbs.length,
+                ownedValue: Math.round(ownedValue),
+                neededValue: Math.round(neededValue)
+            };
+        }
+
         function updateStats(filteredQbs) {
             // Use filtered list if provided, otherwise use all
             const visibleQbs = filteredQbs || qbs;
@@ -721,16 +745,7 @@
                 ownedValue: { el: document.getElementById('owned-value'), value: Math.round(ownedValue) },
                 neededValue: { el: document.getElementById('needed-value'), value: Math.round(neededValue) }
             });
-
-            // Save stats for index page to read (gist is source of truth)
-            if (window.githubSync && githubSync.isLoggedIn()) {
-                githubSync.saveChecklistStats('washington-qbs', {
-                    owned: ownedCount,
-                    total: totalCount,
-                    ownedValue: Math.round(ownedValue),
-                    neededValue: Math.round(neededValue)
-                });
-            }
+            // Stats are now saved atomically with owned cards via getStats callback
         }
 
         document.getElementById('sort-filter').addEventListener('change', render);

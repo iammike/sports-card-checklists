@@ -28,6 +28,7 @@ class ChecklistManager {
         this.ownedCards = [];
         this.isReadOnly = true;
         this.onOwnedChange = config.onOwnedChange || (() => {});
+        this.getStats = config.getStats || null; // Optional: return stats object for combined save
     }
 
     // Generate unique card ID from card data
@@ -103,7 +104,9 @@ class ChecklistManager {
         // Sync to GitHub if logged in
         if (window.githubSync && githubSync.isLoggedIn()) {
             this.setSyncStatus('syncing', 'Syncing...');
-            const success = await githubSync.saveChecklist(this.checklistId, this.ownedCards);
+            // Get stats if callback provided (saves both atomically to avoid race condition)
+            const stats = this.getStats ? this.getStats() : null;
+            const success = await githubSync.saveChecklist(this.checklistId, this.ownedCards, stats);
             if (success) {
                 this.setSyncStatus('synced', 'Synced');
             } else {
