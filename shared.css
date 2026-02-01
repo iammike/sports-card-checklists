@@ -150,6 +150,7 @@ h1 {
     justify-content: space-between;
     padding: 0 20px;
     height: 52px;
+    position: relative;
 }
 
 .nav-brand {
@@ -188,7 +189,9 @@ h1 {
     align-items: center;
     justify-content: center;
     gap: 4px;
-    flex: 1;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
 }
 
 .nav-link {
@@ -286,6 +289,8 @@ h1 {
     .nav-divider { display: none; }
 
     .nav-links {
+        position: static;
+        transform: none;
         order: 3;
         width: 100%;
         justify-content: center;
