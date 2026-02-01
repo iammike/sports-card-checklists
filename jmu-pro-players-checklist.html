@@ -1020,39 +1020,29 @@
         }
 
 
-        function getAchievementHtml(badges) {
-            if (!badges || badges.length === 0) return '';
-            const text = badges.join(', ');
-            return `<span class="achievement">${text}</span>`;
-        }
+        // JMU uses higher price thresholds
+        const jmuPriceThresholds = { mid: 5, high: 15 };
 
         function createCardElement(card) {
             const cardId = getCardId(card);
             const owned = isOwned(cardId);
             const price = card.price;
-            const priceClass = price < 5 ? '' : price < 15 ? 'mid' : 'high';
-            const searchUrl = `https://www.ebay.com/sch/i.html?_nkw=${card.search}&_sop=15&LH_BIN=1`;
+            const searchUrl = CardRenderer.getEbayUrl(card.search);
 
             return `
                 <div class="card ${owned ? 'owned' : ''}" data-price="${price}" data-sport="${card.sport}">
                     <div class="card-image-wrapper">
-                        <span class="price-badge ${priceClass}">$${Math.round(price)}</span>
-                        ${card.img
-                            ? `<a href="${searchUrl}" target="_blank"><img class="card-image" src="${card.img}" alt="${card.set}" loading="lazy" onerror="this.outerHTML='<a href=\\'${searchUrl}\\' target=\\'_blank\\' class=\\'card-image placeholder\\'>Click to view</a>'"></a>`
-                            : `<a href="${searchUrl}" target="_blank" class="card-image placeholder">Click to view on eBay</a>`
-                        }
+                        ${CardRenderer.renderPriceBadge(price, jmuPriceThresholds)}
+                        ${CardRenderer.renderCardImage(card.img, card.set, searchUrl)}
                     </div>
                     <div class="player-name">${card.player}</div>
                     <div class="card-title">${card.set}</div>
                     <div class="card-number">${card.num} ${card.name}</div>
                     <div class="card-type">${card.type}</div>
-                    ${getAchievementHtml(card.badges)}
+                    ${CardRenderer.renderAchievements(card.badges)}
                     <div class="card-actions${checklistManager.isReadOnly && !owned ? ' links-only' : ''}">
-                        ${!checklistManager.isReadOnly ? `<div class="checkbox-wrapper">
-                            <input type="checkbox" id="${cardId}" ${owned ? 'checked' : ''} onchange="toggleOwned('${cardId}', this)">
-                            <label for="${cardId}">Owned</label>
-                        </div>` : (owned ? '<span class="owned-badge">✓ Owned</span>' : '')}
-                        <a href="${searchUrl}" target="_blank" class="search-link">eBay</a>
+                        ${CardRenderer.renderOwnedControl(cardId, owned, checklistManager.isReadOnly)}
+                        ${CardRenderer.renderSearchLinks(searchUrl)}
                     </div>
                 </div>
             `;

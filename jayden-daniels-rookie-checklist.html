@@ -404,28 +404,21 @@
             const cardId = getCardId(card);
             const owned = isOwned(cardId);
             const price = estimatePrice(card);
-            const priceClass = price < 3 ? '' : price < 10 ? 'mid' : 'high';
-            const searchUrl = `https://www.ebay.com/sch/i.html?_nkw=${card.search}&_sop=15&LH_BIN=1`;
-            const scpSearch = `https://www.sportscardspro.com/search-products?q=${card.search.replace(/\+/g, '+')}&type=prices`;
+            const searchUrl = CardRenderer.getEbayUrl(card.search);
+            const scpUrl = CardRenderer.getScpUrl(card.search);
 
             return `
                 <div class="card ${owned ? 'owned' : ''}" data-price="${price}" data-type="${card.type}">
                     <div class="card-image-wrapper">
-                        <span class="price-badge ${priceClass}">$${Math.max(1, Math.round(price))}</span>
-                        ${card.img
-                            ? `<a href="${searchUrl}" target="_blank"><img class="card-image" src="${card.img}" alt="${card.set}" loading="lazy" onerror="this.outerHTML='<a href=\\'${searchUrl}\\' target=\\'_blank\\' class=\\'card-image placeholder\\'>Click to view</a>'"></a>`
-                            : `<a href="${searchUrl}" target="_blank" class="card-image placeholder">Click to view on eBay</a>`
-                        }
+                        ${CardRenderer.renderPriceBadge(price)}
+                        ${CardRenderer.renderCardImage(card.img, card.set, searchUrl)}
                     </div>
                     <div class="card-title">${card.set}</div>
                     <div class="card-number">${card.num} ${card.name}</div>
                     <div class="card-type">${card.type}</div>
                     <div class="card-actions${checklistManager.isReadOnly && !owned ? ' links-only' : ''}">
-                        ${!checklistManager.isReadOnly ? `<div class="checkbox-wrapper">
-                            <input type="checkbox" id="${cardId}" ${owned ? 'checked' : ''} onchange="toggleOwned('${cardId}', this)">
-                            <label for="${cardId}">Owned</label>
-                        </div>` : (owned ? '<span class="owned-badge">✓ Owned</span>' : '')}
-                        <span class="search-links"><a href="${searchUrl}" target="_blank" class="search-link">eBay</a> · <a href="${scpSearch}" target="_blank" class="search-link">Prices</a></span>
+                        ${CardRenderer.renderOwnedControl(cardId, owned, checklistManager.isReadOnly)}
+                        ${CardRenderer.renderSearchLinks(searchUrl, scpUrl)}
                     </div>
                 </div>
             `;

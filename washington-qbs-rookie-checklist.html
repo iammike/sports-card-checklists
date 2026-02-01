@@ -586,7 +586,7 @@
             const cardId = qb.collectionLink ? null : getCardId(qb);
             const cardOwned = cardId ? isOwned(cardId) : false;
 
-            // Special handling for collection link cards
+            // Special handling for collection link cards (Jayden Daniels full checklist)
             if (qb.collectionLink) {
                 const total = jaydenDanielsStats.total || qb.cardCount;
                 const jdBadge = jaydenDanielsStats.owned > 0
@@ -604,17 +604,19 @@
                     <div class="player-name">${qb.name}</div>
                     <div class="player-years">${qb.years} &bull; ${qb.record}</div>
                     ${qb.playoff !== '-' ? `<div class="player-record">Playoffs: ${qb.playoff}</div>` : ''}
-                    ${qb.achievement ? `<span class="achievement">${qb.achievement}</span>` : ''}
+                    ${CardRenderer.renderAchievements(qb.achievement)}
                     <a href="${qb.collectionLink}" class="collection-cta">View Full Collection →</a>
                 </div>`;
             }
 
             const cardClass = `card ${cardOwned ? 'owned' : ''} ${qb.superBowl ? 'super-bowl' : ''}`;
+            const searchUrl = CardRenderer.getEbayUrl(qb.search);
+            const scpUrl = CardRenderer.getScpUrl(encodeURIComponent(qb.name + ' rookie'));
 
             return `<div class="${cardClass}">
                 <div class="card-image-wrapper">
                     ${qb.superBowl ? '<span class="super-bowl-badge">SUPER BOWL</span>' : ''}
-                    <span class="price-badge">$${Math.max(1, Math.round(qb.price))}</span>
+                    ${CardRenderer.renderPriceBadge(qb.price)}
                     <img class="card-image" src="${qb.img}" alt="${qb.name}" loading="lazy" onerror="this.style.display='none'">
                 </div>
                 <div class="player-name">${qb.name}</div>
@@ -623,14 +625,14 @@
                 <div class="card-info">
                     <span class="card-set">${qb.set}</span> ${qb.num}
                 </div>
-                ${qb.achievement ? `<span class="achievement">${qb.achievement}</span>` : ''}
+                ${CardRenderer.renderAchievements(qb.achievement)}
                 <div class="card-actions${checklistManager.isReadOnly && !cardOwned ? ' links-only' : ''}">
                     ${!checklistManager.isReadOnly ? `<label class="checkbox-wrapper">
                         <input type="checkbox" ${cardOwned ? 'checked' : ''} onchange="toggleOwned('${cardId}')">
                         <span>Owned</span>
                     </label>` : (cardOwned ? '<span class="owned-badge">✓ Owned</span>' : '')}
                     <span class="links">
-                        <a href="https://www.ebay.com/sch/i.html?_nkw=${qb.search}&LH_BIN=1&_sop=15" target="_blank">eBay</a> · <a href="https://www.sportscardspro.com/search-products?q=${encodeURIComponent(qb.name + ' rookie')}&type=prices" target="_blank">Prices</a>
+                        <a href="${searchUrl}" target="_blank">eBay</a> · <a href="${scpUrl}" target="_blank">Prices</a>
                     </span>
                 </div>
             </div>`;
