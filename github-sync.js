@@ -20,6 +20,8 @@ class GitHubSync {
         this.gistId = localStorage.getItem(GIST_ID_KEY);
         this.user = JSON.parse(localStorage.getItem(USER_KEY) || 'null');
         this.onAuthChange = null;
+        this._saveQueue = Promise.resolve(); // Queue to prevent concurrent saves
+        this._cachedData = null; // Cache to avoid stale reads during saves
     }
 
     isLoggedIn() {
@@ -152,9 +154,14 @@ class GitHubSync {
         return this.gistId;
     }
 
-    // Load all collection data from gist
+    // Load all collection data from gist (uses cache if available)
     async loadData() {
         if (!this.token || !this.gistId) return null;
+
+        // Use cache if available (prevents stale reads during save operations)
+        if (this._cachedData) {
+            return this._cachedData;
+        }
 
         try {
             const response = await fetch(`https://api.github.com/gists/${this.gistId}`, {
@@ -168,7 +175,8 @@ class GitHubSync {
 
             if (!content) return null;
 
-            return JSON.parse(content);
+            this._cachedData = JSON.parse(content);
+            return this._cachedData;
         } catch (error) {
             console.error('Failed to load from gist:', error);
             return null;
@@ -193,7 +201,7 @@ class GitHubSync {
         }
     }
 
-    // Save collection data to gist
+    // Save collection data to gist (queued to prevent race conditions)
     async saveData(data) {
         if (!this.token) return false;
 
@@ -201,27 +209,35 @@ class GitHubSync {
             await this.findOrCreateGist();
         }
 
-        try {
-            const response = await fetch(`https://api.github.com/gists/${this.gistId}`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${this.token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    files: {
-                        [CONFIG.GIST_FILENAME]: {
-                            content: JSON.stringify(data, null, 2),
-                        },
+        // Queue saves to prevent concurrent writes
+        this._saveQueue = this._saveQueue.then(async () => {
+            try {
+                const response = await fetch(`https://api.github.com/gists/${this.gistId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${this.token}`,
+                        'Content-Type': 'application/json',
                     },
-                }),
-            });
+                    body: JSON.stringify({
+                        files: {
+                            [CONFIG.GIST_FILENAME]: {
+                                content: JSON.stringify(data, null, 2),
+                            },
+                        },
+                    }),
+                });
 
-            return response.ok;
-        } catch (error) {
-            console.error('Failed to save to gist:', error);
-            return false;
-        }
+                if (response.ok) {
+                    this._cachedData = data; // Update cache on successful save
+                }
+                return response.ok;
+            } catch (error) {
+                console.error('Failed to save to gist:', error);
+                return false;
+            }
+        });
+
+        return this._saveQueue;
     }
 
     // Checklist-specific helpers
@@ -235,17 +251,23 @@ class GitHubSync {
         return data?.checklists?.[checklistId] || [];
     }
 
-    async saveChecklist(checklistId, ownedCards) {
+    async saveChecklist(checklistId, ownedCards, stats = null) {
         let data = await this.loadData();
         if (!data) {
-            data = { checklists: {} };
+            data = { checklists: {}, stats: {} };
         }
         data.checklists[checklistId] = ownedCards;
+        // Save stats too if provided (avoids race condition)
+        if (stats) {
+            if (!data.stats) data.stats = {};
+            data.stats[checklistId] = stats;
+        }
         data.lastUpdated = new Date().toISOString();
         return await this.saveData(data);
     }
 
     // Save computed stats for a checklist (for index page aggregate)
+    // NOTE: Prefer passing stats to saveChecklist() to avoid race conditions
     async saveChecklistStats(checklistId, stats) {
         let data = await this.loadData();
         if (!data) {
