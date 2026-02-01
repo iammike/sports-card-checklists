@@ -595,9 +595,9 @@
                     <div class="card-image-wrapper">
                         <span class="collection-badge">${jdBadge}</span>
                         <div class="card-stack">
-                            <img src="jayden-daniels-cards/card_00_wm8AAeSw.webp" alt="">
-                            <img src="jayden-daniels-cards/card_03_MuMAAOSw.webp" alt="">
-                            <img src="jayden-daniels-cards/resurgence_196.webp" alt="">
+                            <img src="jayden-daniels-cards/card_00_wm8AAeSw.webp" alt="" loading="lazy">
+                            <img src="jayden-daniels-cards/card_03_MuMAAOSw.webp" alt="" loading="lazy">
+                            <img src="jayden-daniels-cards/resurgence_196.webp" alt="" loading="lazy">
                         </div>
                     </div>
                     <div class="player-name">${qb.name}</div>
@@ -614,7 +614,7 @@
                 <div class="card-image-wrapper">
                     ${qb.superBowl ? '<span class="super-bowl-badge">SUPER BOWL</span>' : ''}
                     <span class="price-badge">$${Math.max(1, Math.round(qb.price))}</span>
-                    <img class="card-image" src="${qb.img}" alt="${qb.name}" onerror="this.style.display='none'">
+                    <img class="card-image" src="${qb.img}" alt="${qb.name}" loading="lazy" onerror="this.style.display='none'">
                 </div>
                 <div class="player-name">${qb.name}</div>
                 <div class="player-years">${qb.years} &bull; ${qb.record}</div>
@@ -699,13 +699,14 @@
             const visibleQbs = filteredQbs || qbs;
             // Exclude collection link cards from counts
             const countableQbs = visibleQbs.filter(qb => !qb.collectionLink);
-            const ownedCount = countableQbs.filter(qb => isOwned(getCardId(qb))).length;
             const totalCount = countableQbs.length;
-            let totalValue = 0, ownedValue = 0, neededValue = 0;
+            let ownedCount = 0, totalValue = 0, ownedValue = 0, neededValue = 0;
             countableQbs.forEach(qb => {
                 const price = qb.price || 0;
+                const owned = isOwned(getCardId(qb));
                 totalValue += price;
-                if (isOwned(getCardId(qb))) {
+                if (owned) {
+                    ownedCount++;
                     ownedValue += price;
                 } else {
                     neededValue += price;
