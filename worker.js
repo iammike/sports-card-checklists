@@ -7,15 +7,27 @@
 // 3. Add environment variables: GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET
 // 4. Deploy and note your worker URL (e.g., https://your-worker.your-subdomain.workers.dev)
 
+const ALLOWED_ORIGINS = [
+  'https://iammike.github.io',
+  'http://localhost:8000',
+  'http://127.0.0.1:8000',
+];
+
+function getCorsOrigin(request) {
+  const origin = request.headers.get('Origin');
+  return ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const corsOrigin = getCorsOrigin(request);
 
     // Handle CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, {
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Origin': corsOrigin,
           'Access-Control-Allow-Methods': 'POST, OPTIONS',
           'Access-Control-Allow-Headers': 'Content-Type',
         },
@@ -33,7 +45,7 @@ export default {
       if (!code) {
         return new Response(JSON.stringify({ error: 'Missing code' }), {
           status: 400,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': corsOrigin },
         });
       }
 
@@ -56,13 +68,14 @@ export default {
       return new Response(JSON.stringify(tokenData), {
         headers: {
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Origin': corsOrigin,
         },
       });
     } catch (error) {
-      return new Response(JSON.stringify({ error: error.message }), {
+      console.error('OAuth proxy error:', error);
+      return new Response(JSON.stringify({ error: 'Authentication failed' }), {
         status: 500,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': corsOrigin },
       });
     }
   },
