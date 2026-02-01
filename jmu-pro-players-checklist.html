@@ -149,6 +149,13 @@
         #alternates-toggle.expanded {
             transform: rotate(90deg);
         }
+        .extras-note {
+            background: rgba(102, 102, 102, 0.15);
+            color: #999;
+            padding: 10px 15px;
+            font-size: 12px;
+            border-bottom: 1px solid rgba(102, 102, 102, 0.2);
+        }
     </style>
 </head>
 <body>
@@ -252,6 +259,7 @@
         <div class="section-header alternates-header" onclick="toggleAlternatesSection()" style="cursor: pointer; background: linear-gradient(135deg, #666 0%, #444 100%);">
             <span id="alternates-toggle" class="expanded">▼</span> Extra Cards <span id="alternates-count" style="font-weight: normal; font-size: 14px; opacity: 0.8;"></span>
         </div>
+        <div class="extras-note">Alternate versions of cards above. Not included in main checklist totals.</div>
         <div class="card-grid" id="alternates-cards"></div>
     </div>
 
