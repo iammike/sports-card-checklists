@@ -515,9 +515,6 @@
     <script src="github-sync.js"></script>
     <script src="shared.js"></script>
     <script>
-        // Aggregate stats trackers (global so updateAggregateStats can access them)
-        let aggOwned = 0, aggTotal = 0, aggOwnedValue = 0, aggNeededValue = 0;
-
         function updateAuthUI() {
             const authBar = document.getElementById('auth-bar');
             const authContent = document.getElementById('auth-content');
@@ -542,264 +539,71 @@
         }
 
         async function loadProgress() {
-            // Load owned data from public gist or user's gist
-            let ownedData = null;
-
+            // Load all stats from gist (source of truth)
+            let allStats = {};
             if (window.githubSync && githubSync.isLoggedIn()) {
-                ownedData = await githubSync.loadData();
+                allStats = await githubSync.loadAllStats();
             } else if (window.githubSync) {
-                ownedData = await githubSync.loadPublicData();
+                allStats = await githubSync.loadPublicStats();
             }
 
-            if (!ownedData || !ownedData.checklists) {
-                return;
-            }
+            const circumference = 2 * Math.PI * 20; // r=20
 
-            // Reset aggregate stats for fresh calculation
-            aggOwned = 0; aggTotal = 0; aggOwnedValue = 0; aggNeededValue = 0;
+            // Helper to update a card's progress display
+            function updateCardProgress(id, stats, extraStatId, extraStatKey) {
+                if (!stats) return;
 
-            // For Jayden Daniels, we need to figure out which owned cards are base vs inserts vs chase
-            const jaydenOwned = ownedData.checklists['jayden-daniels'] || [];
+                const progressSection = document.getElementById(`progress-section-${id}`);
+                if (!progressSection) return;
 
-            // Helper to generate card ID (must match checklist's getCardId function)
-            function getCardId(set, num, name) {
-                return btoa(set + num + name).replace(/[^a-zA-Z0-9]/g, '');
-            }
-
-            // Use PriceUtils from shared.js for consistent price calculation
-            function estimatePrice(card) {
-                return PriceUtils.estimate(card);
-            }
-
-            // Fetch checklist to get base card IDs
-            try {
-                const response = await fetch('jayden-daniels-rookie-checklist.html');
-                const html = await response.text();
-
-                // Extract cards by type with full data for price calculation
-                const baseCards = [];
-                const insertCards = [];
-                const chaseCards = [];
-
-                // Parse cards from the JavaScript - look for type field
-                const cardMatches = html.matchAll(/\{\s*set:\s*["']([^"']+)["'],\s*num:\s*["']([^"']*)["'],\s*name:\s*["']([^"']+)["'],\s*type:\s*["']([^"']+)["']/g);
-                for (const match of cardMatches) {
-                    const [, set, num, name, type] = match;
-                    const card = { set, num, name, type, id: getCardId(set, num, name) };
-                    if (type.startsWith('Base')) {
-                        baseCards.push(card);
-                    } else if (type === 'Insert') {
-                        insertCards.push(card);
-                    } else if (type.startsWith('Chase')) {
-                        chaseCards.push(card);
-                    }
-                }
-
-                // Count owned and calculate values (base cards only for main stats)
-                let ownedValue = 0, neededValue = 0;
-                const ownedBaseCount = baseCards.filter(c => {
-                    const price = estimatePrice(c);
-                    if (jaydenOwned.includes(c.id)) {
-                        ownedValue += price;
-                        return true;
-                    } else {
-                        neededValue += price;
-                        return false;
-                    }
-                }).length;
-
-                const ownedInsertCount = insertCards.filter(c => jaydenOwned.includes(c.id)).length;
-                const ownedChaseCount = chaseCards.filter(c => jaydenOwned.includes(c.id)).length;
-                const totalBase = baseCards.length;
-                const totalInserts = insertCards.length;
-                const totalChase = chaseCards.length;
-
-                // Show progress section
-                const progressSection = document.getElementById('progress-section-jayden-daniels');
                 progressSection.style.display = 'block';
 
-                // Update circular progress ring
-                const percentage = totalBase > 0 ? Math.round((ownedBaseCount / totalBase) * 100) : 0;
-                const circumference = 2 * Math.PI * 20; // r=20
-                const offset = circumference - (percentage / 100) * circumference;
+                const pct = stats.total > 0 ? Math.round((stats.owned / stats.total) * 100) : 0;
+                const offset = circumference - (pct / 100) * circumference;
 
-                const ring = document.getElementById('progress-ring-jayden-daniels');
-                ring.style.strokeDashoffset = offset;
+                const ring = document.getElementById(`progress-ring-${id}`);
+                if (ring) ring.style.strokeDashoffset = offset;
 
-                document.getElementById('progress-pct-jayden-daniels').textContent = `${percentage}%`;
-                document.getElementById('progress-owned-jayden-daniels').textContent = ownedBaseCount;
-                document.getElementById('progress-total-jayden-daniels').textContent = totalBase;
+                const pctEl = document.getElementById(`progress-pct-${id}`);
+                if (pctEl) pctEl.textContent = `${pct}%`;
 
-                // Secondary stats pills
-                document.getElementById('stat-inserts-jayden-daniels').textContent = `${ownedInsertCount}/${totalInserts}`;
-                document.getElementById('stat-chase-jayden-daniels').textContent = `${ownedChaseCount}/${totalChase}`;
+                const ownedEl = document.getElementById(`progress-owned-${id}`);
+                if (ownedEl) ownedEl.textContent = stats.owned;
 
-                // Value stats (second line)
-                document.getElementById('value-stats-jayden-daniels').innerHTML =
-                    `<span class="value-owned">$${Math.round(ownedValue)} owned</span> · <span class="value-needed">$${Math.round(neededValue)} to complete</span>`;
+                const totalEl = document.getElementById(`progress-total-${id}`);
+                if (totalEl) totalEl.textContent = stats.total;
 
-                // Add to aggregate (base cards only)
-                aggOwned += ownedBaseCount;
-                aggTotal += totalBase;
-                aggOwnedValue += ownedValue;
-                aggNeededValue += neededValue;
-                updateAggregateStats();
-            } catch (error) {
-                console.error('Failed to load Jayden Daniels progress:', error);
-            }
-
-            // Washington QBs progress
-            const qbsOwned = ownedData.checklists['washington-qbs'] || [];
-
-            // Helper to generate QBs card ID (matches their getCardId)
-            function getQBsCardId(name, set, num) {
-                return btoa(name + set + num).replace(/[^a-zA-Z0-9]/g, '');
-            }
-
-            // Fetch and parse QBs cards with prices
-            try {
-                const qbsResponse = await fetch('washington-qbs-rookie-checklist.html');
-                const qbsHtml = await qbsResponse.text();
-
-                // Parse cards with name, set, num, and price
-                const qbsCards = [];
-                const qbsCardMatches = qbsHtml.matchAll(/\{\s*name:\s*["']([^"']+)["'].*?set:\s*["']([^"']+)["'],\s*num:\s*["']([^"']+)["'],\s*price:\s*([\d.]+)/g);
-                for (const match of qbsCardMatches) {
-                    const [, name, set, num, price] = match;
-                    qbsCards.push({
-                        name, set, num,
-                        price: parseFloat(price),
-                        id: getQBsCardId(name, set, num)
-                    });
+                const valueEl = document.getElementById(`value-stats-${id}`);
+                if (valueEl) {
+                    valueEl.innerHTML = `<span class="value-owned">$${stats.ownedValue} owned</span> · <span class="value-needed">$${stats.neededValue} to complete</span>`;
                 }
 
-                const totalQBs = qbsCards.length;
-                let ownedQBsValue = 0, neededQBsValue = 0;
-                const ownedQBsCount = qbsCards.filter(c => {
-                    if (qbsOwned.includes(c.id)) {
-                        ownedQBsValue += c.price;
-                        return true;
-                    } else {
-                        neededQBsValue += c.price;
-                        return false;
-                    }
-                }).length;
-
-                if (totalQBs > 0) {
-                    const pctQBs = Math.round((ownedQBsCount / totalQBs) * 100);
-                    const circumference = 2 * Math.PI * 20;
-                    const offsetQBs = circumference - (pctQBs / 100) * circumference;
-
-                    // Show progress section
-                    document.getElementById('progress-section-washington-qbs').style.display = 'block';
-
-                    // Update ring
-                    const ringQBs = document.getElementById('progress-ring-washington-qbs');
-                    ringQBs.style.strokeDashoffset = offsetQBs;
-
-                    document.getElementById('progress-pct-washington-qbs').textContent = `${pctQBs}%`;
-                    document.getElementById('progress-owned-washington-qbs').textContent = ownedQBsCount;
-                    document.getElementById('progress-total-washington-qbs').textContent = totalQBs;
-
-                    // Value stats (second line)
-                    document.getElementById('value-stats-washington-qbs').innerHTML =
-                        `<span class="value-owned">$${Math.round(ownedQBsValue)} owned</span> · <span class="value-needed">$${Math.round(neededQBsValue)} to complete</span>`;
-
-                    // Add to aggregate
-                    aggOwned += ownedQBsCount;
-                    aggTotal += totalQBs;
-                    aggOwnedValue += ownedQBsValue;
-                    aggNeededValue += neededQBsValue;
-                    updateAggregateStats();
+                // Extra stats (inserts/chase/extras)
+                if (extraStatId && extraStatKey && stats[extraStatKey + 'Owned'] !== undefined) {
+                    const el = document.getElementById(extraStatId);
+                    if (el) el.textContent = `${stats[extraStatKey + 'Owned']}/${stats[extraStatKey + 'Total']}`;
                 }
-            } catch (error) {
-                console.error('Failed to load Washington QBs progress:', error);
             }
 
-            // JMU Pro Players progress
-            const jmuOwned = ownedData.checklists['jmu-pro-players'] || [];
-
-            // Helper to generate JMU card ID (matches their getCardId)
-            function getJmuCardId(player, set, num, name) {
-                return btoa(player + set + num + name).replace(/[^a-zA-Z0-9]/g, '');
+            // Jayden Daniels
+            const jdStats = allStats['jayden-daniels'];
+            updateCardProgress('jayden-daniels', jdStats);
+            if (jdStats) {
+                const insertsEl = document.getElementById('stat-inserts-jayden-daniels');
+                if (insertsEl) insertsEl.textContent = `${jdStats.insertsOwned || 0}/${jdStats.insertsTotal || 0}`;
+                const chaseEl = document.getElementById('stat-chase-jayden-daniels');
+                if (chaseEl) chaseEl.textContent = `${jdStats.chaseOwned || 0}/${jdStats.chaseTotal || 0}`;
             }
 
-            try {
-                const jmuResponse = await fetch('jmu-pro-players-checklist.html');
-                const jmuHtml = await jmuResponse.text();
+            // Washington QBs
+            updateCardProgress('washington-qbs', allStats['washington-qbs']);
 
-                // Parse cards - match full card objects, separate main from alternates
-                const jmuCards = [];
-                const jmuAlternates = [];
-                // Match each card object from { to },
-                const cardBlockMatches = jmuHtml.matchAll(/\{\s*player:\s*["']([^"']+)["'][^}]+\}/gs);
-                for (const blockMatch of cardBlockMatches) {
-                    const block = blockMatch[0];
-                    const isAlternate = block.includes('alternate:') && block.includes('true');
-                    // Extract fields from block
-                    const playerMatch = block.match(/player:\s*["']([^"']+)["']/);
-                    const setMatch = block.match(/set:\s*["']([^"']+)["']/);
-                    const numMatch = block.match(/num:\s*["']([^"']*)["']/);
-                    const nameMatch = block.match(/name:\s*["']([^"']+)["']/);
-                    const priceMatch = block.match(/price:\s*([\d.]+)/);
-                    if (playerMatch && setMatch && numMatch && nameMatch && priceMatch) {
-                        const card = {
-                            player: playerMatch[1],
-                            set: setMatch[1],
-                            num: numMatch[1],
-                            name: nameMatch[1],
-                            price: parseFloat(priceMatch[1]),
-                            id: getJmuCardId(playerMatch[1], setMatch[1], numMatch[1], nameMatch[1])
-                        };
-                        if (isAlternate) {
-                            jmuAlternates.push(card);
-                        } else {
-                            jmuCards.push(card);
-                        }
-                    }
-                }
-
-                const totalJmu = jmuCards.length;
-                let ownedJmuValue = 0, neededJmuValue = 0;
-                const ownedJmuCount = jmuCards.filter(c => {
-                    if (jmuOwned.includes(c.id)) {
-                        ownedJmuValue += c.price;
-                        return true;
-                    } else {
-                        neededJmuValue += c.price;
-                        return false;
-                    }
-                }).length;
-
-                if (totalJmu > 0) {
-                    const pctJmu = Math.round((ownedJmuCount / totalJmu) * 100);
-                    const circumference = 2 * Math.PI * 20;
-                    const offsetJmu = circumference - (pctJmu / 100) * circumference;
-
-                    document.getElementById('progress-section-jmu-pro-players').style.display = 'block';
-                    const ringJmu = document.getElementById('progress-ring-jmu-pro-players');
-                    ringJmu.style.strokeDashoffset = offsetJmu;
-
-                    document.getElementById('progress-pct-jmu-pro-players').textContent = `${pctJmu}%`;
-                    document.getElementById('progress-owned-jmu-pro-players').textContent = ownedJmuCount;
-                    document.getElementById('progress-total-jmu-pro-players').textContent = totalJmu;
-
-                    document.getElementById('value-stats-jmu-pro-players').innerHTML =
-                        `<span class="value-owned">$${Math.round(ownedJmuValue)} owned</span> · <span class="value-needed">$${Math.round(neededJmuValue)} to complete</span>`;
-
-                    // Count owned alternates
-                    const ownedAlternatesCount = jmuAlternates.filter(c => jmuOwned.includes(c.id)).length;
-                    document.getElementById('stat-alternates-jmu').textContent = `${ownedAlternatesCount}/${jmuAlternates.length}`;
-
-                    // Add to aggregate (main cards only, not alternates)
-                    aggOwned += ownedJmuCount;
-                    aggTotal += totalJmu;
-                    aggOwnedValue += ownedJmuValue;
-                    aggNeededValue += neededJmuValue;
-                    updateAggregateStats();
-                }
-            } catch (error) {
-                console.error('Failed to load JMU progress:', error);
+            // JMU Pro Players
+            const jmuStats = allStats['jmu-pro-players'];
+            updateCardProgress('jmu-pro-players', jmuStats);
+            if (jmuStats) {
+                const extrasEl = document.getElementById('stat-alternates-jmu');
+                if (extrasEl) extrasEl.textContent = `${jmuStats.extrasOwned || 0}/${jmuStats.extrasTotal || 0}`;
             }
         }
 

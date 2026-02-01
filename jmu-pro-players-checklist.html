@@ -970,6 +970,11 @@
                 }
             });
 
+            // Count alternates (extras) from all card arrays
+            const allCards = [...cards.hof, ...cards.probowl, ...cards.usfl, ...cards.modern, ...cards.mlb, ...cards.nba, ...cards.mls];
+            const alternates = allCards.filter(c => c.alternate);
+            const ownedAlternates = alternates.filter(c => isOwned(getCardId(c))).length;
+
             // Animate stats on first load
             StatsAnimator.animateStats({
                 owned: { el: document.getElementById('owned-count'), value: ownedMain },
@@ -985,7 +990,9 @@
                     owned: ownedMain,
                     total: mainCards.length,
                     ownedValue: Math.round(ownedValue),
-                    neededValue: Math.round(neededValue)
+                    neededValue: Math.round(neededValue),
+                    extrasOwned: ownedAlternates,
+                    extrasTotal: alternates.length
                 });
             }
         }
