@@ -12,7 +12,7 @@
             --color-primary-dark: #764ba2;
         }
 
-        h1 { color: #1a1a2e; }
+        /* h1 color inherited from page-header context */
 
         /* Section header variants */
         .section-header.college {
@@ -82,35 +82,38 @@
     </style>
 </head>
 <body>
-    <div class="auth-bar" id="auth-bar">
-        <a href="index.html" class="back-link">← All Checklists</a>
-        <div class="right-section">
-            <span class="sync-status" id="sync-status"></span>
-            <div id="auth-content"></div>
+    <div class="page-header">
+        <div class="auth-bar" id="auth-bar">
+            <a href="index.html" class="back-link">← All Checklists</a>
+            <div class="right-section">
+                <span class="sync-status" id="sync-status"></span>
+                <div id="auth-content"></div>
+            </div>
         </div>
-    </div>
 
-    <h1>Jayden Daniels Rookie Card Checklist</h1>
-    <p class="subtitle">2023 College + 2024 NFL Rookie Cards</p>
-    <div class="stats">
-        <div class="stat">
-            <div class="stat-value" id="owned-count">0</div>
-            <div class="stat-label">Owned</div>
-        </div>
-        <div class="stat">
-            <div class="stat-value" id="total-count">0</div>
-            <div class="stat-label">Total Cards</div>
-        </div>
-        <div class="stat">
-            <div class="stat-value" id="total-value">$0</div>
-            <div class="stat-label">Est. Value</div>
-            <div class="stat-breakdown">
-                <span class="owned-value" id="owned-value">$0 owned</span>
-                <span class="needed-value" id="needed-value">$0 needed</span>
+        <h1>Jayden Daniels Rookie Card Checklist</h1>
+        <p class="subtitle">2023 College + 2024 NFL Rookie Cards</p>
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-value" id="owned-count">0</div>
+                <div class="stat-label">Owned</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="total-count">0</div>
+                <div class="stat-label">Total Cards</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value highlight" id="total-value">$0</div>
+                <div class="stat-label">Est. Value</div>
+                <div class="stat-breakdown">
+                    <span class="owned-value" id="owned-value">$0 owned</span>
+                    <span class="needed-value" id="needed-value">$0 needed</span>
+                </div>
             </div>
         </div>
     </div>
 
+    <div class="page-content">
     <div class="filters">
         <select id="sort-filter">
             <option value="default">Sort: Default</option>
@@ -182,6 +185,7 @@
     </div>
 
     <button class="clear-btn" onclick="checklistManager.clearAll()">Clear All</button>
+    </div><!-- end page-content -->
 
     <script src="github-sync.js"></script>
     <script src="shared.js"></script>
@@ -332,17 +336,24 @@
                     neededValue += price;
                 }
             });
-            document.getElementById('owned-count').textContent = ownedVisible;
-            document.getElementById('total-count').textContent = mainCards.length;
-            document.getElementById('total-value').textContent = '$' + totalValue.toFixed(0);
-            document.getElementById('owned-value').textContent = '$' + ownedValue.toFixed(0) + ' owned';
-            document.getElementById('needed-value').textContent = '$' + neededValue.toFixed(0) + ' needed';
-            // Save base card stats for other pages to use
-            const baseStats = { owned: ownedVisible, total: mainCards.length };
-            localStorage.setItem('jaydenDanielsBaseStats', JSON.stringify(baseStats));
-            // Also sync to gist for web visitors
+
+            // Animate stats on first load
+            StatsAnimator.animateStats({
+                owned: { el: document.getElementById('owned-count'), value: ownedVisible },
+                total: { el: document.getElementById('total-count'), value: mainCards.length },
+                totalValue: { el: document.getElementById('total-value'), value: Math.round(totalValue) },
+                ownedValue: { el: document.getElementById('owned-value'), value: Math.round(ownedValue) },
+                neededValue: { el: document.getElementById('needed-value'), value: Math.round(neededValue) }
+            });
+
+            // Save stats for index page to read (gist is source of truth)
             if (window.githubSync && githubSync.isLoggedIn()) {
-                githubSync.saveChecklist('jayden-daniels-base-stats', [baseStats]);
+                githubSync.saveChecklistStats('jayden-daniels', {
+                    owned: ownedVisible,
+                    total: mainCards.length,
+                    ownedValue: Math.round(ownedValue),
+                    neededValue: Math.round(neededValue)
+                });
             }
         }
 

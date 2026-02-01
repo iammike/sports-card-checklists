@@ -19,15 +19,53 @@
             --card-hover-color: #450084;
         }
 
-        h1 { color: #450084; }
+        /* Page header section */
+        .page-header {
+            background: linear-gradient(135deg, #450084 0%, #2d0057 100%);
+            padding: 20px 20px 24px;
+            margin-bottom: 24px;
+            position: relative;
+        }
+        .page-header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #C9A227, transparent);
+        }
+
+        .page-content {
+            padding: 0 20px 20px;
+        }
+
+        h1 {
+            background: linear-gradient(180deg, #d0d0d0 0%, #C9A227 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: #888;
+        }
 
         .auth-bar {
-            background: linear-gradient(135deg, #450084 0%, #2d0057 100%);
+            background: rgba(0,0,0,0.2);
+            margin-bottom: 20px;
         }
         .auth-bar .back-link { color: #C9A227; }
 
         .stat {
-            background: linear-gradient(135deg, #450084 0%, #2d0057 100%);
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .stat-value {
+            color: #c8c8c8;
+        }
+        .stat-value.highlight {
+            color: #C9A227;
         }
 
         .group-header {
@@ -84,19 +122,20 @@
             align-self: center;
         }
 
-        /* Intro text */
+        /* Intro text (in dark header) */
         .intro-text {
-            background: linear-gradient(135deg, rgba(69,0,132,0.05) 0%, rgba(201,162,39,0.05) 100%);
-            border: 1px solid rgba(69,0,132,0.1);
-            border-radius: 8px;
-            padding: 15px 20px;
+            background: rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 4px;
+            padding: 12px 16px;
             margin-bottom: 20px;
-            font-size: 14px;
-            color: #555;
-            line-height: 1.6;
+            font-size: 13px;
+            color: #aaa;
+            line-height: 1.5;
+            text-align: center;
         }
         .intro-text strong {
-            color: #450084;
+            color: #C9A227;
         }
 
         /* Extras/Alternates section */
@@ -117,42 +156,45 @@
     </style>
 </head>
 <body>
-    <div class="auth-bar" id="auth-bar">
-        <a href="index.html" class="back-link">← All Checklists</a>
-        <div class="right-section">
-            <span class="sync-status" id="sync-status"></span>
-            <div id="auth-content"></div>
+    <div class="page-header">
+        <div class="auth-bar" id="auth-bar">
+            <a href="index.html" class="back-link">← All Checklists</a>
+            <div class="right-section">
+                <span class="sync-status" id="sync-status"></span>
+                <div id="auth-content"></div>
+            </div>
         </div>
-    </div>
 
-    <h1>JMU Pro Players Card Checklist</h1>
-    <p class="subtitle">James Madison University Alumni in Professional Sports</p>
+        <h1>JMU Pro Players Card Checklist</h1>
+        <p class="subtitle">James Madison University Alumni in Professional Sports</p>
 
-    <div class="intro-text">
-        <strong>Go Dukes!</strong> This checklist features trading cards of James Madison University alumni who made it to the pros.
-        Highlights include <strong>Hall of Famer Charles Haley</strong> (5x Super Bowl champion),
-        <strong>Gary Clark</strong> (4x Pro Bowl, 2x Super Bowl), and <strong>Scott Norwood</strong> (famous for "Wide Right").
-    </div>
-
-    <div class="stats">
-        <div class="stat">
-            <div class="stat-value" id="owned-count">0</div>
-            <div class="stat-label">Owned</div>
+        <div class="intro-text">
+            <strong>Go Dukes!</strong> This checklist features trading cards of James Madison University alumni who made it to the pros.
+            Highlights include <strong>Hall of Famer Charles Haley</strong> (5x Super Bowl champion),
+            <strong>Gary Clark</strong> (4x Pro Bowl, 2x Super Bowl), and <strong>Scott Norwood</strong> (famous for "Wide Right").
         </div>
-        <div class="stat">
-            <div class="stat-value" id="total-count">0</div>
-            <div class="stat-label">Total Cards</div>
-        </div>
-        <div class="stat">
-            <div class="stat-value" id="total-value">$0</div>
-            <div class="stat-label">Est. Value</div>
-            <div class="stat-breakdown">
-                <span class="owned-value" id="owned-value">$0 owned</span>
-                <span class="needed-value" id="needed-value">$0 needed</span>
+
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-value" id="owned-count">0</div>
+                <div class="stat-label">Owned</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="total-count">0</div>
+                <div class="stat-label">Total Cards</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value highlight" id="total-value">$0</div>
+                <div class="stat-label">Est. Value</div>
+                <div class="stat-breakdown">
+                    <span class="owned-value" id="owned-value">$0 owned</span>
+                    <span class="needed-value" id="needed-value">$0 needed</span>
+                </div>
             </div>
         </div>
     </div>
 
+    <div class="page-content">
     <div class="filters">
         <select id="status-filter">
             <option value="all">All Cards</option>
@@ -202,6 +244,7 @@
     </div>
 
     <button class="clear-btn" onclick="checklistManager.clearAll()">Clear All</button>
+    </div><!-- end page-content -->
 
     <script src="github-sync.js"></script>
     <script src="shared.js"></script>
@@ -926,11 +969,25 @@
                     neededValue += price;
                 }
             });
-            document.getElementById('owned-count').textContent = ownedMain;
-            document.getElementById('total-count').textContent = mainCards.length;
-            document.getElementById('total-value').textContent = '$' + totalValue.toFixed(0);
-            document.getElementById('owned-value').textContent = '$' + ownedValue.toFixed(0) + ' owned';
-            document.getElementById('needed-value').textContent = '$' + neededValue.toFixed(0) + ' needed';
+
+            // Animate stats on first load
+            StatsAnimator.animateStats({
+                owned: { el: document.getElementById('owned-count'), value: ownedMain },
+                total: { el: document.getElementById('total-count'), value: mainCards.length },
+                totalValue: { el: document.getElementById('total-value'), value: Math.round(totalValue) },
+                ownedValue: { el: document.getElementById('owned-value'), value: Math.round(ownedValue) },
+                neededValue: { el: document.getElementById('needed-value'), value: Math.round(neededValue) }
+            });
+
+            // Save stats for index page to read (gist is source of truth)
+            if (window.githubSync && githubSync.isLoggedIn()) {
+                githubSync.saveChecklistStats('jmu-pro-players', {
+                    owned: ownedMain,
+                    total: mainCards.length,
+                    ownedValue: Math.round(ownedValue),
+                    neededValue: Math.round(neededValue)
+                });
+            }
         }
 
 

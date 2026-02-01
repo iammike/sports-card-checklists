@@ -5,9 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mike's Sports Card Checklists</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600&display=swap');
+
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: 'Barlow', -apple-system, BlinkMacSystemFont, sans-serif;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             min-height: 100vh;
             padding: 40px 20px;
@@ -17,19 +19,62 @@
             max-width: 800px;
             margin: 0 auto;
         }
-        h1 {
+        .logo-container {
             text-align: center;
-            font-size: 2.5em;
-            margin-bottom: 10px;
-            background: linear-gradient(90deg, #f39c12, #e74c3c);
+            margin-bottom: 32px;
+        }
+        .logo-mark {
+            display: inline-flex;
+            align-items: center;
+            gap: 14px;
+        }
+        h1 {
+            font-family: 'Bebas Neue', sans-serif;
+            text-align: center;
+            font-size: 2.8em;
+            font-weight: 400;
+            letter-spacing: 0.05em;
+            margin: 0;
+            line-height: 1;
+            background: linear-gradient(180deg, #d0d0d0 0%, #f39c12 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
+        .logo-card {
+            display: inline-block;
+            width: 22px;
+            height: 30px;
+            background: linear-gradient(145deg, #f39c12 0%, #d35400 100%);
+            border-radius: 2px;
+            position: relative;
+            box-shadow: 1px 1px 0 rgba(0,0,0,0.2);
+        }
+        .logo-card::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            right: 3px;
+            bottom: 3px;
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 1px;
+        }
+        .logo-card.left {
+            transform: rotate(-8deg);
+        }
+        .logo-card.right {
+            transform: rotate(8deg);
+        }
         .subtitle {
+            font-family: 'Barlow', sans-serif;
             text-align: center;
-            color: #888;
-            margin-bottom: 40px;
+            color: #555;
+            font-size: 0.75em;
+            font-weight: 600;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            margin-top: 10px;
         }
         .checklist-grid {
             display: grid;
@@ -38,10 +83,10 @@
         .checklist-card {
             --card-accent: #f39c12;
             --card-accent-rgb: 243, 156, 18;
-            background: rgba(255,255,255,0.05);
-            border-radius: 12px;
-            padding: 24px;
-            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.03);
+            border-radius: 4px;
+            padding: 22px 24px;
+            border: 1px solid rgba(255,255,255,0.08);
             transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
             text-decoration: none;
             color: inherit;
@@ -50,12 +95,15 @@
             overflow: hidden;
         }
         .checklist-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-            border-color: rgba(var(--card-accent-rgb), 0.5);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            border-color: rgba(var(--card-accent-rgb), 0.4);
         }
         .checklist-card h2 {
-            font-size: 1.4em;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.5em;
+            font-weight: 400;
+            letter-spacing: 0.03em;
             margin-bottom: 8px;
             color: var(--card-accent);
         }
@@ -82,8 +130,11 @@
             background: linear-gradient(135deg, rgba(69, 0, 132, 0.12) 0%, rgba(201, 162, 39, 0.08) 100%);
         }
         .checklist-card p {
-            color: #aaa;
+            font-family: 'Barlow', sans-serif;
+            color: #999;
+            font-size: 0.9em;
             line-height: 1.5;
+            font-weight: 500;
         }
         /* Main progress section */
         .checklist-card .progress-section {
@@ -124,24 +175,31 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 0.7em;
-            font-weight: 600;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 0.85em;
+            font-weight: 400;
+            letter-spacing: 0.02em;
             color: var(--card-accent);
         }
         .checklist-card .progress-details {
             flex: 1;
         }
         .checklist-card .progress-main-text {
-            font-size: 0.95em;
-            color: #ddd;
+            font-family: 'Barlow', sans-serif;
+            font-size: 0.9em;
+            color: #ccc;
             font-weight: 500;
         }
         .checklist-card .progress-main-text span {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.15em;
             color: var(--card-accent);
-            font-weight: 600;
+            font-weight: 400;
         }
         .checklist-card .value-line {
+            font-family: 'Barlow', sans-serif;
             font-size: 0.75em;
+            font-weight: 500;
             color: #666;
             margin-top: 2px;
         }
@@ -159,17 +217,21 @@
             align-items: flex-end;
         }
         .checklist-card .stat-pill {
+            font-family: 'Barlow', sans-serif;
             display: inline-flex;
             align-items: center;
             gap: 4px;
             padding: 3px 8px;
             background: rgba(255,255,255,0.05);
-            border-radius: 10px;
+            border-radius: 3px;
             font-size: 0.7em;
-            color: #777;
+            font-weight: 500;
+            color: #666;
         }
         .checklist-card .stat-pill .count {
-            color: #999;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.1em;
+            color: #888;
         }
         .coming-soon {
             opacity: 0.5;
@@ -218,6 +280,120 @@
             color: #666;
             font-size: 0.75em;
         }
+
+        /* Aggregate Stats Section - "Championship Scoreboard" */
+        .aggregate-stats {
+            background:
+                linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.1) 100%),
+                linear-gradient(135deg, #0a0a12 0%, #1a1a2e 100%);
+            border: 1px solid rgba(255,182,18,0.2);
+            border-radius: 4px;
+            padding: 24px 28px 20px;
+            margin-bottom: 36px;
+            position: relative;
+            box-shadow:
+                0 4px 24px rgba(0,0,0,0.4),
+                inset 0 1px 0 rgba(255,255,255,0.05);
+        }
+        .aggregate-stats::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 20px;
+            right: 20px;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #f39c12, transparent);
+        }
+        .aggregate-stats::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 20px;
+            right: 20px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,182,18,0.3), transparent);
+        }
+        .aggregate-stats-label {
+            font-family: 'Barlow', sans-serif;
+            font-size: 0.7em;
+            font-weight: 600;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: #f39c12;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        .aggregate-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+        .aggregate-stat {
+            text-align: center;
+            padding: 20px 12px 16px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%);
+            border-radius: 4px;
+            border: 1px solid rgba(255,255,255,0.06);
+            position: relative;
+            animation: statReveal 0.6s ease-out backwards;
+        }
+        .aggregate-stat:nth-child(1) { animation-delay: 0.1s; }
+        .aggregate-stat:nth-child(2) { animation-delay: 0.2s; }
+        .aggregate-stat:nth-child(3) { animation-delay: 0.3s; }
+
+        @keyframes statReveal {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .aggregate-stat-value {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 3.2em;
+            font-weight: 400;
+            line-height: 1;
+            margin-bottom: 4px;
+            color: #c8c8c8;
+            letter-spacing: 0.02em;
+        }
+        .aggregate-stat-value.highlight {
+            color: #f39c12;
+            text-shadow: 0 2px 20px rgba(243,156,18,0.3);
+        }
+        .aggregate-stat-label {
+            font-family: 'Barlow', sans-serif;
+            font-size: 0.65em;
+            font-weight: 600;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: #888;
+            margin-bottom: 8px;
+        }
+        .aggregate-stat-breakdown {
+            font-family: 'Barlow', sans-serif;
+            font-size: 0.7em;
+            font-weight: 500;
+            color: #555;
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+        }
+        .aggregate-stat-breakdown .owned { color: #4caf50; }
+        .aggregate-stat-breakdown .needed { color: #ff9800; }
+
+        @media (max-width: 500px) {
+            .aggregate-stats { padding: 20px 16px 16px; }
+            .aggregate-stats-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            .aggregate-stat { padding: 14px 12px 12px; }
+            .aggregate-stat-value { font-size: 2.6em; }
+        }
     </style>
 </head>
 <body>
@@ -226,8 +402,36 @@
             <div id="auth-content"></div>
         </div>
 
-        <h1><span id="mike-link" style="cursor: pointer;">Mike's</span> Sports Card Checklists</h1>
-        <p class="subtitle">Tracking my sub-collections</p>
+        <div class="logo-container">
+            <div class="logo-mark">
+                <span class="logo-card left"></span>
+                <h1><span id="mike-link" style="cursor: pointer;">Mike's</span> Sports Card Checklists</h1>
+                <span class="logo-card right"></span>
+            </div>
+            <p class="subtitle">Tracking my sub-collections</p>
+        </div>
+
+        <div class="aggregate-stats" id="aggregate-stats" style="display: none;">
+            <div class="aggregate-stats-label">Collection Totals</div>
+            <div class="aggregate-stats-grid">
+                <div class="aggregate-stat">
+                    <div class="aggregate-stat-value" id="agg-owned">0</div>
+                    <div class="aggregate-stat-label">Cards Owned</div>
+                </div>
+                <div class="aggregate-stat">
+                    <div class="aggregate-stat-value" id="agg-total">0</div>
+                    <div class="aggregate-stat-label">Total Cards</div>
+                </div>
+                <div class="aggregate-stat">
+                    <div class="aggregate-stat-value highlight" id="agg-value">$0</div>
+                    <div class="aggregate-stat-label">Est. Value</div>
+                    <div class="aggregate-stat-breakdown">
+                        <span class="owned" id="agg-owned-value">$0 owned</span>
+                        <span class="needed" id="agg-needed-value">$0 needed</span>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <div class="checklist-grid">
             <a href="jayden-daniels-rookie-checklist.html" class="checklist-card" data-checklist="jayden-daniels" id="card-jayden-daniels">
@@ -309,7 +513,11 @@
     </div>
 
     <script src="github-sync.js"></script>
+    <script src="shared.js"></script>
     <script>
+        // Aggregate stats trackers (global so updateAggregateStats can access them)
+        let aggOwned = 0, aggTotal = 0, aggOwnedValue = 0, aggNeededValue = 0;
+
         function updateAuthUI() {
             const authBar = document.getElementById('auth-bar');
             const authContent = document.getElementById('auth-content');
@@ -347,6 +555,9 @@
                 return;
             }
 
+            // Reset aggregate stats for fresh calculation
+            aggOwned = 0; aggTotal = 0; aggOwnedValue = 0; aggNeededValue = 0;
+
             // For Jayden Daniels, we need to figure out which owned cards are base vs inserts vs chase
             const jaydenOwned = ownedData.checklists['jayden-daniels'] || [];
 
@@ -355,33 +566,9 @@
                 return btoa(set + num + name).replace(/[^a-zA-Z0-9]/g, '');
             }
 
-            // Price estimation (matches checklist logic)
-            const priceGuide = {
-                'Base': 1, 'Base RC': 1.5, 'Base Rookie': 1.5,
-                'Parallel': 5, 'Insert': 4, 'Insert SSP': 50,
-                'Chase SSP': 100,
-            };
-            const setMods = {
-                'Score': 0.5, 'Donruss': 0.8, 'Prizm': 2, 'Select': 1.5, 'Mosaic': 1.2,
-                'Optic': 1.8, 'Chrome': 2.5, 'Origins': 2, 'Contenders': 1.5, 'Phoenix': 1.2,
-                'Leaf': 0.5, 'SAGE': 0.3, 'Wild Card': 0.4, 'Bowman': 1, 'Topps Now': 3,
-                'Cosmic Chrome': 2, 'Certified': 1, 'Luminance': 1, 'Prestige': 0.8,
-                'Chronicles': 0.8, 'Absolute': 1, 'Zenith': 1, 'Rookies & Stars': 1, 'Totally Certified': 1
-            };
+            // Use PriceUtils from shared.js for consistent price calculation
             function estimatePrice(card) {
-                let base = priceGuide[card.type] || 2;
-                for (const [setKey, mod] of Object.entries(setMods)) {
-                    if (card.set.includes(setKey)) { base *= mod; break; }
-                }
-                if (card.name.includes('/')) {
-                    const match = card.name.match(/\/(\d+)/);
-                    if (match) base *= Math.max(3, 100 / parseInt(match[1]));
-                }
-                if (card.name.includes('Silver') || card.name.includes('Refractor')) base *= 3;
-                if (card.name.includes('Holo')) base *= 2;
-                if (card.name.includes('Downtown')) base = 60;
-                if (card.name.includes('Gold') && card.name.includes('/')) base *= 5;
-                return Math.round(base * 10) / 10;
+                return PriceUtils.estimate(card);
             }
 
             // Fetch checklist to get base card IDs
@@ -450,6 +637,13 @@
                 // Value stats (second line)
                 document.getElementById('value-stats-jayden-daniels').innerHTML =
                     `<span class="value-owned">$${Math.round(ownedValue)} owned</span> · <span class="value-needed">$${Math.round(neededValue)} to complete</span>`;
+
+                // Add to aggregate (base cards only)
+                aggOwned += ownedBaseCount;
+                aggTotal += totalBase;
+                aggOwnedValue += ownedValue;
+                aggNeededValue += neededValue;
+                updateAggregateStats();
             } catch (error) {
                 console.error('Failed to load Jayden Daniels progress:', error);
             }
@@ -510,6 +704,13 @@
                     // Value stats (second line)
                     document.getElementById('value-stats-washington-qbs').innerHTML =
                         `<span class="value-owned">$${Math.round(ownedQBsValue)} owned</span> · <span class="value-needed">$${Math.round(neededQBsValue)} to complete</span>`;
+
+                    // Add to aggregate
+                    aggOwned += ownedQBsCount;
+                    aggTotal += totalQBs;
+                    aggOwnedValue += ownedQBsValue;
+                    aggNeededValue += neededQBsValue;
+                    updateAggregateStats();
                 }
             } catch (error) {
                 console.error('Failed to load Washington QBs progress:', error);
@@ -589,9 +790,93 @@
                     // Count owned alternates
                     const ownedAlternatesCount = jmuAlternates.filter(c => jmuOwned.includes(c.id)).length;
                     document.getElementById('stat-alternates-jmu').textContent = `${ownedAlternatesCount}/${jmuAlternates.length}`;
+
+                    // Add to aggregate (main cards only, not alternates)
+                    aggOwned += ownedJmuCount;
+                    aggTotal += totalJmu;
+                    aggOwnedValue += ownedJmuValue;
+                    aggNeededValue += neededJmuValue;
+                    updateAggregateStats();
                 }
             } catch (error) {
                 console.error('Failed to load JMU progress:', error);
+            }
+        }
+
+        // Animate a number counting up
+        function animateValue(element, start, end, duration, prefix = '', suffix = '') {
+            const startTime = performance.now();
+            const update = (currentTime) => {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                // Ease out cubic for satisfying deceleration
+                const easeOut = 1 - Math.pow(1 - progress, 3);
+                const current = Math.round(start + (end - start) * easeOut);
+                element.textContent = prefix + current + suffix;
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                }
+            };
+            requestAnimationFrame(update);
+        }
+
+        // Track if we've animated yet (only animate once)
+        let hasAnimatedStats = false;
+
+        async function updateAggregateStats() {
+            // Read exact stats from gist (source of truth, saved by each checklist page)
+            let allStats = {};
+            if (window.githubSync && githubSync.isLoggedIn()) {
+                allStats = await githubSync.loadAllStats();
+            } else if (window.githubSync) {
+                allStats = await githubSync.loadPublicStats();
+            }
+
+            const checklists = ['jayden-daniels', 'washington-qbs', 'jmu-pro-players'];
+            let totalOwned = 0, totalCards = 0, totalOwnedValue = 0, totalNeededValue = 0;
+            let hasAnyStats = false;
+
+            checklists.forEach(id => {
+                const stats = allStats[id];
+                if (stats) {
+                    hasAnyStats = true;
+                    totalOwned += stats.owned || 0;
+                    totalCards += stats.total || 0;
+                    totalOwnedValue += stats.ownedValue || 0;
+                    totalNeededValue += stats.neededValue || 0;
+                }
+            });
+
+            if (!hasAnyStats) return;
+
+            const statsEl = document.getElementById('aggregate-stats');
+            statsEl.style.display = 'block';
+
+            const totalValue = totalOwnedValue + totalNeededValue;
+
+            if (!hasAnimatedStats) {
+                hasAnimatedStats = true;
+                // Animate the main stats with staggered delays
+                setTimeout(() => {
+                    animateValue(document.getElementById('agg-owned'), 0, totalOwned, 1200);
+                }, 200);
+                setTimeout(() => {
+                    animateValue(document.getElementById('agg-total'), 0, totalCards, 1200);
+                }, 350);
+                setTimeout(() => {
+                    animateValue(document.getElementById('agg-value'), 0, totalValue, 1400, '$');
+                }, 500);
+                setTimeout(() => {
+                    animateValue(document.getElementById('agg-owned-value'), 0, totalOwnedValue, 1000, '$', ' owned');
+                    animateValue(document.getElementById('agg-needed-value'), 0, totalNeededValue, 1000, '$', ' needed');
+                }, 650);
+            } else {
+                // Just update without animation (e.g., when data changes)
+                document.getElementById('agg-owned').textContent = totalOwned;
+                document.getElementById('agg-total').textContent = totalCards;
+                document.getElementById('agg-value').textContent = '$' + totalValue;
+                document.getElementById('agg-owned-value').textContent = '$' + totalOwnedValue + ' owned';
+                document.getElementById('agg-needed-value').textContent = '$' + totalNeededValue + ' needed';
             }
         }
 
@@ -608,8 +893,9 @@
                 }
             });
 
-            // Load progress data
+            // Load progress data for individual cards and aggregate stats
             loadProgress();
+            updateAggregateStats();
         }
         init();
     </script>
