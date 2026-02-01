@@ -36,7 +36,10 @@ class GitHubSync {
     login() {
         const redirectUri = window.location.origin + window.location.pathname;
         const scope = 'gist';
-        const authUrl = `https://github.com/login/oauth/authorize?client_id=${CONFIG.GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}`;
+        // Generate state parameter for CSRF protection
+        const state = crypto.randomUUID();
+        sessionStorage.setItem('oauth_state', state);
+        const authUrl = `https://github.com/login/oauth/authorize?client_id=${CONFIG.GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&state=${encodeURIComponent(state)}`;
         window.location.href = authUrl;
     }
 
@@ -44,8 +47,18 @@ class GitHubSync {
     async handleCallback() {
         const params = new URLSearchParams(window.location.search);
         const code = params.get('code');
+        const state = params.get('state');
 
         if (!code) return false;
+
+        // Verify state parameter for CSRF protection
+        const expectedState = sessionStorage.getItem('oauth_state');
+        sessionStorage.removeItem('oauth_state');
+        if (!state || state !== expectedState) {
+            console.error('OAuth state mismatch - possible CSRF attack');
+            window.history.replaceState({}, document.title, window.location.pathname);
+            return false;
+        }
 
         // Clean URL
         window.history.replaceState({}, document.title, window.location.pathname);
