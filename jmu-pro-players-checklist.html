@@ -63,32 +63,25 @@
             background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
         }
 
-        /* Player name and badges */
+        /* Player name */
         .player-name {
             font-size: 14px;
             font-weight: bold;
             color: #450084;
             margin-bottom: 4px;
         }
-        .player-badge {
+
+        /* Achievement pills */
+        .achievement {
             display: inline-block;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-size: 9px;
-            font-weight: bold;
-            margin-left: 4px;
-        }
-        .player-badge.hof {
-            background: #C9A227;
-            color: #450084;
-        }
-        .player-badge.sb {
-            background: #450084;
+            background: rgba(201,162,39,0.2);
             color: #C9A227;
-        }
-        .player-badge.pb {
-            background: #6b2fa0;
-            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-top: 6px;
+            align-self: center;
         }
 
         /* Intro text */
@@ -243,7 +236,7 @@
                 },
                 {
                     player: "Scott Norwood",
-                    badges: [],
+                    badges: ["PB"],
                     set: "1989 Score",
                     num: "#290",
                     name: "NFL Rookie Card",
@@ -255,7 +248,7 @@
                 },
                 {
                     player: "Scott Norwood",
-                    badges: [],
+                    badges: ["PB"],
                     set: "1989 Topps",
                     num: "#42",
                     name: "NFL Rookie Card",
@@ -941,13 +934,10 @@
         }
 
 
-        function getBadgeHtml(badges) {
-            return badges.map(b => {
-                if (b === 'HOF') return '<span class="player-badge hof">HOF</span>';
-                if (b.includes('SB')) return `<span class="player-badge sb">${b}</span>`;
-                if (b.includes('PB')) return `<span class="player-badge pb">${b}</span>`;
-                return '';
-            }).join('');
+        function getAchievementHtml(badges) {
+            if (!badges || badges.length === 0) return '';
+            const text = badges.join(', ');
+            return `<span class="achievement">${text}</span>`;
         }
 
         function createCardElement(card) {
@@ -966,15 +956,18 @@
                             : `<a href="${searchUrl}" target="_blank" class="card-image placeholder">Click to view on eBay</a>`
                         }
                     </div>
-                    <div class="player-name">${card.player}${getBadgeHtml(card.badges)}</div>
+                    <div class="player-name">${card.player}</div>
                     <div class="card-title">${card.set}</div>
                     <div class="card-number">${card.num} ${card.name}</div>
                     <div class="card-type">${card.type}</div>
-                    ${!checklistManager.isReadOnly ? `<div class="checkbox-wrapper">
-                        <input type="checkbox" id="${cardId}" ${owned ? 'checked' : ''} onchange="toggleOwned('${cardId}', this)">
-                        <label for="${cardId}">Owned</label>
-                    </div>` : (owned ? '<div class="owned-badge">✓ Owned</div>' : '')}
-                    <a href="${searchUrl}" target="_blank" class="search-link">Search eBay</a>
+                    ${getAchievementHtml(card.badges)}
+                    <div class="card-actions${checklistManager.isReadOnly && !owned ? ' links-only' : ''}">
+                        ${!checklistManager.isReadOnly ? `<div class="checkbox-wrapper">
+                            <input type="checkbox" id="${cardId}" ${owned ? 'checked' : ''} onchange="toggleOwned('${cardId}', this)">
+                            <label for="${cardId}">Owned</label>
+                        </div>` : (owned ? '<span class="owned-badge">✓ Owned</span>' : '')}
+                        <a href="${searchUrl}" target="_blank" class="search-link">eBay</a>
+                    </div>
                 </div>
             `;
         }

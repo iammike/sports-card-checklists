@@ -380,11 +380,13 @@
                     <div class="card-title">${card.set}</div>
                     <div class="card-number">${card.num} ${card.name}</div>
                     <div class="card-type">${card.type}</div>
-                    ${!checklistManager.isReadOnly ? `<div class="checkbox-wrapper">
-                        <input type="checkbox" id="${cardId}" ${owned ? 'checked' : ''} onchange="toggleOwned('${cardId}', this)">
-                        <label for="${cardId}">Owned</label>
-                    </div>` : (owned ? '<div class="owned-badge">✓ Owned</div>' : '')}
-                    <a href="${searchUrl}" target="_blank" class="search-link">eBay</a> · <a href="${scpSearch}" target="_blank" class="search-link">Prices</a>
+                    <div class="card-actions${checklistManager.isReadOnly && !owned ? ' links-only' : ''}">
+                        ${!checklistManager.isReadOnly ? `<div class="checkbox-wrapper">
+                            <input type="checkbox" id="${cardId}" ${owned ? 'checked' : ''} onchange="toggleOwned('${cardId}', this)">
+                            <label for="${cardId}">Owned</label>
+                        </div>` : (owned ? '<span class="owned-badge">✓ Owned</span>' : '')}
+                        <span class="search-links"><a href="${searchUrl}" target="_blank" class="search-link">eBay</a> · <a href="${scpSearch}" target="_blank" class="search-link">Prices</a></span>
+                    </div>
                 </div>
             `;
         }
