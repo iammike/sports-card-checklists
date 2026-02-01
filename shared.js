@@ -18,6 +18,32 @@ function sanitizeUrl(url) {
 }
 
 /**
+ * Shared Auth UI helpers (for pages without ChecklistManager)
+ */
+const AuthUI = {
+    update(logoutFn = () => { githubSync.logout(); location.reload(); }) {
+        const authContent = document.getElementById('auth-content');
+        if (!authContent || !window.githubSync) return;
+
+        if (githubSync.isLoggedIn()) {
+            const user = githubSync.getUser();
+            const safeAvatarUrl = sanitizeUrl(user.avatar_url);
+            const safeLogin = sanitizeText(user.login);
+            authContent.innerHTML = `
+                <div class="nav-user">
+                    <img src="${safeAvatarUrl}" alt="">
+                    <span>${safeLogin}</span>
+                </div>
+                <button class="nav-btn logout" id="auth-logout-btn">Sign out</button>
+            `;
+            document.getElementById('auth-logout-btn').onclick = logoutFn;
+        } else {
+            authContent.innerHTML = '';
+        }
+    }
+};
+
+/**
  * Checklist Manager - handles owned state, sync, and auth
  */
 class ChecklistManager {
