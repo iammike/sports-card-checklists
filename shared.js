@@ -106,7 +106,7 @@ class ChecklistManager {
         }
     }
 
-    // Update auth bar UI
+    // Update nav auth UI
     updateAuthUI() {
         const authContent = document.getElementById('auth-content');
         if (!authContent || !window.githubSync) return;
@@ -114,11 +114,11 @@ class ChecklistManager {
         if (githubSync.isLoggedIn()) {
             const user = githubSync.getUser();
             authContent.innerHTML = `
-                <span class="user-info">
+                <div class="nav-user">
                     <img src="${user.avatar_url}" alt="">
-                    ${user.login}
-                </span>
-                <button class="logout" onclick="checklistManager.logout()">Sign out</button>
+                    <span>${user.login}</span>
+                </div>
+                <button class="nav-btn logout" onclick="checklistManager.logout()">Sign out</button>
             `;
         } else {
             authContent.innerHTML = '';

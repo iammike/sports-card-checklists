@@ -79,12 +79,6 @@
             margin-bottom: 20px;
         }
 
-        .auth-bar {
-            padding: 10px 15px;
-            background: rgba(0,0,0,0.2);
-            margin-bottom: 20px;
-        }
-
         .stat {
             background: rgba(0,0,0,0.3);
             border: 1px solid rgba(255,255,255,0.08);
@@ -302,16 +296,32 @@
     </style>
 </head>
 <body>
+    <nav class="nav-bar">
+        <div class="nav-inner">
+            <a href="index.html" class="nav-brand" title="All Checklists">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="3" y="3" width="8" height="11" rx="1" opacity="0.7"/>
+                    <rect x="13" y="3" width="8" height="11" rx="1"/>
+                    <rect x="3" y="16" width="18" height="5" rx="1" opacity="0.4"/>
+                </svg>
+                <span class="nav-brand-text">CHECKLISTS</span>
+            </a>
+            <div class="nav-divider"></div>
+            <div class="nav-links">
+                <a href="jayden-daniels-rookie-checklist.html" class="nav-link">JAYDEN DANIELS</a>
+                <a href="washington-qbs-rookie-checklist.html" class="nav-link active">WASHINGTON QBS</a>
+                <a href="jmu-pro-players-checklist.html" class="nav-link">JMU PROS</a>
+            </div>
+            <div class="nav-divider"></div>
+            <div class="nav-auth">
+                <span class="sync-status" id="sync-status"></span>
+                <div id="auth-content"></div>
+            </div>
+        </div>
+    </nav>
+
     <div class="container">
         <div class="page-header">
-            <div class="auth-bar" id="auth-bar">
-                <a href="index.html" class="back-link">← All Checklists</a>
-                <div class="right-section">
-                    <span class="sync-status" id="sync-status"></span>
-                    <div id="auth-content"></div>
-                </div>
-            </div>
-
             <h1>Washington Redskins/Commanders</h1>
             <p class="subtitle">Starting QB Rookie Cards (1982-2025)</p>
 
