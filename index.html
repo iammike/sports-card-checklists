@@ -499,28 +499,9 @@
     <script src="github-sync.js"></script>
     <script src="shared.js"></script>
     <script>
-        function updateAuthUI() {
-            const authContent = document.getElementById('auth-content');
-            if (githubSync.isLoggedIn()) {
-                const user = githubSync.getUser();
-                const safeAvatarUrl = sanitizeUrl(user.avatar_url);
-                const safeLogin = sanitizeText(user.login);
-                authContent.innerHTML = `
-                    <div class="nav-user">
-                        <img src="${safeAvatarUrl}" alt="">
-                        <span>${safeLogin}</span>
-                    </div>
-                    <button class="nav-btn logout" onclick="logout()">Sign out</button>
-                `;
-            } else {
-                authContent.innerHTML = '';
-            }
-        }
-
-        function logout() {
-            githubSync.logout();
-            location.reload();
-        }
+        // Progress ring constants (must match SVG circle r="20" and stroke-dasharray="125.6")
+        const PROGRESS_RING_RADIUS = 20;
+        const PROGRESS_RING_CIRCUMFERENCE = 2 * Math.PI * PROGRESS_RING_RADIUS;
 
         async function loadProgress() {
             // Load all stats from gist (source of truth)
@@ -530,8 +511,6 @@
             } else if (window.githubSync) {
                 allStats = await githubSync.loadPublicStats();
             }
-
-            const circumference = 2 * Math.PI * 20; // r=20
 
             // Helper to update a card's progress display
             function updateCardProgress(id, stats, extraStatId, extraStatKey) {
@@ -543,7 +522,7 @@
                 progressSection.style.display = 'block';
 
                 const pct = stats.total > 0 ? Math.round((stats.owned / stats.total) * 100) : 0;
-                const offset = circumference - (pct / 100) * circumference;
+                const offset = PROGRESS_RING_CIRCUMFERENCE - (pct / 100) * PROGRESS_RING_CIRCUMFERENCE;
 
                 const ring = document.getElementById(`progress-ring-${id}`);
                 if (ring) ring.style.strokeDashoffset = offset;
@@ -671,8 +650,8 @@
         async function init() {
             if (window.githubSync) {
                 await githubSync.handleCallback();
-                updateAuthUI();
-                githubSync.onAuthChange = updateAuthUI;
+                AuthUI.update();
+                githubSync.onAuthChange = () => AuthUI.update();
             }
             // Secret login: click "Mike's" to sign in
             document.getElementById('mike-link').addEventListener('click', () => {
