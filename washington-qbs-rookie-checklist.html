@@ -4,68 +4,66 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Washington Redskins/Commanders QB Rookie Cards (1982-2025)</title>
+    <link rel="stylesheet" href="shared.css">
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        /* Washington Commanders Theme - Burgundy and Gold (Dark) */
+        :root {
+            --color-primary: #FFB612;
+            --color-primary-dark: #5A1414;
+            --color-accent: #FFB612;
+            --color-background: linear-gradient(135deg, #5A1414 0%, #2a0a0a 100%);
+            --color-surface: rgba(255,255,255,0.05);
+            --color-text: #fff;
+            --color-text-muted: #ccc;
+            --color-text-light: #888;
+            --auth-bg: rgba(0,0,0,0.2);
+            --stat-bg: rgba(255,255,255,0.1);
+            --stat-value-color: #FFB612;
+            --card-border: transparent;
+            --card-hover-color: rgba(255,182,18,0.5);
+            --card-owned-bg: rgba(255,182,18,0.15);
+            --card-owned-border: #FFB612;
+        }
+
+        * { margin: 0; padding: 0; }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #5A1414 0%, #2a0a0a 100%);
             min-height: 100vh;
-            padding: 20px;
             color: #fff;
         }
+
         .container { max-width: 1400px; margin: 0 auto; }
+
         h1 {
-            text-align: center;
             font-size: 2em;
             margin-bottom: 5px;
             color: #FFB612;
         }
-        .subtitle {
-            text-align: center;
-            color: #ccc;
-            margin-bottom: 20px;
+
+        .subtitle { color: #ccc; }
+
+        .auth-bar {
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
         }
-        .stats {
-            display: flex;
-            justify-content: center;
-            gap: 30px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-        .stat {
-            text-align: center;
-            background: rgba(255,255,255,0.1);
-            padding: 15px 25px;
-            border-radius: 10px;
-        }
-        .stat-value { font-size: 2em; font-weight: bold; color: #FFB612; }
-        .stat-label { font-size: 0.85em; color: #aaa; }
-        .stat-breakdown {
-            display: flex;
-            gap: 10px;
-            font-size: 0.7em;
-            margin-top: 4px;
-        }
-        .stat-breakdown .owned-value { color: #4caf50; }
-        .stat-breakdown .needed-value { color: #ff9800; }
-        .filters {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
+
+        .stat { background: rgba(255,255,255,0.1); }
+
+        /* Dark theme form elements */
         select, input[type="text"] {
-            padding: 10px 15px;
-            border-radius: 8px;
             border: 1px solid rgba(255,255,255,0.2);
             background: rgba(0,0,0,0.3);
             color: #fff;
-            font-size: 14px;
         }
-        .era-section {
-            margin-bottom: 30px;
+
+        .filters {
+            background: transparent;
+            box-shadow: none;
         }
+
+        /* Era sections */
+        .era-section { margin-bottom: 30px; }
         .era-title {
             font-size: 1.3em;
             color: #FFB612;
@@ -73,52 +71,45 @@
             padding-bottom: 5px;
             border-bottom: 2px solid rgba(255,182,18,0.3);
         }
+
+        /* Card grid (uses different class name) */
         .cards-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
             gap: 20px;
         }
+
+        /* Dark theme cards */
         .card {
             background: rgba(255,255,255,0.05);
             border-radius: 12px;
             padding: 12px;
             border: 2px solid transparent;
-            transition: all 0.2s;
-            position: relative;
+            display: flex;
+            flex-direction: column;
         }
+
         .card:hover {
             border-color: rgba(255,182,18,0.5);
             transform: translateY(-3px);
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
+
         .card.owned {
             border-color: #FFB612;
             background: rgba(255,182,18,0.15);
         }
-        .card.super-bowl {
-            background: rgba(255,215,0,0.1);
-        }
-        .card.super-bowl.owned {
-            background: rgba(39,174,96,0.2);
-        }
+
+        .card.super-bowl { background: rgba(255,215,0,0.1); }
+        .card.super-bowl.owned { background: rgba(39,174,96,0.2); }
+
         .card-image-wrapper {
-            position: relative;
-            width: 100%;
-            padding-top: 140%;
             margin-bottom: 10px;
             background: rgba(0,0,0,0.3);
             border-radius: 8px;
-            overflow: hidden;
         }
-        .card-image {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            background: #1a1a1a;
-        }
+
+        .card-image { background: #1a1a1a; }
         .card-image.no-image {
             display: flex;
             align-items: center;
@@ -126,18 +117,15 @@
             color: #666;
             font-size: 0.8em;
         }
+
+        /* Price badge - different style for dark theme */
         .price-badge {
-            position: absolute;
-            top: 8px;
-            right: 8px;
             background: linear-gradient(135deg, #27ae60, #2ecc71);
-            color: #fff;
             padding: 4px 10px;
             border-radius: 20px;
             font-size: 0.8em;
-            font-weight: bold;
-            z-index: 1;
         }
+
         .super-bowl-badge {
             position: absolute;
             top: 8px;
@@ -150,28 +138,18 @@
             font-weight: bold;
             z-index: 1;
         }
+
+        /* Player info */
         .player-name {
             font-size: 1em;
             font-weight: bold;
             color: #fff;
             margin-bottom: 2px;
         }
-        .player-years {
-            font-size: 0.75em;
-            color: #888;
-        }
-        .player-record {
-            font-size: 0.7em;
-            color: #aaa;
-        }
-        .card-info {
-            font-size: 0.75em;
-            color: #bbb;
-            margin: 6px 0;
-        }
-        .card-set {
-            color: #FFB612;
-        }
+        .player-years { font-size: 0.75em; color: #888; }
+        .player-record { font-size: 0.7em; color: #aaa; }
+        .card-info { font-size: 0.75em; color: #bbb; margin: 6px 0; }
+        .card-set { color: #FFB612; }
         .achievement {
             display: inline-block;
             background: rgba(255,182,18,0.2);
@@ -179,48 +157,29 @@
             padding: 2px 6px;
             border-radius: 4px;
             font-size: 0.65em;
-            margin-top: 4px;
+            align-self: center;
         }
-        .card-actions {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-        }
+
+        /* Theme overrides for card actions */
         .checkbox-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            cursor: pointer;
             font-size: 0.8em;
         }
-        .checkbox-wrapper input {
-            width: 16px;
-            height: 16px;
-            cursor: pointer;
-        }
+        .checkbox-wrapper input { width: 16px; height: 16px; }
+        .checkbox-wrapper label { color: inherit; }
+
         .owned-badge {
-            font-size: 0.8em;
             color: #FFB612;
-            font-weight: bold;
         }
-        .read-only-notice {
-            background: rgba(255,182,18,0.2);
-            color: #FFB612;
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 0.85em;
-            margin-right: auto;
+
+        .links {
+            font-size: 0.75em;
         }
         .links a {
             color: #3498db;
             text-decoration: none;
-            font-size: 0.75em;
-            margin-left: 8px;
         }
         .links a:hover { text-decoration: underline; }
+
         footer {
             text-align: center;
             margin-top: 40px;
@@ -228,65 +187,8 @@
             color: #666;
             font-size: 0.85em;
         }
-        .auth-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 15px;
-            padding: 10px;
-            background: rgba(0,0,0,0.2);
-            border-radius: 8px;
-        }
-        .auth-bar .user-info {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #aaa;
-            font-size: 0.85em;
-        }
-        .auth-bar .user-info img {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-        }
-        .auth-bar button {
-            padding: 8px 16px;
-            border-radius: 6px;
-            border: none;
-            cursor: pointer;
-            font-size: 0.85em;
-            background: #238636;
-            color: white;
-        }
-        .auth-bar button:hover { background: #2ea043; }
-        .auth-bar button.logout { background: #444; }
-        .auth-bar button.logout:hover { background: #555; }
-        .auth-bar .back-link {
-            color: #aaa;
-            text-decoration: none;
-            font-size: 0.85em;
-        }
-        .auth-bar .back-link:hover {
-            color: #fff;
-        }
-        .auth-bar .right-section {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .sync-status {
-            font-size: 0.75em;
-            color: #888;
-        }
-        .sync-status.syncing { color: #f1c40f; }
-        .sync-status.synced { color: #2ecc71; }
-        .sync-status.error { color: #e74c3c; }
-        @media (max-width: 600px) {
-            .cards-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-            h1 { font-size: 1.5em; }
-            .card { padding: 8px; }
-        }
+
+        /* Collection link card (Jayden Daniels promo) */
         .card.collection-link {
             background: linear-gradient(135deg, rgba(255,182,18,0.2), rgba(255,182,18,0.05));
             border: 2px solid rgba(255,182,18,0.4);
@@ -295,9 +197,6 @@
         .card.collection-link:hover {
             border-color: #FFB612;
             background: linear-gradient(135deg, rgba(255,182,18,0.3), rgba(255,182,18,0.1));
-        }
-        .card.collection-link .card-image-wrapper {
-            position: relative;
         }
         .card.collection-link .card-stack {
             position: absolute;
@@ -345,8 +244,12 @@
             text-decoration: none;
             transition: transform 0.2s;
         }
-        .collection-cta:hover {
-            transform: scale(1.02);
+        .collection-cta:hover { transform: scale(1.02); }
+
+        @media (max-width: 600px) {
+            .cards-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+            h1 { font-size: 1.5em; }
+            .card { padding: 8px; }
         }
     </style>
 </head>
@@ -420,11 +323,11 @@
     </div>
 
     <script src="github-sync.js"></script>
+    <script src="shared.js"></script>
     <script>
-        const CHECKLIST_ID = 'washington-qbs';
         const qbs = [
             // Gibbs Era I (1982-1992) - 3 Super Bowls
-            { name: "Joe Theismann", years: "1982-1985", record: "39-13", playoff: "4-1", era: "gibbs1", set: "1975 Topps", num: "#416", price: 14.50, img: "washington-qbs-cards/theismann_1975_topps.webp", search: "joe+theismann+1975+topps+416", achievement: "SB XVII, 1983 MVP", superBowl: true },
+            { name: "Joe Theismann", years: "1982-1985", record: "39-13", playoff: "4-1", era: "gibbs1", set: "1975 Topps", num: "#416", price: 20, img: "washington-qbs-cards/theismann_1975_topps.webp", search: "joe+theismann+1975+topps+416", achievement: "SB XVII, 1983 MVP", superBowl: true },
             { name: "Jay Schroeder", years: "1986-1987", record: "12-4", playoff: "1-1", era: "gibbs1", set: "1986 Topps", num: "#172", price: 1.79, img: "washington-qbs-cards/schroeder_1986_topps.webp", search: "jay+schroeder+1986+topps+172" },
             { name: "Doug Williams", years: "1986-1989", record: "5-9", playoff: "4-0", era: "gibbs1", set: "1979 Topps", num: "#48", price: 3.99, img: "washington-qbs-cards/williams_1979_topps.webp", search: "doug+williams+1979+topps+48", achievement: "SB XXII MVP", superBowl: true },
             { name: "Doug Williams", years: "1986-1989", record: "5-9", playoff: "4-0", era: "gibbs1", set: "1984 Topps USFL", num: "#96", price: 6.11, img: "washington-qbs-cards/williams_1984_topps_usfl.webp", search: "doug+williams+1984+topps+usfl+96", achievement: "SB XXII MVP", superBowl: true },
@@ -471,132 +374,75 @@
             { name: "Taylor Heinicke", years: "2020-2022", record: "12-11-1", playoff: "0-1", era: "modern", set: "2015 Prizm", num: "#288", price: 1.89, img: "washington-qbs-cards/heinicke_2015_prizm.webp", search: "taylor+heinicke+2015+prizm+288" },
             { name: "Carson Wentz", years: "2022", record: "2-5", playoff: "-", era: "modern", set: "2016 Donruss Optic", num: "#156", price: 1.99, img: "washington-qbs-cards/wentz_2016_donruss_optic.webp", search: "carson+wentz+2016+donruss+optic+156", achievement: "#2 Overall Pick" },
             { name: "Sam Howell", years: "2022-2023", record: "5-13", playoff: "-", era: "modern", set: "2022 Prizm Jersey", num: "#PJ-SH", price: 2.17, img: "washington-qbs-cards/howell_2022_prizm_jersey.webp", search: "sam+howell+2022+panini+prizm+premier+jerseys+pj-sh" },
-            { name: "Jayden Daniels", years: "2024-2025", record: "14-10", playoff: "2-1", era: "modern", collectionLink: "jayden-daniels-rookie-checklist.html", cardCount: 41, achievement: "2024 OROY" },
+            { name: "Jayden Daniels", years: "2024-2025", record: "14-10", playoff: "2-1", era: "modern", collectionLink: "jayden-daniels-rookie-checklist.html", cardCount: 40, achievement: "2024 OROY" },
             { name: "Marcus Mariota", years: "2025", record: "2-6", playoff: "-", era: "modern", set: "2015 Finest Atomic", num: "#ARDC-MM", price: 2.91, img: "washington-qbs-cards/mariota_2015_finest_die_cut.webp", search: "marcus+mariota+2015+topps+finest+atomic+rookie+die+cut", achievement: "#2 Overall Pick" },
             { name: "Josh Johnson", years: "2025", record: "1-1", playoff: "-", era: "modern", set: "2008 Upper Deck", num: "#258", price: 1.01, img: "washington-qbs-cards/johnson_2008_upper_deck.webp", search: "josh+johnson+2008+upper+deck+258" },
         ];
 
-        const STORAGE_KEY = 'washington-qbs-owned';
-        const OWNER_USERNAME = 'iammike';
-        let owned = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-        let syncPending = false;
-        let jaydenDanielsStats = { owned: 0, total: 41 };
-        let isReadOnly = false;
+        // Initialize ChecklistManager
+        let jaydenDanielsStats = { owned: 0, total: 40 };
 
+        const checklistManager = new ChecklistManager({
+            checklistId: 'washington-qbs',
+            ownerUsername: 'iammike',
+            localStorageKey: 'washington-qbs-owned',
+            onOwnedChange: () => { render(); }
+        });
+
+        // Wrapper functions for backward compatibility
         function getCardId(qb) {
-            // Create unique ID from name + set + num
             return btoa(qb.name + qb.set + qb.num).replace(/[^a-zA-Z0-9]/g, '');
         }
 
-        function isOwner() {
-            if (!window.githubSync || !githubSync.isLoggedIn()) return false;
-            const user = githubSync.getUser();
-            return user && user.login === OWNER_USERNAME;
-        }
-
-        async function saveOwned() {
-            // Always save to localStorage as backup
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(owned));
-
-            // Sync to GitHub if logged in
-            if (window.githubSync && githubSync.isLoggedIn()) {
-                setSyncStatus('syncing', 'Syncing...');
-                const success = await githubSync.saveChecklist(CHECKLIST_ID, owned);
-                if (success) {
-                    setSyncStatus('synced', 'Synced');
-                } else {
-                    setSyncStatus('error', 'Sync failed');
-                }
-            }
-        }
-
-        async function loadOwned() {
-            // Try to load from GitHub first if logged in
-            if (window.githubSync && githubSync.isLoggedIn()) {
-                setSyncStatus('syncing', 'Loading...');
-                const cloudOwned = await githubSync.loadChecklist(CHECKLIST_ID);
-                if (cloudOwned && cloudOwned.length > 0) {
-                    owned = cloudOwned;
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(owned));
-                    setSyncStatus('synced', 'Synced');
-                    return;
-                }
-                setSyncStatus('synced', 'Synced');
-            } else if (window.githubSync) {
-                // Load from public gist for visitors
-                const publicOwned = await githubSync.loadPublicChecklist(CHECKLIST_ID);
-                if (publicOwned && publicOwned.length > 0) {
-                    owned = publicOwned;
-                    return;
-                }
-            }
-            // Fall back to localStorage
-            owned = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-        }
-
-        async function loadJaydenDanielsStats() {
-            // Try to load Jayden Daniels checklist data to show owned count
-            try {
-                if (window.githubSync && githubSync.isLoggedIn()) {
-                    const jdOwned = await githubSync.loadChecklist('jayden-daniels');
-                    if (jdOwned) {
-                        jaydenDanielsStats.owned = jdOwned.length;
-                    }
-                } else if (window.githubSync) {
-                    // Load from public gist for visitors
-                    const jdOwned = await githubSync.loadPublicChecklist('jayden-daniels');
-                    if (jdOwned) {
-                        jaydenDanielsStats.owned = jdOwned.length;
-                    }
-                } else {
-                    // Fall back to localStorage
-                    const localJD = JSON.parse(localStorage.getItem('jaydenDanielsOwned') || '[]');
-                    jaydenDanielsStats.owned = localJD.length;
-                }
-            } catch (e) {
-                console.log('Could not load Jayden Daniels stats');
-            }
+        function isOwned(cardId) {
+            return checklistManager.isOwned(cardId);
         }
 
         function toggleOwned(cardId) {
-            const idx = owned.indexOf(cardId);
-            if (idx === -1) {
-                owned.push(cardId);
-            } else {
-                owned.splice(idx, 1);
-            }
-            saveOwned();
-            render();
+            const owned = isOwned(cardId);
+            checklistManager.toggleOwned(cardId, !owned);
         }
 
-        function setSyncStatus(status, text) {
-            const el = document.getElementById('sync-status');
-            el.className = 'sync-status ' + status;
-            el.textContent = text;
-            if (status === 'synced') {
-                setTimeout(() => { el.textContent = ''; }, 2000);
+        async function loadJaydenDanielsStats() {
+            // Try gist base stats first (synced from JD page)
+            try {
+                if (window.githubSync) {
+                    const baseStats = githubSync.isLoggedIn()
+                        ? await githubSync.loadChecklist('jayden-daniels-base-stats')
+                        : await githubSync.loadPublicChecklist('jayden-daniels-base-stats');
+                    if (baseStats && baseStats[0]) {
+                        jaydenDanielsStats.owned = baseStats[0].owned;
+                        jaydenDanielsStats.total = baseStats[0].total;
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.log('Could not load base stats from gist');
             }
-        }
-
-        function updateAuthUI() {
-            const authContent = document.getElementById('auth-content');
-            if (githubSync.isLoggedIn()) {
-                const user = githubSync.getUser();
-                authContent.innerHTML = `
-                    <span class="user-info">
-                        <img src="${user.avatar_url}" alt="">
-                        ${user.login}
-                    </span>
-                    <button class="logout" onclick="logout()">Sign out</button>
-                `;
-            } else {
-                authContent.innerHTML = '';
+            // Second choice: localStorage (for testing, or if gist base stats not synced yet)
+            try {
+                const savedStats = JSON.parse(localStorage.getItem('jaydenDanielsBaseStats') || 'null');
+                if (savedStats) {
+                    jaydenDanielsStats.owned = savedStats.owned;
+                    jaydenDanielsStats.total = savedStats.total;
+                    return;
+                }
+            } catch (e) {
+                console.log('Could not load from localStorage');
             }
-        }
-
-        function logout() {
-            githubSync.logout();
-            location.reload();
+            // Final fallback: count all owned from gist (includes inserts)
+            try {
+                if (window.githubSync) {
+                    const jdOwned = githubSync.isLoggedIn()
+                        ? await githubSync.loadChecklist('jayden-daniels')
+                        : await githubSync.loadPublicChecklist('jayden-daniels');
+                    if (jdOwned) {
+                        jaydenDanielsStats.owned = jdOwned.length;
+                    }
+                }
+            } catch (e) {
+                console.log('Could not load Jayden Daniels stats from gist');
+            }
         }
 
         function getCardYear(qb) {
@@ -655,15 +501,15 @@
                     break;
                 case 'owned':
                     sorted.sort((a, b) => {
-                        const ownedA = owned.includes(getCardId(a)) ? 0 : 1;
-                        const ownedB = owned.includes(getCardId(b)) ? 0 : 1;
+                        const ownedA = isOwned(getCardId(a)) ? 0 : 1;
+                        const ownedB = isOwned(getCardId(b)) ? 0 : 1;
                         return ownedA - ownedB;
                     });
                     break;
                 case 'needed':
                     sorted.sort((a, b) => {
-                        const ownedA = owned.includes(getCardId(a)) ? 1 : 0;
-                        const ownedB = owned.includes(getCardId(b)) ? 1 : 0;
+                        const ownedA = isOwned(getCardId(a)) ? 1 : 0;
+                        const ownedB = isOwned(getCardId(b)) ? 1 : 0;
                         return ownedA - ownedB;
                     });
                     break;
@@ -673,13 +519,14 @@
 
         function renderQbCard(qb) {
             const cardId = qb.collectionLink ? null : getCardId(qb);
-            const isOwned = cardId ? owned.includes(cardId) : false;
+            const cardOwned = cardId ? isOwned(cardId) : false;
 
             // Special handling for collection link cards
             if (qb.collectionLink) {
+                const total = jaydenDanielsStats.total || qb.cardCount;
                 const jdBadge = jaydenDanielsStats.owned > 0
-                    ? `${jaydenDanielsStats.owned} / ${qb.cardCount}`
-                    : `${qb.cardCount} CARDS`;
+                    ? `${jaydenDanielsStats.owned} / ${total}`
+                    : `${total} CARDS`;
                 return `<div class="card collection-link" onclick="window.location.href='${qb.collectionLink}'">
                     <div class="card-image-wrapper">
                         <span class="collection-badge">${jdBadge}</span>
@@ -697,7 +544,7 @@
                 </div>`;
             }
 
-            const cardClass = `card ${isOwned ? 'owned' : ''} ${qb.superBowl ? 'super-bowl' : ''}`;
+            const cardClass = `card ${cardOwned ? 'owned' : ''} ${qb.superBowl ? 'super-bowl' : ''}`;
 
             return `<div class="${cardClass}">
                 <div class="card-image-wrapper">
@@ -712,14 +559,13 @@
                     <span class="card-set">${qb.set}</span> ${qb.num}
                 </div>
                 ${qb.achievement ? `<span class="achievement">${qb.achievement}</span>` : ''}
-                <div class="card-actions">
-                    ${!isReadOnly ? `<label class="checkbox-wrapper">
-                        <input type="checkbox" ${isOwned ? 'checked' : ''} onchange="toggleOwned('${cardId}')">
+                <div class="card-actions${checklistManager.isReadOnly && !cardOwned ? ' links-only' : ''}">
+                    ${!checklistManager.isReadOnly ? `<label class="checkbox-wrapper">
+                        <input type="checkbox" ${cardOwned ? 'checked' : ''} onchange="toggleOwned('${cardId}')">
                         <span>Owned</span>
-                    </label>` : (isOwned ? '<span class="owned-badge">✓ Owned</span>' : '<span></span>')}
+                    </label>` : (cardOwned ? '<span class="owned-badge">✓ Owned</span>' : '')}
                     <span class="links">
-                        <a href="https://www.ebay.com/sch/i.html?_nkw=${qb.search}&LH_BIN=1&_sop=15" target="_blank">eBay</a>
-                        <a href="https://www.sportscardspro.com/search-products?q=${encodeURIComponent(qb.name + ' rookie')}&type=prices" target="_blank">More</a>
+                        <a href="https://www.ebay.com/sch/i.html?_nkw=${qb.search}&LH_BIN=1&_sop=15" target="_blank">eBay</a> · <a href="https://www.sportscardspro.com/search-products?q=${encodeURIComponent(qb.name + ' rookie')}&type=prices" target="_blank">Prices</a>
                     </span>
                 </div>
             </div>`;
@@ -734,8 +580,8 @@
             let filtered = qbs.filter(qb => {
                 if (eraFilter !== 'all' && qb.era !== eraFilter) return false;
                 const cardId = qb.collectionLink ? null : getCardId(qb);
-                if (statusFilter === 'owned' && (!cardId || !owned.includes(cardId))) return false;
-                if (statusFilter === 'needed' && cardId && owned.includes(cardId)) return false;
+                if (statusFilter === 'owned' && (!cardId || !isOwned(cardId))) return false;
+                if (statusFilter === 'needed' && cardId && isOwned(cardId)) return false;
                 if (searchTerm && !qb.name.toLowerCase().includes(searchTerm)) return false;
                 return true;
             });
@@ -789,13 +635,13 @@
             const visibleQbs = filteredQbs || qbs;
             // Exclude collection link cards from counts
             const countableQbs = visibleQbs.filter(qb => !qb.collectionLink);
-            const ownedCount = countableQbs.filter(qb => owned.includes(getCardId(qb))).length;
+            const ownedCount = countableQbs.filter(qb => isOwned(getCardId(qb))).length;
             const totalCount = countableQbs.length;
             let totalValue = 0, ownedValue = 0, neededValue = 0;
             countableQbs.forEach(qb => {
                 const price = qb.price || 0;
                 totalValue += price;
-                if (owned.includes(getCardId(qb))) {
+                if (isOwned(getCardId(qb))) {
                     ownedValue += price;
                 } else {
                     neededValue += price;
@@ -816,49 +662,9 @@
 
         // Initialize
         async function init() {
-            // Handle OAuth callback
-            if (window.githubSync) {
-                await githubSync.handleCallback();
-                isReadOnly = !isOwner();
-                updateAuthUI();
-                githubSync.onAuthChange = async (loggedIn) => {
-                    isReadOnly = !isOwner();
-                    updateAuthUI();
-                    updateReadOnlyUI();
-                    if (loggedIn) {
-                        await loadOwned();
-                        await loadJaydenDanielsStats();
-                        render();
-                    }
-                };
-            } else {
-                isReadOnly = true;
-            }
-            try {
-                await loadOwned();
-                await loadJaydenDanielsStats();
-            } catch (e) {
-                console.error('Failed to load data:', e);
-            }
+            await checklistManager.init();
+            await loadJaydenDanielsStats();
             render();
-            updateReadOnlyUI();
-        }
-
-        function updateReadOnlyUI() {
-            // Show read-only notice
-            const authBar = document.getElementById('auth-bar');
-            const existingNotice = document.querySelector('.read-only-notice');
-            if (isReadOnly && !existingNotice && authBar) {
-                const notice = document.createElement('span');
-                notice.className = 'read-only-notice';
-                notice.textContent = "Viewing iammike's collection";
-                const rightSection = authBar.querySelector('.right-section');
-                if (rightSection) {
-                    authBar.insertBefore(notice, rightSection);
-                }
-            } else if (!isReadOnly && existingNotice) {
-                existingNotice.remove();
-            }
         }
         init();
     </script>

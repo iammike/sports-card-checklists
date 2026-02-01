@@ -1,0 +1,524 @@
+/* Sports Card Checklists - Shared Styles */
+
+/* ============================================
+   CSS Custom Properties (Theme Variables)
+   Override these in page-specific styles
+   ============================================ */
+:root {
+    /* Colors - defaults (Jayden Daniels theme) */
+    --color-primary: #667eea;
+    --color-primary-dark: #764ba2;
+    --color-accent: #f39c12;
+    --color-background: #f5f5f5;
+    --color-surface: white;
+    --color-text: #333;
+    --color-text-muted: #666;
+    --color-text-light: #999;
+
+    /* Auth bar */
+    --auth-bg: #1a1a2e;
+    --auth-link-color: #aaa;
+    --auth-link-hover: #fff;
+
+    /* Stats */
+    --stat-bg: #1a1a2e;
+    --stat-value-color: #667eea;
+    --stat-label-color: #aaa;
+
+    /* Cards */
+    --card-border: #e0e0e0;
+    --card-hover-color: #667eea;
+    --card-owned-bg: #e8f5e9;
+    --card-owned-border: #4caf50;
+
+    /* Common colors */
+    --color-success: #4caf50;
+    --color-warning: #ff9800;
+    --color-error: #f44336;
+    --color-sync-syncing: #f1c40f;
+    --color-sync-synced: #2ecc71;
+    --color-sync-error: #e74c3c;
+}
+
+/* ============================================
+   Base Styles
+   ============================================ */
+* { box-sizing: border-box; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--color-background);
+    margin: 0;
+    padding: 20px;
+    color: var(--color-text);
+}
+
+h1 {
+    text-align: center;
+    color: var(--color-primary);
+    margin-bottom: 10px;
+}
+
+.subtitle {
+    text-align: center;
+    color: var(--color-text-muted);
+    margin-bottom: 20px;
+}
+
+/* ============================================
+   Auth Bar
+   ============================================ */
+.auth-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+    padding: 10px 15px;
+    background: var(--auth-bg);
+    border-radius: 8px;
+}
+
+.auth-bar .back-link {
+    color: var(--auth-link-color);
+    text-decoration: none;
+    font-size: 0.85em;
+}
+
+.auth-bar .back-link:hover {
+    color: var(--auth-link-hover);
+}
+
+.auth-bar .right-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.auth-bar .user-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #aaa;
+    font-size: 0.85em;
+}
+
+.auth-bar .user-info img {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+}
+
+.auth-bar button {
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.85em;
+    background: #238636;
+    color: white;
+}
+
+.auth-bar button:hover { background: #2ea043; }
+.auth-bar button.logout { background: #444; }
+.auth-bar button.logout:hover { background: #555; }
+
+.sync-status {
+    font-size: 0.75em;
+    color: #888;
+}
+
+.sync-status.syncing { color: var(--color-sync-syncing); }
+.sync-status.synced { color: var(--color-sync-synced); }
+.sync-status.error { color: var(--color-sync-error); }
+
+.read-only-notice {
+    background: rgba(255, 182, 18, 0.2);
+    color: #FFB612;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.85em;
+    margin-right: auto;
+}
+
+/* ============================================
+   Stats Section
+   ============================================ */
+.stats {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.stat {
+    text-align: center;
+    background: var(--stat-bg);
+    padding: 15px 25px;
+    border-radius: 10px;
+}
+
+.stat-value {
+    font-size: 2em;
+    font-weight: bold;
+    color: var(--stat-value-color);
+}
+
+.stat-label {
+    font-size: 0.85em;
+    color: var(--stat-label-color);
+}
+
+.stat-breakdown {
+    display: flex;
+    gap: 10px;
+    font-size: 0.7em;
+    margin-top: 4px;
+}
+
+.stat-breakdown .owned-value { color: var(--color-success); }
+.stat-breakdown .needed-value { color: var(--color-warning); }
+
+/* ============================================
+   Filters
+   ============================================ */
+.filters {
+    background: var(--color-surface);
+    padding: 15px 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    align-items: center;
+    justify-content: center;
+}
+
+select, input[type="text"] {
+    padding: 10px 15px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-size: 14px;
+}
+
+.filter-btn {
+    padding: 8px 14px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    background: var(--color-surface);
+    color: var(--color-text);
+}
+
+.filter-btn:hover {
+    background: #f0f0f0;
+}
+
+/* ============================================
+   Sections & Headers
+   ============================================ */
+.section {
+    margin-bottom: 30px;
+}
+
+.group-header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    color: white;
+    padding: 14px 20px;
+    border-radius: 8px 8px 0 0;
+    font-size: 20px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 3px solid var(--color-accent);
+}
+
+.section-group {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 0 0 8px 8px;
+    margin-bottom: 30px;
+}
+
+.section-group .section {
+    margin-bottom: 20px;
+}
+
+.section-group .section:last-child {
+    margin-bottom: 0;
+}
+
+.section-header {
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px 8px 0 0;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+/* ============================================
+   Card Grid
+   ============================================ */
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 15px;
+    background: var(--color-surface);
+    padding: 20px;
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+/* ============================================
+   Card Component
+   ============================================ */
+.card {
+    border: 2px solid var(--card-border);
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+    transition: all 0.2s;
+    background: var(--color-surface);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.card:hover {
+    border-color: var(--card-hover-color);
+    box-shadow: 0 4px 15px rgba(102,126,234,0.3);
+    transform: translateY(-2px);
+}
+
+.card.owned {
+    background: var(--card-owned-bg);
+    border-color: var(--card-owned-border);
+}
+
+.card-image-wrapper {
+    position: relative;
+    width: 100%;
+    padding-top: 140%;
+    margin-bottom: 8px;
+    background: #f0f0f0;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.card-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #fafafa;
+    cursor: pointer;
+}
+
+.card-image.placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #999;
+    font-size: 12px;
+    text-decoration: none;
+    border: 1px dashed #ccc;
+}
+
+.card-image.placeholder:hover {
+    background: #f0f0f0;
+    color: var(--color-primary);
+}
+
+.card-title {
+    font-weight: bold;
+    font-size: 13px;
+    margin: 8px 0 4px;
+    color: var(--color-text);
+}
+
+.card-number {
+    font-size: 12px;
+    color: var(--color-text-muted);
+}
+
+.card-type {
+    font-size: 11px;
+    color: var(--color-text-light);
+    margin-top: 4px;
+}
+
+/* ============================================
+   Price Badge
+   ============================================ */
+.price-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: var(--color-success);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: bold;
+    z-index: 10;
+}
+
+.price-badge.mid { background: var(--color-warning); }
+.price-badge.high { background: var(--color-error); }
+
+.price-link {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 10px;
+    color: var(--color-text-light);
+    text-decoration: none;
+}
+
+.price-link:hover {
+    color: var(--color-primary);
+    text-decoration: underline;
+}
+
+/* ============================================
+   Card Actions (bottom of card)
+   ============================================ */
+.card-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+    padding-top: 8px;
+}
+
+.card-actions.links-only {
+    justify-content: center;
+}
+
+/* ============================================
+   Checkbox & Owned
+   ============================================ */
+.checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.checkbox-wrapper input {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    margin: 0;
+}
+
+.checkbox-wrapper label {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    line-height: 1;
+}
+
+.owned-badge {
+    font-size: 12px;
+    color: #27ae60;
+    font-weight: bold;
+}
+
+/* ============================================
+   Links
+   ============================================ */
+.search-link {
+    display: inline-block;
+    font-size: 11px;
+    color: var(--color-primary);
+    text-decoration: none;
+}
+
+.search-link:hover {
+    text-decoration: underline;
+}
+
+/* ============================================
+   Clear Button
+   ============================================ */
+.clear-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #ff5252;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 14px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+}
+
+.clear-btn:hover { background: #ff1744; }
+
+/* ============================================
+   Collapsible Sections
+   ============================================ */
+.section-header.collapsible {
+    cursor: pointer;
+    user-select: none;
+}
+
+.section-header.collapsible::after {
+    content: ' ▼';
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+.section-header.collapsible.collapsed::after {
+    content: ' ▶';
+}
+
+/* ============================================
+   Notes (for inserts, chase, extras)
+   ============================================ */
+.section-note {
+    background: rgba(243, 156, 18, 0.1);
+    color: #b36b00;
+    padding: 10px 15px;
+    font-size: 12px;
+    border-bottom: 1px solid rgba(243, 156, 18, 0.2);
+}
+
+/* ============================================
+   Print Styles
+   ============================================ */
+@media print {
+    .card { break-inside: avoid; }
+    .search-link { display: none; }
+    .auth-bar { display: none; }
+    .filters { display: none; }
+    .clear-btn { display: none; }
+    body { background: white; }
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+@media (max-width: 600px) {
+    .card-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    h1 { font-size: 1.5em; }
+
+    .card { padding: 8px; }
+
+    .stats { gap: 15px; }
+
+    .stat { padding: 10px 15px; }
+}

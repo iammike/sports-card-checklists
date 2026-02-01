@@ -4,189 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jayden Daniels Rookie Card Checklist</title>
+    <link rel="stylesheet" href="shared.css">
     <style>
-        * { box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f5f5f5;
-            margin: 0;
-            padding: 20px;
+        /* Page-specific theme overrides */
+        :root {
+            --color-primary: #667eea;
+            --color-primary-dark: #764ba2;
         }
-        h1 {
-            text-align: center;
-            color: #1a1a2e;
-            margin-bottom: 10px;
-        }
-        .subtitle {
-            text-align: center;
-            color: #666;
-            margin-bottom: 20px;
-        }
-        .stats {
-            display: flex;
-            justify-content: center;
-            gap: 30px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-        .stat {
-            text-align: center;
-            background: #1a1a2e;
-            padding: 15px 25px;
-            border-radius: 10px;
-        }
-        .stat-value { font-size: 2em; font-weight: bold; color: #667eea; }
-        .stat-label { font-size: 0.85em; color: #aaa; }
-        .stat-breakdown {
-            display: flex;
-            gap: 10px;
-            font-size: 0.7em;
-            margin-top: 4px;
-        }
-        .stat-breakdown .owned-value { color: #4caf50; }
-        .stat-breakdown .needed-value { color: #ff9800; }
-        .filters {
-            background: white;
-            padding: 15px 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            align-items: center;
-            justify-content: center;
-        }
-        select, input[type="text"] {
-            padding: 10px 15px;
-            border-radius: 8px;
-            border: 1px solid #ccc;
-            background: white;
-            color: #333;
-            font-size: 14px;
-        }
-        .filter-btn {
-            padding: 8px 14px;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 13px;
-            background: white;
-            color: #333;
-        }
-        .filter-btn:hover {
-            background: #f0f0f0;
-        }
-        .auth-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 15px;
-            padding: 10px 15px;
-            background: #1a1a2e;
-            border-radius: 8px;
-        }
-        .auth-bar .back-link {
-            color: #aaa;
-            text-decoration: none;
-            font-size: 0.85em;
-        }
-        .auth-bar .back-link:hover {
-            color: #fff;
-        }
-        .auth-bar .right-section {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .auth-bar .user-info {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #aaa;
-            font-size: 0.85em;
-        }
-        .auth-bar .user-info img {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-        }
-        .auth-bar button {
-            padding: 8px 16px;
-            border-radius: 6px;
-            border: none;
-            cursor: pointer;
-            font-size: 0.85em;
-            background: #238636;
-            color: white;
-        }
-        .auth-bar button:hover { background: #2ea043; }
-        .auth-bar button.logout { background: #444; }
-        .auth-bar button.logout:hover { background: #555; }
-        .sync-status {
-            font-size: 0.75em;
-            color: #888;
-        }
-        .sync-status.syncing { color: #f1c40f; }
-        .sync-status.synced { color: #2ecc71; }
-        .sync-status.error { color: #e74c3c; }
-        .price-badge {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            background: #4caf50;
-            color: white;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: bold;
-            z-index: 10;
-        }
-        .price-badge.mid { background: #ff9800; }
-        .price-badge.high { background: #f44336; }
-        .price-link {
-            display: inline-block;
-            margin-top: 4px;
-            font-size: 10px;
-            color: #999;
-            text-decoration: none;
-        }
-        .price-link:hover { color: #667eea; text-decoration: underline; }
-        .section {
-            margin-bottom: 30px;
-        }
-        .group-header {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            color: white;
-            padding: 14px 20px;
-            border-radius: 8px 8px 0 0;
-            font-size: 20px;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            border-bottom: 3px solid #f39c12;
-        }
-        .section-group {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 0 0 8px 8px;
-            margin-bottom: 30px;
-        }
-        .section-group .section {
-            margin-bottom: 20px;
-        }
-        .section-group .section:last-child {
-            margin-bottom: 0;
-        }
-        .section-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px 8px 0 0;
-            font-size: 18px;
-            font-weight: bold;
-        }
+
+        h1 { color: #1a1a2e; }
+
+        /* Section header variants */
         .section-header.college {
             background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
         }
@@ -196,172 +24,55 @@
         .section-header.other {
             background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
         }
-        .section-header.inserts {
+
+        /* Inserts section */
+        .group-header.inserts {
             background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        }
-        .card-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 15px;
-            background: white;
-            padding: 20px;
-            border-radius: 0 0 8px 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .card {
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 10px;
-            text-align: center;
-            transition: all 0.2s;
-            background: white;
-            position: relative;
-        }
-        .card:hover {
-            border-color: #667eea;
-            box-shadow: 0 4px 15px rgba(102,126,234,0.3);
-            transform: translateY(-2px);
-        }
-        .card.owned {
-            background: #e8f5e9;
-            border-color: #4caf50;
-        }
-        .card-image-wrapper {
-            position: relative;
-            width: 100%;
-            padding-top: 140%;
-            margin-bottom: 8px;
-            background: #f0f0f0;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-        .card-image {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            background: #fafafa;
             cursor: pointer;
         }
-        .card-image.placeholder {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #999;
-            font-size: 12px;
-            text-decoration: none;
-            border: 1px dashed #ccc;
-        }
-        .card-image.placeholder:hover {
-            background: #f0f0f0;
-            color: #667eea;
-        }
-        .card-title {
-            font-weight: bold;
-            font-size: 13px;
-            margin: 8px 0 4px;
-            color: #333;
-        }
-        .card-number {
-            font-size: 12px;
-            color: #666;
-        }
-        .card-type {
-            font-size: 11px;
-            color: #999;
-            margin-top: 4px;
-        }
-        .checkbox-wrapper {
-            margin-top: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-        }
-        .checkbox-wrapper input {
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
-            margin: 0;
-        }
-        .checkbox-wrapper label {
-            font-size: 12px;
-            color: #666;
-            cursor: pointer;
-            line-height: 1;
-        }
-        .owned-badge {
-            margin-top: 8px;
-            font-size: 12px;
-            color: #27ae60;
-            font-weight: bold;
-        }
-        .read-only-notice {
-            background: rgba(255,182,18,0.2);
-            color: #FFB612;
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 0.85em;
-            margin-right: auto;
-        }
-        .search-link {
-            display: inline-block;
-            margin-top: 6px;
-            font-size: 11px;
-            color: #667eea;
-            text-decoration: none;
-        }
-        .search-link:hover {
-            text-decoration: underline;
-        }
-        @media print {
-            .card { break-inside: avoid; }
-            .search-link { display: none; }
-            body { background: white; }
-        }
-        .clear-btn {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: #ff5252;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 25px;
-            cursor: pointer;
-            font-size: 14px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-        }
-        .clear-btn:hover { background: #ff1744; }
-        .section-header.chase {
-            background: linear-gradient(135deg, #f39c12 0%, #e74c3c 100%);
-            cursor: pointer;
-            user-select: none;
-        }
-        .section-header.chase::after,
         .group-header.inserts::after {
             content: ' ▼';
             font-size: 12px;
             opacity: 0.7;
         }
-        .section-header.chase.collapsed::after,
         .group-header.inserts.collapsed::after {
             content: ' ▶';
         }
-        .chase-section .card-grid,
         .inserts-section .section-group {
+            display: none;
+        }
+        .inserts-section.expanded .section-group {
+            display: block;
+        }
+        .inserts-note {
+            background: rgba(243, 156, 18, 0.1);
+            color: #b36b00;
+            padding: 10px 15px;
+            font-size: 12px;
+            border-bottom: 1px solid rgba(243, 156, 18, 0.2);
+        }
+
+        /* Chase section */
+        .section-header.chase {
+            background: linear-gradient(135deg, #f39c12 0%, #e74c3c 100%);
+            cursor: pointer;
+            user-select: none;
+        }
+        .section-header.chase::after {
+            content: ' ▼';
+            font-size: 12px;
+            opacity: 0.7;
+        }
+        .section-header.chase.collapsed::after {
+            content: ' ▶';
+        }
+        .chase-section .card-grid {
             display: none;
         }
         .chase-section.expanded .card-grid {
             display: grid;
         }
-        .inserts-section.expanded .section-group {
-            display: block;
-        }
-        .chase-note,
-        .inserts-note {
+        .chase-note {
             background: rgba(243, 156, 18, 0.1);
             color: #b36b00;
             padding: 10px 15px;
@@ -470,9 +181,10 @@
         <div class="card-grid" id="chase-cards"></div>
     </div>
 
-    <button class="clear-btn" onclick="clearAll()">Clear All</button>
+    <button class="clear-btn" onclick="checklistManager.clearAll()">Clear All</button>
 
     <script src="github-sync.js"></script>
+    <script src="shared.js"></script>
     <script>
         // BASE CARDS ONLY - no parallels or inserts
         const cards = {
@@ -582,170 +294,28 @@
             ]
         };
 
-        // Price estimates (rough, may be outdated)
-        const priceGuide = {
-            // Base cards generally cheap
-            'Base': 1, 'Base RC': 1.5, 'Base Rookie': 1.5,
-            // Parallels more expensive
-            'Parallel': 5, 'Insert': 4, 'Insert SSP': 50,
-            // Chase cards are expensive
-            'Chase SSP': 100,
-        };
+        // Initialize checklist manager
+        const checklistManager = new ChecklistManager({
+            checklistId: 'jayden-daniels',
+            ownerUsername: 'iammike',
+            localStorageKey: 'jaydenDanielsOwned',
+            onOwnedChange: () => { renderCards(); updateStats(); }
+        });
 
-        // Set-specific price modifiers
-        const setMods = {
-            'Score': 0.5, 'Donruss': 0.8, 'Prizm': 2, 'Select': 1.5, 'Mosaic': 1.2,
-            'Optic': 1.8, 'Chrome': 2.5, 'Origins': 2, 'Contenders': 1.5, 'Phoenix': 1.2,
-            'Leaf': 0.5, 'SAGE': 0.3, 'Wild Card': 0.4, 'Bowman': 1, 'Topps Now': 3,
-            'Cosmic Chrome': 2, 'Certified': 1, 'Luminance': 1, 'Prestige': 0.8,
-            'Chronicles': 0.8, 'Absolute': 1, 'Zenith': 1, 'Rookies & Stars': 1, 'Totally Certified': 1
-        };
+        // Use shared utilities
+        function estimatePrice(card) { return PriceUtils.estimate(card); }
+        function getCardId(card) { return checklistManager.getCardId(card); }
+        function isOwned(cardId) { return checklistManager.isOwned(cardId); }
 
-        function estimatePrice(card) {
-            let base = priceGuide[card.type] || 2;
-            // Check set modifiers
-            for (const [setKey, mod] of Object.entries(setMods)) {
-                if (card.set.includes(setKey)) { base *= mod; break; }
-            }
-            // Numbered cards are pricier
-            if (card.name.includes('/')) {
-                const match = card.name.match(/\/(\d+)/);
-                if (match) base *= Math.max(3, 100 / parseInt(match[1]));
-            }
-            // Special types
-            if (card.name.includes('Silver') || card.name.includes('Refractor')) base *= 3;
-            if (card.name.includes('Holo')) base *= 2;
-            if (card.name.includes('Downtown')) base = 60;
-            if (card.name.includes('Gold') && card.name.includes('/')) base *= 5;
-            return Math.round(base * 10) / 10;
+        function toggleOwned(cardId, checkbox) {
+            checklistManager.toggleOwned(cardId, checkbox.checked);
+            const cardEl = checkbox.closest('.card');
+            cardEl.classList.toggle('owned', checkbox.checked);
+            updateStats();
         }
 
         function applyFilters() {
-            const statusFilter = document.getElementById('status-filter').value;
-            const searchTerm = document.getElementById('search').value.toLowerCase();
-
-            document.querySelectorAll('.card').forEach(c => {
-                const owned = c.classList.contains('owned');
-                const cardText = c.textContent.toLowerCase();
-                let show = true;
-                // Status filter
-                if (statusFilter === 'owned' && !owned) show = false;
-                if (statusFilter === 'need' && owned) show = false;
-                // Search filter
-                if (searchTerm && !cardText.includes(searchTerm)) show = false;
-                c.style.display = show ? '' : 'none';
-            });
-            updateStats();
-        }
-
-        const CHECKLIST_ID = 'jayden-daniels';
-        const OWNER_USERNAME = 'iammike';
-        const OWNER_GIST_ID = localStorage.getItem('github_gist_id'); // Will be set when owner logs in
-        let ownedCards = [];  // Array of card IDs
-        let isReadOnly = false;
-
-        function isOwner() {
-            if (!window.githubSync || !githubSync.isLoggedIn()) return false;
-            const user = githubSync.getUser();
-            return user && user.login === OWNER_USERNAME;
-        }
-
-        function getCardId(card) {
-            return btoa(card.set + card.num + card.name).replace(/[^a-zA-Z0-9]/g, '');
-        }
-
-        async function loadOwned() {
-            // Try GitHub first if logged in
-            if (window.githubSync && githubSync.isLoggedIn()) {
-                setSyncStatus('syncing', 'Loading...');
-                const cloudOwned = await githubSync.loadChecklist(CHECKLIST_ID);
-                if (cloudOwned && cloudOwned.length > 0) {
-                    ownedCards = cloudOwned;
-                    // Also save to localStorage as backup
-                    localStorage.setItem('jaydenDanielsOwned', JSON.stringify(ownedCards));
-                    setSyncStatus('synced', 'Synced');
-                    return;
-                }
-                setSyncStatus('synced', 'Synced');
-            } else if (window.githubSync) {
-                // Load from public gist for visitors
-                const publicOwned = await githubSync.loadPublicChecklist(CHECKLIST_ID);
-                if (publicOwned && publicOwned.length > 0) {
-                    ownedCards = publicOwned;
-                    return;
-                }
-            }
-            // Fall back to localStorage
-            ownedCards = JSON.parse(localStorage.getItem('jaydenDanielsOwned') || '[]');
-        }
-
-        async function saveOwned() {
-            // Always save to localStorage as backup
-            localStorage.setItem('jaydenDanielsOwned', JSON.stringify(ownedCards));
-
-            // Sync to GitHub if logged in
-            if (window.githubSync && githubSync.isLoggedIn()) {
-                setSyncStatus('syncing', 'Syncing...');
-                const success = await githubSync.saveChecklist(CHECKLIST_ID, ownedCards);
-                if (success) {
-                    setSyncStatus('synced', 'Synced');
-                } else {
-                    setSyncStatus('error', 'Sync failed');
-                }
-            }
-        }
-
-        function isOwned(cardId) {
-            return ownedCards.includes(cardId);
-        }
-
-        function toggleOwned(cardId, checkbox) {
-            const owned = checkbox.checked;
-            if (owned) {
-                if (!ownedCards.includes(cardId)) ownedCards.push(cardId);
-            } else {
-                ownedCards = ownedCards.filter(id => id !== cardId);
-            }
-            saveOwned();
-
-            const cardEl = checkbox.closest('.card');
-            if (owned) {
-                cardEl.classList.add('owned');
-            } else {
-                cardEl.classList.remove('owned');
-            }
-            updateStats();
-            applyFilters();
-        }
-
-        function setSyncStatus(status, text) {
-            const el = document.getElementById('sync-status');
-            el.className = 'sync-status ' + status;
-            el.textContent = text;
-            if (status === 'synced') {
-                setTimeout(() => { el.textContent = ''; }, 2000);
-            }
-        }
-
-        function updateAuthUI() {
-            const authContent = document.getElementById('auth-content');
-            if (githubSync.isLoggedIn()) {
-                const user = githubSync.getUser();
-                authContent.innerHTML = `
-                    <span class="user-info">
-                        <img src="${user.avatar_url}" alt="">
-                        ${user.login}
-                    </span>
-                    <button class="logout" onclick="logout()">Sign out</button>
-                `;
-            } else {
-                authContent.innerHTML = '';
-            }
-        }
-
-        function logout() {
-            githubSync.logout();
-            location.reload();
+            FilterUtils.applyFilters({ onFilter: updateStats });
         }
 
         function updateStats() {
@@ -767,6 +337,13 @@
             document.getElementById('total-value').textContent = '$' + totalValue.toFixed(0);
             document.getElementById('owned-value').textContent = '$' + ownedValue.toFixed(0) + ' owned';
             document.getElementById('needed-value').textContent = '$' + neededValue.toFixed(0) + ' needed';
+            // Save base card stats for other pages to use
+            const baseStats = { owned: ownedVisible, total: mainCards.length };
+            localStorage.setItem('jaydenDanielsBaseStats', JSON.stringify(baseStats));
+            // Also sync to gist for web visitors
+            if (window.githubSync && githubSync.isLoggedIn()) {
+                githubSync.saveChecklist('jayden-daniels-base-stats', [baseStats]);
+            }
         }
 
         function toggleChaseSection() {
@@ -781,19 +358,6 @@
             const header = section.querySelector('.group-header');
             section.classList.toggle('expanded');
             header.classList.toggle('collapsed');
-        }
-
-        function clearAll() {
-            const input = prompt('Type "CLEAR" to confirm clearing all checkmarks:');
-            if (input === 'CLEAR') {
-                ownedCards = [];
-                saveOwned();
-                document.querySelectorAll('.card').forEach(c => c.classList.remove('owned'));
-                document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
-                updateStats();
-            } else if (input !== null) {
-                alert('Incorrect. Type "CLEAR" exactly to confirm.');
-            }
         }
 
         function createCardElement(card) {
@@ -816,11 +380,13 @@
                     <div class="card-title">${card.set}</div>
                     <div class="card-number">${card.num} ${card.name}</div>
                     <div class="card-type">${card.type}</div>
-                    ${!isReadOnly ? `<div class="checkbox-wrapper">
-                        <input type="checkbox" id="${cardId}" ${owned ? 'checked' : ''} onchange="toggleOwned('${cardId}', this)">
-                        <label for="${cardId}">Owned</label>
-                    </div>` : (owned ? '<div class="owned-badge">✓ Owned</div>' : '')}
-                    <a href="${searchUrl}" target="_blank" class="search-link">eBay</a> · <a href="${scpSearch}" target="_blank" class="search-link">Prices</a>
+                    <div class="card-actions${checklistManager.isReadOnly && !owned ? ' links-only' : ''}">
+                        ${!checklistManager.isReadOnly ? `<div class="checkbox-wrapper">
+                            <input type="checkbox" id="${cardId}" ${owned ? 'checked' : ''} onchange="toggleOwned('${cardId}', this)">
+                            <label for="${cardId}">Owned</label>
+                        </div>` : (owned ? '<span class="owned-badge">✓ Owned</span>' : '')}
+                        <span class="search-links"><a href="${searchUrl}" target="_blank" class="search-link">eBay</a> · <a href="${scpSearch}" target="_blank" class="search-link">Prices</a></span>
+                    </div>
                 </div>
             `;
         }
@@ -862,15 +428,15 @@
                     break;
                 case 'owned':
                     sorted.sort((a, b) => {
-                        const ownedA = ownedCards.includes(getCardId(a)) ? 0 : 1;
-                        const ownedB = ownedCards.includes(getCardId(b)) ? 0 : 1;
+                        const ownedA = isOwned(getCardId(a)) ? 0 : 1;
+                        const ownedB = isOwned(getCardId(b)) ? 0 : 1;
                         return ownedA - ownedB || a.sortOrder - b.sortOrder;
                     });
                     break;
                 case 'needed':
                     sorted.sort((a, b) => {
-                        const ownedA = ownedCards.includes(getCardId(a)) ? 1 : 0;
-                        const ownedB = ownedCards.includes(getCardId(b)) ? 1 : 0;
+                        const ownedA = isOwned(getCardId(a)) ? 1 : 0;
+                        const ownedB = isOwned(getCardId(b)) ? 1 : 0;
                         return ownedA - ownedB || a.sortOrder - b.sortOrder;
                     });
                     break;
@@ -922,47 +488,8 @@
 
         // Initialize
         async function init() {
-            // Handle OAuth callback
-            if (window.githubSync) {
-                await githubSync.handleCallback();
-                isReadOnly = !isOwner();
-                updateAuthUI();
-                githubSync.onAuthChange = async (loggedIn) => {
-                    isReadOnly = !isOwner();
-                    updateAuthUI();
-                    if (loggedIn) {
-                        await loadOwned();
-                        renderCards();
-                    }
-                };
-            } else {
-                isReadOnly = true;
-            }
-            try {
-                await loadOwned();
-            } catch (e) {
-                console.error('Failed to load data:', e);
-            }
+            await checklistManager.init();
             renderCards();
-            updateReadOnlyUI();
-        }
-
-        function updateReadOnlyUI() {
-            // Hide clear button in read-only mode
-            const clearBtn = document.querySelector('button[onclick*="clearAll"]');
-            if (clearBtn) clearBtn.style.display = isReadOnly ? 'none' : '';
-
-            // Show read-only notice
-            const authBar = document.getElementById('auth-bar');
-            const existingNotice = document.querySelector('.read-only-notice');
-            if (isReadOnly && !existingNotice) {
-                const notice = document.createElement('span');
-                notice.className = 'read-only-notice';
-                notice.textContent = "Viewing iammike's collection";
-                authBar.insertBefore(notice, authBar.querySelector('.right-section'));
-            } else if (!isReadOnly && existingNotice) {
-                existingNotice.remove();
-            }
         }
         init();
     </script>
