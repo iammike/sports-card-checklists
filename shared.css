@@ -1,6 +1,16 @@
 /* Sports Card Checklists - Shared Styles */
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap');
 
+/* Smooth page load - fade in after fonts/styles settle */
+@keyframes pageFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+html {
+    animation: pageFadeIn 0.3s ease-out 0.1s both;
+}
+
 /* ============================================
    CSS Custom Properties (Theme Variables)
    Override these in page-specific styles
