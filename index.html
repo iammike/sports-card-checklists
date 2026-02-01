@@ -535,7 +535,7 @@
 
             // Helper to update a card's progress display
             function updateCardProgress(id, stats, extraStatId, extraStatKey) {
-                if (!stats) return;
+                if (!stats || typeof stats.owned !== 'number' || typeof stats.total !== 'number') return;
 
                 const progressSection = document.getElementById(`progress-section-${id}`);
                 if (!progressSection) return;

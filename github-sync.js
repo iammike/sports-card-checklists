@@ -18,7 +18,13 @@ class GitHubSync {
     constructor() {
         this.token = localStorage.getItem(TOKEN_KEY);
         this.gistId = localStorage.getItem(GIST_ID_KEY);
-        this.user = JSON.parse(localStorage.getItem(USER_KEY) || 'null');
+        try {
+            this.user = JSON.parse(localStorage.getItem(USER_KEY) || 'null');
+        } catch (e) {
+            console.error('Failed to parse user data:', e);
+            this.user = null;
+            localStorage.removeItem(USER_KEY);
+        }
         this.onAuthChange = null;
         this._saveQueue = Promise.resolve(); // Queue to prevent concurrent saves
         this._cachedData = null; // Cache to avoid stale reads during saves
