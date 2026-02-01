@@ -178,10 +178,7 @@ h1 {
 }
 
 .nav-divider {
-    width: 1px;
-    height: 28px;
-    background: linear-gradient(180deg, transparent, rgba(255,255,255,0.15), transparent);
-    margin: 0 8px;
+    display: none;
 }
 
 .nav-links {
