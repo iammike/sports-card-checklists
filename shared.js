@@ -1037,8 +1037,9 @@ class CardEditorModal {
     // Update image preview
     updateImagePreview(url) {
         const preview = this.backdrop.querySelector('.card-editor-image-preview');
-        if (url && (url.startsWith('http') || url.startsWith('/'))) {
-            preview.innerHTML = `<img src="${sanitizeUrl(url)}" alt="Preview" onerror="this.outerHTML='<span class=\\'placeholder\\'>Failed to load</span>'">`;
+        if (url && (url.startsWith('http') || url.startsWith('/') || url.startsWith('data:'))) {
+            const src = url.startsWith('data:') ? url : sanitizeUrl(url);
+            preview.innerHTML = `<img src="${src}" alt="Preview" onerror="this.outerHTML='<span class=\\'placeholder\\'>Failed to load</span>'">`;
         } else {
             preview.innerHTML = '<span class="placeholder">No image</span>';
         }
