@@ -1078,6 +1078,37 @@ body.edit-mode .card:hover {
     color: #e0e0e0;
 }
 
+/* Checkbox styling */
+.card-editor-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.card-editor-checkbox:hover {
+    border-color: rgba(102, 126, 234, 0.3);
+}
+
+.card-editor-checkbox input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: #667eea;
+}
+
+.card-editor-checkbox span {
+    font-family: 'Barlow', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: #e0e0e0;
+}
+
 /* Image preview section */
 .card-editor-image-section {
     margin-top: 8px;
