@@ -584,7 +584,11 @@
 
             if (checklistId === 'jmu-pro-players') {
                 const cats = cardData.categories;
-                const mainCards = [...(cats.hof || []), ...(cats.probowl || []), ...(cats.usfl || []), ...(cats.modern || []), ...(cats.mlb || []), ...(cats.nba || []), ...(cats.mls || [])];
+                const allCards = [...(cats.hof || []), ...(cats.probowl || []), ...(cats.usfl || []), ...(cats.modern || []), ...(cats.mlb || []), ...(cats.nba || []), ...(cats.mls || [])];
+                // Separate main cards from alternates
+                const mainCards = allCards.filter(c => !c.alternate);
+                const alternates = allCards.filter(c => c.alternate);
+
                 let ownedCount = 0, totalValue = 0, ownedValue = 0;
                 mainCards.forEach(c => {
                     const price = PriceUtils.estimate(c);
@@ -594,11 +598,17 @@
                         ownedValue += price;
                     }
                 });
+
+                let alternatesOwned = 0;
+                alternates.forEach(c => { if (owned.has(getCardId(c))) alternatesOwned++; });
+
                 return {
                     owned: ownedCount,
                     total: mainCards.length,
                     ownedValue: Math.round(ownedValue),
-                    neededValue: Math.round(totalValue - ownedValue)
+                    neededValue: Math.round(totalValue - ownedValue),
+                    alternatesOwned,
+                    alternatesTotal: alternates.length
                 };
             }
 
@@ -665,6 +675,10 @@
             // JMU Pro Players
             const jmuStats = computeChecklistStats('jmu-pro-players', cardData['jmu-pro-players'], ownedCards['jmu-pro-players']);
             updateCardProgress('jmu-pro-players', jmuStats);
+            if (jmuStats) {
+                const alternatesEl = document.getElementById('stat-alternates-jmu');
+                if (alternatesEl) alternatesEl.textContent = `${jmuStats.alternatesOwned || 0}/${jmuStats.alternatesTotal || 0}`;
+            }
 
             // Return computed stats for aggregate
             return {
