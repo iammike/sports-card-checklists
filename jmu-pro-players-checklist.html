@@ -687,9 +687,10 @@
 
         // Handle card edit click - open editor with card data
         editModeManager.onCardEditClick = (cardId, cardElement) => {
-            const card = findCardById(cardId);
-            if (card) {
-                cardEditor.open(cardId, card);
+            const found = findCardWithCategory(cardId);
+            if (found) {
+                // Include category so editor dropdown shows correct value
+                cardEditor.open(cardId, { ...found.card, category: found.category });
             }
         };
 
