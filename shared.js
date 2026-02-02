@@ -622,6 +622,7 @@ class CardEditorModal {
         this.categories = options.categories || null; // e.g., ['panini', 'topps', 'inserts', 'chase']
         this.showPlayerField = options.showPlayerField !== false; // default true
         this.showCardNameField = options.showCardNameField !== false; // default true
+        this.showAchievementField = options.showAchievementField !== false; // default true
         this.currentCard = null;
         this.currentCardId = null;
         this.isDirty = false;
@@ -679,10 +680,10 @@ class CardEditorModal {
                             <label class="card-editor-label">Card Name / Variant</label>
                             <input type="text" class="card-editor-input" id="editor-name" placeholder="Silver Prizm /199">
                         </div>` : ''}
-                        <div class="card-editor-field full-width">
+                        ${this.showAchievementField ? `<div class="card-editor-field full-width">
                             <label class="card-editor-label">Achievements</label>
                             <input type="text" class="card-editor-input" id="editor-achievement" placeholder="Pro Bowl, Super Bowl Champion">
-                        </div>
+                        </div>` : ''}
                         <div class="card-editor-field">
                             <label class="card-editor-label">Price ($)</label>
                             <input type="number" class="card-editor-input" id="editor-price" placeholder="Auto-estimate" step="0.01" min="0">
@@ -798,9 +799,12 @@ class CardEditorModal {
         if (nameField) nameField.value = cardData.name || '';
         this.backdrop.querySelector('#editor-type').value = cardData.type || 'Base';
         this.backdrop.querySelector('#editor-auto').checked = cardData.auto || false;
-        this.backdrop.querySelector('#editor-achievement').value = Array.isArray(cardData.achievement)
-            ? cardData.achievement.join(', ')
-            : (cardData.achievement || '');
+        const achievementField = this.backdrop.querySelector('#editor-achievement');
+        if (achievementField) {
+            achievementField.value = Array.isArray(cardData.achievement)
+                ? cardData.achievement.join(', ')
+                : (cardData.achievement || '');
+        }
         this.backdrop.querySelector('#editor-price').value = cardData.price !== undefined ? cardData.price : '';
         this.backdrop.querySelector('#editor-ebay').value = cardData.ebay || cardData.search || '';
         this.backdrop.querySelector('#editor-img').value = cardData.img || '';
@@ -895,11 +899,14 @@ class CardEditorModal {
             data.auto = true;
         }
 
-        // Achievement - parse comma-separated, only include if set
-        const achievementVal = this.backdrop.querySelector('#editor-achievement').value.trim();
-        if (achievementVal) {
-            data.achievement = achievementVal.split(',').map(a => a.trim()).filter(a => a);
-        };
+        // Achievement - parse comma-separated, only include if field exists and has value
+        const achievementField = this.backdrop.querySelector('#editor-achievement');
+        if (achievementField) {
+            const achievementVal = achievementField.value.trim();
+            if (achievementVal) {
+                data.achievement = achievementVal.split(',').map(a => a.trim()).filter(a => a);
+            }
+        }
 
         // Price - only include if explicitly set
         const priceVal = this.backdrop.querySelector('#editor-price').value.trim();
