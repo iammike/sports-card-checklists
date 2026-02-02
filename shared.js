@@ -652,7 +652,7 @@ class CardEditorModal {
                         </div>
                         <div class="card-editor-field">
                             <label class="card-editor-label">Card Number</label>
-                            <input type="text" class="card-editor-input" id="editor-num" placeholder="#123">
+                            <input type="text" class="card-editor-input" id="editor-num" placeholder="123">
                         </div>
                         <div class="card-editor-field">
                             <label class="card-editor-label">Card Type</label>
@@ -779,7 +779,8 @@ class CardEditorModal {
         const playerField = this.backdrop.querySelector('#editor-player');
         if (playerField) playerField.value = cardData.player || '';
         this.backdrop.querySelector('#editor-set').value = cardData.set || '';
-        this.backdrop.querySelector('#editor-num').value = cardData.num || '';
+        // Strip # from card number for editing
+        this.backdrop.querySelector('#editor-num').value = (cardData.num || '').replace(/^#/, '');
         this.backdrop.querySelector('#editor-name').value = cardData.name || '';
         this.backdrop.querySelector('#editor-type').value = cardData.type || 'Base';
         this.backdrop.querySelector('#editor-auto').checked = cardData.auto || false;
@@ -837,9 +838,15 @@ class CardEditorModal {
 
     // Gather form data
     getFormData() {
+        // Add # prefix to card number if not present
+        let num = this.backdrop.querySelector('#editor-num').value.trim();
+        if (num && !num.startsWith('#')) {
+            num = '#' + num;
+        }
+
         const data = {
             set: this.backdrop.querySelector('#editor-set').value.trim(),
-            num: this.backdrop.querySelector('#editor-num').value.trim(),
+            num: num,
             name: this.backdrop.querySelector('#editor-name').value.trim(),
             type: this.backdrop.querySelector('#editor-type').value,
             img: this.backdrop.querySelector('#editor-img').value.trim()
