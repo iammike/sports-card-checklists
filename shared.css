@@ -384,6 +384,24 @@ h1 {
     margin: 4px 0;
 }
 
+.nav-dropdown-footer {
+    padding: 8px 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    font-family: 'Barlow', sans-serif;
+    font-size: 0.7em;
+    color: #444;
+    text-align: right;
+}
+
+.nav-dropdown-footer a {
+    color: #555;
+    text-decoration: none;
+}
+
+.nav-dropdown-footer a:hover {
+    color: var(--color-accent, #f39c12);
+}
+
 /* Mobile nav */
 @media (max-width: 768px) {
     .nav-inner {
