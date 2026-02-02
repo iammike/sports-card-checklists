@@ -400,6 +400,12 @@
                 const gistData = await githubSync.loadCardData('washington-qbs');
                 if (gistData) {
                     checklistData = gistData;
+                    // Migrate legacy 'qbs' key to 'cards'
+                    if (checklistData.qbs && !checklistData.cards) {
+                        checklistData.cards = checklistData.qbs;
+                        delete checklistData.qbs;
+                        await githubSync.saveCardData('washington-qbs', checklistData);
+                    }
                     cards = checklistData.cards;
                     return;
                 }
@@ -408,7 +414,8 @@
                 const publicData = await githubSync.loadPublicCardData('washington-qbs');
                 if (publicData) {
                     checklistData = publicData;
-                    cards = checklistData.cards;
+                    // Handle legacy 'qbs' key (can't migrate without login)
+                    cards = checklistData.cards || checklistData.qbs;
                     return;
                 }
             }
