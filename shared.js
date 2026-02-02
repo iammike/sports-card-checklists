@@ -458,7 +458,8 @@ const CardRenderer = {
     // Render card image with fallback
     renderCardImage(imgSrc, alt, searchUrl) {
         if (imgSrc) {
-            return `<a href="${searchUrl}" target="_blank"><img class="card-image" src="${imgSrc}" alt="${alt}" loading="lazy" onerror="this.outerHTML='<a href=\\'${searchUrl}\\' target=\\'_blank\\' class=\\'card-image placeholder\\'>Click to view</a>'"></a>`;
+            // If image fails to load, show helpful message (may be processing)
+            return `<a href="${searchUrl}" target="_blank"><img class="card-image" src="${imgSrc}" alt="${alt}" loading="lazy" onerror="this.outerHTML='<a href=\\'${searchUrl}\\' target=\\'_blank\\' class=\\'card-image placeholder\\'>Image loading... (new images may take 1-2 min)</a>'"></a>`;
         }
         return `<a href="${searchUrl}" target="_blank" class="card-image placeholder">Click to view on eBay</a>`;
     },
@@ -1349,16 +1350,22 @@ class AddCardButton {
     }
 
     init() {
-        if (document.querySelector('.add-card-fab')) return;
+        if (document.querySelector('.add-card-btn')) return;
 
         const btn = document.createElement('button');
-        btn.className = 'add-card-fab';
+        btn.className = 'add-card-btn';
         btn.innerHTML = '+ Add Card';
         btn.title = 'Add new card';
         btn.style.display = 'none';
         btn.onclick = () => this.onClick();
 
-        document.body.appendChild(btn);
+        // Insert at top of page content (scrolls with page)
+        const pageContent = document.querySelector('.page-content');
+        if (pageContent) {
+            pageContent.insertBefore(btn, pageContent.firstChild);
+        } else {
+            document.body.appendChild(btn);
+        }
         this.button = btn;
     }
 

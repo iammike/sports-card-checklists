@@ -1420,62 +1420,36 @@ body.edit-mode .card:hover {
 }
 
 /* ============================================
-   Add Card Floating Action Button
+   Add Card Button (top of page, themed)
    ============================================ */
-.add-card-fab {
-    position: fixed;
-    bottom: 24px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+.add-card-btn {
+    display: block;
+    width: 100%;
+    background: linear-gradient(135deg, var(--color-primary, #667eea) 0%, var(--color-primary-dark, #764ba2) 100%);
     color: white;
     border: none;
     padding: 14px 28px;
-    border-radius: 30px;
+    border-radius: 8px;
     font-family: 'Barlow', sans-serif;
     font-size: 14px;
     font-weight: 600;
     letter-spacing: 0.04em;
     cursor: pointer;
-    box-shadow:
-        0 4px 20px rgba(102, 126, 234, 0.4),
-        0 0 0 3px rgba(102, 126, 234, 0.1);
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    z-index: 100;
+    margin-bottom: 16px;
+    transition: all 0.2s ease;
 }
 
-.add-card-fab:hover {
-    transform: translateX(-50%) translateY(-2px);
-    box-shadow:
-        0 8px 30px rgba(102, 126, 234, 0.5),
-        0 0 0 4px rgba(102, 126, 234, 0.15);
+.add-card-btn:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
 }
 
-.add-card-fab:active {
-    transform: translateX(-50%) translateY(0);
-}
-
-/* Pulse animation when edit mode is active */
-body.edit-mode .add-card-fab {
-    animation: fabPulse 2s ease-in-out infinite;
-}
-
-@keyframes fabPulse {
-    0%, 100% {
-        box-shadow:
-            0 4px 20px rgba(102, 126, 234, 0.4),
-            0 0 0 3px rgba(102, 126, 234, 0.1);
-    }
-    50% {
-        box-shadow:
-            0 4px 25px rgba(102, 126, 234, 0.5),
-            0 0 0 6px rgba(102, 126, 234, 0.08);
-    }
+.add-card-btn:active {
+    transform: translateY(0);
 }
 
 @media (max-width: 500px) {
-    .add-card-fab {
-        bottom: 16px;
+    .add-card-btn {
         padding: 12px 24px;
         font-size: 13px;
     }
