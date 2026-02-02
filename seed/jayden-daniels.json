@@ -125,7 +125,8 @@
         "name": "Base",
         "type": "Base RC",
         "search": "jayden+daniels+2024+origins+144",
-        "img": "jayden-daniels-cards/origins_144.webp"
+        "img": "jayden-daniels-cards/origins_144.webp",
+        "price": 8
       },
       {
         "set": "2024 Phoenix",
@@ -248,7 +249,8 @@
         "name": "Base",
         "type": "Base RC",
         "search": "jayden+daniels+2024+topps+chrome+201",
-        "img": "jayden-daniels-cards/card_37_BFIAAeSw.webp"
+        "img": "jayden-daniels-cards/card_37_BFIAAeSw.webp",
+        "price": 2
       },
       {
         "set": "2024 Topps Cosmic Chrome",
@@ -256,7 +258,8 @@
         "name": "Base",
         "type": "Base RC",
         "search": "jayden+daniels+2024+topps+cosmic+chrome+196",
-        "img": "jayden-daniels-cards/cosmic_chrome_196.webp"
+        "img": "jayden-daniels-cards/cosmic_chrome_196.webp",
+        "price": 7
       },
       {
         "set": "2024 Topps Now",
@@ -264,7 +267,8 @@
         "name": "NFL Debut",
         "type": "Base",
         "search": "jayden+daniels+2024+topps+now+23",
-        "img": "jayden-daniels-cards/card_39_fA4AAeSw.webp"
+        "img": "jayden-daniels-cards/card_39_fA4AAeSw.webp",
+        "price": 2
       },
       {
         "set": "2024 Topps Resurgence",
@@ -340,7 +344,8 @@
         "name": "Base",
         "type": "Insert",
         "search": "jayden+daniels+2024+absolute+by+storm",
-        "img": "jayden-daniels-cards/absolute_by_storm.webp"
+        "img": "jayden-daniels-cards/absolute_by_storm.webp",
+        "price": 1
       },
       {
         "set": "2024 Absolute Explosive",
@@ -348,7 +353,8 @@
         "name": "Base",
         "type": "Insert",
         "search": "jayden+daniels+2024+absolute+explosive",
-        "img": "jayden-daniels-cards/absolute_explosive.webp"
+        "img": "jayden-daniels-cards/absolute_explosive.webp",
+        "price": 300
       },
       {
         "set": "2024 Absolute Introductions",
@@ -356,7 +362,8 @@
         "name": "Base",
         "type": "Insert",
         "search": "jayden+daniels+2024+absolute+introductions",
-        "img": "jayden-daniels-cards/absolute_introductions.webp"
+        "img": "jayden-daniels-cards/absolute_introductions.webp",
+        "price": 1
       },
       {
         "set": "2024 Absolute Rock Out",
@@ -364,7 +371,8 @@
         "name": "Base",
         "type": "Insert",
         "search": "jayden+daniels+2024+absolute+rock+out",
-        "img": "jayden-daniels-cards/absolute_rock_out.webp"
+        "img": "jayden-daniels-cards/absolute_rock_out.webp",
+        "price": 1
       },
       {
         "set": "2024 Absolute Star Gazing",
@@ -372,7 +380,8 @@
         "name": "Base",
         "type": "Insert",
         "search": "jayden+daniels+2024+absolute+star+gazing",
-        "img": "jayden-daniels-cards/absolute_star_gazing.webp"
+        "img": "jayden-daniels-cards/absolute_star_gazing.webp",
+        "price": 1
       },
       {
         "set": "2024 Chrome 1974",
@@ -380,7 +389,8 @@
         "name": "Base",
         "type": "Insert",
         "search": "jayden+daniels+2024+topps+chrome+1974",
-        "img": "jayden-daniels-cards/chrome_1974.webp"
+        "img": "jayden-daniels-cards/chrome_1974.webp",
+        "price": 1
       },
       {
         "set": "2024 Chrome All-Etch",
@@ -388,7 +398,8 @@
         "name": "Base",
         "type": "Insert",
         "search": "jayden+daniels+2024+topps+chrome+all+etch",
-        "img": "jayden-daniels-cards/chrome_all_etch.webp"
+        "img": "jayden-daniels-cards/chrome_all_etch.webp",
+        "price": 1
       },
       {
         "set": "2024 Chrome Finesse",
@@ -396,7 +407,8 @@
         "name": "Base",
         "type": "Insert",
         "search": "jayden+daniels+2024+topps+chrome+finesse",
-        "img": "jayden-daniels-cards/chrome_finesse.webp"
+        "img": "jayden-daniels-cards/chrome_finesse.webp",
+        "price": 1
       },
       {
         "set": "2024 Chrome Future Stars",
@@ -404,7 +416,8 @@
         "name": "Base",
         "type": "Insert",
         "search": "jayden+daniels+2024+topps+chrome+future+stars",
-        "img": "jayden-daniels-cards/chrome_future_stars.webp"
+        "img": "jayden-daniels-cards/chrome_future_stars.webp",
+        "price": 2
       },
       {
         "set": "2024 Chrome Youthquake",
@@ -412,7 +425,8 @@
         "name": "Base",
         "type": "Insert",
         "search": "jayden+daniels+2024+topps+chrome+youthquake",
-        "img": "jayden-daniels-cards/chrome_youthquake.webp"
+        "img": "jayden-daniels-cards/chrome_youthquake.webp",
+        "price": 2
       },
       {
         "set": "2024 Contenders Draft Class",
@@ -420,7 +434,8 @@
         "name": "Base",
         "type": "Insert",
         "search": "jayden+daniels+2024+contenders+draft+class+2",
-        "img": "jayden-daniels-cards/contenders_draft_class.webp"
+        "img": "jayden-daniels-cards/contenders_draft_class.webp",
+        "price": 1
       },
       {
         "set": "2024 Contenders Rookie Stallions",
@@ -428,7 +443,8 @@
         "name": "Base",
         "type": "Insert",
         "search": "jayden+daniels+2024+contenders+rookie+stallions+3",
-        "img": "jayden-daniels-cards/contenders_rookie_stallions.webp"
+        "img": "jayden-daniels-cards/contenders_rookie_stallions.webp",
+        "price": 1
       },
       {
         "set": "2024 Cosmic Chrome Launched Into Orbit",
@@ -436,7 +452,8 @@
         "name": "Base",
         "type": "Insert",
         "search": "jayden+daniels+2024+cosmic+chrome+launched+into+orbit",
-        "img": "jayden-daniels-cards/cosmic_chrome_launched_into_orbit.webp"
+        "img": "jayden-daniels-cards/cosmic_chrome_launched_into_orbit.webp",
+        "price": 7
       },
       {
         "set": "2024 Cosmic Chrome Star Clusters",
@@ -444,7 +461,8 @@
         "name": "w/ Hartman",
         "type": "Insert",
         "search": "jayden+daniels+2024+cosmic+chrome+star+clusters",
-        "img": "jayden-daniels-cards/card_40_ifwAAeSw.webp"
+        "img": "jayden-daniels-cards/card_40_ifwAAeSw.webp",
+        "price": 3
       },
       {
         "set": "2024 Cosmic Chrome Star Command",
@@ -452,7 +470,8 @@
         "name": "Base",
         "type": "Insert",
         "search": "jayden+daniels+2024+cosmic+chrome+star+command",
-        "img": "jayden-daniels-cards/cosmic_chrome_star_command.webp"
+        "img": "jayden-daniels-cards/cosmic_chrome_star_command.webp",
+        "price": 7
       },
       {
         "set": "2024 Donruss Bomb Squad",
@@ -468,7 +487,8 @@
         "name": "Base",
         "type": "Insert",
         "search": "jayden+daniels+2024+donruss+optic+passing+grade+2",
-        "img": "jayden-daniels-cards/donruss_optic_passing_grade.webp"
+        "img": "jayden-daniels-cards/donruss_optic_passing_grade.webp",
+        "price": 1
       },
       {
         "set": "2024 Donruss Rated Rookie Retro",
@@ -476,7 +496,8 @@
         "name": "Base",
         "type": "Insert",
         "search": "jayden+daniels+2024+donruss+rated+rookie+retro+11",
-        "img": "jayden-daniels-cards/donruss_rated_rookie_retro.webp"
+        "img": "jayden-daniels-cards/donruss_rated_rookie_retro.webp",
+        "price": 8
       },
       {
         "set": "2024 Illusions Great Expectations",
@@ -484,7 +505,8 @@
         "name": "Base",
         "type": "Insert",
         "search": "jayden+daniels+2024+illusions+great+expectations",
-        "img": "jayden-daniels-cards/illusions_great_expectations.webp"
+        "img": "jayden-daniels-cards/illusions_great_expectations.webp",
+        "price": 10
       },
       {
         "set": "2024 Illusions Instant Impact",
@@ -500,7 +522,8 @@
         "name": "Base",
         "type": "Insert",
         "search": "jayden+daniels+2024+illusions+mystique+M-4",
-        "img": "jayden-daniels-cards/illusions_mystique.webp"
+        "img": "jayden-daniels-cards/illusions_mystique.webp",
+        "price": 3
       },
       {
         "set": "2024 Mosaic Center Stage",
@@ -508,7 +531,8 @@
         "name": "Base",
         "type": "Insert",
         "search": "jayden+daniels+2024+mosaic+center+stage+8",
-        "img": "jayden-daniels-cards/mosaic_center_stage.webp"
+        "img": "jayden-daniels-cards/mosaic_center_stage.webp",
+        "price": 12
       },
       {
         "set": "2024 Mosaic Kaleidoscopic",
@@ -516,7 +540,8 @@
         "name": "Base",
         "type": "Insert",
         "search": "jayden+daniels+2024+mosaic+kaleidoscopic+21",
-        "img": "jayden-daniels-cards/mosaic_kaleidoscopic.webp"
+        "img": "jayden-daniels-cards/mosaic_kaleidoscopic.webp",
+        "price": 175
       },
       {
         "set": "2024 Mosaic Micro",
@@ -524,7 +549,8 @@
         "name": "Base",
         "type": "Insert",
         "search": "jayden+daniels+2024+mosaic+micro",
-        "img": "jayden-daniels-cards/mosaic_micro.webp"
+        "img": "jayden-daniels-cards/mosaic_micro.webp",
+        "price": 350
       },
       {
         "set": "2024 Mosaic Money",
@@ -532,7 +558,8 @@
         "name": "Base",
         "type": "Insert",
         "search": "jayden+daniels+2024+mosaic+money+10",
-        "img": "jayden-daniels-cards/mosaic_money.webp"
+        "img": "jayden-daniels-cards/mosaic_money.webp",
+        "price": 85
       },
       {
         "set": "2024 Mosaic Notoriety",
@@ -540,7 +567,8 @@
         "name": "Base",
         "type": "Insert",
         "search": "jayden+daniels+2024+mosaic+notoriety+19",
-        "img": "jayden-daniels-cards/mosaic_notoriety.webp"
+        "img": "jayden-daniels-cards/mosaic_notoriety.webp",
+        "price": 1
       },
       {
         "set": "2024 Mosaic Overdrive",
@@ -548,7 +576,8 @@
         "name": "Base",
         "type": "Insert",
         "search": "jayden+daniels+2024+mosaic+overdrive+5",
-        "img": "jayden-daniels-cards/mosaic_overdrive.webp"
+        "img": "jayden-daniels-cards/mosaic_overdrive.webp",
+        "price": 25
       },
       {
         "set": "2024 Mosaic Stained Glass",
@@ -556,7 +585,8 @@
         "name": "Base",
         "type": "Insert",
         "search": "jayden+daniels+2024+mosaic+stained+glass",
-        "img": "jayden-daniels-cards/mosaic_stained_glass.webp"
+        "img": "jayden-daniels-cards/mosaic_stained_glass.webp",
+        "price": 400
       },
       {
         "set": "2024 Phoenix Contours",
@@ -564,7 +594,8 @@
         "name": "Base",
         "type": "Insert",
         "search": "jayden+daniels+2024+phoenix+contours",
-        "img": "jayden-daniels-cards/phoenix_contours.webp"
+        "img": "jayden-daniels-cards/phoenix_contours.webp",
+        "price": 2
       },
       {
         "set": "2024 Phoenix Rookie Rising",
