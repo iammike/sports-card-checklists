@@ -1045,23 +1045,23 @@ body.edit-mode .card:hover {
     font-size: 14px;
     font-weight: 500;
     padding: 12px 14px;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(30, 30, 50, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 4px;
-    color: #e0e0e0;
+    color: #fff;
     transition: all 0.2s;
 }
 
 .card-editor-input:focus,
 .card-editor-select:focus {
     outline: none;
-    border-color: rgba(102, 126, 234, 0.5);
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    background: rgba(0, 0, 0, 0.4);
+    border-color: rgba(102, 126, 234, 0.6);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+    background: rgba(40, 40, 70, 0.95);
 }
 
 .card-editor-input::placeholder {
-    color: #555;
+    color: #888;
 }
 
 .card-editor-select {
