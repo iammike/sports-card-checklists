@@ -409,33 +409,43 @@ class GitHubSync {
         }
     }
 
-    // Commit an image to the repo (creates or updates)
-    async commitImage(path, base64Content, message) {
+    // Commit an image to the repo via PR (auto-merges via GitHub Action)
+    // Returns the path where the image will be available after merge
+    async commitImageViaPR(path, base64Content, message) {
         if (!this.token) return null;
 
         const { owner, repo } = this.getRepoInfo();
-
-        // Check if file exists to get SHA (for updates)
-        let sha = null;
-        try {
-            const existingFile = await this.getRepoFile(path);
-            if (existingFile) {
-                sha = existingFile.sha;
-            }
-        } catch (e) {
-            // File doesn't exist, that's ok for create
-        }
+        const branchName = `image/${path.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-${Date.now()}`;
 
         try {
-            const body = {
-                message: message || `Add image ${path}`,
-                content: base64Content
-            };
-            if (sha) {
-                body.sha = sha;
-            }
+            // 1. Get main branch SHA
+            const mainRef = await fetch(
+                `https://api.github.com/repos/${owner}/${repo}/git/ref/heads/main`,
+                { headers: { 'Authorization': `Bearer ${this.token}` } }
+            );
+            if (!mainRef.ok) throw new Error('Failed to get main branch');
+            const mainData = await mainRef.json();
+            const mainSha = mainData.object.sha;
 
-            const response = await fetch(
+            // 2. Create new branch
+            const createBranch = await fetch(
+                `https://api.github.com/repos/${owner}/${repo}/git/refs`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${this.token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        ref: `refs/heads/${branchName}`,
+                        sha: mainSha
+                    })
+                }
+            );
+            if (!createBranch.ok) throw new Error('Failed to create branch');
+
+            // 3. Commit image to new branch
+            const commitImage = await fetch(
                 `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
                 {
                     method: 'PUT',
@@ -443,21 +453,38 @@ class GitHubSync {
                         'Authorization': `Bearer ${this.token}`,
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(body)
+                    body: JSON.stringify({
+                        message: message || `Add image ${path}`,
+                        content: base64Content,
+                        branch: branchName
+                    })
                 }
             );
+            if (!commitImage.ok) throw new Error('Failed to commit image');
 
-            if (!response.ok) {
-                const error = await response.json();
-                console.error('Failed to commit image:', error);
-                return null;
-            }
+            // 4. Create PR (GitHub Action will auto-merge)
+            const createPR = await fetch(
+                `https://api.github.com/repos/${owner}/${repo}/pulls`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${this.token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        title: message || `Add image ${path}`,
+                        head: branchName,
+                        base: 'main',
+                        body: 'Auto-generated image upload. This PR will be auto-merged.'
+                    })
+                }
+            );
+            if (!createPR.ok) throw new Error('Failed to create PR');
 
-            const result = await response.json();
-            // Return the raw URL for the committed image
-            return result.content.download_url;
+            // Return the path - image will be available after PR merges (~30-60s)
+            return path;
         } catch (error) {
-            console.error('Failed to commit image:', error);
+            console.error('Failed to commit image via PR:', error);
             return null;
         }
     }

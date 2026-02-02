@@ -757,6 +757,7 @@
         // Initialize card editor modal
         const cardEditor = new CardEditorModal({
             showCardNameField: false,  // QBs don't use card name/variant
+            imageFolder: 'washington-qbs-cards',
             onSave: async (cardId, cardData, isNew) => {
                 if (isNew) {
                     // Add new QB
