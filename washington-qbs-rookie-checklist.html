@@ -440,7 +440,7 @@
 
         // Wrapper functions for backward compatibility
         function getCardId(qb) {
-            return btoa(qb.name + qb.set + qb.num).replace(/[^a-zA-Z0-9]/g, '');
+            return btoa(qb.player + qb.set + qb.num).replace(/[^a-zA-Z0-9]/g, '');
         }
 
         function isOwned(cardId) {
@@ -585,7 +585,7 @@
                             <img src="jayden-daniels-cards/resurgence_196.webp" alt="" loading="lazy">
                         </div>
                     </div>
-                    <div class="player-name">${qb.name}</div>
+                    <div class="player-name">${qb.player}</div>
                     <div class="player-years">${qb.years} &bull; ${qb.record}</div>
                     ${qb.playoff !== '-' ? `<div class="player-record">Playoffs: ${qb.playoff}</div>` : ''}
                     ${CardRenderer.renderAchievements(qb.achievement)}
@@ -595,15 +595,15 @@
 
             const cardClass = `card ${cardOwned ? 'owned' : ''} ${qb.superBowl ? 'super-bowl' : ''}`;
             const searchUrl = CardRenderer.getEbayUrl(qb.search);
-            const scpUrl = CardRenderer.getScpUrl(encodeURIComponent(qb.name + ' rookie'));
+            const scpUrl = CardRenderer.getScpUrl(encodeURIComponent(qb.player + ' rookie'));
 
             return `<div class="${cardClass}">
                 <div class="card-image-wrapper">
                     ${qb.superBowl ? '<span class="super-bowl-badge">SUPER BOWL</span>' : ''}
                     ${CardRenderer.renderPriceBadge(qb.price)}
-                    ${CardRenderer.renderCardImage(qb.img, qb.name, searchUrl)}
+                    ${CardRenderer.renderCardImage(qb.img, qb.player, searchUrl)}
                 </div>
-                <div class="player-name">${qb.name}</div>
+                <div class="player-name">${qb.player}</div>
                 <div class="player-years">${qb.years} &bull; ${qb.record}</div>
                 ${qb.playoff !== '-' ? `<div class="player-record">Playoffs: ${qb.playoff}</div>` : ''}
                 <div class="card-info">
@@ -633,7 +633,7 @@
                 const cardId = qb.collectionLink ? null : getCardId(qb);
                 if (statusFilter === 'owned' && (!cardId || !isOwned(cardId))) return false;
                 if (statusFilter === 'needed' && cardId && isOwned(cardId)) return false;
-                if (searchTerm && !qb.name.toLowerCase().includes(searchTerm)) return false;
+                if (searchTerm && !qb.player.toLowerCase().includes(searchTerm)) return false;
                 return true;
             });
 
@@ -761,7 +761,7 @@
                 if (isNew) {
                     // Add new QB
                     const newQb = {
-                        name: cardData.player || 'Unknown QB',
+                        player: cardData.player || 'Unknown QB',
                         years: cardData.years || 'TBD',
                         record: cardData.record || '0-0',
                         playoff: '-',
@@ -772,7 +772,7 @@
                         img: cardData.img
                     };
                     if (!cardData.ebay) {
-                        newQb.search = `${newQb.name.replace(/\s+/g, '+')}+rookie+card`;
+                        newQb.search = `${newQb.player.replace(/\s+/g, '+')}+rookie+card`;
                     } else {
                         newQb.search = cardData.ebay;
                     }
@@ -783,7 +783,7 @@
                     const found = findQbWithIndex(cardId);
                     if (found) {
                         const { qb, index } = found;
-                        if (cardData.player) qb.name = cardData.player;
+                        if (cardData.player) qb.player = cardData.player;
                         qb.set = cardData.set;
                         qb.num = cardData.num;
                         // Handle optional fields - set if present, delete if cleared
@@ -856,8 +856,8 @@
                 if (startB > startA) return true;
                 if (startB < startA) return false;
                 // Same QB era - sort by player name
-                if (q.name > qb.name) return true;
-                if (q.name < qb.name) return false;
+                if (q.player > qb.player) return true;
+                if (q.player < qb.player) return false;
                 // Same player - sort by card year
                 const setYearA = getSetYear(qb.set);
                 const setYearB = getSetYear(q.set);
@@ -888,13 +888,7 @@
         editModeManager.onCardEditClick = (cardId, cardElement) => {
             const qb = findQbById(cardId);
             if (qb) {
-                // Map QB fields to editor fields (qb.name is the player name)
-                const editorData = {
-                    ...qb,
-                    player: qb.name,  // QB's name field is the player name
-                    name: ''          // QBs don't have a card variant name
-                };
-                cardEditor.open(cardId, editorData);
+                cardEditor.open(cardId, qb);
             }
         };
 
