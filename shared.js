@@ -458,10 +458,9 @@ const CardRenderer = {
     // Render card image with fallback
     renderCardImage(imgSrc, alt, searchUrl) {
         if (imgSrc) {
-            // If image fails to load, show helpful message (may be processing)
-            return `<a href="${searchUrl}" target="_blank"><img class="card-image" src="${imgSrc}" alt="${alt}" loading="lazy" onerror="this.outerHTML='<a href=\\'${searchUrl}\\' target=\\'_blank\\' class=\\'card-image placeholder\\'>Image loading... (new images may take 1-2 min)</a>'"></a>`;
+            return `<a href="${searchUrl}" target="_blank"><img class="card-image" src="${imgSrc}" alt="${alt}" loading="lazy" onerror="this.outerHTML='<a href=\\'${searchUrl}\\' target=\\'_blank\\' class=\\'card-image placeholder\\'>No image</a>'"></a>`;
         }
-        return `<a href="${searchUrl}" target="_blank" class="card-image placeholder">Click to view on eBay</a>`;
+        return `<a href="${searchUrl}" target="_blank" class="card-image placeholder">No image</a>`;
     },
 
     // Render owned checkbox or badge based on read-only state

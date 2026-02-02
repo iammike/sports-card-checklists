@@ -702,18 +702,16 @@ select, input[type="text"] {
    Price Badge
    ============================================ */
 .price-badge {
-    font-family: 'Bebas Neue', sans-serif;
+    font-family: 'Barlow', sans-serif;
     position: absolute;
     top: 8px;
     right: 8px;
     background: var(--color-success);
     color: white;
-    padding: 2px 8px;
+    padding: 3px 8px;
     border-radius: var(--radius-sm);
-    font-size: 13px;
-    font-weight: 400;
-    letter-spacing: 0.02em;
-    line-height: 1;
+    font-size: 12px;
+    font-weight: 600;
     z-index: 10;
 }
 
