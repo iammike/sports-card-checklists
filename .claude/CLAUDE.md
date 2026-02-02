@@ -16,3 +16,10 @@
 - When making changes to a page or card component, consider applying the same change to all checklists/cards
 - The index page has multiple checklist cards (Jayden Daniels, Washington QBs) - features should be consistent across them
 - UI improvements, data displays, and styling should generally apply to all cards unless specifically scoped
+
+## GitHub Issues
+- When creating an issue, always add appropriate labels for **size** and **priority**
+  - Size: `size:small` (< 1 hour), `size:medium` (1-4 hours), `size:large` (4+ hours)
+  - Priority: `priority:low`, `priority:medium`, `priority:high`, `priority:critical`
+- Also add a category label when applicable: `ui`, `refactor`, `content`, `bug`, `feature`, `infrastructure`
+- Prefer consolidating related work into a single issue with a task checklist over creating multiple sub-issues
