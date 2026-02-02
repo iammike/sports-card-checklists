@@ -1347,6 +1347,10 @@ class AddCardButton {
     constructor(options = {}) {
         this.onClick = options.onClick || (() => {});
         this.button = null;
+        this.scrollHandler = null;
+        this.navHeight = 60; // Height of nav bar
+        this.restingTop = 68; // Initial position below nav
+        this.minTop = 10; // Position when nav scrolled away
     }
 
     init() {
@@ -1359,19 +1363,30 @@ class AddCardButton {
         btn.style.display = 'none';
         btn.onclick = () => this.onClick();
 
-        // Fixed position below nav bar (stays visible while scrolling)
         document.body.appendChild(btn);
         this.button = btn;
+
+        // Scroll handler to adjust position as nav scrolls away
+        this.scrollHandler = () => {
+            const scrollY = window.scrollY;
+            const newTop = Math.max(this.minTop, this.restingTop - scrollY);
+            this.button.style.top = newTop + 'px';
+        };
     }
 
     show() {
         if (!this.button) this.init();
         this.button.style.display = '';
+        this.scrollHandler(); // Set initial position
+        window.addEventListener('scroll', this.scrollHandler, { passive: true });
     }
 
     hide() {
         if (this.button) {
             this.button.style.display = 'none';
+        }
+        if (this.scrollHandler) {
+            window.removeEventListener('scroll', this.scrollHandler);
         }
     }
 }
