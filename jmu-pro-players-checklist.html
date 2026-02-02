@@ -513,8 +513,98 @@
 
         // Initialize edit mode manager
         const editModeManager = new EditModeManager(checklistManager);
+
+        // Initialize card editor modal
+        const cardTypes = ['Base', 'Base RC', 'Parallel', 'Insert'];
+        const cardEditor = new CardEditorModal({
+            cardTypes,
+            onSave: (cardId, cardData, isNew) => {
+                if (isNew) {
+                    // Add new card
+                    const category = cardData.category || 'modern';
+                    delete cardData.category;
+                    const newCard = {
+                        player: cardData.name || 'Unknown Player',
+                        sport: 'Football',
+                        set: cardData.set,
+                        num: cardData.num,
+                        type: cardData.type,
+                        img: cardData.img
+                    };
+                    if (cardData.price !== undefined) newCard.price = cardData.price;
+                    if (!cardData.ebay) {
+                        newCard.search = `${newCard.player.replace(/\s+/g, '+')}+${newCard.set.replace(/\s+/g, '+')}`;
+                    } else {
+                        newCard.search = cardData.ebay;
+                    }
+                    if (cards[category]) {
+                        cards[category].push(newCard);
+                    }
+                    console.log('Added new card:', newCard);
+                } else {
+                    // Update existing card
+                    const card = findCardById(cardId);
+                    if (card) {
+                        card.set = cardData.set;
+                        card.num = cardData.num;
+                        card.type = cardData.type;
+                        if (cardData.price !== undefined) card.price = cardData.price;
+                        if (cardData.img) card.img = cardData.img;
+                        if (cardData.ebay) card.search = cardData.ebay;
+                        console.log('Updated card:', card);
+                    }
+                }
+                renderCards();
+                editModeManager.updateCardEditControls();
+                // TODO: Save to JSON via GitHub API (issue #123)
+            },
+            onDelete: (cardId) => {
+                for (const category of Object.keys(cards)) {
+                    const idx = cards[category].findIndex(c => getCardId(c) === cardId);
+                    if (idx !== -1) {
+                        cards[category].splice(idx, 1);
+                        console.log('Deleted card:', cardId);
+                        break;
+                    }
+                }
+                renderCards();
+                editModeManager.updateCardEditControls();
+                // TODO: Save to JSON via GitHub API (issue #123)
+            }
+        });
+
+        // Initialize add card button
+        const addCardBtn = new AddCardButton({
+            onClick: () => {
+                cardEditor.openNew('modern');
+            }
+        });
+
+        // Helper to find card by ID
+        function findCardById(cardId) {
+            for (const category of Object.keys(cards)) {
+                const card = cards[category].find(c => getCardId(c) === cardId);
+                if (card) return card;
+            }
+            return null;
+        }
+
+        // Wire up edit mode to show/hide add button and handle card edits
         editModeManager.onEditModeChange = (isEditMode) => {
             editModeManager.updateCardEditControls();
+            if (isEditMode) {
+                addCardBtn.show();
+            } else {
+                addCardBtn.hide();
+            }
+        };
+
+        // Handle card edit click - open editor with card data
+        editModeManager.onCardEditClick = (cardId, cardElement) => {
+            const card = findCardById(cardId);
+            if (card) {
+                cardEditor.open(cardId, card);
+            }
         };
 
         async function init() {
@@ -522,6 +612,8 @@
                 await loadCardData();
                 await checklistManager.init();
                 editModeManager.init();
+                cardEditor.init();
+                addCardBtn.init();
                 renderCards();
             } catch (err) {
                 console.error('Failed to initialize:', err);
