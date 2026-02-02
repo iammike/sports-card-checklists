@@ -448,8 +448,9 @@ const FilterUtils = {
             options.sections.forEach(sectionId => {
                 const section = document.getElementById(sectionId);
                 if (section) {
-                    const visibleCards = section.querySelectorAll('.card:not([style*="display: none"])');
-                    section.style.display = visibleCards.length > 0 ? '' : 'none';
+                    const cards = section.querySelectorAll('.card');
+                    const hasVisible = Array.from(cards).some(c => c.style.display !== 'none');
+                    section.style.display = hasVisible ? '' : 'none';
                 }
             });
         }
