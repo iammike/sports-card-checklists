@@ -441,10 +441,11 @@
         // Initialize card editor modal (no player field - all cards are Jayden Daniels)
         const cardEditor = new CardEditorModal({
             showPlayerField: false,
+            categories: ['college', 'panini', 'topps', 'other', 'inserts', 'chase'],
             onSave: async (cardId, cardData, isNew) => {
                 if (isNew) {
                     // Add new card to appropriate category
-                    const category = cardData.category || 'other';
+                    const category = cardData.category || 'panini';
                     delete cardData.category;
                     // Generate search term if not provided
                     if (!cardData.ebay) {
@@ -496,7 +497,7 @@
         // Initialize add card button
         const addCardBtn = new AddCardButton({
             onClick: () => {
-                cardEditor.openNew('other');
+                cardEditor.openNew('panini');
             }
         });
 
