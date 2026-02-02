@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Restore Owned Cards</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #1a1a2e; color: #fff; max-width: 600px; margin: 0 auto; }
+        h1 { color: #f39c12; }
+        .status { background: #12121f; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .status.success { border-left: 4px solid #4caf50; }
+        .status.error { border-left: 4px solid #f44336; }
+        .status.pending { border-left: 4px solid #f39c12; }
+        button { padding: 12px 24px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin: 10px 5px 10px 0; }
+        button:hover { background: #764ba2; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .log { background: #0a0a14; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 13px; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+        .warning { background: #ff980020; border: 1px solid #ff9800; padding: 15px; border-radius: 4px; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <h1>Restore Owned Cards</h1>
+    <p>This will restore your owned cards data from gist history (revision from 2026-02-02T03:22:07Z).</p>
+
+    <div class="warning">
+        <strong>What this does:</strong>
+        <ul>
+            <li>Fetches your owned cards list from before the migration</li>
+            <li>Restores the main gist file with owned cards and stats</li>
+        </ul>
+    </div>
+
+    <div id="auth-status" class="status pending">Checking login status...</div>
+
+    <button id="restore-btn" onclick="restore()" disabled>Restore Owned Cards</button>
+
+    <div class="log" id="log"></div>
+
+    <script src="github-sync.js"></script>
+    <script>
+        const OLD_REVISION = '1e34d8494f3d65054e8322ebdab7398313856f98';
+        const GIST_ID = '5f2b43f0588d72892273ae8f24f68c2d';
+
+        const logEl = document.getElementById('log');
+        const authStatus = document.getElementById('auth-status');
+        const restoreBtn = document.getElementById('restore-btn');
+
+        function log(msg) {
+            logEl.textContent += msg + '\n';
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        async function init() {
+            await githubSync.handleCallback();
+
+            if (githubSync.isLoggedIn()) {
+                const user = githubSync.getUser();
+                authStatus.textContent = `Logged in as ${user.login}`;
+                authStatus.className = 'status success';
+                restoreBtn.disabled = false;
+            } else {
+                authStatus.innerHTML = 'Not logged in. <a href="#" onclick="githubSync.login(); return false;" style="color: #667eea;">Sign in with GitHub</a>';
+                authStatus.className = 'status error';
+            }
+        }
+
+        async function restore() {
+            restoreBtn.disabled = true;
+            log('Starting restore...\n');
+
+            try {
+                // Fetch old revision
+                log('Fetching old gist revision...');
+                const response = await fetch(`https://api.github.com/gists/${GIST_ID}/${OLD_REVISION}`);
+                if (!response.ok) throw new Error('Failed to fetch old revision');
+
+                const oldGist = await response.json();
+                const oldMainContent = oldGist.files['sports-card-checklists.json']?.content;
+
+                if (!oldMainContent) throw new Error('Old main gist file not found');
+
+                const oldData = JSON.parse(oldMainContent);
+                log(`Found owned cards:`);
+                log(`  - jayden-daniels: ${oldData.checklists?.['jayden-daniels']?.length || 0} cards`);
+                log(`  - washington-qbs: ${oldData.checklists?.['washington-qbs']?.length || 0} cards`);
+                log(`  - jmu-pro-players: ${oldData.checklists?.['jmu-pro-players']?.length || 0} cards`);
+
+                // Save to current gist
+                log('\nSaving to gist...');
+                const success = await githubSync.saveData(oldData);
+
+                if (success) {
+                    log('\nRestore complete!');
+                    log('Refresh your pages to see the changes.');
+                } else {
+                    log('\nERROR: Failed to save to gist');
+                }
+            } catch (e) {
+                log(`\nERROR: ${e.message}`);
+            }
+
+            restoreBtn.disabled = false;
+        }
+
+        init();
+    </script>
+</body>
+</html>
