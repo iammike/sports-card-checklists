@@ -225,52 +225,82 @@ h1 {
     border-radius: 2px 2px 0 0;
 }
 
+/* Auth section - broadcast control panel aesthetic */
 .nav-auth {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 0;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 4px;
+    padding: 4px;
 }
 
 #auth-content {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 0;
+}
+
+/* Divider between auth elements */
+.nav-auth-divider {
+    width: 1px;
+    height: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 0 2px;
 }
 
 .nav-user {
     display: flex;
     align-items: center;
     gap: 8px;
-    color: #888;
-    font-size: 0.85em;
+    color: #777;
+    font-size: 0.75em;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 6px 12px;
 }
 
 .nav-user img {
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
     border-radius: 50%;
-    border: 1px solid rgba(255,255,255,0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .nav-btn {
     font-family: 'Barlow', sans-serif;
-    font-size: 0.8em;
+    font-size: 0.7em;
     font-weight: 600;
-    padding: 6px 14px;
-    border-radius: 3px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 8px 12px;
+    border-radius: 2px;
     border: none;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.15s ease;
+    background: transparent;
+    color: #666;
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
-.nav-btn.logout {
-    background: rgba(255,255,255,0.08);
-    color: #888;
+.nav-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #999;
 }
 
-.nav-btn.logout:hover {
-    background: rgba(255,255,255,0.12);
-    color: #aaa;
+.nav-btn svg {
+    width: 12px;
+    height: 12px;
+    fill: currentColor;
+    opacity: 0.7;
+}
+
+.nav-btn:hover svg {
+    opacity: 1;
 }
 
 /* Mobile nav */
@@ -302,24 +332,31 @@ h1 {
     }
 
     .nav-auth {
-        gap: 8px;
+        padding: 3px;
     }
 
-    /* Compact edit button - icon only on mobile */
-    .nav-btn.edit-btn {
-        padding: 6px 10px;
-        font-size: 0.9em;
+    /* Compact buttons on mobile */
+    .nav-btn {
+        padding: 6px 8px;
     }
 
-    /* Hide "Edit"/"Done" text, show only emoji */
-    .nav-btn.edit-btn .btn-text {
+    /* Hide text on mobile, show only icons */
+    .nav-btn .btn-text {
         display: none;
     }
 
-    /* Compact other nav buttons */
-    .nav-btn {
-        padding: 5px 10px;
-        font-size: 0.75em;
+    .nav-btn svg {
+        width: 14px;
+        height: 14px;
+    }
+
+    /* Hide username on mobile */
+    .nav-user span {
+        display: none;
+    }
+
+    .nav-user {
+        padding: 6px 8px;
     }
 
     /* Hide sync status text on mobile */
@@ -823,21 +860,22 @@ select, input[type="text"] {
    Edit Mode
    ============================================ */
 
-/* Edit button in nav - muted style like logout */
+/* Edit button in nav */
 .nav-btn.edit-btn {
-    background: rgba(255,255,255,0.08);
-    color: #888;
-    font-weight: 600;
+    color: #666;
 }
 
 .nav-btn.edit-btn:hover {
-    background: rgba(255,255,255,0.12);
-    color: #aaa;
+    color: #999;
 }
 
 .nav-btn.edit-btn.active {
-    background: rgba(76, 175, 80, 0.2);
-    color: #4caf50;
+    background: rgba(243, 156, 18, 0.1);
+    color: var(--color-accent, #f39c12);
+}
+
+.nav-btn.edit-btn.active svg {
+    opacity: 1;
 }
 
 /* Edit mode body indicator */

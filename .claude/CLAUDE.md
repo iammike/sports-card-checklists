@@ -6,15 +6,10 @@
 - Stats displayed on the index page must be read from the gist, not re-calculated
 - See `github-sync.js` for gist API methods: `saveChecklistStats()`, `loadAllStats()`, `loadPublicStats()`
 
-## Deployment
-- GitHub Pages takes 1-2 minutes to deploy changes after pushing
-- Wait before testing live site changes
-
-## Local Preview
-- For visual/layout changes (CSS, spacing, styling), open the file locally for user review before committing
-- Use `open index.html` or `open <filename>.html` to preview in browser
-- Wait for user approval before creating a PR for layout tweaks
-- **Auth does not work locally** - GitHub OAuth requires the deployed domain, so any auth-related features (edit mode, owned cards, sync) must be tested post-merge on the live site
+## Testing
+- **Auth and data do not work locally** - GitHub OAuth and gist data require the deployed domain
+- Skip local preview for most changes; test on the live site after merge
+- GitHub Pages deploys in 1-2 minutes after push
 
 ## Consistency
 - When making changes to a page or card component, consider applying the same change to all checklists/cards

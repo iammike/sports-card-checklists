@@ -37,7 +37,8 @@ const AuthUI = {
                     <img src="${safeAvatarUrl}" alt="">
                     <span>${safeLogin}</span>
                 </div>
-                <button class="nav-btn logout" id="auth-logout-btn">Sign out</button>
+                <div class="nav-auth-divider"></div>
+                <button class="nav-btn logout" id="auth-logout-btn"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg><span class="btn-text">Sign out</span></button>
             `;
             document.getElementById('auth-logout-btn').onclick = logoutFn;
         } else {
@@ -179,7 +180,8 @@ class ChecklistManager {
                     <img src="${safeAvatarUrl}" alt="">
                     <span>${safeLogin}</span>
                 </div>
-                <button class="nav-btn logout" onclick="checklistManager.logout()">Sign out</button>
+                <div class="nav-auth-divider"></div>
+                <button class="nav-btn logout" onclick="checklistManager.logout()"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg><span class="btn-text">Sign out</span></button>
             `;
         } else {
             authContent.innerHTML = '';
@@ -520,23 +522,34 @@ class EditModeManager {
         }
     }
 
+    // SVG icons for edit button
+    static ICON_EDIT = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
+    static ICON_CHECK = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+
     // Create the edit button in the nav
     createEditButton() {
         const navAuth = document.querySelector('.nav-auth');
         if (!navAuth || document.getElementById('edit-mode-btn')) return;
 
+        // Create divider before edit button
+        this.editDivider = document.createElement('div');
+        this.editDivider.className = 'nav-auth-divider';
+        this.editDivider.style.display = 'none';
+
         this.editButton = document.createElement('button');
         this.editButton.id = 'edit-mode-btn';
         this.editButton.className = 'nav-btn edit-btn';
-        this.editButton.innerHTML = '✏️ <span class="btn-text">Edit</span>';
+        this.editButton.innerHTML = EditModeManager.ICON_EDIT + '<span class="btn-text">Edit</span>';
         this.editButton.style.display = 'none';
         this.editButton.onclick = () => this.toggleEditMode();
 
         // Insert before auth content
         const authContent = document.getElementById('auth-content');
         if (authContent) {
+            navAuth.insertBefore(this.editDivider, authContent);
             navAuth.insertBefore(this.editButton, authContent);
         } else {
+            navAuth.appendChild(this.editDivider);
             navAuth.appendChild(this.editButton);
         }
     }
@@ -547,9 +560,12 @@ class EditModeManager {
 
         const isOwner = this.checklistManager?.isOwner() || false;
         this.editButton.style.display = isOwner ? '' : 'none';
+        if (this.editDivider) this.editDivider.style.display = isOwner ? '' : 'none';
 
-        // Update button text based on current mode
-        this.editButton.innerHTML = this.isEditMode ? '✓ <span class="btn-text">Done</span>' : '✏️ <span class="btn-text">Edit</span>';
+        // Update button icon and text based on current mode
+        const icon = this.isEditMode ? EditModeManager.ICON_CHECK : EditModeManager.ICON_EDIT;
+        const text = this.isEditMode ? 'Done' : 'Edit';
+        this.editButton.innerHTML = icon + '<span class="btn-text">' + text + '</span>';
         this.editButton.classList.toggle('active', this.isEditMode);
     }
 
