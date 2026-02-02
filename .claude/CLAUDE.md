@@ -9,7 +9,8 @@
 ## Testing
 - **Auth and data do not work locally** - GitHub OAuth and gist data require the deployed domain
 - Skip local preview for most changes; test on the live site after merge
-- GitHub Pages deploys in 1-2 minutes after push
+- GitHub Pages deploys in ~30-60 seconds after push
+- After a PR is merged, wait for user to test before pushing more fixes - create new PRs instead of adding to old branches
 
 ## Consistency
 - When making changes to a page or card component, consider applying the same change to all checklists/cards
