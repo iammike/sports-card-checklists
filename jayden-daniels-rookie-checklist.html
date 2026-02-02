@@ -478,6 +478,11 @@
                             card.search = cardData.ebay;
                             delete card.ebay;
                         }
+                        // Delete optional properties that were cleared
+                        if (!('price' in cardData)) delete card.price;
+                        if (!('img' in cardData)) delete card.img;
+                        if (!('achievement' in cardData)) delete card.achievement;
+                        if (!('auto' in cardData)) delete card.auto;
                         console.log('Updated card:', card);
                     }
                 }

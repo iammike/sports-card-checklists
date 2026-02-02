@@ -570,8 +570,11 @@
                         card.set = cardData.set;
                         card.num = cardData.num;
                         card.type = cardData.type;
-                        if (cardData.price !== undefined) card.price = cardData.price;
-                        if (cardData.img) card.img = cardData.img;
+                        // Handle optional fields - set if present, delete if cleared
+                        if ('price' in cardData) card.price = cardData.price;
+                        else delete card.price;
+                        if ('img' in cardData) card.img = cardData.img;
+                        else delete card.img;
                         if (cardData.ebay) card.search = cardData.ebay;
                         console.log('Updated card:', card);
                     }
