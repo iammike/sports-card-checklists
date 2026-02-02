@@ -274,6 +274,17 @@
         let checklistData = null;
 
         async function loadCardData() {
+            // Try to load from gist first (has latest edits), fall back to repo JSON
+            if (window.githubSync?.isLoggedIn()) {
+                const gistData = await githubSync.loadCardData('jmu-pro-players');
+                if (gistData) {
+                    checklistData = gistData;
+                    cards = checklistData.categories;
+                    return;
+                }
+            }
+
+            // Fall back to repo JSON file
             const response = await fetch('data/jmu-pro-players.json');
             if (!response.ok) {
                 throw new Error('Failed to load card data');

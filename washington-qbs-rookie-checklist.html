@@ -394,6 +394,17 @@
         let checklistData = null;
 
         async function loadQbData() {
+            // Try to load from gist first (has latest edits), fall back to repo JSON
+            if (window.githubSync?.isLoggedIn()) {
+                const gistData = await githubSync.loadCardData('washington-qbs');
+                if (gistData) {
+                    checklistData = gistData;
+                    qbs = checklistData.qbs;
+                    return;
+                }
+            }
+
+            // Fall back to repo JSON file
             const response = await fetch('data/washington-qbs.json');
             if (!response.ok) {
                 throw new Error('Failed to load QB data');
