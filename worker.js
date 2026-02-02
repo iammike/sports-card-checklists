@@ -51,7 +51,16 @@ async function handleProxyImage(request, corsOrigin) {
 
     const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
     const arrayBuffer = await imageResponse.arrayBuffer();
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+
+    // Convert to base64 in chunks (spread operator fails on large arrays)
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      const chunk = bytes.subarray(i, i + chunkSize);
+      binary += String.fromCharCode.apply(null, chunk);
+    }
+    const base64 = btoa(binary);
 
     return new Response(JSON.stringify({ base64, contentType }), {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': corsOrigin },
