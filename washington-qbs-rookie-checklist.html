@@ -612,7 +612,7 @@
                 ${CardRenderer.renderAchievements(qb.achievement)}
                 <div class="card-actions${checklistManager.isReadOnly && !cardOwned ? ' links-only' : ''}">
                     ${!checklistManager.isReadOnly ? `<label class="checkbox-wrapper">
-                        <input type="checkbox" ${cardOwned ? 'checked' : ''} onchange="toggleOwned('${cardId}')">
+                        <input type="checkbox" id="${cardId}" ${cardOwned ? 'checked' : ''} onchange="toggleOwned('${cardId}')">
                         <span>Owned</span>
                     </label>` : (cardOwned ? '<span class="owned-badge">✓ Owned</span>' : '')}
                     <span class="links">
