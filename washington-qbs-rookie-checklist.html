@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' https: data:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.github.com https://cards-oauth.iammikec.workers.dev;">
     <title>Washington Redskins/Commanders QB Rookie Cards (1982-2025)</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="shared.css">
     <style>
         /* Washington Commanders Theme - Burgundy and Gold (Dark) */
@@ -761,7 +762,21 @@
                     } else {
                         newQb.search = cardData.ebay;
                     }
-                    qbs.push(newQb);
+                    // Insert in sorted order (by player name, then set, then card number)
+                    const idx = qbs.findIndex(q => {
+                        if (q.name > newQb.name) return true;
+                        if (q.name === newQb.name) {
+                            if (q.set > newQb.set) return true;
+                            if (q.set === newQb.set) {
+                                const numA = parseInt((newQb.num || '').replace(/\D/g, '')) || 0;
+                                const numB = parseInt((q.num || '').replace(/\D/g, '')) || 0;
+                                return numB > numA;
+                            }
+                        }
+                        return false;
+                    });
+                    if (idx === -1) qbs.push(newQb);
+                    else qbs.splice(idx, 0, newQb);
                     console.log('Added new QB:', newQb);
                 } else {
                     // Update existing QB

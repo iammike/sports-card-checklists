@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' https: data:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.github.com https://cards-oauth.iammikec.workers.dev;">
     <title>JMU Pro Players Card Checklist</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="shared.css">
     <style>
         /* JMU Theme - Purple and Gold */
@@ -559,7 +560,22 @@
                         newCard.search = cardData.ebay;
                     }
                     if (cards[category]) {
-                        cards[category].push(newCard);
+                        // Insert in sorted order (by player, then set, then card number)
+                        const arr = cards[category];
+                        const idx = arr.findIndex(c => {
+                            if (c.player > newCard.player) return true;
+                            if (c.player === newCard.player) {
+                                if (c.set > newCard.set) return true;
+                                if (c.set === newCard.set) {
+                                    const numA = parseInt((newCard.num || '').replace(/\D/g, '')) || 0;
+                                    const numB = parseInt((c.num || '').replace(/\D/g, '')) || 0;
+                                    return numB > numA;
+                                }
+                            }
+                            return false;
+                        });
+                        if (idx === -1) arr.push(newCard);
+                        else arr.splice(idx, 0, newCard);
                     }
                     console.log('Added new card:', newCard);
                 } else {
