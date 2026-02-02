@@ -713,6 +713,7 @@ select, input[type="text"] {
     font-size: 13px;
     font-weight: 400;
     letter-spacing: 0.02em;
+    line-height: 1;
     z-index: 10;
 }
 
