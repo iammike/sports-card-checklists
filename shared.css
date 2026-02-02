@@ -1039,29 +1039,29 @@ body.edit-mode .card:hover {
     color: #888;
 }
 
-.card-editor-input,
-.card-editor-select {
+.card-editor-modal .card-editor-input,
+.card-editor-modal .card-editor-select {
     font-family: 'Barlow', sans-serif;
     font-size: 14px;
     font-weight: 500;
     padding: 12px 14px;
-    background: rgba(30, 30, 50, 0.9);
+    background: rgba(30, 30, 50, 0.9) !important;
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 4px;
-    color: #fff;
+    color: #fff !important;
     transition: all 0.2s;
 }
 
-.card-editor-input:focus,
-.card-editor-select:focus {
+.card-editor-modal .card-editor-input:focus,
+.card-editor-modal .card-editor-select:focus {
     outline: none;
     border-color: rgba(102, 126, 234, 0.6);
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
-    background: rgba(40, 40, 70, 0.95);
+    background: rgba(40, 40, 70, 0.95) !important;
 }
 
-.card-editor-input::placeholder {
-    color: #888;
+.card-editor-modal .card-editor-input::placeholder {
+    color: #999 !important;
 }
 
 .card-editor-select {
