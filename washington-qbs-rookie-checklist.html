@@ -822,18 +822,39 @@
             return null;
         }
 
+        // Extract starting year from years field (e.g., "1982-1985" -> 1982)
+        function getStartYear(years) {
+            const match = (years || '').match(/^\d{4}/);
+            return match ? parseInt(match[0]) : 9999;
+        }
+
+        // Extract year from set name (e.g., "1975 Topps" -> 1975)
+        function getSetYear(set) {
+            const match = (set || '').match(/^\d{4}/);
+            return match ? parseInt(match[0]) : 9999;
+        }
+
         function insertQbSorted(qb) {
             const idx = qbs.findIndex(q => {
+                // Sort by starting year (when they were QB)
+                const startA = getStartYear(qb.years);
+                const startB = getStartYear(q.years);
+                if (startB > startA) return true;
+                if (startB < startA) return false;
+                // Same QB era - sort by player name
                 if (q.name > qb.name) return true;
-                if (q.name === qb.name) {
-                    if (q.set > qb.set) return true;
-                    if (q.set === qb.set) {
-                        const numA = parseInt((qb.num || '').replace(/\D/g, '')) || 0;
-                        const numB = parseInt((q.num || '').replace(/\D/g, '')) || 0;
-                        return numB > numA;
-                    }
-                }
-                return false;
+                if (q.name < qb.name) return false;
+                // Same player - sort by card year
+                const setYearA = getSetYear(qb.set);
+                const setYearB = getSetYear(q.set);
+                if (setYearB > setYearA) return true;
+                if (setYearB < setYearA) return false;
+                // Same set year - sort by set name then number
+                if (q.set > qb.set) return true;
+                if (q.set < qb.set) return false;
+                const numA = parseInt((qb.num || '').replace(/\D/g, '')) || 0;
+                const numB = parseInt((q.num || '').replace(/\D/g, '')) || 0;
+                return numB > numA;
             });
             if (idx === -1) qbs.push(qb);
             else qbs.splice(idx, 0, qb);

@@ -631,18 +631,29 @@
             return null;
         }
 
+        // Extract year from set name (e.g., "1987 Topps" -> 1987)
+        function getSetYear(set) {
+            const match = (set || '').match(/^\d{4}/);
+            return match ? parseInt(match[0]) : 9999;
+        }
+
         function insertCardSorted(arr, card) {
             const idx = arr.findIndex(c => {
+                // Sort by year first
+                const yearA = getSetYear(card.set);
+                const yearB = getSetYear(c.set);
+                if (yearB > yearA) return true;
+                if (yearB < yearA) return false;
+                // Then by player
                 if (c.player > card.player) return true;
-                if (c.player === card.player) {
-                    if (c.set > card.set) return true;
-                    if (c.set === card.set) {
-                        const numA = parseInt((card.num || '').replace(/\D/g, '')) || 0;
-                        const numB = parseInt((c.num || '').replace(/\D/g, '')) || 0;
-                        return numB > numA;
-                    }
-                }
-                return false;
+                if (c.player < card.player) return false;
+                // Then by set name
+                if (c.set > card.set) return true;
+                if (c.set < card.set) return false;
+                // Then by card number
+                const numA = parseInt((card.num || '').replace(/\D/g, '')) || 0;
+                const numB = parseInt((c.num || '').replace(/\D/g, '')) || 0;
+                return numB > numA;
             });
             if (idx === -1) arr.push(card);
             else arr.splice(idx, 0, card);
