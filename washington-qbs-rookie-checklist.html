@@ -717,13 +717,25 @@
         // Initialize edit mode manager
         const editModeManager = new EditModeManager(checklistManager);
 
+        // Save QB data to GitHub repo
+        async function saveQbDataToRepo() {
+            checklistData.qbs = qbs;
+            const success = await githubSync.saveCardData('washington-qbs', checklistData);
+            if (success) {
+                checklistManager.setSyncStatus('synced', 'Saved');
+            } else {
+                checklistManager.setSyncStatus('error', 'Save failed');
+            }
+            return success;
+        }
+
         // Initialize card editor modal
         const cardEditor = new CardEditorModal({
-            onSave: (cardId, cardData, isNew) => {
+            onSave: async (cardId, cardData, isNew) => {
                 if (isNew) {
                     // Add new QB
                     const newQb = {
-                        name: cardData.name || 'Unknown QB',
+                        name: cardData.player || 'Unknown QB',
                         years: cardData.years || 'TBD',
                         record: cardData.record || '0-0',
                         playoff: '-',
@@ -744,6 +756,7 @@
                     // Update existing QB
                     const qb = findQbById(cardId);
                     if (qb) {
+                        if (cardData.player) qb.name = cardData.player;
                         qb.set = cardData.set;
                         qb.num = cardData.num;
                         if (cardData.price !== undefined) qb.price = cardData.price;
@@ -754,9 +767,11 @@
                 }
                 render();
                 editModeManager.updateCardEditControls();
-                // TODO: Save to JSON via GitHub API (issue #123)
+                // Save to GitHub repo
+                checklistManager.setSyncStatus('syncing', 'Saving...');
+                await saveQbDataToRepo();
             },
-            onDelete: (cardId) => {
+            onDelete: async (cardId) => {
                 const idx = qbs.findIndex(qb => getCardId(qb) === cardId);
                 if (idx !== -1) {
                     qbs.splice(idx, 1);
@@ -764,7 +779,9 @@
                 }
                 render();
                 editModeManager.updateCardEditControls();
-                // TODO: Save to JSON via GitHub API (issue #123)
+                // Save to GitHub repo
+                checklistManager.setSyncStatus('syncing', 'Saving...');
+                await saveQbDataToRepo();
             }
         });
 

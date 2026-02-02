@@ -514,15 +514,27 @@
         // Initialize edit mode manager
         const editModeManager = new EditModeManager(checklistManager);
 
+        // Save card data to GitHub repo
+        async function saveCardDataToRepo() {
+            checklistData.categories = cards;
+            const success = await githubSync.saveCardData('jmu-pro-players', checklistData);
+            if (success) {
+                checklistManager.setSyncStatus('synced', 'Saved');
+            } else {
+                checklistManager.setSyncStatus('error', 'Save failed');
+            }
+            return success;
+        }
+
         // Initialize card editor modal
         const cardEditor = new CardEditorModal({
-            onSave: (cardId, cardData, isNew) => {
+            onSave: async (cardId, cardData, isNew) => {
                 if (isNew) {
                     // Add new card
                     const category = cardData.category || 'modern';
                     delete cardData.category;
                     const newCard = {
-                        player: cardData.name || 'Unknown Player',
+                        player: cardData.player || 'Unknown Player',
                         sport: 'Football',
                         set: cardData.set,
                         num: cardData.num,
@@ -543,6 +555,7 @@
                     // Update existing card
                     const card = findCardById(cardId);
                     if (card) {
+                        if (cardData.player) card.player = cardData.player;
                         card.set = cardData.set;
                         card.num = cardData.num;
                         card.type = cardData.type;
@@ -554,9 +567,11 @@
                 }
                 renderCards();
                 editModeManager.updateCardEditControls();
-                // TODO: Save to JSON via GitHub API (issue #123)
+                // Save to GitHub repo
+                checklistManager.setSyncStatus('syncing', 'Saving...');
+                await saveCardDataToRepo();
             },
-            onDelete: (cardId) => {
+            onDelete: async (cardId) => {
                 for (const category of Object.keys(cards)) {
                     const idx = cards[category].findIndex(c => getCardId(c) === cardId);
                     if (idx !== -1) {
@@ -567,7 +582,9 @@
                 }
                 renderCards();
                 editModeManager.updateCardEditControls();
-                // TODO: Save to JSON via GitHub API (issue #123)
+                // Save to GitHub repo
+                checklistManager.setSyncStatus('syncing', 'Saving...');
+                await saveCardDataToRepo();
             }
         });
 
