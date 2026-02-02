@@ -72,15 +72,14 @@ const AuthUI = {
 
     async loadCommitHash() {
         try {
-            const response = await fetch('https://api.github.com/repos/iammike/sports-card-checklists/commits/main');
+            const response = await fetch('version.json');
             const data = await response.json();
-            const shortHash = data.sha.substring(0, 7);
             const el = document.getElementById('commit-hash');
             if (el) {
-                el.innerHTML = `<a href="${data.html_url}" target="_blank">${shortHash}</a>`;
+                el.innerHTML = `<a href="${data.url}" target="_blank">${data.commit}</a>`;
             }
         } catch (e) {
-            // Silently fail
+            // Silently fail - version.json may not exist locally
         }
     }
 };
@@ -280,15 +279,14 @@ class ChecklistManager {
     // Load and display commit hash in dropdown
     async loadCommitHash() {
         try {
-            const response = await fetch('https://api.github.com/repos/iammike/sports-card-checklists/commits/main');
+            const response = await fetch('version.json');
             const data = await response.json();
-            const shortHash = data.sha.substring(0, 7);
             const el = document.getElementById('commit-hash');
             if (el) {
-                el.innerHTML = `<a href="${data.html_url}" target="_blank">${shortHash}</a>`;
+                el.innerHTML = `<a href="${data.url}" target="_blank">${data.commit}</a>`;
             }
         } catch (e) {
-            // Silently fail
+            // Silently fail - version.json may not exist locally
         }
     }
 
