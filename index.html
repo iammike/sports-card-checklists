@@ -360,6 +360,22 @@
             .aggregate-stat { padding: 14px 12px 12px; }
             .aggregate-stat-value { font-size: 2.6em; }
         }
+        .site-footer {
+            text-align: center;
+            padding: 32px 20px;
+            margin-top: 48px;
+            font-family: 'Barlow', sans-serif;
+            font-size: 0.75em;
+            color: #444;
+            letter-spacing: 0.5px;
+        }
+        .site-footer a {
+            color: #666;
+            text-decoration: none;
+        }
+        .site-footer a:hover {
+            color: var(--gold);
+        }
     </style>
 </head>
 <body>
@@ -376,8 +392,8 @@
             <div class="nav-divider"></div>
             <div class="nav-links">
                 <a href="jayden-daniels-rookie-checklist.html" class="nav-link">JAYDEN DANIELS</a>
-                <a href="washington-qbs-rookie-checklist.html" class="nav-link">WASHINGTON QBS</a>
                 <a href="jmu-pro-players-checklist.html" class="nav-link">JMU PROS</a>
+                <a href="washington-qbs-rookie-checklist.html" class="nav-link">WASHINGTON QBS</a>
             </div>
             <div class="nav-auth">
                 <span class="sync-status" id="sync-status"></span>
@@ -444,29 +460,6 @@
                 </div>
             </a>
 
-            <a href="washington-qbs-rookie-checklist.html" class="checklist-card" data-checklist="washington-qbs" id="card-washington-qbs">
-                <h2>Washington QBs Collection</h2>
-                <p>Curated rookie cards for Washington starting quarterbacks since 1985.</p>
-                <div class="progress-section" id="progress-section-washington-qbs" style="display: none;">
-                    <div class="main-progress">
-                        <div class="progress-ring">
-                            <svg viewBox="0 0 48 48">
-                                <circle class="bg" cx="24" cy="24" r="20"/>
-                                <circle class="fill" id="progress-ring-washington-qbs" cx="24" cy="24" r="20"
-                                    stroke-dasharray="125.6" stroke-dashoffset="125.6"/>
-                            </svg>
-                            <span class="percentage" id="progress-pct-washington-qbs">0%</span>
-                        </div>
-                        <div class="progress-details">
-                            <div class="progress-main-text">
-                                <span id="progress-owned-washington-qbs">0</span> of <span id="progress-total-washington-qbs">0</span> cards
-                            </div>
-                            <div class="value-line" id="value-stats-washington-qbs"></div>
-                        </div>
-                    </div>
-                </div>
-            </a>
-
             <a href="jmu-pro-players-checklist.html" class="checklist-card" data-checklist="jmu-pro-players" id="card-jmu-pro-players">
                 <h2>JMU Pro Players</h2>
                 <p>Trading cards of James Madison University alumni in pro sports. Includes HOFer Charles Haley, Gary Clark, and more.</p>
@@ -492,7 +485,34 @@
                     </div>
                 </div>
             </a>
+
+            <a href="washington-qbs-rookie-checklist.html" class="checklist-card" data-checklist="washington-qbs" id="card-washington-qbs">
+                <h2>Washington QBs Collection</h2>
+                <p>Curated rookie cards for Washington starting quarterbacks since 1985.</p>
+                <div class="progress-section" id="progress-section-washington-qbs" style="display: none;">
+                    <div class="main-progress">
+                        <div class="progress-ring">
+                            <svg viewBox="0 0 48 48">
+                                <circle class="bg" cx="24" cy="24" r="20"/>
+                                <circle class="fill" id="progress-ring-washington-qbs" cx="24" cy="24" r="20"
+                                    stroke-dasharray="125.6" stroke-dashoffset="125.6"/>
+                            </svg>
+                            <span class="percentage" id="progress-pct-washington-qbs">0%</span>
+                        </div>
+                        <div class="progress-details">
+                            <div class="progress-main-text">
+                                <span id="progress-owned-washington-qbs">0</span> of <span id="progress-total-washington-qbs">0</span> cards
+                            </div>
+                            <div class="value-line" id="value-stats-washington-qbs"></div>
+                        </div>
+                    </div>
+                </div>
+            </a>
         </div>
+
+        <footer class="site-footer">
+            <span id="commit-hash"></span>
+        </footer>
     </div>
 
     <script src="github-sync.js"></script>
@@ -786,6 +806,18 @@
             // Load progress data for individual cards and aggregate stats
             const stats = await loadProgress();
             updateAggregateStats(stats);
+
+            // Load commit hash for footer
+            try {
+                const response = await fetch('https://api.github.com/repos/iammike/sports-card-checklists/commits/main');
+                const data = await response.json();
+                const shortHash = data.sha.substring(0, 7);
+                const commitUrl = data.html_url;
+                document.getElementById('commit-hash').innerHTML =
+                    `<a href="${commitUrl}" target="_blank" title="View commit">${shortHash}</a>`;
+            } catch (e) {
+                // Silently fail - commit hash is non-essential
+            }
         }
         init();
     </script>
