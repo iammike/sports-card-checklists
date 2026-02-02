@@ -668,6 +668,210 @@ class EditModeManager {
 }
 
 /**
+ * Image Processor - handles fetching, resizing, and converting images
+ */
+class ImageProcessor {
+    constructor() {
+        this.proxyUrl = 'https://cards-oauth.iammikec.workers.dev/proxy-image';
+        this.maxSize = 300;      // Max width/height in pixels
+        this.quality = 0.8;      // WebP quality (0-1)
+        this.sharpen = 0.7;      // Sharpen amount (0-1)
+        this.smooth = 0.2;       // Smooth/anti-alias amount (0-1)
+        this.resizeQuality = 'medium'; // Canvas resize quality
+    }
+
+    // Check if URL is from eBay
+    isEbayUrl(url) {
+        if (!url) return false;
+        try {
+            const parsed = new URL(url);
+            return parsed.hostname.includes('ebay');
+        } catch {
+            return false;
+        }
+    }
+
+    // Fetch image via proxy to bypass CORS
+    async fetchViaProxy(url) {
+        const response = await fetch(this.proxyUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to fetch image');
+        }
+
+        return response.json(); // { base64, contentType }
+    }
+
+    // Load image from base64 data
+    loadImage(base64, contentType) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error('Failed to load image'));
+            img.src = `data:${contentType};base64,${base64}`;
+        });
+    }
+
+    // Sharpen filter (unsharp mask)
+    sharpenCanvas(ctx, width, height, amount) {
+        if (amount <= 0) return;
+
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const data = imageData.data;
+        const copy = new Uint8ClampedArray(data);
+
+        for (let y = 1; y < height - 1; y++) {
+            for (let x = 1; x < width - 1; x++) {
+                const i = (y * width + x) * 4;
+                for (let c = 0; c < 3; c++) {
+                    const idx = i + c;
+                    const top = copy[idx - width * 4];
+                    const bottom = copy[idx + width * 4];
+                    const left = copy[idx - 4];
+                    const right = copy[idx + 4];
+                    const center = copy[idx];
+                    const blur = (top + bottom + left + right) / 4;
+                    const sharpened = center + amount * (center - blur);
+                    data[idx] = Math.max(0, Math.min(255, sharpened));
+                }
+            }
+        }
+        ctx.putImageData(imageData, 0, 0);
+    }
+
+    // Smooth/anti-alias filter
+    smoothCanvas(ctx, width, height, amount) {
+        if (amount <= 0) return;
+
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const data = imageData.data;
+        const copy = new Uint8ClampedArray(data);
+
+        for (let y = 1; y < height - 1; y++) {
+            for (let x = 1; x < width - 1; x++) {
+                const i = (y * width + x) * 4;
+                for (let c = 0; c < 3; c++) {
+                    const idx = i + c;
+                    const tl = copy[idx - width * 4 - 4];
+                    const t  = copy[idx - width * 4];
+                    const tr = copy[idx - width * 4 + 4];
+                    const l  = copy[idx - 4];
+                    const center = copy[idx];
+                    const r  = copy[idx + 4];
+                    const bl = copy[idx + width * 4 - 4];
+                    const b  = copy[idx + width * 4];
+                    const br = copy[idx + width * 4 + 4];
+                    const avg = (tl + t + tr + l + center + r + bl + b + br) / 9;
+                    const smoothed = center * (1 - amount) + avg * amount;
+                    data[idx] = Math.max(0, Math.min(255, smoothed));
+                }
+            }
+        }
+        ctx.putImageData(imageData, 0, 0);
+    }
+
+    // Resize and convert to WebP using canvas
+    async processImage(img) {
+        // Calculate new dimensions maintaining aspect ratio
+        let width = img.width;
+        let height = img.height;
+
+        if (width > this.maxSize || height > this.maxSize) {
+            if (width > height) {
+                height = Math.round(height * (this.maxSize / width));
+                width = this.maxSize;
+            } else {
+                width = Math.round(width * (this.maxSize / height));
+                height = this.maxSize;
+            }
+        }
+
+        // Create canvas and draw resized image
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = this.resizeQuality;
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Apply sharpen then smooth
+        this.sharpenCanvas(ctx, width, height, this.sharpen);
+        this.smoothCanvas(ctx, width, height, this.smooth);
+
+        // Convert to WebP
+        const dataUrl = canvas.toDataURL('image/webp', this.quality);
+        // Extract base64 content (remove data URL prefix)
+        const base64 = dataUrl.split(',')[1];
+
+        return { base64, width, height };
+    }
+
+    // Generate filename from card data
+    generateFilename(cardData) {
+        const parts = [];
+
+        // Set name (required)
+        if (cardData.set) {
+            parts.push(cardData.set.toLowerCase().replace(/\s+/g, '_'));
+        }
+
+        // Card name/variant if present
+        if (cardData.name) {
+            parts.push(cardData.name.toLowerCase().replace(/\s+/g, '_').replace(/\//g, '-'));
+        }
+
+        // Card number
+        if (cardData.num) {
+            parts.push(cardData.num.replace('#', ''));
+        }
+
+        // Create filename, sanitize for filesystem
+        const name = parts.join('_').replace(/[^a-z0-9_-]/g, '');
+        return `${name}.webp`;
+    }
+
+    // Full pipeline: fetch, process, return base64 data URL
+    async processFromUrl(url) {
+        // Fetch via proxy
+        const { base64: rawBase64, contentType } = await this.fetchViaProxy(url);
+
+        // Load into image element
+        const img = await this.loadImage(rawBase64, contentType);
+
+        // Resize and convert to WebP
+        const { base64 } = await this.processImage(img);
+
+        // Return as data URL for storage in card data
+        return `data:image/webp;base64,${base64}`;
+    }
+
+    // Process a local/existing image URL (for conversion script)
+    async processFromLocalUrl(url) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = async () => {
+                try {
+                    const { base64 } = await this.processImage(img);
+                    resolve(`data:image/webp;base64,${base64}`);
+                } catch (e) {
+                    reject(e);
+                }
+            };
+            img.onerror = () => reject(new Error('Failed to load image'));
+            img.src = url;
+        });
+    }
+}
+
+/**
  * Card Editor Modal - handles card editing UI
  */
 class CardEditorModal {
@@ -684,6 +888,7 @@ class CardEditorModal {
         this.isDirty = false;
         this.backdrop = null;
         this.isNewCard = false;
+        this.imageProcessor = new ImageProcessor();
     }
 
     // Initialize - create modal DOM
@@ -750,7 +955,13 @@ class CardEditorModal {
                         </div>
                         <div class="card-editor-field full-width card-editor-image-section">
                             <label class="card-editor-label">Image URL</label>
-                            <input type="text" class="card-editor-input" id="editor-img" placeholder="https://...">
+                            <div class="card-editor-image-input-row">
+                                <input type="text" class="card-editor-input" id="editor-img" placeholder="https://...">
+                                <button type="button" class="card-editor-process-btn" id="editor-process-img" title="Process eBay image">
+                                    <span class="process-text">Process</span>
+                                    <span class="process-spinner"></span>
+                                </button>
+                            </div>
                             <div class="card-editor-image-preview">
                                 <span class="placeholder">No image</span>
                             </div>
@@ -801,7 +1012,11 @@ class CardEditorModal {
         // Image preview on URL change
         this.backdrop.querySelector('#editor-img').oninput = (e) => {
             this.updateImagePreview(e.target.value);
+            this.updateProcessButton(e.target.value);
         };
+
+        // Process image button
+        this.backdrop.querySelector('#editor-process-img').onclick = () => this.processImage();
 
         // Escape key to close
         document.addEventListener('keydown', (e) => {
@@ -822,10 +1037,50 @@ class CardEditorModal {
     // Update image preview
     updateImagePreview(url) {
         const preview = this.backdrop.querySelector('.card-editor-image-preview');
-        if (url && url.startsWith('http')) {
+        if (url && (url.startsWith('http') || url.startsWith('/'))) {
             preview.innerHTML = `<img src="${sanitizeUrl(url)}" alt="Preview" onerror="this.outerHTML='<span class=\\'placeholder\\'>Failed to load</span>'">`;
         } else {
             preview.innerHTML = '<span class="placeholder">No image</span>';
+        }
+    }
+
+    // Update process button visibility based on URL
+    updateProcessButton(url) {
+        const btn = this.backdrop.querySelector('#editor-process-img');
+        if (!btn) return;
+
+        const isEbay = this.imageProcessor.isEbayUrl(url);
+        btn.style.display = isEbay ? '' : 'none';
+    }
+
+    // Process image: fetch, resize, convert to base64 data URL
+    async processImage() {
+        const imgInput = this.backdrop.querySelector('#editor-img');
+        const url = imgInput.value.trim();
+        const btn = this.backdrop.querySelector('#editor-process-img');
+
+        if (!url || !this.imageProcessor.isEbayUrl(url)) return;
+
+        // Show loading state
+        btn.classList.add('processing');
+        btn.disabled = true;
+
+        try {
+            // Process the image and get base64 data URL
+            const dataUrl = await this.imageProcessor.processFromUrl(url);
+
+            // Update the input field with the data URL
+            imgInput.value = dataUrl;
+            this.updateImagePreview(dataUrl);
+            this.updateProcessButton(dataUrl);
+            this.setDirty(true);
+
+        } catch (error) {
+            console.error('Image processing failed:', error);
+            alert('Failed to process image: ' + error.message);
+        } finally {
+            btn.classList.remove('processing');
+            btn.disabled = false;
         }
     }
 
@@ -874,6 +1129,7 @@ class CardEditorModal {
         this.backdrop.querySelector('#editor-img').value = cardData.img || '';
 
         this.updateImagePreview(cardData.img);
+        this.updateProcessButton(cardData.img);
         this.setDirty(false);
 
         // Show modal
@@ -911,6 +1167,7 @@ class CardEditorModal {
             categoryField.value = category;
         }
         this.updateImagePreview('');
+        this.updateProcessButton('');
         this.setDirty(false);
 
         // Show modal
@@ -1085,3 +1342,4 @@ window.StatsAnimator = StatsAnimator;
 window.EditModeManager = EditModeManager;
 window.CardEditorModal = CardEditorModal;
 window.AddCardButton = AddCardButton;
+window.ImageProcessor = ImageProcessor;

@@ -409,6 +409,59 @@ class GitHubSync {
         }
     }
 
+    // Commit an image to the repo (creates or updates)
+    async commitImage(path, base64Content, message) {
+        if (!this.token) return null;
+
+        const { owner, repo } = this.getRepoInfo();
+
+        // Check if file exists to get SHA (for updates)
+        let sha = null;
+        try {
+            const existingFile = await this.getRepoFile(path);
+            if (existingFile) {
+                sha = existingFile.sha;
+            }
+        } catch (e) {
+            // File doesn't exist, that's ok for create
+        }
+
+        try {
+            const body = {
+                message: message || `Add image ${path}`,
+                content: base64Content
+            };
+            if (sha) {
+                body.sha = sha;
+            }
+
+            const response = await fetch(
+                `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${this.token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(body)
+                }
+            );
+
+            if (!response.ok) {
+                const error = await response.json();
+                console.error('Failed to commit image:', error);
+                return null;
+            }
+
+            const result = await response.json();
+            // Return the raw URL for the committed image
+            return result.content.download_url;
+        } catch (error) {
+            console.error('Failed to commit image:', error);
+            return null;
+        }
+    }
+
     // ========================================
     // Card Data Operations (stored in gist)
     // ========================================

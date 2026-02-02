@@ -13,6 +13,58 @@ const ALLOWED_ORIGINS = [
   'http://127.0.0.1:8000',
 ];
 
+const ALLOWED_IMAGE_DOMAINS = [
+  'i.ebayimg.com',
+  'ebay.com',
+  'www.ebay.com',
+];
+
+// Proxy image endpoint - fetches external images to bypass CORS
+async function handleProxyImage(request, corsOrigin) {
+  try {
+    const { url } = await request.json();
+
+    if (!url) {
+      return new Response(JSON.stringify({ error: 'Missing url' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': corsOrigin },
+      });
+    }
+
+    // Validate URL domain
+    const parsedUrl = new URL(url);
+    if (!ALLOWED_IMAGE_DOMAINS.some(domain => parsedUrl.hostname === domain || parsedUrl.hostname.endsWith('.' + domain))) {
+      return new Response(JSON.stringify({ error: 'Domain not allowed' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': corsOrigin },
+      });
+    }
+
+    // Fetch the image
+    const imageResponse = await fetch(url);
+    if (!imageResponse.ok) {
+      return new Response(JSON.stringify({ error: 'Failed to fetch image' }), {
+        status: 502,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': corsOrigin },
+      });
+    }
+
+    const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
+    const arrayBuffer = await imageResponse.arrayBuffer();
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+
+    return new Response(JSON.stringify({ base64, contentType }), {
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': corsOrigin },
+    });
+  } catch (error) {
+    console.error('Proxy image error:', error);
+    return new Response(JSON.stringify({ error: 'Failed to proxy image' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': corsOrigin },
+    });
+  }
+}
+
 function getCorsOrigin(request) {
   const origin = request.headers.get('Origin');
   return ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
@@ -32,6 +84,11 @@ export default {
           'Access-Control-Allow-Headers': 'Content-Type',
         },
       });
+    }
+
+    // Route requests
+    if (request.method === 'POST' && url.pathname === '/proxy-image') {
+      return handleProxyImage(request, corsOrigin);
     }
 
     // Only handle POST to /token
