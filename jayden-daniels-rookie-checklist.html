@@ -426,10 +426,22 @@
         // Initialize edit mode manager
         const editModeManager = new EditModeManager(checklistManager);
 
+        // Save card data to GitHub repo
+        async function saveCardDataToRepo() {
+            checklistData.categories = cards;
+            const success = await githubSync.saveCardData('jayden-daniels', checklistData);
+            if (success) {
+                checklistManager.setSyncStatus('synced', 'Saved');
+            } else {
+                checklistManager.setSyncStatus('error', 'Save failed');
+            }
+            return success;
+        }
+
         // Initialize card editor modal (no player field - all cards are Jayden Daniels)
         const cardEditor = new CardEditorModal({
             showPlayerField: false,
-            onSave: (cardId, cardData, isNew) => {
+            onSave: async (cardId, cardData, isNew) => {
                 if (isNew) {
                     // Add new card to appropriate category
                     const category = cardData.category || 'other';
@@ -459,9 +471,11 @@
                 }
                 renderCards();
                 editModeManager.updateCardEditControls();
-                // TODO: Save to JSON via GitHub API (issue #123)
+                // Save to GitHub repo
+                checklistManager.setSyncStatus('syncing', 'Saving...');
+                await saveCardDataToRepo();
             },
-            onDelete: (cardId) => {
+            onDelete: async (cardId) => {
                 // Find and remove card from its category
                 for (const category of Object.keys(cards)) {
                     const idx = cards[category].findIndex(c => getCardId(c) === cardId);
@@ -473,7 +487,9 @@
                 }
                 renderCards();
                 editModeManager.updateCardEditControls();
-                // TODO: Save to JSON via GitHub API (issue #123)
+                // Save to GitHub repo
+                checklistManager.setSyncStatus('syncing', 'Saving...');
+                await saveCardDataToRepo();
             }
         });
 

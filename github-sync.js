@@ -48,7 +48,7 @@ class GitHubSync {
     // Start OAuth flow
     login() {
         const redirectUri = window.location.origin + window.location.pathname;
-        const scope = 'gist';
+        const scope = 'gist public_repo'; // gist for owned cards, public_repo for card data edits
         // Generate state parameter for CSRF protection
         const state = crypto.randomUUID();
         sessionStorage.setItem('oauth_state', state);
@@ -316,6 +316,104 @@ class GitHubSync {
     async loadPublicStats() {
         const data = await this.loadPublicData();
         return data?.stats || {};
+    }
+
+    // ========================================
+    // Repo File Operations (for card data)
+    // ========================================
+
+    // Get repo info from current page URL (assumes GitHub Pages)
+    getRepoInfo() {
+        // For GitHub Pages: https://username.github.io/repo-name/
+        // Or custom domain pointing to GitHub Pages
+        // We'll use a config value for reliability
+        return {
+            owner: 'iammike',
+            repo: 'sports-card-checklists'
+        };
+    }
+
+    // Get a file from the repo (returns content and SHA for updates)
+    async getRepoFile(path) {
+        if (!this.token) return null;
+
+        const { owner, repo } = this.getRepoInfo();
+        try {
+            const response = await fetch(
+                `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
+                {
+                    headers: { 'Authorization': `Bearer ${this.token}` }
+                }
+            );
+
+            if (!response.ok) {
+                console.error('Failed to get repo file:', response.status);
+                return null;
+            }
+
+            const data = await response.json();
+            // Content is base64 encoded
+            const content = atob(data.content);
+            return {
+                content,
+                sha: data.sha,
+                path: data.path
+            };
+        } catch (error) {
+            console.error('Failed to get repo file:', error);
+            return null;
+        }
+    }
+
+    // Update a file in the repo
+    async updateRepoFile(path, content, message) {
+        if (!this.token) return false;
+
+        const { owner, repo } = this.getRepoInfo();
+
+        // First get the current file to get its SHA
+        const currentFile = await this.getRepoFile(path);
+        if (!currentFile) {
+            console.error('Could not get current file SHA');
+            return false;
+        }
+
+        try {
+            const response = await fetch(
+                `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${this.token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: message || `Update ${path}`,
+                        content: btoa(content), // Base64 encode
+                        sha: currentFile.sha
+                    })
+                }
+            );
+
+            if (!response.ok) {
+                const error = await response.json();
+                console.error('Failed to update repo file:', error);
+                return false;
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Failed to update repo file:', error);
+            return false;
+        }
+    }
+
+    // Save card data JSON file
+    async saveCardData(checklistId, cardData) {
+        const path = `data/${checklistId}.json`;
+        const content = JSON.stringify(cardData, null, 2);
+        const message = `Update ${checklistId} card data`;
+        return await this.updateRepoFile(path, content, message);
     }
 }
 
