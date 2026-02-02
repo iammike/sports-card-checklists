@@ -714,11 +714,18 @@
         document.getElementById('status-filter').addEventListener('change', render);
         document.getElementById('search').addEventListener('input', render);
 
+        // Initialize edit mode manager
+        const editModeManager = new EditModeManager(checklistManager);
+        editModeManager.onEditModeChange = (isEditMode) => {
+            editModeManager.updateCardEditControls();
+        };
+
         // Initialize
         async function init() {
             try {
                 await loadQbData();
                 await checklistManager.init();
+                editModeManager.init();
                 await loadJaydenDanielsStats();
                 render();
             } catch (err) {
