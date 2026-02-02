@@ -601,7 +601,7 @@
                 <div class="card-image-wrapper">
                     ${qb.superBowl ? '<span class="super-bowl-badge">SUPER BOWL</span>' : ''}
                     ${CardRenderer.renderPriceBadge(qb.price)}
-                    <img class="card-image" src="${qb.img}" alt="${qb.name}" loading="lazy" onerror="this.style.display='none'">
+                    ${CardRenderer.renderCardImage(qb.img, qb.name, searchUrl)}
                 </div>
                 <div class="player-name">${qb.name}</div>
                 <div class="player-years">${qb.years} &bull; ${qb.record}</div>
