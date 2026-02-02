@@ -283,7 +283,7 @@ class ChecklistManager {
 
     // Clear all owned cards (with confirmation)
     clearAll() {
-        const input = prompt('Type "CLEAR" to confirm clearing all checkmarks:');
+        const input = prompt('This will clear all ownership data for this checklist.\n\nType "CLEAR" to confirm:');
         if (input === 'CLEAR') {
             this.ownedCards = [];
             this.saveOwned();
