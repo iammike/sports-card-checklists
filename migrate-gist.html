@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Migrate Gist to Base64 Images</title>
+    <title>Sync Gist with Seed Data</title>
     <style>
         body { font-family: sans-serif; padding: 20px; background: #1a1a2e; color: #fff; max-width: 600px; margin: 0 auto; }
         h1 { color: #f39c12; }
@@ -16,8 +16,8 @@
     </style>
 </head>
 <body>
-    <h1>Migrate Gist to Base64 Images</h1>
-    <p>This will update your gist with the base64 image data from the seed files.</p>
+    <h1>Sync Gist with Seed Data</h1>
+    <p>This will update your gist with the current seed file data (file paths for images).</p>
 
     <div id="auth-status" class="status pending">Checking login status...</div>
 
@@ -70,17 +70,17 @@
 
                     // Count images
                     let imageCount = 0;
-                    const countBase64 = (obj) => {
+                    const countImages = (obj) => {
                         if (Array.isArray(obj)) {
-                            obj.forEach(item => countBase64(item));
+                            obj.forEach(item => countImages(item));
                         } else if (obj && typeof obj === 'object') {
-                            if (obj.img && obj.img.startsWith('data:')) imageCount++;
-                            Object.values(obj).forEach(val => countBase64(val));
+                            if (obj.img) imageCount++;
+                            Object.values(obj).forEach(val => countImages(val));
                         }
                     };
-                    countBase64(seedData);
+                    countImages(seedData);
 
-                    log(`  Found ${imageCount} base64 images`);
+                    log(`  Found ${imageCount} card images`);
 
                     // Save to gist
                     const success = await githubSync.saveCardData(checklist.id, seedData);

@@ -673,11 +673,11 @@ class EditModeManager {
 class ImageProcessor {
     constructor() {
         this.proxyUrl = 'https://cards-oauth.iammikec.workers.dev/proxy-image';
-        this.maxSize = 300;      // Max width/height in pixels
-        this.quality = 0.8;      // WebP quality (0-1)
-        this.sharpen = 0.7;      // Sharpen amount (0-1)
+        this.maxSize = 800;      // Max width/height in pixels
+        this.quality = 0.6;      // WebP quality (0-1)
+        this.sharpen = 0.5;      // Sharpen amount (0-1)
         this.smooth = 0.2;       // Smooth/anti-alias amount (0-1)
-        this.resizeQuality = 'medium'; // Canvas resize quality
+        this.resizeQuality = 'high'; // Canvas resize quality
     }
 
     // Check if URL is from eBay
@@ -837,7 +837,7 @@ class ImageProcessor {
         return `${name}.webp`;
     }
 
-    // Full pipeline: fetch, process, return base64 data URL
+    // Full pipeline: fetch, process, return base64 content (for committing)
     async processFromUrl(url) {
         // Fetch via proxy
         const { base64: rawBase64, contentType } = await this.fetchViaProxy(url);
@@ -848,8 +848,8 @@ class ImageProcessor {
         // Resize and convert to WebP
         const { base64 } = await this.processImage(img);
 
-        // Return as data URL for storage in card data
-        return `data:image/webp;base64,${base64}`;
+        // Return base64 content (not data URL) for GitHub commit
+        return base64;
     }
 
     // Process a local/existing image URL (for conversion script)
@@ -883,6 +883,7 @@ class CardEditorModal {
         this.showPlayerField = options.showPlayerField !== false; // default true
         this.showCardNameField = options.showCardNameField !== false; // default true
         this.showAchievementField = options.showAchievementField !== false; // default true
+        this.imageFolder = options.imageFolder || 'images'; // folder for processed images
         this.currentCard = null;
         this.currentCardId = null;
         this.isDirty = false;
@@ -1054,7 +1055,7 @@ class CardEditorModal {
         btn.style.display = isEbay ? 'flex' : 'none';
     }
 
-    // Process image: fetch, resize, convert to base64 data URL
+    // Process image: fetch, resize, commit via PR, update field with path
     async processImage() {
         const imgInput = this.backdrop.querySelector('#editor-img');
         const url = imgInput.value.trim();
@@ -1062,19 +1063,52 @@ class CardEditorModal {
 
         if (!url || !this.imageProcessor.isEbayUrl(url)) return;
 
+        // Check if gitSync is available and logged in
+        if (typeof gitSync === 'undefined' || !gitSync.isLoggedIn()) {
+            alert('Please sign in to process images');
+            return;
+        }
+
         // Show loading state
         btn.classList.add('processing');
         btn.disabled = true;
+        btn.title = 'Processing...';
 
         try {
-            // Process the image and get base64 data URL
-            const dataUrl = await this.imageProcessor.processFromUrl(url);
+            // Get card data from form to generate filename
+            const cardData = {
+                set: this.backdrop.querySelector('#editor-set')?.value || '',
+                name: this.backdrop.querySelector('#editor-name')?.value || '',
+                num: this.backdrop.querySelector('#editor-num')?.value || ''
+            };
 
-            // Update the input field with the data URL
-            imgInput.value = dataUrl;
-            this.updateImagePreview(dataUrl);
-            this.updateProcessButton(dataUrl);
+            // Generate filename and path
+            const filename = this.imageProcessor.generateFilename(cardData);
+            const path = `${this.imageFolder}/${filename}`;
+
+            // Process the image and get base64 content
+            const base64Content = await this.imageProcessor.processFromUrl(url);
+
+            // Commit via PR (will auto-merge)
+            btn.title = 'Creating PR...';
+            const committedPath = await gitSync.commitImageViaPR(
+                path,
+                base64Content,
+                `Add image: ${filename}`
+            );
+
+            if (!committedPath) {
+                throw new Error('Failed to commit image');
+            }
+
+            // Update the input field with the file path
+            imgInput.value = committedPath;
+            this.updateImagePreview(committedPath);
+            this.updateProcessButton(committedPath);
             this.setDirty(true);
+
+            // Show success message with timing info
+            btn.title = 'Image will appear after PR merges (~30-60s)';
 
         } catch (error) {
             console.error('Image processing failed:', error);

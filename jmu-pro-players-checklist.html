@@ -553,6 +553,7 @@
 
         // Initialize card editor modal
         const cardEditor = new CardEditorModal({
+            imageFolder: 'jmu-cards',
             onSave: async (cardId, cardData, isNew) => {
                 if (isNew) {
                     // Add new card
