@@ -350,8 +350,9 @@
             // Hide sections with no visible cards
             ['football', 'mlb', 'nba', 'mls'].forEach(section => {
                 const sectionEl = document.getElementById(`${section}-section`);
-                const visibleCards = sectionEl.querySelectorAll('.card:not([style*="display: none"])');
-                sectionEl.style.display = visibleCards.length > 0 ? '' : 'none';
+                const cards = sectionEl.querySelectorAll('.card');
+                const hasVisible = Array.from(cards).some(c => c.style.display !== 'none');
+                sectionEl.style.display = hasVisible ? '' : 'none';
             });
 
             updateStats();
