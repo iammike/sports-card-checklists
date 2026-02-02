@@ -403,9 +403,17 @@
                     qbs = checklistData.qbs;
                     return;
                 }
+            } else {
+                // Not logged in - try public gist for latest data
+                const publicData = await githubSync.loadPublicCardData('washington-qbs');
+                if (publicData) {
+                    checklistData = publicData;
+                    qbs = checklistData.qbs;
+                    return;
+                }
             }
 
-            // No gist data - load from seed and save to gist for next time
+            // Fall back to seed data
             const response = await fetch('seed/washington-qbs.json');
             if (!response.ok) {
                 throw new Error('Failed to load QB data');
