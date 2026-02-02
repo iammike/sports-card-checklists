@@ -1103,12 +1103,13 @@ class CardEditorModal {
 
             // Update the input field with the file path
             imgInput.value = committedPath;
-            this.updateImagePreview(committedPath);
+            // Show the processed image as preview (path won't work until PR merges)
+            this.updateImagePreview(`data:image/webp;base64,${base64Content}`);
             this.updateProcessButton(committedPath);
             this.setDirty(true);
 
-            // Show success message with timing info
-            btn.title = 'Image will appear after PR merges (~30-60s)';
+            // Show success message
+            btn.title = 'Done! Image committed via PR';
 
         } catch (error) {
             console.error('Image processing failed:', error);
