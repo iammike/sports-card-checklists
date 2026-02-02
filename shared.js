@@ -619,6 +619,7 @@ class CardEditorModal {
         this.onSave = options.onSave || (() => {});
         this.onDelete = options.onDelete || (() => {});
         this.cardTypes = options.cardTypes || CARD_TYPES;
+        this.categories = options.categories || null; // e.g., ['panini', 'topps', 'inserts', 'chase']
         this.showPlayerField = options.showPlayerField !== false; // default true
         this.currentCard = null;
         this.currentCardId = null;
@@ -650,6 +651,12 @@ class CardEditorModal {
                             <label class="card-editor-label">Set Name</label>
                             <input type="text" class="card-editor-input" id="editor-set" placeholder="2024 Panini Prizm">
                         </div>
+                        ${this.categories ? `<div class="card-editor-field">
+                            <label class="card-editor-label">Section</label>
+                            <select class="card-editor-select" id="editor-category">
+                                ${this.categories.map(c => `<option value="${c}">${c.charAt(0).toUpperCase() + c.slice(1)}</option>`).join('')}
+                            </select>
+                        </div>` : ''}
                         <div class="card-editor-field">
                             <label class="card-editor-label">Card Number</label>
                             <input type="text" class="card-editor-input" id="editor-num" placeholder="123">
@@ -779,6 +786,11 @@ class CardEditorModal {
         const playerField = this.backdrop.querySelector('#editor-player');
         if (playerField) playerField.value = cardData.player || '';
         this.backdrop.querySelector('#editor-set').value = cardData.set || '';
+        // Set category if dropdown exists
+        const categoryField = this.backdrop.querySelector('#editor-category');
+        if (categoryField && cardData.category) {
+            categoryField.value = cardData.category;
+        }
         // Strip # from card number for editing
         this.backdrop.querySelector('#editor-num').value = (cardData.num || '').replace(/^#/, '');
         this.backdrop.querySelector('#editor-name').value = cardData.name || '';
@@ -815,8 +827,19 @@ class CardEditorModal {
         this.backdrop.querySelector('.card-editor-btn.delete').style.display = 'none';
 
         // Clear form
-        this.backdrop.querySelectorAll('input').forEach(input => input.value = '');
+        this.backdrop.querySelectorAll('input').forEach(input => {
+            if (input.type === 'checkbox') {
+                input.checked = false;
+            } else {
+                input.value = '';
+            }
+        });
         this.backdrop.querySelector('#editor-type').value = 'Base';
+        // Set category if dropdown exists
+        const categoryField = this.backdrop.querySelector('#editor-category');
+        if (categoryField && category) {
+            categoryField.value = category;
+        }
         this.updateImagePreview('');
         this.setDirty(false);
 
@@ -856,6 +879,12 @@ class CardEditorModal {
         const playerField = this.backdrop.querySelector('#editor-player');
         if (playerField && playerField.value.trim()) {
             data.player = playerField.value.trim();
+        }
+
+        // Category - only include if field exists
+        const categoryField = this.backdrop.querySelector('#editor-category');
+        if (categoryField) {
+            data.category = categoryField.value;
         }
 
         // Auto - only include if checked
