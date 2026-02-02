@@ -578,12 +578,12 @@
             }
 
             if (checklistId === 'washington-qbs') {
-                const qbs = cardData.qbs.filter(qb => !qb.collectionLink);
+                const cards = (cardData.cards || cardData.qbs).filter(card => !card.collectionLink);
                 let ownedCount = 0, totalValue = 0, ownedValue = 0;
-                qbs.forEach(qb => {
-                    const price = qb.price || 0;
+                cards.forEach(card => {
+                    const price = card.price || 0;
                     totalValue += price;
-                    const id = btoa(qb.player + qb.set + qb.num).replace(/[^a-zA-Z0-9]/g, '');
+                    const id = btoa(card.player + card.set + card.num).replace(/[^a-zA-Z0-9]/g, '');
                     if (owned.has(id)) {
                         ownedCount++;
                         ownedValue += price;
@@ -591,7 +591,7 @@
                 });
                 return {
                     owned: ownedCount,
-                    total: qbs.length,
+                    total: cards.length,
                     ownedValue: Math.round(ownedValue),
                     neededValue: Math.round(totalValue - ownedValue)
                 };
