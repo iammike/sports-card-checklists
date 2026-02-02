@@ -673,8 +673,11 @@ class EditModeManager {
 class ImageProcessor {
     constructor() {
         this.proxyUrl = 'https://cards-oauth.iammikec.workers.dev/proxy-image';
-        this.maxSize = 300; // Max width/height in pixels
-        this.quality = 0.8; // WebP quality (0-1)
+        this.maxSize = 300;      // Max width/height in pixels
+        this.quality = 0.8;      // WebP quality (0-1)
+        this.sharpen = 0.7;      // Sharpen amount (0-1)
+        this.smooth = 0.2;       // Smooth/anti-alias amount (0-1)
+        this.resizeQuality = 'medium'; // Canvas resize quality
     }
 
     // Check if URL is from eBay
@@ -714,6 +717,64 @@ class ImageProcessor {
         });
     }
 
+    // Sharpen filter (unsharp mask)
+    sharpenCanvas(ctx, width, height, amount) {
+        if (amount <= 0) return;
+
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const data = imageData.data;
+        const copy = new Uint8ClampedArray(data);
+
+        for (let y = 1; y < height - 1; y++) {
+            for (let x = 1; x < width - 1; x++) {
+                const i = (y * width + x) * 4;
+                for (let c = 0; c < 3; c++) {
+                    const idx = i + c;
+                    const top = copy[idx - width * 4];
+                    const bottom = copy[idx + width * 4];
+                    const left = copy[idx - 4];
+                    const right = copy[idx + 4];
+                    const center = copy[idx];
+                    const blur = (top + bottom + left + right) / 4;
+                    const sharpened = center + amount * (center - blur);
+                    data[idx] = Math.max(0, Math.min(255, sharpened));
+                }
+            }
+        }
+        ctx.putImageData(imageData, 0, 0);
+    }
+
+    // Smooth/anti-alias filter
+    smoothCanvas(ctx, width, height, amount) {
+        if (amount <= 0) return;
+
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const data = imageData.data;
+        const copy = new Uint8ClampedArray(data);
+
+        for (let y = 1; y < height - 1; y++) {
+            for (let x = 1; x < width - 1; x++) {
+                const i = (y * width + x) * 4;
+                for (let c = 0; c < 3; c++) {
+                    const idx = i + c;
+                    const tl = copy[idx - width * 4 - 4];
+                    const t  = copy[idx - width * 4];
+                    const tr = copy[idx - width * 4 + 4];
+                    const l  = copy[idx - 4];
+                    const center = copy[idx];
+                    const r  = copy[idx + 4];
+                    const bl = copy[idx + width * 4 - 4];
+                    const b  = copy[idx + width * 4];
+                    const br = copy[idx + width * 4 + 4];
+                    const avg = (tl + t + tr + l + center + r + bl + b + br) / 9;
+                    const smoothed = center * (1 - amount) + avg * amount;
+                    data[idx] = Math.max(0, Math.min(255, smoothed));
+                }
+            }
+        }
+        ctx.putImageData(imageData, 0, 0);
+    }
+
     // Resize and convert to WebP using canvas
     async processImage(img) {
         // Calculate new dimensions maintaining aspect ratio
@@ -736,7 +797,13 @@ class ImageProcessor {
         canvas.height = height;
 
         const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = this.resizeQuality;
         ctx.drawImage(img, 0, 0, width, height);
+
+        // Apply sharpen then smooth
+        this.sharpenCanvas(ctx, width, height, this.sharpen);
+        this.smoothCanvas(ctx, width, height, this.smooth);
 
         // Convert to WebP
         const dataUrl = canvas.toDataURL('image/webp', this.quality);
@@ -770,8 +837,8 @@ class ImageProcessor {
         return `${name}.webp`;
     }
 
-    // Full pipeline: fetch, process, commit
-    async processFromUrl(url, cardData, checklistId) {
+    // Full pipeline: fetch, process, return base64 data URL
+    async processFromUrl(url) {
         // Fetch via proxy
         const { base64: rawBase64, contentType } = await this.fetchViaProxy(url);
 
@@ -781,27 +848,26 @@ class ImageProcessor {
         // Resize and convert to WebP
         const { base64 } = await this.processImage(img);
 
-        // Generate path
-        const filename = this.generateFilename(cardData);
-        const path = `images/${checklistId}/${filename}`;
+        // Return as data URL for storage in card data
+        return `data:image/webp;base64,${base64}`;
+    }
 
-        // Commit to repo
-        if (!window.githubSync || !githubSync.isLoggedIn()) {
-            throw new Error('Not logged in');
-        }
-
-        const commitUrl = await githubSync.commitImage(
-            path,
-            base64,
-            `Add card image: ${filename}`
-        );
-
-        if (!commitUrl) {
-            throw new Error('Failed to commit image');
-        }
-
-        // Return the relative path for use in card data
-        return `/${path}`;
+    // Process a local/existing image URL (for conversion script)
+    async processFromLocalUrl(url) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = async () => {
+                try {
+                    const { base64 } = await this.processImage(img);
+                    resolve(`data:image/webp;base64,${base64}`);
+                } catch (e) {
+                    reject(e);
+                }
+            };
+            img.onerror = () => reject(new Error('Failed to load image'));
+            img.src = url;
+        });
     }
 }
 
@@ -822,7 +888,6 @@ class CardEditorModal {
         this.isDirty = false;
         this.backdrop = null;
         this.isNewCard = false;
-        this.checklistId = options.checklistId || null; // For image processing
         this.imageProcessor = new ImageProcessor();
     }
 
@@ -988,33 +1053,26 @@ class CardEditorModal {
         btn.style.display = isEbay ? '' : 'none';
     }
 
-    // Process image: fetch, resize, convert, commit
+    // Process image: fetch, resize, convert to base64 data URL
     async processImage() {
         const imgInput = this.backdrop.querySelector('#editor-img');
         const url = imgInput.value.trim();
         const btn = this.backdrop.querySelector('#editor-process-img');
 
         if (!url || !this.imageProcessor.isEbayUrl(url)) return;
-        if (!this.checklistId) {
-            alert('Checklist ID not set - cannot process image');
-            return;
-        }
 
         // Show loading state
         btn.classList.add('processing');
         btn.disabled = true;
 
         try {
-            // Get current form data for filename generation
-            const cardData = this.getFormData();
+            // Process the image and get base64 data URL
+            const dataUrl = await this.imageProcessor.processFromUrl(url);
 
-            // Process the image
-            const newPath = await this.imageProcessor.processFromUrl(url, cardData, this.checklistId);
-
-            // Update the input field with the new repo path
-            imgInput.value = newPath;
-            this.updateImagePreview(newPath);
-            this.updateProcessButton(newPath);
+            // Update the input field with the data URL
+            imgInput.value = dataUrl;
+            this.updateImagePreview(dataUrl);
+            this.updateProcessButton(dataUrl);
             this.setDirty(true);
 
         } catch (error) {
