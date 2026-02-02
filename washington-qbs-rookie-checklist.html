@@ -887,7 +887,13 @@
         editModeManager.onCardEditClick = (cardId, cardElement) => {
             const qb = findQbById(cardId);
             if (qb) {
-                cardEditor.open(cardId, qb);
+                // Map QB fields to editor fields (qb.name is the player name)
+                const editorData = {
+                    ...qb,
+                    player: qb.name,  // QB's name field is the player name
+                    name: ''          // QBs don't have a card variant name
+                };
+                cardEditor.open(cardId, editorData);
             }
         };
 
