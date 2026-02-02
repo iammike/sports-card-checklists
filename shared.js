@@ -608,6 +608,318 @@ class EditModeManager {
     }
 }
 
+/**
+ * Card Editor Modal - handles card editing UI
+ */
+class CardEditorModal {
+    constructor(options = {}) {
+        this.onSave = options.onSave || (() => {});
+        this.onDelete = options.onDelete || (() => {});
+        this.cardTypes = options.cardTypes || ['Base', 'Base RC', 'Parallel', 'Insert', 'Insert SSP', 'Chase SSP'];
+        this.currentCard = null;
+        this.currentCardId = null;
+        this.isDirty = false;
+        this.backdrop = null;
+        this.isNewCard = false;
+    }
+
+    // Initialize - create modal DOM
+    init() {
+        if (document.querySelector('.card-editor-backdrop')) return;
+
+        const backdrop = document.createElement('div');
+        backdrop.className = 'card-editor-backdrop';
+        backdrop.innerHTML = `
+            <div class="card-editor-modal">
+                <div class="card-editor-header">
+                    <h2 class="card-editor-title">EDIT CARD</h2>
+                    <div class="card-editor-subtitle">Update card details</div>
+                    <button class="card-editor-close" title="Close">×</button>
+                </div>
+                <div class="card-editor-body">
+                    <div class="card-editor-grid">
+                        <div class="card-editor-field full-width">
+                            <label class="card-editor-label">Set Name</label>
+                            <input type="text" class="card-editor-input" id="editor-set" placeholder="2024 Panini Prizm">
+                        </div>
+                        <div class="card-editor-field">
+                            <label class="card-editor-label">Card Number</label>
+                            <input type="text" class="card-editor-input" id="editor-num" placeholder="#123">
+                        </div>
+                        <div class="card-editor-field">
+                            <label class="card-editor-label">Card Type</label>
+                            <select class="card-editor-select" id="editor-type">
+                                ${this.cardTypes.map(t => `<option value="${t}">${t}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="card-editor-field full-width">
+                            <label class="card-editor-label">Card Name / Variant</label>
+                            <input type="text" class="card-editor-input" id="editor-name" placeholder="Silver Prizm /199">
+                        </div>
+                        <div class="card-editor-field">
+                            <label class="card-editor-label">Price ($)</label>
+                            <input type="number" class="card-editor-input" id="editor-price" placeholder="Auto-estimate" step="0.01" min="0">
+                        </div>
+                        <div class="card-editor-field">
+                            <label class="card-editor-label">eBay Search Term</label>
+                            <input type="text" class="card-editor-input" id="editor-ebay" placeholder="Auto-generate">
+                        </div>
+                        <div class="card-editor-field full-width card-editor-image-section">
+                            <label class="card-editor-label">Image URL</label>
+                            <input type="text" class="card-editor-input" id="editor-img" placeholder="https://...">
+                            <div class="card-editor-image-preview">
+                                <span class="placeholder">No image</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-editor-footer">
+                    <button class="card-editor-btn delete">Delete</button>
+                    <button class="card-editor-btn cancel">Cancel</button>
+                    <button class="card-editor-btn save">Save Changes</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(backdrop);
+        this.backdrop = backdrop;
+
+        // Bind events
+        this.bindEvents();
+    }
+
+    // Bind modal events
+    bindEvents() {
+        const modal = this.backdrop.querySelector('.card-editor-modal');
+
+        // Close button
+        this.backdrop.querySelector('.card-editor-close').onclick = () => this.close();
+
+        // Backdrop click to close
+        this.backdrop.onclick = (e) => {
+            if (e.target === this.backdrop) this.close();
+        };
+
+        // Cancel button
+        this.backdrop.querySelector('.card-editor-btn.cancel').onclick = () => this.close();
+
+        // Save button
+        this.backdrop.querySelector('.card-editor-btn.save').onclick = () => this.save();
+
+        // Delete button
+        this.backdrop.querySelector('.card-editor-btn.delete').onclick = () => this.delete();
+
+        // Track dirty state on input
+        modal.querySelectorAll('input, select').forEach(input => {
+            input.oninput = () => this.setDirty(true);
+        });
+
+        // Image preview on URL change
+        this.backdrop.querySelector('#editor-img').oninput = (e) => {
+            this.updateImagePreview(e.target.value);
+        };
+
+        // Escape key to close
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.backdrop.classList.contains('active')) {
+                this.close();
+            }
+        });
+    }
+
+    // Update image preview
+    updateImagePreview(url) {
+        const preview = this.backdrop.querySelector('.card-editor-image-preview');
+        if (url && url.startsWith('http')) {
+            preview.innerHTML = `<img src="${sanitizeUrl(url)}" alt="Preview" onerror="this.outerHTML='<span class=\\'placeholder\\'>Failed to load</span>'">`;
+        } else {
+            preview.innerHTML = '<span class="placeholder">No image</span>';
+        }
+    }
+
+    // Set dirty state
+    setDirty(dirty) {
+        this.isDirty = dirty;
+        this.backdrop.querySelector('.card-editor-modal').classList.toggle('dirty', dirty);
+    }
+
+    // Open modal for editing existing card
+    open(cardId, cardData) {
+        this.init();
+        this.currentCardId = cardId;
+        this.currentCard = cardData;
+        this.isNewCard = false;
+
+        // Update title
+        this.backdrop.querySelector('.card-editor-title').textContent = 'EDIT CARD';
+        this.backdrop.querySelector('.card-editor-subtitle').textContent = 'Update card details';
+        this.backdrop.querySelector('.card-editor-btn.save').textContent = 'Save Changes';
+        this.backdrop.querySelector('.card-editor-btn.delete').style.display = '';
+
+        // Populate form
+        this.backdrop.querySelector('#editor-set').value = cardData.set || '';
+        this.backdrop.querySelector('#editor-num').value = cardData.num || '';
+        this.backdrop.querySelector('#editor-name').value = cardData.name || '';
+        this.backdrop.querySelector('#editor-type').value = cardData.type || 'Base';
+        this.backdrop.querySelector('#editor-price').value = cardData.price !== undefined ? cardData.price : '';
+        this.backdrop.querySelector('#editor-ebay').value = cardData.ebay || '';
+        this.backdrop.querySelector('#editor-img').value = cardData.img || '';
+
+        this.updateImagePreview(cardData.img);
+        this.setDirty(false);
+
+        // Show modal
+        this.backdrop.classList.add('active');
+        this.backdrop.querySelector('#editor-set').focus();
+    }
+
+    // Open modal for adding new card
+    openNew(category = null) {
+        this.init();
+        this.currentCardId = null;
+        this.currentCard = { category };
+        this.isNewCard = true;
+
+        // Update title
+        this.backdrop.querySelector('.card-editor-title').textContent = 'ADD NEW CARD';
+        this.backdrop.querySelector('.card-editor-subtitle').textContent = category ? `Adding to ${category}` : 'Create a new card';
+        this.backdrop.querySelector('.card-editor-btn.save').textContent = 'Add Card';
+        this.backdrop.querySelector('.card-editor-btn.delete').style.display = 'none';
+
+        // Clear form
+        this.backdrop.querySelectorAll('input').forEach(input => input.value = '');
+        this.backdrop.querySelector('#editor-type').value = 'Base';
+        this.updateImagePreview('');
+        this.setDirty(false);
+
+        // Show modal
+        this.backdrop.classList.add('active');
+        this.backdrop.querySelector('#editor-set').focus();
+    }
+
+    // Close modal
+    close() {
+        if (this.isDirty) {
+            if (!confirm('You have unsaved changes. Close anyway?')) return;
+        }
+        this.backdrop.classList.remove('active');
+        this.currentCard = null;
+        this.currentCardId = null;
+        this.isNewCard = false;
+    }
+
+    // Gather form data
+    getFormData() {
+        const data = {
+            set: this.backdrop.querySelector('#editor-set').value.trim(),
+            num: this.backdrop.querySelector('#editor-num').value.trim(),
+            name: this.backdrop.querySelector('#editor-name').value.trim(),
+            type: this.backdrop.querySelector('#editor-type').value,
+            img: this.backdrop.querySelector('#editor-img').value.trim()
+        };
+
+        // Price - only include if explicitly set
+        const priceVal = this.backdrop.querySelector('#editor-price').value.trim();
+        if (priceVal !== '') {
+            data.price = parseFloat(priceVal);
+        }
+
+        // eBay search term - only include if explicitly set
+        const ebayVal = this.backdrop.querySelector('#editor-ebay').value.trim();
+        if (ebayVal !== '') {
+            data.ebay = ebayVal;
+        }
+
+        // Preserve category if editing
+        if (this.currentCard && this.currentCard.category) {
+            data.category = this.currentCard.category;
+        }
+
+        return data;
+    }
+
+    // Validate form
+    validate() {
+        const data = this.getFormData();
+        if (!data.set) {
+            alert('Set name is required');
+            this.backdrop.querySelector('#editor-set').focus();
+            return false;
+        }
+        if (!data.num) {
+            alert('Card number is required');
+            this.backdrop.querySelector('#editor-num').focus();
+            return false;
+        }
+        return true;
+    }
+
+    // Save card
+    save() {
+        if (!this.validate()) return;
+
+        const data = this.getFormData();
+
+        if (this.isNewCard) {
+            this.onSave(null, data, true);
+        } else {
+            this.onSave(this.currentCardId, data, false);
+        }
+
+        this.setDirty(false);
+        this.backdrop.classList.remove('active');
+    }
+
+    // Delete card
+    delete() {
+        if (!this.currentCardId) return;
+
+        const confirmText = prompt('Type "DELETE" to confirm removing this card:');
+        if (confirmText === 'DELETE') {
+            this.onDelete(this.currentCardId);
+            this.setDirty(false);
+            this.backdrop.classList.remove('active');
+        } else if (confirmText !== null) {
+            alert('Type "DELETE" exactly to confirm.');
+        }
+    }
+}
+
+/**
+ * Add Card Button - floating button to add new cards in edit mode
+ */
+class AddCardButton {
+    constructor(options = {}) {
+        this.onClick = options.onClick || (() => {});
+        this.button = null;
+    }
+
+    init() {
+        if (document.querySelector('.add-card-fab')) return;
+
+        const btn = document.createElement('button');
+        btn.className = 'add-card-fab';
+        btn.innerHTML = '+ Add Card';
+        btn.title = 'Add new card';
+        btn.style.display = 'none';
+        btn.onclick = () => this.onClick();
+
+        document.body.appendChild(btn);
+        this.button = btn;
+    }
+
+    show() {
+        if (!this.button) this.init();
+        this.button.style.display = '';
+    }
+
+    hide() {
+        if (this.button) {
+            this.button.style.display = 'none';
+        }
+    }
+}
+
 // Export for use in pages
 window.ChecklistManager = ChecklistManager;
 window.PriceUtils = PriceUtils;
@@ -615,3 +927,5 @@ window.FilterUtils = FilterUtils;
 window.CardRenderer = CardRenderer;
 window.StatsAnimator = StatsAnimator;
 window.EditModeManager = EditModeManager;
+window.CardEditorModal = CardEditorModal;
+window.AddCardButton = AddCardButton;

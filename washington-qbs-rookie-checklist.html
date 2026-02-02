@@ -716,8 +716,88 @@
 
         // Initialize edit mode manager
         const editModeManager = new EditModeManager(checklistManager);
+
+        // Initialize card editor modal
+        const cardTypes = ['Base', 'Base RC', 'Parallel', 'Insert'];
+        const cardEditor = new CardEditorModal({
+            cardTypes,
+            onSave: (cardId, cardData, isNew) => {
+                if (isNew) {
+                    // Add new QB
+                    const newQb = {
+                        name: cardData.name || 'Unknown QB',
+                        years: cardData.years || 'TBD',
+                        record: cardData.record || '0-0',
+                        playoff: '-',
+                        era: cardData.era || 'modern',
+                        set: cardData.set,
+                        num: cardData.num,
+                        price: cardData.price,
+                        img: cardData.img
+                    };
+                    if (!cardData.ebay) {
+                        newQb.search = `${newQb.name.replace(/\s+/g, '+')}+rookie+card`;
+                    } else {
+                        newQb.search = cardData.ebay;
+                    }
+                    qbs.push(newQb);
+                    console.log('Added new QB:', newQb);
+                } else {
+                    // Update existing QB
+                    const qb = findQbById(cardId);
+                    if (qb) {
+                        qb.set = cardData.set;
+                        qb.num = cardData.num;
+                        if (cardData.price !== undefined) qb.price = cardData.price;
+                        if (cardData.img) qb.img = cardData.img;
+                        if (cardData.ebay) qb.search = cardData.ebay;
+                        console.log('Updated QB:', qb);
+                    }
+                }
+                render();
+                editModeManager.updateCardEditControls();
+                // TODO: Save to JSON via GitHub API (issue #123)
+            },
+            onDelete: (cardId) => {
+                const idx = qbs.findIndex(qb => getCardId(qb) === cardId);
+                if (idx !== -1) {
+                    qbs.splice(idx, 1);
+                    console.log('Deleted QB:', cardId);
+                }
+                render();
+                editModeManager.updateCardEditControls();
+                // TODO: Save to JSON via GitHub API (issue #123)
+            }
+        });
+
+        // Initialize add card button
+        const addCardBtn = new AddCardButton({
+            onClick: () => {
+                cardEditor.openNew('modern');
+            }
+        });
+
+        // Helper to find QB by ID
+        function findQbById(cardId) {
+            return qbs.find(qb => getCardId(qb) === cardId);
+        }
+
+        // Wire up edit mode to show/hide add button and handle card edits
         editModeManager.onEditModeChange = (isEditMode) => {
             editModeManager.updateCardEditControls();
+            if (isEditMode) {
+                addCardBtn.show();
+            } else {
+                addCardBtn.hide();
+            }
+        };
+
+        // Handle card edit click - open editor with QB data
+        editModeManager.onCardEditClick = (cardId, cardElement) => {
+            const qb = findQbById(cardId);
+            if (qb) {
+                cardEditor.open(cardId, qb);
+            }
         };
 
         // Initialize
@@ -726,6 +806,8 @@
                 await loadQbData();
                 await checklistManager.init();
                 editModeManager.init();
+                cardEditor.init();
+                addCardBtn.init();
                 await loadJaydenDanielsStats();
                 render();
             } catch (err) {

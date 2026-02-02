@@ -425,9 +425,91 @@
 
         // Initialize edit mode manager
         const editModeManager = new EditModeManager(checklistManager);
+
+        // Initialize card editor modal
+        const cardTypes = ['Base', 'Base RC', 'Parallel', 'Insert', 'Insert SSP', 'Chase SSP'];
+        const cardEditor = new CardEditorModal({
+            cardTypes,
+            onSave: (cardId, cardData, isNew) => {
+                if (isNew) {
+                    // Add new card to appropriate category
+                    const category = cardData.category || 'other';
+                    delete cardData.category;
+                    // Generate search term if not provided
+                    if (!cardData.ebay) {
+                        cardData.search = `jayden+daniels+${cardData.set.replace(/\s+/g, '+')}+${cardData.num}`;
+                    } else {
+                        cardData.search = cardData.ebay;
+                        delete cardData.ebay;
+                    }
+                    if (cards[category]) {
+                        cards[category].push(cardData);
+                    }
+                    console.log('Added new card:', cardData);
+                } else {
+                    // Update existing card
+                    const card = findCardById(cardId);
+                    if (card) {
+                        Object.assign(card, cardData);
+                        if (cardData.ebay) {
+                            card.search = cardData.ebay;
+                            delete card.ebay;
+                        }
+                        console.log('Updated card:', card);
+                    }
+                }
+                renderCards();
+                editModeManager.updateCardEditControls();
+                // TODO: Save to JSON via GitHub API (issue #123)
+            },
+            onDelete: (cardId) => {
+                // Find and remove card from its category
+                for (const category of Object.keys(cards)) {
+                    const idx = cards[category].findIndex(c => getCardId(c) === cardId);
+                    if (idx !== -1) {
+                        cards[category].splice(idx, 1);
+                        console.log('Deleted card:', cardId);
+                        break;
+                    }
+                }
+                renderCards();
+                editModeManager.updateCardEditControls();
+                // TODO: Save to JSON via GitHub API (issue #123)
+            }
+        });
+
+        // Initialize add card button
+        const addCardBtn = new AddCardButton({
+            onClick: () => {
+                cardEditor.openNew('other');
+            }
+        });
+
+        // Helper to find card by ID
+        function findCardById(cardId) {
+            for (const category of Object.keys(cards)) {
+                const card = cards[category].find(c => getCardId(c) === cardId);
+                if (card) return card;
+            }
+            return null;
+        }
+
+        // Wire up edit mode to show/hide add button and handle card edits
         editModeManager.onEditModeChange = (isEditMode) => {
-            // Re-render to update edit buttons on cards
             editModeManager.updateCardEditControls();
+            if (isEditMode) {
+                addCardBtn.show();
+            } else {
+                addCardBtn.hide();
+            }
+        };
+
+        // Handle card edit click - open editor with card data
+        editModeManager.onCardEditClick = (cardId, cardElement) => {
+            const card = findCardById(cardId);
+            if (card) {
+                cardEditor.open(cardId, card);
+            }
         };
 
         // Initialize
@@ -436,6 +518,8 @@
                 await loadCardData();
                 await checklistManager.init();
                 editModeManager.init();
+                cardEditor.init();
+                addCardBtn.init();
                 renderCards();
             } catch (err) {
                 console.error('Failed to initialize:', err);
