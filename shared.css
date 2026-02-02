@@ -1227,6 +1227,68 @@ body.edit-mode .card:hover {
     border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+/* Image input with process button */
+.card-editor-image-input-row {
+    display: flex;
+    gap: 8px;
+}
+
+.card-editor-image-input-row .card-editor-input {
+    flex: 1;
+}
+
+.card-editor-process-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0 16px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 4px;
+    color: white;
+    font-family: 'Barlow', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    min-width: 80px;
+}
+
+.card-editor-process-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.card-editor-process-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.card-editor-process-btn .process-spinner {
+    display: none;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: processSpinner 0.8s linear infinite;
+}
+
+.card-editor-process-btn.processing .process-text {
+    display: none;
+}
+
+.card-editor-process-btn.processing .process-spinner {
+    display: block;
+}
+
+@keyframes processSpinner {
+    to { transform: rotate(360deg); }
+}
+
 .card-editor-image-preview {
     width: 100%;
     height: 180px;

@@ -668,6 +668,144 @@ class EditModeManager {
 }
 
 /**
+ * Image Processor - handles fetching, resizing, and converting images
+ */
+class ImageProcessor {
+    constructor() {
+        this.proxyUrl = 'https://cards-oauth.iammikec.workers.dev/proxy-image';
+        this.maxSize = 300; // Max width/height in pixels
+        this.quality = 0.8; // WebP quality (0-1)
+    }
+
+    // Check if URL is from eBay
+    isEbayUrl(url) {
+        if (!url) return false;
+        try {
+            const parsed = new URL(url);
+            return parsed.hostname.includes('ebay');
+        } catch {
+            return false;
+        }
+    }
+
+    // Fetch image via proxy to bypass CORS
+    async fetchViaProxy(url) {
+        const response = await fetch(this.proxyUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to fetch image');
+        }
+
+        return response.json(); // { base64, contentType }
+    }
+
+    // Load image from base64 data
+    loadImage(base64, contentType) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error('Failed to load image'));
+            img.src = `data:${contentType};base64,${base64}`;
+        });
+    }
+
+    // Resize and convert to WebP using canvas
+    async processImage(img) {
+        // Calculate new dimensions maintaining aspect ratio
+        let width = img.width;
+        let height = img.height;
+
+        if (width > this.maxSize || height > this.maxSize) {
+            if (width > height) {
+                height = Math.round(height * (this.maxSize / width));
+                width = this.maxSize;
+            } else {
+                width = Math.round(width * (this.maxSize / height));
+                height = this.maxSize;
+            }
+        }
+
+        // Create canvas and draw resized image
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convert to WebP
+        const dataUrl = canvas.toDataURL('image/webp', this.quality);
+        // Extract base64 content (remove data URL prefix)
+        const base64 = dataUrl.split(',')[1];
+
+        return { base64, width, height };
+    }
+
+    // Generate filename from card data
+    generateFilename(cardData) {
+        const parts = [];
+
+        // Set name (required)
+        if (cardData.set) {
+            parts.push(cardData.set.toLowerCase().replace(/\s+/g, '_'));
+        }
+
+        // Card name/variant if present
+        if (cardData.name) {
+            parts.push(cardData.name.toLowerCase().replace(/\s+/g, '_').replace(/\//g, '-'));
+        }
+
+        // Card number
+        if (cardData.num) {
+            parts.push(cardData.num.replace('#', ''));
+        }
+
+        // Create filename, sanitize for filesystem
+        const name = parts.join('_').replace(/[^a-z0-9_-]/g, '');
+        return `${name}.webp`;
+    }
+
+    // Full pipeline: fetch, process, commit
+    async processFromUrl(url, cardData, checklistId) {
+        // Fetch via proxy
+        const { base64: rawBase64, contentType } = await this.fetchViaProxy(url);
+
+        // Load into image element
+        const img = await this.loadImage(rawBase64, contentType);
+
+        // Resize and convert to WebP
+        const { base64 } = await this.processImage(img);
+
+        // Generate path
+        const filename = this.generateFilename(cardData);
+        const path = `images/${checklistId}/${filename}`;
+
+        // Commit to repo
+        if (!window.githubSync || !githubSync.isLoggedIn()) {
+            throw new Error('Not logged in');
+        }
+
+        const commitUrl = await githubSync.commitImage(
+            path,
+            base64,
+            `Add card image: ${filename}`
+        );
+
+        if (!commitUrl) {
+            throw new Error('Failed to commit image');
+        }
+
+        // Return the relative path for use in card data
+        return `/${path}`;
+    }
+}
+
+/**
  * Card Editor Modal - handles card editing UI
  */
 class CardEditorModal {
@@ -684,6 +822,8 @@ class CardEditorModal {
         this.isDirty = false;
         this.backdrop = null;
         this.isNewCard = false;
+        this.checklistId = options.checklistId || null; // For image processing
+        this.imageProcessor = new ImageProcessor();
     }
 
     // Initialize - create modal DOM
@@ -750,7 +890,13 @@ class CardEditorModal {
                         </div>
                         <div class="card-editor-field full-width card-editor-image-section">
                             <label class="card-editor-label">Image URL</label>
-                            <input type="text" class="card-editor-input" id="editor-img" placeholder="https://...">
+                            <div class="card-editor-image-input-row">
+                                <input type="text" class="card-editor-input" id="editor-img" placeholder="https://...">
+                                <button type="button" class="card-editor-process-btn" id="editor-process-img" title="Process eBay image">
+                                    <span class="process-text">Process</span>
+                                    <span class="process-spinner"></span>
+                                </button>
+                            </div>
                             <div class="card-editor-image-preview">
                                 <span class="placeholder">No image</span>
                             </div>
@@ -801,7 +947,11 @@ class CardEditorModal {
         // Image preview on URL change
         this.backdrop.querySelector('#editor-img').oninput = (e) => {
             this.updateImagePreview(e.target.value);
+            this.updateProcessButton(e.target.value);
         };
+
+        // Process image button
+        this.backdrop.querySelector('#editor-process-img').onclick = () => this.processImage();
 
         // Escape key to close
         document.addEventListener('keydown', (e) => {
@@ -822,10 +972,57 @@ class CardEditorModal {
     // Update image preview
     updateImagePreview(url) {
         const preview = this.backdrop.querySelector('.card-editor-image-preview');
-        if (url && url.startsWith('http')) {
+        if (url && (url.startsWith('http') || url.startsWith('/'))) {
             preview.innerHTML = `<img src="${sanitizeUrl(url)}" alt="Preview" onerror="this.outerHTML='<span class=\\'placeholder\\'>Failed to load</span>'">`;
         } else {
             preview.innerHTML = '<span class="placeholder">No image</span>';
+        }
+    }
+
+    // Update process button visibility based on URL
+    updateProcessButton(url) {
+        const btn = this.backdrop.querySelector('#editor-process-img');
+        if (!btn) return;
+
+        const isEbay = this.imageProcessor.isEbayUrl(url);
+        btn.style.display = isEbay ? '' : 'none';
+    }
+
+    // Process image: fetch, resize, convert, commit
+    async processImage() {
+        const imgInput = this.backdrop.querySelector('#editor-img');
+        const url = imgInput.value.trim();
+        const btn = this.backdrop.querySelector('#editor-process-img');
+
+        if (!url || !this.imageProcessor.isEbayUrl(url)) return;
+        if (!this.checklistId) {
+            alert('Checklist ID not set - cannot process image');
+            return;
+        }
+
+        // Show loading state
+        btn.classList.add('processing');
+        btn.disabled = true;
+
+        try {
+            // Get current form data for filename generation
+            const cardData = this.getFormData();
+
+            // Process the image
+            const newPath = await this.imageProcessor.processFromUrl(url, cardData, this.checklistId);
+
+            // Update the input field with the new repo path
+            imgInput.value = newPath;
+            this.updateImagePreview(newPath);
+            this.updateProcessButton(newPath);
+            this.setDirty(true);
+
+        } catch (error) {
+            console.error('Image processing failed:', error);
+            alert('Failed to process image: ' + error.message);
+        } finally {
+            btn.classList.remove('processing');
+            btn.disabled = false;
         }
     }
 
@@ -874,6 +1071,7 @@ class CardEditorModal {
         this.backdrop.querySelector('#editor-img').value = cardData.img || '';
 
         this.updateImagePreview(cardData.img);
+        this.updateProcessButton(cardData.img);
         this.setDirty(false);
 
         // Show modal
@@ -911,6 +1109,7 @@ class CardEditorModal {
             categoryField.value = category;
         }
         this.updateImagePreview('');
+        this.updateProcessButton('');
         this.setDirty(false);
 
         // Show modal
@@ -1085,3 +1284,4 @@ window.StatsAnimator = StatsAnimator;
 window.EditModeManager = EditModeManager;
 window.CardEditorModal = CardEditorModal;
 window.AddCardButton = AddCardButton;
+window.ImageProcessor = ImageProcessor;
