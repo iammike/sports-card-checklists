@@ -1063,8 +1063,8 @@ class CardEditorModal {
 
         if (!url || !this.imageProcessor.isEbayUrl(url)) return;
 
-        // Check if gitSync is available and logged in
-        if (typeof gitSync === 'undefined' || !gitSync.isLoggedIn()) {
+        // Check if githubSync is available and logged in
+        if (typeof githubSync === 'undefined' || !githubSync.isLoggedIn()) {
             alert('Please sign in to process images');
             return;
         }
@@ -1091,7 +1091,7 @@ class CardEditorModal {
 
             // Commit via PR (will auto-merge)
             btn.title = 'Creating PR...';
-            const committedPath = await gitSync.commitImageViaPR(
+            const committedPath = await githubSync.commitImageViaPR(
                 path,
                 base64Content,
                 `Add image: ${filename}`
