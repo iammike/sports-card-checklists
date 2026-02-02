@@ -455,6 +455,12 @@ const CardRenderer = {
         return `<span class="price-badge ${priceClass}">$${displayPrice}</span>`;
     },
 
+    // Render auto badge HTML (for autographed cards)
+    renderAutoBadge(card) {
+        if (!card.auto) return '';
+        return `<span class="auto-badge">AUTO</span>`;
+    },
+
     // Render card image with fallback
     renderCardImage(imgSrc, alt, searchUrl) {
         if (imgSrc) {

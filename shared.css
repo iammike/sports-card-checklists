@@ -718,6 +718,23 @@ select, input[type="text"] {
 .price-badge.mid { background: var(--color-warning); }
 .price-badge.high { background: var(--color-error); }
 
+/* Auto Badge (autographed cards) */
+.auto-badge {
+    font-family: 'Barlow', sans-serif;
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: linear-gradient(135deg, #d4af37 0%, #b8960c 100%);
+    color: #fff;
+    padding: 3px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    z-index: 10;
+    text-shadow: 0 1px 1px rgba(0,0,0,0.2);
+}
+
 .price-link {
     font-family: 'Barlow', sans-serif;
     display: inline-block;
