@@ -426,8 +426,9 @@
         // Initialize edit mode manager
         const editModeManager = new EditModeManager(checklistManager);
 
-        // Initialize card editor modal
+        // Initialize card editor modal (no player field - all cards are Jayden Daniels)
         const cardEditor = new CardEditorModal({
+            showPlayerField: false,
             onSave: (cardId, cardData, isNew) => {
                 if (isNew) {
                     // Add new card to appropriate category
