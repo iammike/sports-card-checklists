@@ -467,26 +467,14 @@
                         delete cardData.ebay;
                     }
                     if (cards[category]) {
-                        // Insert in sorted order (by set name, then card number)
-                        const arr = cards[category];
-                        const idx = arr.findIndex(c => {
-                            if (c.set > cardData.set) return true;
-                            if (c.set === cardData.set) {
-                                // Compare card numbers numerically
-                                const numA = parseInt((cardData.num || '').replace(/\D/g, '')) || 0;
-                                const numB = parseInt((c.num || '').replace(/\D/g, '')) || 0;
-                                return numB > numA;
-                            }
-                            return false;
-                        });
-                        if (idx === -1) arr.push(cardData);
-                        else arr.splice(idx, 0, cardData);
+                        insertCardSorted(cards[category], cardData);
                     }
                     console.log('Added new card:', cardData);
                 } else {
                     // Update existing card
-                    const card = findCardById(cardId);
-                    if (card) {
+                    const found = findCardWithCategory(cardId);
+                    if (found) {
+                        const { card, category, index } = found;
                         Object.assign(card, cardData);
                         if (cardData.ebay) {
                             card.search = cardData.ebay;
@@ -497,6 +485,9 @@
                         if (!('img' in cardData)) delete card.img;
                         if (!('achievement' in cardData)) delete card.achievement;
                         if (!('auto' in cardData)) delete card.auto;
+                        // Re-sort: remove from current position and re-insert sorted
+                        cards[category].splice(index, 1);
+                        insertCardSorted(cards[category], card);
                         console.log('Updated card:', card);
                     }
                 }
@@ -538,6 +529,28 @@
                 if (card) return card;
             }
             return null;
+        }
+
+        function findCardWithCategory(cardId) {
+            for (const category of Object.keys(cards)) {
+                const idx = cards[category].findIndex(c => getCardId(c) === cardId);
+                if (idx !== -1) return { card: cards[category][idx], category, index: idx };
+            }
+            return null;
+        }
+
+        function insertCardSorted(arr, card) {
+            const idx = arr.findIndex(c => {
+                if (c.set > card.set) return true;
+                if (c.set === card.set) {
+                    const numA = parseInt((card.num || '').replace(/\D/g, '')) || 0;
+                    const numB = parseInt((c.num || '').replace(/\D/g, '')) || 0;
+                    return numB > numA;
+                }
+                return false;
+            });
+            if (idx === -1) arr.push(card);
+            else arr.splice(idx, 0, card);
         }
 
         // Wire up edit mode to show/hide add button and handle card edits

@@ -762,26 +762,13 @@
                     } else {
                         newQb.search = cardData.ebay;
                     }
-                    // Insert in sorted order (by player name, then set, then card number)
-                    const idx = qbs.findIndex(q => {
-                        if (q.name > newQb.name) return true;
-                        if (q.name === newQb.name) {
-                            if (q.set > newQb.set) return true;
-                            if (q.set === newQb.set) {
-                                const numA = parseInt((newQb.num || '').replace(/\D/g, '')) || 0;
-                                const numB = parseInt((q.num || '').replace(/\D/g, '')) || 0;
-                                return numB > numA;
-                            }
-                        }
-                        return false;
-                    });
-                    if (idx === -1) qbs.push(newQb);
-                    else qbs.splice(idx, 0, newQb);
+                    insertQbSorted(newQb);
                     console.log('Added new QB:', newQb);
                 } else {
                     // Update existing QB
-                    const qb = findQbById(cardId);
-                    if (qb) {
+                    const found = findQbWithIndex(cardId);
+                    if (found) {
+                        const { qb, index } = found;
                         if (cardData.player) qb.name = cardData.player;
                         qb.set = cardData.set;
                         qb.num = cardData.num;
@@ -791,6 +778,9 @@
                         if ('img' in cardData) qb.img = cardData.img;
                         else delete qb.img;
                         if (cardData.ebay) qb.search = cardData.ebay;
+                        // Re-sort: remove from current position and re-insert sorted
+                        qbs.splice(index, 1);
+                        insertQbSorted(qb);
                         console.log('Updated QB:', qb);
                     }
                 }
@@ -824,6 +814,29 @@
         // Helper to find QB by ID
         function findQbById(cardId) {
             return qbs.find(qb => getCardId(qb) === cardId);
+        }
+
+        function findQbWithIndex(cardId) {
+            const idx = qbs.findIndex(qb => getCardId(qb) === cardId);
+            if (idx !== -1) return { qb: qbs[idx], index: idx };
+            return null;
+        }
+
+        function insertQbSorted(qb) {
+            const idx = qbs.findIndex(q => {
+                if (q.name > qb.name) return true;
+                if (q.name === qb.name) {
+                    if (q.set > qb.set) return true;
+                    if (q.set === qb.set) {
+                        const numA = parseInt((qb.num || '').replace(/\D/g, '')) || 0;
+                        const numB = parseInt((q.num || '').replace(/\D/g, '')) || 0;
+                        return numB > numA;
+                    }
+                }
+                return false;
+            });
+            if (idx === -1) qbs.push(qb);
+            else qbs.splice(idx, 0, qb);
         }
 
         // Wire up edit mode to show/hide add button and handle card edits
