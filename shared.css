@@ -278,8 +278,8 @@ h1 {
     .nav-inner {
         height: auto;
         flex-wrap: wrap;
-        padding: 12px 16px;
-        gap: 12px;
+        padding: 10px 12px;
+        gap: 8px;
     }
 
     .nav-brand-text { display: none; }
@@ -293,11 +293,50 @@ h1 {
         justify-content: center;
         padding-top: 8px;
         border-top: 1px solid rgba(255,255,255,0.05);
+        gap: 2px;
     }
 
     .nav-link {
-        font-size: 0.85em;
-        padding: 6px 12px;
+        font-size: 0.75em;
+        padding: 6px 8px;
+    }
+
+    .nav-auth {
+        gap: 8px;
+    }
+
+    /* Compact edit button - icon only on mobile */
+    .nav-btn.edit-btn {
+        padding: 6px 10px;
+        font-size: 0.9em;
+    }
+
+    /* Hide "Edit"/"Done" text, show only emoji */
+    .nav-btn.edit-btn .btn-text {
+        display: none;
+    }
+
+    /* Compact other nav buttons */
+    .nav-btn {
+        padding: 5px 10px;
+        font-size: 0.75em;
+    }
+
+    /* Hide sync status text on mobile */
+    .sync-status {
+        font-size: 0;
+        min-width: auto;
+    }
+    .sync-status::before {
+        font-size: 12px;
+    }
+    .sync-status.syncing::before { content: '🔄'; }
+    .sync-status.synced::before { content: '✓'; font-size: 14px; }
+    .sync-status.error::before { content: '⚠'; }
+
+    /* Compact user display */
+    .nav-user span {
+        display: none;
     }
 }
 

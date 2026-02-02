@@ -528,7 +528,7 @@ class EditModeManager {
         this.editButton = document.createElement('button');
         this.editButton.id = 'edit-mode-btn';
         this.editButton.className = 'nav-btn edit-btn';
-        this.editButton.innerHTML = '✏️ Edit';
+        this.editButton.innerHTML = '✏️ <span class="btn-text">Edit</span>';
         this.editButton.style.display = 'none';
         this.editButton.onclick = () => this.toggleEditMode();
 
@@ -549,7 +549,7 @@ class EditModeManager {
         this.editButton.style.display = isOwner ? '' : 'none';
 
         // Update button text based on current mode
-        this.editButton.innerHTML = this.isEditMode ? '✓ Done' : '✏️ Edit';
+        this.editButton.innerHTML = this.isEditMode ? '✓ <span class="btn-text">Done</span>' : '✏️ <span class="btn-text">Edit</span>';
         this.editButton.classList.toggle('active', this.isEditMode);
     }
 
