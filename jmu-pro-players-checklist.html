@@ -283,9 +283,17 @@
                     cards = checklistData.categories;
                     return;
                 }
+            } else {
+                // Not logged in - try public gist for latest data
+                const publicData = await githubSync.loadPublicCardData('jmu-pro-players');
+                if (publicData) {
+                    checklistData = publicData;
+                    cards = checklistData.categories;
+                    return;
+                }
             }
 
-            // No gist data - load from seed and save to gist for next time
+            // Fall back to seed data
             const response = await fetch('seed/jmu-pro-players.json');
             if (!response.ok) {
                 throw new Error('Failed to load card data');

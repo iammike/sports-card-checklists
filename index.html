@@ -511,6 +511,10 @@
                 if (window.githubSync?.isLoggedIn()) {
                     const gistData = await githubSync.loadCardData(checklistId);
                     if (gistData) return gistData;
+                } else {
+                    // Not logged in - try public gist for latest data
+                    const publicData = await githubSync.loadPublicCardData(checklistId);
+                    if (publicData) return publicData;
                 }
                 // Fall back to seed data
                 return fetch(`seed/${checklistId}.json`).then(r => r.json()).catch(() => null);
