@@ -779,3 +779,133 @@ select, input[type="text"] {
 
     .stat-value { font-size: 2em; }
 }
+
+/* ============================================
+   Edit Mode
+   ============================================ */
+
+/* Edit button in nav */
+.nav-btn.edit-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-weight: 600;
+}
+
+.nav-btn.edit-btn:hover {
+    filter: brightness(1.1);
+}
+
+.nav-btn.edit-btn.active {
+    background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
+}
+
+/* Edit mode body indicator */
+body.edit-mode {
+    --edit-mode-color: #667eea;
+}
+
+body.edit-mode::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #667eea, #764ba2, #667eea);
+    z-index: 9999;
+    animation: editModeGlow 2s ease-in-out infinite;
+}
+
+@keyframes editModeGlow {
+    0%, 100% { opacity: 0.8; }
+    50% { opacity: 1; }
+}
+
+/* Edit mode banner (optional, shown below nav) */
+.edit-mode-banner {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    color: #667eea;
+    text-align: center;
+    padding: 8px 16px;
+    font-family: 'Barlow', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    border-bottom: 1px solid rgba(102, 126, 234, 0.2);
+}
+
+/* Card edit button */
+.card-edit-btn {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(102, 126, 234, 0.9);
+    color: white;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all 0.2s ease;
+    z-index: 15;
+}
+
+.card:hover .card-edit-btn,
+body.edit-mode .card-edit-btn {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.card-edit-btn:hover {
+    background: rgba(102, 126, 234, 1);
+    transform: scale(1.1);
+}
+
+/* Edit mode card styling */
+body.edit-mode .card {
+    border-style: dashed;
+}
+
+body.edit-mode .card:hover {
+    border-color: #667eea;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+/* Add card button (shown in edit mode) */
+.add-card-btn {
+    border: 2px dashed #ccc;
+    border-radius: var(--radius-md);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 200px;
+    background: rgba(102, 126, 234, 0.03);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: #999;
+}
+
+.add-card-btn:hover {
+    border-color: #667eea;
+    background: rgba(102, 126, 234, 0.08);
+    color: #667eea;
+}
+
+.add-card-btn .icon {
+    font-size: 32px;
+    line-height: 1;
+}
+
+.add-card-btn .text {
+    font-family: 'Barlow', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+}

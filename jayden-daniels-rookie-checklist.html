@@ -523,9 +523,18 @@
         document.getElementById('status-filter').addEventListener('change', applyFilters);
         document.getElementById('search').addEventListener('input', applyFilters);
 
+        // Initialize edit mode manager
+        const editModeManager = new EditModeManager(checklistManager);
+        editModeManager.onEditModeChange = (isEditMode) => {
+            console.log('Edit mode:', isEditMode);
+            // Re-render to add/remove edit buttons
+            renderCards();
+        };
+
         // Initialize
         async function init() {
             await checklistManager.init();
+            editModeManager.init();
             renderCards();
         }
         init();
