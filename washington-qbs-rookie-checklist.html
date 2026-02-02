@@ -600,6 +600,7 @@
             return `<div class="${cardClass}">
                 <div class="card-image-wrapper">
                     ${qb.superBowl ? '<span class="super-bowl-badge">SUPER BOWL</span>' : ''}
+                    ${CardRenderer.renderAutoBadge(qb)}
                     ${CardRenderer.renderPriceBadge(qb.price)}
                     ${CardRenderer.renderCardImage(qb.img, qb.player, searchUrl)}
                 </div>

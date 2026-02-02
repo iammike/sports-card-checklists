@@ -338,6 +338,7 @@
             return `
                 <div class="card ${owned ? 'owned' : ''}" data-price="${price}" data-type="${card.type}">
                     <div class="card-image-wrapper">
+                        ${CardRenderer.renderAutoBadge(card)}
                         ${CardRenderer.renderPriceBadge(price)}
                         ${CardRenderer.renderCardImage(card.img, card.set, searchUrl)}
                     </div>

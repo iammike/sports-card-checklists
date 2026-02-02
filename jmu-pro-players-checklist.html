@@ -405,6 +405,7 @@
             return `
                 <div class="card ${owned ? 'owned' : ''}" data-price="${price}" data-sport="${card.sport}">
                     <div class="card-image-wrapper">
+                        ${CardRenderer.renderAutoBadge(card)}
                         ${CardRenderer.renderPriceBadge(price, jmuPriceThresholds)}
                         ${CardRenderer.renderCardImage(card.img, card.set, searchUrl)}
                     </div>
