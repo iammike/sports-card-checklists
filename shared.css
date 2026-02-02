@@ -124,7 +124,7 @@ h1 {
     background: var(--nav-bg, linear-gradient(180deg, #1a1a2e 0%, #12121f 100%));
     border-bottom: 1px solid rgba(255,255,255,0.05);
     position: relative;
-    padding-top: 8px;
+    padding-top: 16px;
 }
 
 .nav-bar::after {
