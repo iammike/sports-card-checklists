@@ -583,7 +583,7 @@
                 qbs.forEach(qb => {
                     const price = qb.price || 0;
                     totalValue += price;
-                    const id = btoa(qb.name + qb.set + qb.num).replace(/[^a-zA-Z0-9]/g, '');
+                    const id = btoa(qb.player + qb.set + qb.num).replace(/[^a-zA-Z0-9]/g, '');
                     if (owned.has(id)) {
                         ownedCount++;
                         ownedValue += price;
