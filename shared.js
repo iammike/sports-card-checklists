@@ -24,6 +24,8 @@ function sanitizeUrl(url) {
  * Shared Auth UI helpers (for pages without ChecklistManager)
  */
 const AuthUI = {
+    ICON_LOGOUT: '<svg viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>',
+
     update(logoutFn = () => { githubSync.logout(); location.reload(); }) {
         const authContent = document.getElementById('auth-content');
         if (!authContent || !window.githubSync) return;
@@ -33,13 +35,33 @@ const AuthUI = {
             const safeAvatarUrl = sanitizeUrl(user.avatar_url);
             const safeLogin = sanitizeText(user.login);
             authContent.innerHTML = `
-                <div class="nav-user">
-                    <img src="${safeAvatarUrl}" alt="">
-                    <span>${safeLogin}</span>
+                <button class="nav-avatar-btn" id="nav-avatar-btn">
+                    <img src="${safeAvatarUrl}" alt="${safeLogin}">
+                </button>
+                <div class="nav-dropdown" id="nav-dropdown">
+                    <div class="nav-dropdown-header">
+                        <img src="${safeAvatarUrl}" alt="">
+                        <span>${safeLogin}</span>
+                    </div>
+                    <button class="nav-dropdown-item" id="auth-logout-btn">
+                        ${this.ICON_LOGOUT}
+                        Sign out
+                    </button>
                 </div>
-                <div class="nav-auth-divider"></div>
-                <button class="nav-btn logout" id="auth-logout-btn"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg><span class="btn-text">Sign out</span></button>
             `;
+            // Toggle dropdown
+            const avatarBtn = document.getElementById('nav-avatar-btn');
+            const dropdown = document.getElementById('nav-dropdown');
+            avatarBtn.onclick = (e) => {
+                e.stopPropagation();
+                avatarBtn.classList.toggle('menu-open');
+                dropdown.classList.toggle('open');
+            };
+            // Close on outside click
+            document.addEventListener('click', () => {
+                avatarBtn.classList.remove('menu-open');
+                dropdown.classList.remove('open');
+            });
             document.getElementById('auth-logout-btn').onclick = logoutFn;
         } else {
             authContent.innerHTML = '';
@@ -166,7 +188,7 @@ class ChecklistManager {
         }
     }
 
-    // Update nav auth UI
+    // Update nav auth UI with dropdown menu
     updateAuthUI() {
         const authContent = document.getElementById('auth-content');
         if (!authContent || !window.githubSync) return;
@@ -175,14 +197,47 @@ class ChecklistManager {
             const user = githubSync.getUser();
             const safeAvatarUrl = sanitizeUrl(user.avatar_url);
             const safeLogin = sanitizeText(user.login);
+            const isOwner = this.isOwner();
+
+            const editItemHtml = isOwner ? `
+                <button class="nav-dropdown-item" id="edit-mode-btn">
+                    <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                    Edit cards
+                </button>
+                <div class="nav-dropdown-divider"></div>
+            ` : '';
+
             authContent.innerHTML = `
-                <div class="nav-user">
-                    <img src="${safeAvatarUrl}" alt="">
-                    <span>${safeLogin}</span>
+                <button class="nav-avatar-btn" id="nav-avatar-btn">
+                    <img src="${safeAvatarUrl}" alt="${safeLogin}">
+                </button>
+                <div class="nav-dropdown" id="nav-dropdown">
+                    <div class="nav-dropdown-header">
+                        <img src="${safeAvatarUrl}" alt="">
+                        <span>${safeLogin}</span>
+                    </div>
+                    ${editItemHtml}
+                    <button class="nav-dropdown-item" id="auth-logout-btn">
+                        <svg viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+                        Sign out
+                    </button>
                 </div>
-                <div class="nav-auth-divider"></div>
-                <button class="nav-btn logout" onclick="checklistManager.logout()"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg><span class="btn-text">Sign out</span></button>
             `;
+
+            // Toggle dropdown
+            const avatarBtn = document.getElementById('nav-avatar-btn');
+            const dropdown = document.getElementById('nav-dropdown');
+            avatarBtn.onclick = (e) => {
+                e.stopPropagation();
+                avatarBtn.classList.toggle('menu-open');
+                dropdown.classList.toggle('open');
+            };
+            // Close on outside click
+            document.addEventListener('click', () => {
+                avatarBtn.classList.remove('menu-open');
+                dropdown.classList.remove('open');
+            });
+            document.getElementById('auth-logout-btn').onclick = () => this.logout();
         } else {
             authContent.innerHTML = '';
         }
@@ -523,50 +578,35 @@ class EditModeManager {
     }
 
     // SVG icons for edit button
-    static ICON_EDIT = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
-    static ICON_CHECK = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+    static ICON_EDIT = '<svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
+    static ICON_CHECK = '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
 
-    // Create the edit button in the nav
+    // Hook into the edit button in the dropdown (created by ChecklistManager.updateAuthUI)
     createEditButton() {
-        const navAuth = document.querySelector('.nav-auth');
-        if (!navAuth || document.getElementById('edit-mode-btn')) return;
-
-        // Create divider before edit button
-        this.editDivider = document.createElement('div');
-        this.editDivider.className = 'nav-auth-divider';
-        this.editDivider.style.display = 'none';
-
-        this.editButton = document.createElement('button');
-        this.editButton.id = 'edit-mode-btn';
-        this.editButton.className = 'nav-btn edit-btn';
-        this.editButton.innerHTML = EditModeManager.ICON_EDIT + '<span class="btn-text">Edit</span>';
-        this.editButton.style.display = 'none';
-        this.editButton.onclick = () => this.toggleEditMode();
-
-        // Insert before auth content
-        const authContent = document.getElementById('auth-content');
-        if (authContent) {
-            navAuth.insertBefore(this.editDivider, authContent);
-            navAuth.insertBefore(this.editButton, authContent);
-        } else {
-            navAuth.appendChild(this.editDivider);
-            navAuth.appendChild(this.editButton);
-        }
+        // The button is now created by ChecklistManager.updateAuthUI in the dropdown
+        // We just need to attach the click handler when it exists
+        this.updateEditButton();
     }
 
-    // Show/hide edit button based on owner status
+    // Update edit button state in dropdown menu
     updateEditButton() {
-        if (!this.editButton) return;
+        const editBtn = document.getElementById('edit-mode-btn');
+        if (!editBtn) return;
 
-        const isOwner = this.checklistManager?.isOwner() || false;
-        this.editButton.style.display = isOwner ? '' : 'none';
-        if (this.editDivider) this.editDivider.style.display = isOwner ? '' : 'none';
+        // Attach click handler
+        editBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.toggleEditMode();
+            // Close dropdown after clicking
+            document.getElementById('nav-avatar-btn')?.classList.remove('menu-open');
+            document.getElementById('nav-dropdown')?.classList.remove('open');
+        };
 
-        // Update button icon and text based on current mode
+        // Update button appearance based on current mode
         const icon = this.isEditMode ? EditModeManager.ICON_CHECK : EditModeManager.ICON_EDIT;
-        const text = this.isEditMode ? 'Done' : 'Edit';
-        this.editButton.innerHTML = icon + '<span class="btn-text">' + text + '</span>';
-        this.editButton.classList.toggle('active', this.isEditMode);
+        const text = this.isEditMode ? 'Done editing' : 'Edit cards';
+        editBtn.innerHTML = icon + ' ' + text;
+        editBtn.classList.toggle('active', this.isEditMode);
     }
 
     // Toggle edit mode on/off
