@@ -423,11 +423,19 @@
         document.getElementById('status-filter').addEventListener('change', applyFilters);
         document.getElementById('search').addEventListener('input', applyFilters);
 
+        // Initialize edit mode manager
+        const editModeManager = new EditModeManager(checklistManager);
+        editModeManager.onEditModeChange = (isEditMode) => {
+            // Re-render to update edit buttons on cards
+            editModeManager.updateCardEditControls();
+        };
+
         // Initialize
         async function init() {
             try {
                 await loadCardData();
                 await checklistManager.init();
+                editModeManager.init();
                 renderCards();
             } catch (err) {
                 console.error('Failed to initialize:', err);
