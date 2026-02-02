@@ -25,7 +25,7 @@
         "name": "Rookie Card",
         "type": "Base RC",
         "sport": "nfl",
-        "price": 2,
+        "price": 3,
         "search": "charles+haley+1987+topps+125+rookie",
         "img": "jmu-cards/haley_1987_topps.webp"
       }
@@ -42,7 +42,7 @@
         "name": "NFL Rookie Card",
         "type": "Base RC",
         "sport": "nfl",
-        "price": 2,
+        "price": 1,
         "search": "gary+clark+1986+topps+176+redskins+rookie",
         "img": "jmu-cards/clark_1986_topps.webp"
       },
@@ -97,7 +97,7 @@
         "name": "Jacksonville Bulls",
         "type": "XRC",
         "sport": "usfl",
-        "price": 7,
+        "price": 9,
         "search": "gary+clark+1985+topps+usfl+49+bulls",
         "img": "jmu-cards/clark_1985_usfl.webp"
       }
@@ -124,7 +124,7 @@
         "name": "Dean's List",
         "type": "Insert RC",
         "sport": "nfl",
-        "price": 3,
+        "price": 1,
         "search": "ed+perry+1997+score+board+deans+list",
         "img": "jmu-cards/perry_1997_deanslist.webp"
       },

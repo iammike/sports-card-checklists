@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Sync Gist with Seed Data</title>
+    <title>Gist Data Tools</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; background: #1a1a2e; color: #fff; max-width: 600px; margin: 0 auto; }
+        body { font-family: sans-serif; padding: 20px; background: #1a1a2e; color: #fff; max-width: 700px; margin: 0 auto; }
         h1 { color: #f39c12; }
+        h2 { color: #667eea; font-size: 1.1em; margin-top: 30px; }
         .status { background: #12121f; padding: 20px; border-radius: 8px; margin: 20px 0; }
         .status.success { border-left: 4px solid #4caf50; }
         .status.error { border-left: 4px solid #f44336; }
@@ -12,16 +13,38 @@
         button { padding: 12px 24px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin: 10px 5px 10px 0; }
         button:hover { background: #764ba2; }
         button:disabled { opacity: 0.5; cursor: not-allowed; }
+        button.danger { background: #c0392b; }
+        button.danger:hover { background: #e74c3c; }
         .log { background: #0a0a14; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 13px; white-space: pre-wrap; max-height: 300px; overflow-y: auto; }
+        .warning { background: #ff980020; border: 1px solid #ff9800; padding: 15px; border-radius: 4px; margin: 15px 0; font-size: 14px; }
+        .info { background: #2196f320; border: 1px solid #2196f3; padding: 15px; border-radius: 4px; margin: 15px 0; font-size: 14px; }
+        .section { border-top: 1px solid #333; padding-top: 20px; margin-top: 20px; }
     </style>
 </head>
 <body>
-    <h1>Sync Gist with Seed Data</h1>
-    <p>This will update your gist with the current seed file data (file paths for images).</p>
+    <h1>Gist Data Tools</h1>
 
     <div id="auth-status" class="status pending">Checking login status...</div>
 
-    <button id="migrate-btn" onclick="migrate()" disabled>Migrate All Checklists</button>
+    <div class="section">
+        <h2>Merge Seed → Gist (Safe)</h2>
+        <div class="info">
+            Merges seed file data INTO gist data. Preserves all cards and prices from gist.
+            Only updates image paths from seed files (converts base64 to file paths).
+            <strong>This is the safe option.</strong>
+        </div>
+        <button id="merge-btn" onclick="mergeToGist()" disabled>Merge to Gist</button>
+    </div>
+
+    <div class="section">
+        <h2>Overwrite Gist with Seed (Destructive)</h2>
+        <div class="warning">
+            <strong>Warning:</strong> This completely replaces gist data with seed files.
+            Any cards or prices you added via the UI will be LOST.
+            Only use this if you know the seed files have all your data.
+        </div>
+        <button id="overwrite-btn" class="danger" onclick="overwriteGist()" disabled>Overwrite Gist</button>
+    </div>
 
     <div class="log" id="log"></div>
 
@@ -35,11 +58,14 @@
 
         const logEl = document.getElementById('log');
         const authStatus = document.getElementById('auth-status');
-        const migrateBtn = document.getElementById('migrate-btn');
 
         function log(msg) {
             logEl.textContent += msg + '\n';
             logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function clearLog() {
+            logEl.textContent = '';
         }
 
         async function init() {
@@ -49,44 +75,102 @@
                 const user = githubSync.getUser();
                 authStatus.textContent = `Logged in as ${user.login}`;
                 authStatus.className = 'status success';
-                migrateBtn.disabled = false;
+                document.getElementById('merge-btn').disabled = false;
+                document.getElementById('overwrite-btn').disabled = false;
             } else {
                 authStatus.innerHTML = 'Not logged in. <a href="#" onclick="githubSync.login(); return false;" style="color: #667eea;">Sign in with GitHub</a>';
                 authStatus.className = 'status error';
             }
         }
 
-        async function migrate() {
-            migrateBtn.disabled = true;
-            log('Starting migration...\n');
+        // Build a map of cards by key for merging
+        function buildCardMap(data) {
+            const map = new Map();
+
+            function extract(obj, path = []) {
+                if (Array.isArray(obj)) {
+                    obj.forEach((item, i) => extract(item, [...path, i]));
+                } else if (obj && typeof obj === 'object') {
+                    if (obj.set && obj.num !== undefined) {
+                        // This is a card
+                        const key = `${obj.set}|${obj.num}|${obj.name || ''}`;
+                        map.set(key, { card: obj, path });
+                    }
+                    Object.entries(obj).forEach(([k, v]) => extract(v, [...path, k]));
+                }
+            }
+
+            extract(data);
+            return map;
+        }
+
+        // Merge: update gist cards with seed image paths, preserve gist prices/additions
+        function mergeData(gistData, seedData) {
+            const seedCards = buildCardMap(seedData);
+            let updatedImages = 0;
+            let preservedCards = 0;
+
+            function updateImages(obj) {
+                if (Array.isArray(obj)) {
+                    obj.forEach(item => updateImages(item));
+                } else if (obj && typeof obj === 'object') {
+                    if (obj.set && obj.num !== undefined) {
+                        const key = `${obj.set}|${obj.num}|${obj.name || ''}`;
+                        const seedCard = seedCards.get(key);
+
+                        if (seedCard && seedCard.card.img && !seedCard.card.img.startsWith('data:')) {
+                            // Update image path from seed (if seed has file path, not base64)
+                            if (obj.img !== seedCard.card.img) {
+                                obj.img = seedCard.card.img;
+                                updatedImages++;
+                            }
+                        }
+                        preservedCards++;
+                    }
+                    Object.values(obj).forEach(v => updateImages(v));
+                }
+            }
+
+            updateImages(gistData);
+            return { updatedImages, preservedCards };
+        }
+
+        async function mergeToGist() {
+            clearLog();
+            document.getElementById('merge-btn').disabled = true;
+            log('Starting merge (gist + seed)...\n');
 
             for (const checklist of CHECKLISTS) {
                 log(`Processing ${checklist.id}...`);
 
                 try {
-                    // Load seed data (has base64 images)
-                    const response = await fetch(checklist.file);
-                    const seedData = await response.json();
+                    // Load both sources
+                    const [seedResponse, gistData] = await Promise.all([
+                        fetch(checklist.file),
+                        githubSync.loadCardData(checklist.id)
+                    ]);
 
-                    // Count images
-                    let imageCount = 0;
-                    const countImages = (obj) => {
-                        if (Array.isArray(obj)) {
-                            obj.forEach(item => countImages(item));
-                        } else if (obj && typeof obj === 'object') {
-                            if (obj.img) imageCount++;
-                            Object.values(obj).forEach(val => countImages(val));
-                        }
-                    };
-                    countImages(seedData);
+                    const seedData = await seedResponse.json();
 
-                    log(`  Found ${imageCount} card images`);
+                    if (!gistData) {
+                        // No gist data, just use seed
+                        log(`  No gist data, using seed file`);
+                        await githubSync.saveCardData(checklist.id, seedData);
+                        log(`  Saved to gist\n`);
+                        continue;
+                    }
 
-                    // Save to gist
-                    const success = await githubSync.saveCardData(checklist.id, seedData);
+                    // Merge: update gist with seed image paths
+                    const { updatedImages, preservedCards } = mergeData(gistData, seedData);
+
+                    log(`  Preserved ${preservedCards} cards from gist`);
+                    log(`  Updated ${updatedImages} image paths from seed`);
+
+                    // Save merged data
+                    const success = await githubSync.saveCardData(checklist.id, gistData);
 
                     if (success) {
-                        log(`  Saved to gist successfully\n`);
+                        log(`  Saved merged data to gist\n`);
                     } else {
                         log(`  ERROR: Failed to save to gist\n`);
                     }
@@ -95,8 +179,54 @@
                 }
             }
 
-            log('\nMigration complete!');
-            log('Refresh your checklist pages to see the changes.');
+            log('\nMerge complete!');
+            log('Your gist now has file-based image paths while preserving all your card data.');
+            document.getElementById('merge-btn').disabled = false;
+        }
+
+        async function overwriteGist() {
+            if (!confirm('This will OVERWRITE all gist data with seed files. Any cards or prices you added via the UI will be LOST. Are you sure?')) {
+                return;
+            }
+
+            clearLog();
+            document.getElementById('overwrite-btn').disabled = true;
+            log('Starting overwrite (seed → gist)...\n');
+
+            for (const checklist of CHECKLISTS) {
+                log(`Processing ${checklist.id}...`);
+
+                try {
+                    const response = await fetch(checklist.file);
+                    const seedData = await response.json();
+
+                    let cardCount = 0;
+                    const countCards = (obj) => {
+                        if (Array.isArray(obj)) obj.forEach(countCards);
+                        else if (obj && typeof obj === 'object') {
+                            if (obj.set && obj.num !== undefined) cardCount++;
+                            Object.values(obj).forEach(countCards);
+                        }
+                    };
+                    countCards(seedData);
+
+                    log(`  Found ${cardCount} cards in seed file`);
+
+                    const success = await githubSync.saveCardData(checklist.id, seedData);
+
+                    if (success) {
+                        log(`  Overwrote gist with seed data\n`);
+                    } else {
+                        log(`  ERROR: Failed to save to gist\n`);
+                    }
+                } catch (e) {
+                    log(`  ERROR: ${e.message}\n`);
+                }
+            }
+
+            log('\nOverwrite complete!');
+            log('Gist now matches seed files exactly.');
+            document.getElementById('overwrite-btn').disabled = false;
         }
 
         init();
