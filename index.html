@@ -503,12 +503,22 @@
         const PROGRESS_RING_RADIUS = 20;
         const PROGRESS_RING_CIRCUMFERENCE = 2 * Math.PI * PROGRESS_RING_RADIUS;
 
-        // Load card data from JSON files (source of truth for card counts)
+        // Load card data - try gist first (has latest edits), fall back to repo JSON
         async function loadCardData() {
+            async function loadOne(checklistId) {
+                // Try gist first if logged in
+                if (window.githubSync?.isLoggedIn()) {
+                    const gistData = await githubSync.loadCardData(checklistId);
+                    if (gistData) return gistData;
+                }
+                // Fall back to repo JSON
+                return fetch(`data/${checklistId}.json`).then(r => r.json()).catch(() => null);
+            }
+
             const [jdData, qbData, jmuData] = await Promise.all([
-                fetch('data/jayden-daniels.json').then(r => r.json()).catch(() => null),
-                fetch('data/washington-qbs.json').then(r => r.json()).catch(() => null),
-                fetch('data/jmu-pro-players.json').then(r => r.json()).catch(() => null)
+                loadOne('jayden-daniels'),
+                loadOne('washington-qbs'),
+                loadOne('jmu-pro-players')
             ]);
             return { 'jayden-daniels': jdData, 'washington-qbs': qbData, 'jmu-pro-players': jmuData };
         }

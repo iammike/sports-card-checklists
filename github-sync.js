@@ -409,12 +409,86 @@ class GitHubSync {
         }
     }
 
-    // Save card data JSON file
+    // ========================================
+    // Card Data Operations (stored in gist)
+    // ========================================
+
+    // Save card data to gist (as separate file per checklist)
     async saveCardData(checklistId, cardData) {
-        const path = `data/${checklistId}.json`;
-        const content = JSON.stringify(cardData, null, 2);
-        const message = `Update ${checklistId} card data`;
-        return await this.updateRepoFile(path, content, message);
+        if (!this.token) return false;
+
+        if (!this.gistId) {
+            await this.findOrCreateGist();
+        }
+
+        const filename = `${checklistId}-cards.json`;
+
+        try {
+            const response = await fetch(`https://api.github.com/gists/${this.gistId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${this.token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    files: {
+                        [filename]: {
+                            content: JSON.stringify(cardData, null, 2),
+                        },
+                    },
+                }),
+            });
+
+            return response.ok;
+        } catch (error) {
+            console.error('Failed to save card data to gist:', error);
+            return false;
+        }
+    }
+
+    // Load card data from gist (for logged-in user editing)
+    async loadCardData(checklistId) {
+        if (!this.token || !this.gistId) return null;
+
+        const filename = `${checklistId}-cards.json`;
+
+        try {
+            const response = await fetch(`https://api.github.com/gists/${this.gistId}`, {
+                headers: { 'Authorization': `Bearer ${this.token}` },
+            });
+
+            if (!response.ok) return null;
+
+            const gist = await response.json();
+            const content = gist.files[filename]?.content;
+
+            if (!content) return null;
+
+            return JSON.parse(content);
+        } catch (error) {
+            console.error('Failed to load card data from gist:', error);
+            return null;
+        }
+    }
+
+    // Load card data from public gist (fallback, or for non-logged-in users)
+    async loadPublicCardData(checklistId) {
+        const filename = `${checklistId}-cards.json`;
+
+        try {
+            const response = await fetch(`https://api.github.com/gists/${CONFIG.PUBLIC_GIST_ID}`);
+            if (!response.ok) return null;
+
+            const gist = await response.json();
+            const content = gist.files[filename]?.content;
+
+            if (!content) return null;
+
+            return JSON.parse(content);
+        } catch (error) {
+            console.error('Failed to load public card data:', error);
+            return null;
+        }
     }
 }
 
