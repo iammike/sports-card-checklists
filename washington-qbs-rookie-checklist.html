@@ -770,8 +770,11 @@
                         if (cardData.player) qb.name = cardData.player;
                         qb.set = cardData.set;
                         qb.num = cardData.num;
-                        if (cardData.price !== undefined) qb.price = cardData.price;
-                        if (cardData.img) qb.img = cardData.img;
+                        // Handle optional fields - set if present, delete if cleared
+                        if ('price' in cardData) qb.price = cardData.price;
+                        else delete qb.price;
+                        if ('img' in cardData) qb.img = cardData.img;
+                        else delete qb.img;
                         if (cardData.ebay) qb.search = cardData.ebay;
                         console.log('Updated QB:', qb);
                     }
