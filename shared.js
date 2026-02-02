@@ -47,6 +47,7 @@ const AuthUI = {
                         ${this.ICON_LOGOUT}
                         Sign out
                     </button>
+                    <div class="nav-dropdown-footer" id="commit-hash"></div>
                 </div>
             `;
             // Toggle dropdown
@@ -63,8 +64,23 @@ const AuthUI = {
                 dropdown.classList.remove('open');
             });
             document.getElementById('auth-logout-btn').onclick = logoutFn;
+            this.loadCommitHash();
         } else {
             authContent.innerHTML = '';
+        }
+    },
+
+    async loadCommitHash() {
+        try {
+            const response = await fetch('https://api.github.com/repos/iammike/sports-card-checklists/commits/main');
+            const data = await response.json();
+            const shortHash = data.sha.substring(0, 7);
+            const el = document.getElementById('commit-hash');
+            if (el) {
+                el.innerHTML = `<a href="${data.html_url}" target="_blank">${shortHash}</a>`;
+            }
+        } catch (e) {
+            // Silently fail
         }
     }
 };
