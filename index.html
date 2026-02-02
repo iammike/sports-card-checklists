@@ -503,17 +503,118 @@
         const PROGRESS_RING_RADIUS = 20;
         const PROGRESS_RING_CIRCUMFERENCE = 2 * Math.PI * PROGRESS_RING_RADIUS;
 
+        // Load card data from JSON files (source of truth for card counts)
+        async function loadCardData() {
+            const [jdData, qbData, jmuData] = await Promise.all([
+                fetch('data/jayden-daniels.json').then(r => r.json()).catch(() => null),
+                fetch('data/washington-qbs.json').then(r => r.json()).catch(() => null),
+                fetch('data/jmu-pro-players.json').then(r => r.json()).catch(() => null)
+            ]);
+            return { 'jayden-daniels': jdData, 'washington-qbs': qbData, 'jmu-pro-players': jmuData };
+        }
+
+        // Generate card ID (must match the checklist pages)
+        function getCardId(card) {
+            if (card.id) return card.id;
+            const str = (card.set || '') + (card.num || '') + (card.name || '');
+            return btoa(str).replace(/[^a-zA-Z0-9]/g, '');
+        }
+
+        // Compute stats for a checklist from JSON data and owned list
+        function computeChecklistStats(checklistId, cardData, ownedList) {
+            if (!cardData) return null;
+            const owned = new Set(ownedList || []);
+
+            if (checklistId === 'jayden-daniels') {
+                const cats = cardData.categories;
+                const baseCards = [...(cats.college || []), ...(cats.panini || []), ...(cats.topps || []), ...(cats.other || [])];
+                const inserts = cats.inserts || [];
+                const chase = cats.chase || [];
+
+                let baseOwned = 0, baseValue = 0, baseOwnedValue = 0;
+                baseCards.forEach(c => {
+                    const price = PriceUtils.estimate(c);
+                    baseValue += price;
+                    if (owned.has(getCardId(c))) {
+                        baseOwned++;
+                        baseOwnedValue += price;
+                    }
+                });
+
+                let insertsOwned = 0;
+                inserts.forEach(c => { if (owned.has(getCardId(c))) insertsOwned++; });
+
+                let chaseOwned = 0;
+                chase.forEach(c => { if (owned.has(getCardId(c))) chaseOwned++; });
+
+                return {
+                    owned: baseOwned,
+                    total: baseCards.length,
+                    ownedValue: Math.round(baseOwnedValue),
+                    neededValue: Math.round(baseValue - baseOwnedValue),
+                    insertsOwned, insertsTotal: inserts.length,
+                    chaseOwned, chaseTotal: chase.length
+                };
+            }
+
+            if (checklistId === 'washington-qbs') {
+                const qbs = cardData.qbs.filter(qb => !qb.collectionLink);
+                let ownedCount = 0, totalValue = 0, ownedValue = 0;
+                qbs.forEach(qb => {
+                    const price = qb.price || 0;
+                    totalValue += price;
+                    const id = btoa(qb.name + qb.set + qb.num).replace(/[^a-zA-Z0-9]/g, '');
+                    if (owned.has(id)) {
+                        ownedCount++;
+                        ownedValue += price;
+                    }
+                });
+                return {
+                    owned: ownedCount,
+                    total: qbs.length,
+                    ownedValue: Math.round(ownedValue),
+                    neededValue: Math.round(totalValue - ownedValue)
+                };
+            }
+
+            if (checklistId === 'jmu-pro-players') {
+                const cats = cardData.categories;
+                const mainCards = [...(cats.hof || []), ...(cats.probowl || []), ...(cats.usfl || []), ...(cats.modern || []), ...(cats.mlb || []), ...(cats.nba || []), ...(cats.mls || [])];
+                let ownedCount = 0, totalValue = 0, ownedValue = 0;
+                mainCards.forEach(c => {
+                    const price = PriceUtils.estimate(c);
+                    totalValue += price;
+                    if (owned.has(getCardId(c))) {
+                        ownedCount++;
+                        ownedValue += price;
+                    }
+                });
+                return {
+                    owned: ownedCount,
+                    total: mainCards.length,
+                    ownedValue: Math.round(ownedValue),
+                    neededValue: Math.round(totalValue - ownedValue)
+                };
+            }
+
+            return null;
+        }
+
         async function loadProgress() {
-            // Load all stats from gist (source of truth)
-            let allStats = {};
-            if (window.githubSync && githubSync.isLoggedIn()) {
-                allStats = await githubSync.loadAllStats();
-            } else if (window.githubSync) {
-                allStats = await githubSync.loadPublicStats();
+            // Load card data from JSON files (source of truth for counts)
+            const cardData = await loadCardData();
+
+            // Load owned cards from gist
+            let ownedCards = {};
+            if (window.githubSync) {
+                const gistData = githubSync.isLoggedIn()
+                    ? await githubSync.loadData()
+                    : await githubSync.loadPublicData();
+                ownedCards = gistData?.checklists || {};
             }
 
             // Helper to update a card's progress display
-            function updateCardProgress(id, stats, extraStatId, extraStatKey) {
+            function updateCardProgress(id, stats) {
                 if (!stats || typeof stats.owned !== 'number' || typeof stats.total !== 'number') return;
 
                 const progressSection = document.getElementById(`progress-section-${id}`);
@@ -540,16 +641,10 @@
                 if (valueEl) {
                     valueEl.innerHTML = `<span class="value-owned">$${stats.ownedValue} owned</span> · <span class="value-needed">$${stats.neededValue} to complete</span>`;
                 }
-
-                // Extra stats (inserts/chase/extras)
-                if (extraStatId && extraStatKey && stats[extraStatKey + 'Owned'] !== undefined) {
-                    const el = document.getElementById(extraStatId);
-                    if (el) el.textContent = `${stats[extraStatKey + 'Owned']}/${stats[extraStatKey + 'Total']}`;
-                }
             }
 
             // Jayden Daniels
-            const jdStats = allStats['jayden-daniels'];
+            const jdStats = computeChecklistStats('jayden-daniels', cardData['jayden-daniels'], ownedCards['jayden-daniels']);
             updateCardProgress('jayden-daniels', jdStats);
             if (jdStats) {
                 const insertsEl = document.getElementById('stat-inserts-jayden-daniels');
@@ -559,15 +654,19 @@
             }
 
             // Washington QBs
-            updateCardProgress('washington-qbs', allStats['washington-qbs']);
+            const qbStats = computeChecklistStats('washington-qbs', cardData['washington-qbs'], ownedCards['washington-qbs']);
+            updateCardProgress('washington-qbs', qbStats);
 
             // JMU Pro Players
-            const jmuStats = allStats['jmu-pro-players'];
+            const jmuStats = computeChecklistStats('jmu-pro-players', cardData['jmu-pro-players'], ownedCards['jmu-pro-players']);
             updateCardProgress('jmu-pro-players', jmuStats);
-            if (jmuStats) {
-                const extrasEl = document.getElementById('stat-alternates-jmu');
-                if (extrasEl) extrasEl.textContent = `${jmuStats.extrasOwned || 0}/${jmuStats.extrasTotal || 0}`;
-            }
+
+            // Return computed stats for aggregate
+            return {
+                'jayden-daniels': jdStats,
+                'washington-qbs': qbStats,
+                'jmu-pro-players': jmuStats
+            };
         }
 
         // Animate a number counting up
@@ -590,15 +689,7 @@
         // Track if we've animated yet (only animate once)
         let hasAnimatedStats = false;
 
-        async function updateAggregateStats() {
-            // Read exact stats from gist (source of truth, saved by each checklist page)
-            let allStats = {};
-            if (window.githubSync && githubSync.isLoggedIn()) {
-                allStats = await githubSync.loadAllStats();
-            } else if (window.githubSync) {
-                allStats = await githubSync.loadPublicStats();
-            }
-
+        function updateAggregateStats(allStats) {
             const checklists = ['jayden-daniels', 'washington-qbs', 'jmu-pro-players'];
             let totalOwned = 0, totalCards = 0, totalOwnedValue = 0, totalNeededValue = 0;
             let hasAnyStats = false;
@@ -661,8 +752,8 @@
             });
 
             // Load progress data for individual cards and aggregate stats
-            loadProgress();
-            updateAggregateStats();
+            const stats = await loadProgress();
+            updateAggregateStats(stats);
         }
         init();
     </script>
