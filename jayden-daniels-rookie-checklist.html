@@ -214,7 +214,7 @@
         let checklistData = null;
 
         async function loadCardData() {
-            // Try to load from gist first (has latest edits), fall back to repo JSON
+            // Try to load from gist first (gist is source of truth)
             if (window.githubSync?.isLoggedIn()) {
                 const gistData = await githubSync.loadCardData('jayden-daniels');
                 if (gistData) {
@@ -224,13 +224,18 @@
                 }
             }
 
-            // Fall back to repo JSON file
-            const response = await fetch('data/jayden-daniels.json');
+            // No gist data - load from seed and save to gist for next time
+            const response = await fetch('seed/jayden-daniels.json');
             if (!response.ok) {
                 throw new Error('Failed to load card data');
             }
             checklistData = await response.json();
             cards = checklistData.categories;
+
+            // Save seed data to gist so it becomes the source of truth
+            if (window.githubSync?.isLoggedIn()) {
+                await githubSync.saveCardData('jayden-daniels', checklistData);
+            }
         }
 
         // Initialize checklist manager

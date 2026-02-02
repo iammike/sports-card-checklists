@@ -275,7 +275,7 @@
         let checklistData = null;
 
         async function loadCardData() {
-            // Try to load from gist first (has latest edits), fall back to repo JSON
+            // Try to load from gist first (gist is source of truth)
             if (window.githubSync?.isLoggedIn()) {
                 const gistData = await githubSync.loadCardData('jmu-pro-players');
                 if (gistData) {
@@ -285,13 +285,18 @@
                 }
             }
 
-            // Fall back to repo JSON file
-            const response = await fetch('data/jmu-pro-players.json');
+            // No gist data - load from seed and save to gist for next time
+            const response = await fetch('seed/jmu-pro-players.json');
             if (!response.ok) {
                 throw new Error('Failed to load card data');
             }
             checklistData = await response.json();
             cards = checklistData.categories;
+
+            // Save seed data to gist so it becomes the source of truth
+            if (window.githubSync?.isLoggedIn()) {
+                await githubSync.saveCardData('jmu-pro-players', checklistData);
+            }
         }
 
         // Initialize checklist manager

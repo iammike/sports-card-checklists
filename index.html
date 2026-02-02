@@ -504,16 +504,16 @@
         const PROGRESS_RING_RADIUS = 20;
         const PROGRESS_RING_CIRCUMFERENCE = 2 * Math.PI * PROGRESS_RING_RADIUS;
 
-        // Load card data - try gist first (has latest edits), fall back to repo JSON
+        // Load card data - gist is source of truth, seed folder is fallback
         async function loadCardData() {
             async function loadOne(checklistId) {
-                // Try gist first if logged in
+                // Try gist first (source of truth)
                 if (window.githubSync?.isLoggedIn()) {
                     const gistData = await githubSync.loadCardData(checklistId);
                     if (gistData) return gistData;
                 }
-                // Fall back to repo JSON
-                return fetch(`data/${checklistId}.json`).then(r => r.json()).catch(() => null);
+                // Fall back to seed data
+                return fetch(`seed/${checklistId}.json`).then(r => r.json()).catch(() => null);
             }
 
             const [jdData, qbData, jmuData] = await Promise.all([
