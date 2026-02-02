@@ -369,6 +369,15 @@ h1 {
     opacity: 1;
 }
 
+.nav-dropdown-item.danger {
+    color: #888;
+}
+
+.nav-dropdown-item.danger:hover {
+    background: rgba(255, 82, 82, 0.15);
+    color: #ff5252;
+}
+
 .nav-dropdown-divider {
     height: 1px;
     background: rgba(255, 255, 255, 0.06);
