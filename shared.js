@@ -485,9 +485,133 @@ const StatsAnimator = {
     }
 };
 
+/**
+ * Edit Mode Manager - handles edit mode state and UI
+ */
+class EditModeManager {
+    constructor(checklistManager) {
+        this.checklistManager = checklistManager;
+        this.isEditMode = false;
+        this.onEditModeChange = null;
+        this.editButton = null;
+    }
+
+    // Initialize edit mode UI (call after checklistManager.init())
+    init() {
+        this.createEditButton();
+        this.updateEditButton();
+
+        // Listen for auth changes to show/hide edit button
+        if (this.checklistManager) {
+            const originalOnAuthChange = window.githubSync?.onAuthChange;
+            if (window.githubSync) {
+                window.githubSync.onAuthChange = async (loggedIn) => {
+                    if (originalOnAuthChange) await originalOnAuthChange(loggedIn);
+                    this.updateEditButton();
+                    // Exit edit mode if logged out
+                    if (!loggedIn && this.isEditMode) {
+                        this.toggleEditMode();
+                    }
+                };
+            }
+        }
+    }
+
+    // Create the edit button in the nav
+    createEditButton() {
+        const navAuth = document.querySelector('.nav-auth');
+        if (!navAuth || document.getElementById('edit-mode-btn')) return;
+
+        this.editButton = document.createElement('button');
+        this.editButton.id = 'edit-mode-btn';
+        this.editButton.className = 'nav-btn edit-btn';
+        this.editButton.innerHTML = '✏️ Edit';
+        this.editButton.style.display = 'none';
+        this.editButton.onclick = () => this.toggleEditMode();
+
+        // Insert before auth content
+        const authContent = document.getElementById('auth-content');
+        if (authContent) {
+            navAuth.insertBefore(this.editButton, authContent);
+        } else {
+            navAuth.appendChild(this.editButton);
+        }
+    }
+
+    // Show/hide edit button based on owner status
+    updateEditButton() {
+        if (!this.editButton) return;
+
+        const isOwner = this.checklistManager?.isOwner() || false;
+        this.editButton.style.display = isOwner ? '' : 'none';
+
+        // Update button text based on current mode
+        this.editButton.innerHTML = this.isEditMode ? '✓ Done' : '✏️ Edit';
+        this.editButton.classList.toggle('active', this.isEditMode);
+    }
+
+    // Toggle edit mode on/off
+    toggleEditMode() {
+        if (!this.checklistManager?.isOwner()) return;
+
+        this.isEditMode = !this.isEditMode;
+        document.body.classList.toggle('edit-mode', this.isEditMode);
+        this.updateEditButton();
+
+        // Update card elements to show edit controls
+        this.updateCardEditControls();
+
+        // Fire callback
+        if (this.onEditModeChange) {
+            this.onEditModeChange(this.isEditMode);
+        }
+    }
+
+    // Add/remove edit controls on cards
+    updateCardEditControls() {
+        document.querySelectorAll('.card').forEach(card => {
+            const existingBtn = card.querySelector('.card-edit-btn');
+
+            if (this.isEditMode) {
+                // Add edit button if not exists
+                if (!existingBtn) {
+                    const editBtn = document.createElement('button');
+                    editBtn.className = 'card-edit-btn';
+                    editBtn.innerHTML = '✏️';
+                    editBtn.title = 'Edit card';
+                    editBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        this.onCardEdit(card);
+                    };
+                    card.appendChild(editBtn);
+                }
+            } else {
+                // Remove edit button
+                if (existingBtn) {
+                    existingBtn.remove();
+                }
+            }
+        });
+    }
+
+    // Handle card edit click (to be overridden by page)
+    onCardEdit(cardElement) {
+        // Get card ID from the checkbox or data attribute
+        const checkbox = cardElement.querySelector('input[type="checkbox"]');
+        const cardId = checkbox?.id || cardElement.dataset.cardId;
+        console.log('Edit card:', cardId);
+
+        // This will be overridden to open the editor modal
+        if (this.onCardEditClick) {
+            this.onCardEditClick(cardId, cardElement);
+        }
+    }
+}
+
 // Export for use in pages
 window.ChecklistManager = ChecklistManager;
 window.PriceUtils = PriceUtils;
 window.FilterUtils = FilterUtils;
 window.CardRenderer = CardRenderer;
 window.StatsAnimator = StatsAnimator;
+window.EditModeManager = EditModeManager;
