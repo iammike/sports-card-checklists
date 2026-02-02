@@ -17,15 +17,17 @@
     </style>
 </head>
 <body>
-    <h1>Restore Owned Cards</h1>
-    <p>This will restore your owned cards data from gist history (revision from 2026-02-02T03:22:07Z).</p>
+    <h1>Restore All Gist Data</h1>
+    <p>This will restore ALL gist data from history (revision from 2026-02-02T03:22:07Z).</p>
 
     <div class="warning">
-        <strong>What this does:</strong>
+        <strong>What this restores:</strong>
         <ul>
-            <li>Fetches your owned cards list from before the migration</li>
-            <li>Restores the main gist file with owned cards and stats</li>
+            <li>All card data files (jayden-daniels, washington-qbs, jmu-pro-players)</li>
+            <li>Owned cards list and stats</li>
+            <li>Prices you added to cards</li>
         </ul>
+        <strong>After this, run "Merge to Gist" in migrate-gist.html to update image paths.</strong>
     </div>
 
     <div id="auth-status" class="status pending">Checking login status...</div>
@@ -64,7 +66,7 @@
 
         async function restore() {
             restoreBtn.disabled = true;
-            log('Starting restore...\n');
+            log('Starting full restore...\n');
 
             try {
                 // Fetch old revision
@@ -73,25 +75,49 @@
                 if (!response.ok) throw new Error('Failed to fetch old revision');
 
                 const oldGist = await response.json();
-                const oldMainContent = oldGist.files['sports-card-checklists.json']?.content;
 
-                if (!oldMainContent) throw new Error('Old main gist file not found');
+                // Log what we found
+                for (const [name, file] of Object.entries(oldGist.files)) {
+                    log(`  ${name}: ${file.content.length} chars`);
+                }
 
-                const oldData = JSON.parse(oldMainContent);
-                log(`Found owned cards:`);
-                log(`  - jayden-daniels: ${oldData.checklists?.['jayden-daniels']?.length || 0} cards`);
-                log(`  - washington-qbs: ${oldData.checklists?.['washington-qbs']?.length || 0} cards`);
-                log(`  - jmu-pro-players: ${oldData.checklists?.['jmu-pro-players']?.length || 0} cards`);
+                // Parse the main file to show owned cards
+                const mainContent = oldGist.files['sports-card-checklists.json']?.content;
+                if (mainContent) {
+                    const mainData = JSON.parse(mainContent);
+                    log(`\nOwned cards:`);
+                    log(`  - jayden-daniels: ${mainData.checklists?.['jayden-daniels']?.length || 0}`);
+                    log(`  - washington-qbs: ${mainData.checklists?.['washington-qbs']?.length || 0}`);
+                    log(`  - jmu-pro-players: ${mainData.checklists?.['jmu-pro-players']?.length || 0}`);
+                }
 
-                // Save to current gist
-                log('\nSaving to gist...');
-                const success = await githubSync.saveData(oldData);
+                // Build files object for PATCH
+                const files = {};
+                for (const [name, file] of Object.entries(oldGist.files)) {
+                    files[name] = { content: file.content };
+                }
 
-                if (success) {
-                    log('\nRestore complete!');
-                    log('Refresh your pages to see the changes.');
+                // Update gist with all files
+                log('\nRestoring all files to gist...');
+                const token = localStorage.getItem('github_token');
+                const gistId = localStorage.getItem('github_gist_id');
+
+                const updateResponse = await fetch(`https://api.github.com/gists/${gistId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ files })
+                });
+
+                if (updateResponse.ok) {
+                    log('\nFull restore complete!');
+                    log('All files restored from revision 1e34d84.');
+                    log('\nNow run "Merge to Gist" in migrate-gist.html to update image paths.');
                 } else {
-                    log('\nERROR: Failed to save to gist');
+                    const error = await updateResponse.json();
+                    log(`\nERROR: ${error.message || 'Failed to update gist'}`);
                 }
             } catch (e) {
                 log(`\nERROR: ${e.message}`);
