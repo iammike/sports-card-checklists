@@ -443,6 +443,17 @@ const FilterUtils = {
             card.style.display = show ? '' : 'none';
         });
 
+        // Hide sections with no visible cards
+        if (options.sections) {
+            options.sections.forEach(sectionId => {
+                const section = document.getElementById(sectionId);
+                if (section) {
+                    const visibleCards = section.querySelectorAll('.card:not([style*="display: none"])');
+                    section.style.display = visibleCards.length > 0 ? '' : 'none';
+                }
+            });
+        }
+
         // Call update callback if provided
         if (options.onFilter) options.onFilter();
     }
