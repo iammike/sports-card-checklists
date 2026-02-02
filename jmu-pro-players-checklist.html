@@ -515,9 +515,7 @@
         const editModeManager = new EditModeManager(checklistManager);
 
         // Initialize card editor modal
-        const cardTypes = ['Base', 'Base RC', 'Parallel', 'Insert'];
         const cardEditor = new CardEditorModal({
-            cardTypes,
             onSave: (cardId, cardData, isNew) => {
                 if (isNew) {
                     // Add new card

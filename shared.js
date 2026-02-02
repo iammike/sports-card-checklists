@@ -1,5 +1,8 @@
 // Sports Card Checklists - Shared JavaScript Utilities
 
+// Standard card types used across all checklists
+const CARD_TYPES = ['Base', 'Base RC', 'Parallel', 'Insert', 'Insert SSP', 'Chase SSP'];
+
 // Sanitization helpers for XSS prevention
 function sanitizeText(text) {
     const div = document.createElement('div');
@@ -615,7 +618,7 @@ class CardEditorModal {
     constructor(options = {}) {
         this.onSave = options.onSave || (() => {});
         this.onDelete = options.onDelete || (() => {});
-        this.cardTypes = options.cardTypes || ['Base', 'Base RC', 'Parallel', 'Insert', 'Insert SSP', 'Chase SSP'];
+        this.cardTypes = options.cardTypes || CARD_TYPES;
         this.currentCard = null;
         this.currentCardId = null;
         this.isDirty = false;
@@ -921,6 +924,7 @@ class AddCardButton {
 }
 
 // Export for use in pages
+window.CARD_TYPES = CARD_TYPES;
 window.ChecklistManager = ChecklistManager;
 window.PriceUtils = PriceUtils;
 window.FilterUtils = FilterUtils;
