@@ -823,19 +823,21 @@ select, input[type="text"] {
    Edit Mode
    ============================================ */
 
-/* Edit button in nav */
+/* Edit button in nav - muted style like logout */
 .nav-btn.edit-btn {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: rgba(255,255,255,0.08);
+    color: #888;
     font-weight: 600;
 }
 
 .nav-btn.edit-btn:hover {
-    filter: brightness(1.1);
+    background: rgba(255,255,255,0.12);
+    color: #aaa;
 }
 
 .nav-btn.edit-btn.active {
-    background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
+    background: rgba(76, 175, 80, 0.2);
+    color: #4caf50;
 }
 
 /* Edit mode body indicator */
