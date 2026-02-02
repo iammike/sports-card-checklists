@@ -809,6 +809,14 @@ class CardEditorModal {
                 this.close();
             }
         });
+
+        // Enter key to save (unless in a select or textarea)
+        modal.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !['SELECT', 'TEXTAREA'].includes(e.target.tagName)) {
+                e.preventDefault();
+                this.save();
+            }
+        });
     }
 
     // Update image preview
