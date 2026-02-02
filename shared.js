@@ -1359,13 +1359,8 @@ class AddCardButton {
         btn.style.display = 'none';
         btn.onclick = () => this.onClick();
 
-        // Insert at top of page content (scrolls with page)
-        const pageContent = document.querySelector('.page-content');
-        if (pageContent) {
-            pageContent.insertBefore(btn, pageContent.firstChild);
-        } else {
-            document.body.appendChild(btn);
-        }
+        // Fixed position below nav bar (stays visible while scrolling)
+        document.body.appendChild(btn);
         this.button = btn;
     }
 

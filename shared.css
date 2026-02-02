@@ -1421,37 +1421,41 @@ body.edit-mode .card:hover {
 }
 
 /* ============================================
-   Add Card Button (top of page, themed)
+   Add Card Button (sticky below nav)
    ============================================ */
 .add-card-btn {
-    display: block;
-    width: 100%;
+    position: fixed;
+    top: 60px;
+    left: 50%;
+    transform: translateX(-50%);
     background: linear-gradient(135deg, var(--color-primary, #667eea) 0%, var(--color-primary-dark, #764ba2) 100%);
     color: white;
     border: none;
-    padding: 14px 28px;
-    border-radius: 8px;
+    padding: 12px 32px;
+    border-radius: 24px;
     font-family: 'Barlow', sans-serif;
     font-size: 14px;
     font-weight: 600;
     letter-spacing: 0.04em;
     cursor: pointer;
-    margin-bottom: 16px;
+    z-index: 90;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     transition: all 0.2s ease;
 }
 
 .add-card-btn:hover {
     filter: brightness(1.1);
-    transform: translateY(-1px);
+    transform: translateX(-50%) translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
 }
 
 .add-card-btn:active {
-    transform: translateY(0);
+    transform: translateX(-50%) translateY(0);
 }
 
 @media (max-width: 500px) {
     .add-card-btn {
-        padding: 12px 24px;
+        padding: 10px 24px;
         font-size: 13px;
     }
 }
