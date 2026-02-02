@@ -1050,7 +1050,7 @@ class CardEditorModal {
         if (!btn) return;
 
         const isEbay = this.imageProcessor.isEbayUrl(url);
-        btn.style.display = isEbay ? '' : 'none';
+        btn.style.display = isEbay ? 'flex' : 'none';
     }
 
     // Process image: fetch, resize, convert to base64 data URL
