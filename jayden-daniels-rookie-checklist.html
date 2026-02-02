@@ -487,7 +487,9 @@
                     // Update existing card
                     const found = findCardWithCategory(cardId);
                     if (found) {
-                        const { card, category, index } = found;
+                        const { card, category: oldCategory, index } = found;
+                        const newCategory = cardData.category || oldCategory;
+                        delete cardData.category;
                         Object.assign(card, cardData);
                         if (cardData.ebay) {
                             card.search = cardData.ebay;
@@ -498,10 +500,11 @@
                         if (!('img' in cardData)) delete card.img;
                         if (!('achievement' in cardData)) delete card.achievement;
                         if (!('auto' in cardData)) delete card.auto;
-                        // Re-sort: remove from current position and re-insert sorted
-                        cards[category].splice(index, 1);
-                        insertCardSorted(cards[category], card);
-                        console.log('Updated card:', card);
+                        // Remove from old category
+                        cards[oldCategory].splice(index, 1);
+                        // Insert into (possibly new) category
+                        insertCardSorted(cards[newCategory], card);
+                        console.log('Updated card:', card, newCategory !== oldCategory ? `(moved to ${newCategory})` : '');
                     }
                 }
                 renderCards();
