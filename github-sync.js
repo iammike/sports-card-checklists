@@ -339,10 +339,15 @@ class GitHubSync {
 
         const { owner, repo } = this.getRepoInfo();
         try {
+            // Add cache-busting to ensure we get the latest SHA
             const response = await fetch(
-                `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
+                `https://api.github.com/repos/${owner}/${repo}/contents/${path}?t=${Date.now()}`,
                 {
-                    headers: { 'Authorization': `Bearer ${this.token}` }
+                    headers: {
+                        'Authorization': `Bearer ${this.token}`,
+                        'Cache-Control': 'no-cache',
+                        'If-None-Match': ''  // Bypass ETag caching
+                    }
                 }
             );
 
