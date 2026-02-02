@@ -910,8 +910,9 @@ class CardEditorModal {
             data.ebay = ebayVal;
         }
 
-        // Preserve category if editing
-        if (this.currentCard && this.currentCard.category) {
+        // Preserve category if editing and no category dropdown exists
+        // (If dropdown exists, user's selection from lines 884-888 should be used)
+        if (!categoryField && this.currentCard && this.currentCard.category) {
             data.category = this.currentCard.category;
         }
 
