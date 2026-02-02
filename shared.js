@@ -225,8 +225,12 @@ class ChecklistManager {
                         <svg viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
                         Sign out
                     </button>
+                    <div class="nav-dropdown-footer" id="commit-hash"></div>
                 </div>
             `;
+
+            // Fetch commit hash
+            this.loadCommitHash();
 
             // Toggle dropdown
             const avatarBtn = document.getElementById('nav-avatar-btn');
@@ -255,6 +259,21 @@ class ChecklistManager {
             githubSync.logout();
         }
         location.reload();
+    }
+
+    // Load and display commit hash in dropdown
+    async loadCommitHash() {
+        try {
+            const response = await fetch('https://api.github.com/repos/iammike/sports-card-checklists/commits/main');
+            const data = await response.json();
+            const shortHash = data.sha.substring(0, 7);
+            const el = document.getElementById('commit-hash');
+            if (el) {
+                el.innerHTML = `<a href="${data.html_url}" target="_blank">${shortHash}</a>`;
+            }
+        } catch (e) {
+            // Silently fail
+        }
     }
 
     // Update read-only UI state
