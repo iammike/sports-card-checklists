@@ -602,6 +602,8 @@
                         else delete card.price;
                         if ('img' in cardData) card.img = cardData.img;
                         else delete card.img;
+                        if ('auto' in cardData) card.auto = cardData.auto;
+                        else delete card.auto;
                         if (cardData.ebay) card.search = cardData.ebay;
                         // Remove from old category
                         cards[oldCategory].splice(index, 1);
