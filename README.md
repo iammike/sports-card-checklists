@@ -122,7 +122,7 @@ The site supports Cloudflare Pages preview deployments for testing:
 ## Tech Stack
 
 - **Frontend**: Vanilla JavaScript (no frameworks)
-- **Hosting**: GitHub Pages
+- **Hosting**: GitHub Pages (production), Cloudflare Pages (preview)
 - **Auth**: GitHub OAuth via Cloudflare Workers
 - **Storage**: GitHub Gists (JSON)
 - **Images**: WebP format, processed client-side

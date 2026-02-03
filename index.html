@@ -602,7 +602,7 @@
 
             if (checklistId === 'jmu-pro-players') {
                 const cats = cardData.categories;
-                const allCards = [...(cats.hof || []), ...(cats.probowl || []), ...(cats.usfl || []), ...(cats.modern || []), ...(cats.mlb || []), ...(cats.nba || []), ...(cats.mls || [])];
+                const allCards = [...(cats.NFL || []), ...(cats.USFL || []), ...(cats.MLB || []), ...(cats.NBA || []), ...(cats.MLS || [])];
                 // Separate main cards from alternates
                 const mainCards = allCards.filter(c => !c.alternate);
                 const alternates = allCards.filter(c => c.alternate);
