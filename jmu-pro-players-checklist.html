@@ -545,8 +545,8 @@
         document.getElementById('sport-filter').addEventListener('change', applyFilters);
         document.getElementById('search').addEventListener('input', applyFilters);
 
-        // Initialize edit mode manager
-        const editModeManager = new EditModeManager(checklistManager);
+        // Initialize context menu for right-click editing
+        const cardContextMenu = new CardContextMenu(checklistManager);
 
         // Save card data to GitHub repo
         async function saveCardDataToRepo() {
@@ -613,7 +613,6 @@
                     }
                 }
                 renderCards();
-                editModeManager.updateCardEditControls();
                 // Save to GitHub repo
                 checklistManager.setSyncStatus('syncing', 'Saving...');
                 await saveCardDataToRepo();
@@ -628,17 +627,9 @@
                     }
                 }
                 renderCards();
-                editModeManager.updateCardEditControls();
                 // Save to GitHub repo
                 checklistManager.setSyncStatus('syncing', 'Saving...');
                 await saveCardDataToRepo();
-            }
-        });
-
-        // Initialize add card button
-        const addCardBtn = new AddCardButton({
-            onClick: () => {
-                cardEditor.openNew('modern');
             }
         });
 
@@ -687,32 +678,37 @@
             else arr.splice(idx, 0, card);
         }
 
-        // Wire up edit mode to show/hide add button and handle card edits
-        editModeManager.onEditModeChange = (isEditMode) => {
-            editModeManager.updateCardEditControls();
-            if (isEditMode) {
-                addCardBtn.show();
-            } else {
-                addCardBtn.hide();
+        // Wire up context menu callbacks
+        cardContextMenu.onEdit = (cardId, cardElement) => {
+            const found = findCardWithCategory(cardId);
+            if (found) {
+                cardEditor.open(cardId, { ...found.card, category: found.category });
             }
         };
 
-        // Handle card edit click - open editor with card data
-        editModeManager.onCardEditClick = (cardId, cardElement) => {
-            const found = findCardWithCategory(cardId);
-            if (found) {
-                // Include category so editor dropdown shows correct value
-                cardEditor.open(cardId, { ...found.card, category: found.category });
+        cardContextMenu.onDelete = async (cardId) => {
+            for (const category of Object.keys(cards)) {
+                const idx = cards[category].findIndex(c => getCardId(c) === cardId);
+                if (idx !== -1) {
+                    cards[category].splice(idx, 1);
+                    break;
+                }
             }
+            renderCards();
+            checklistManager.setSyncStatus('syncing', 'Saving...');
+            await saveCardDataToRepo();
+        };
+
+        cardContextMenu.onAddCard = () => {
+            cardEditor.openNew('modern');
         };
 
         async function init() {
             try {
                 await loadCardData();
                 await checklistManager.init();
-                editModeManager.init();
+                cardContextMenu.init();
                 cardEditor.init();
-                addCardBtn.init();
                 renderCards();
             } catch (err) {
                 console.error('Failed to initialize:', err);

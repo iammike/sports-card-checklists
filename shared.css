@@ -742,21 +742,21 @@ select, input[type="text"] {
 .price-badge.mid { background: var(--color-warning); }
 .price-badge.high { background: var(--color-error); }
 
-/* Auto Badge (autographed cards) - positioned below price badge */
+/* Auto Badge (autographed cards) - top left, prime visibility */
 .auto-badge {
-    font-family: 'Barlow', sans-serif;
+    font-family: 'Bebas Neue', sans-serif;
     position: absolute;
-    top: 34px;
-    right: 8px;
-    background: linear-gradient(135deg, #d4af37 0%, #b8960c 100%);
-    color: #fff;
-    padding: 3px 8px;
-    border-radius: var(--radius-sm);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
+    top: 8px;
+    left: 8px;
+    background: linear-gradient(135deg, #d4af37 0%, #f5d67a 50%, #d4af37 100%);
+    color: #1a1a2e;
+    padding: 4px 10px;
+    border-radius: 2px;
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0.1em;
     z-index: 10;
-    text-shadow: 0 1px 1px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 
 .price-link {
@@ -959,69 +959,63 @@ select, input[type="text"] {
     opacity: 1;
 }
 
-/* Edit mode body indicator */
-body.edit-mode {
-    --edit-mode-color: #667eea;
-}
-
-body.edit-mode::before {
-    content: '';
+/* Card Context Menu - right-click menu for editing cards */
+.card-context-menu {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, #667eea, #764ba2, #667eea);
-    z-index: 9999;
-    animation: editModeGlow 2s ease-in-out infinite;
-}
-
-@keyframes editModeGlow {
-    0%, 100% { opacity: 0.8; }
-    50% { opacity: 1; }
-}
-
-/* Card edit button */
-.card-edit-btn {
-    position: absolute;
-    top: 6px;
-    left: 6px;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    border: none;
-    background: rgba(102, 126, 234, 0.9);
-    color: white;
-    cursor: pointer;
-    font-size: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    background: #1a1a2e;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 6px 0;
+    min-width: 160px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    z-index: 10000;
     opacity: 0;
-    transform: scale(0.8);
-    transition: all 0.2s ease;
-    z-index: 15;
+    visibility: hidden;
+    transform: scale(0.95);
+    transition: all 0.15s ease;
 }
 
-.card:hover .card-edit-btn,
-body.edit-mode .card-edit-btn {
+.card-context-menu.visible {
     opacity: 1;
+    visibility: visible;
     transform: scale(1);
 }
 
-.card-edit-btn:hover {
-    background: rgba(102, 126, 234, 1);
-    transform: scale(1.1);
+.context-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 16px;
+    border: none;
+    background: none;
+    color: #e0e0e0;
+    font-family: 'Barlow', sans-serif;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.15s ease;
 }
 
-/* Edit mode card styling */
-body.edit-mode .card {
-    border-style: dashed;
+.context-menu-item:hover {
+    background: rgba(255, 255, 255, 0.08);
 }
 
-body.edit-mode .card:hover {
-    border-color: #667eea;
-    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+.context-menu-item svg {
+    width: 18px;
+    height: 18px;
+    opacity: 0.7;
+}
+
+.context-menu-item:hover svg {
+    opacity: 1;
+}
+
+.context-menu-item.danger {
+    color: #e74c3c;
+}
+
+.context-menu-item.danger:hover {
+    background: rgba(231, 76, 60, 0.15);
 }
 
 /* ============================================

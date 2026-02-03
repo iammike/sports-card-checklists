@@ -215,9 +215,9 @@ class ChecklistManager {
             const isOwner = this.isOwner();
 
             const ownerItemsHtml = isOwner ? `
-                <button class="nav-dropdown-item" id="edit-mode-btn">
-                    <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-                    Edit cards
+                <button class="nav-dropdown-item" id="add-card-btn">
+                    <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                    Add card
                 </button>
                 <button class="nav-dropdown-item danger" id="clear-all-btn">
                     <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
@@ -603,126 +603,140 @@ const StatsAnimator = {
 };
 
 /**
- * Edit Mode Manager - handles edit mode state and UI
+ * Card Context Menu - right-click menu for editing/deleting cards
  */
-class EditModeManager {
+class CardContextMenu {
     constructor(checklistManager) {
         this.checklistManager = checklistManager;
-        this.isEditMode = false;
-        this.onEditModeChange = null;
-        this.editButton = null;
+        this.menu = null;
+        this.currentCard = null;
+        this.currentCardId = null;
+        this.onEdit = null;
+        this.onDelete = null;
+        this.onAddCard = null;
     }
 
-    // Initialize edit mode UI (call after checklistManager.init())
+    // SVG icons
+    static ICON_EDIT = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
+    static ICON_DELETE = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
+
+    // Initialize context menu
     init() {
-        this.createEditButton();
-        this.updateEditButton();
+        this.createMenu();
+        this.attachCardListeners();
+        this.attachAddCardButton();
+    }
 
-        // Listen for auth changes to show/hide edit button
-        if (this.checklistManager) {
-            const originalOnAuthChange = window.githubSync?.onAuthChange;
-            if (window.githubSync) {
-                window.githubSync.onAuthChange = async (loggedIn) => {
-                    if (originalOnAuthChange) await originalOnAuthChange(loggedIn);
-                    this.updateEditButton();
-                    // Exit edit mode if logged out
-                    if (!loggedIn && this.isEditMode) {
-                        this.toggleEditMode();
-                    }
-                };
+    // Create the context menu element
+    createMenu() {
+        this.menu = document.createElement('div');
+        this.menu.className = 'card-context-menu';
+        this.menu.innerHTML = `
+            <button class="context-menu-item" data-action="edit">
+                ${CardContextMenu.ICON_EDIT}
+                <span>Edit card</span>
+            </button>
+            <button class="context-menu-item danger" data-action="delete">
+                ${CardContextMenu.ICON_DELETE}
+                <span>Delete card</span>
+            </button>
+        `;
+        document.body.appendChild(this.menu);
+
+        // Handle menu item clicks
+        this.menu.addEventListener('click', (e) => {
+            const item = e.target.closest('.context-menu-item');
+            if (!item) return;
+
+            const action = item.dataset.action;
+            if (action === 'edit' && this.onEdit) {
+                this.onEdit(this.currentCardId, this.currentCard);
+            } else if (action === 'delete' && this.onDelete) {
+                if (confirm('Delete this card?')) {
+                    this.onDelete(this.currentCardId);
+                }
             }
-        }
+            this.hide();
+        });
     }
 
-    // SVG icons for edit button
-    static ICON_EDIT = '<svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
-    static ICON_CHECK = '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+    // Attach right-click listeners to cards (uses event delegation)
+    attachCardListeners() {
+        document.addEventListener('contextmenu', (e) => {
+            // Only show menu if user is owner
+            if (!this.checklistManager?.isOwner()) return;
 
-    // Hook into the edit button in the dropdown (created by ChecklistManager.updateAuthUI)
-    createEditButton() {
-        // The button is now created by ChecklistManager.updateAuthUI in the dropdown
-        // We just need to attach the click handler when it exists
-        this.updateEditButton();
+            const card = e.target.closest('.card');
+            if (!card) return;
+
+            e.preventDefault();
+            this.show(e.clientX, e.clientY, card);
+        });
+
+        // Hide menu on click outside or ESC
+        document.addEventListener('click', (e) => {
+            if (!this.menu.contains(e.target)) {
+                this.hide();
+            }
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') this.hide();
+        });
     }
 
-    // Update edit button state in dropdown menu
-    updateEditButton() {
-        const editBtn = document.getElementById('edit-mode-btn');
-        if (!editBtn) return;
+    // Show menu at position
+    show(x, y, cardElement) {
+        // Get card ID from checkbox or data attribute
+        const checkbox = cardElement.querySelector('input[type="checkbox"]');
+        this.currentCardId = checkbox?.id || cardElement.dataset.cardId;
+        this.currentCard = cardElement;
 
-        // Attach click handler
-        editBtn.onclick = (e) => {
-            e.stopPropagation();
-            this.toggleEditMode();
-            // Close dropdown after clicking
-            document.getElementById('nav-avatar-btn')?.classList.remove('menu-open');
-            document.getElementById('nav-dropdown')?.classList.remove('open');
-        };
+        // Position menu
+        this.menu.style.left = `${x}px`;
+        this.menu.style.top = `${y}px`;
+        this.menu.classList.add('visible');
 
-        // Update button appearance based on current mode
-        const icon = this.isEditMode ? EditModeManager.ICON_CHECK : EditModeManager.ICON_EDIT;
-        const text = this.isEditMode ? 'Done editing' : 'Edit cards';
-        editBtn.innerHTML = icon + ' ' + text;
-        editBtn.classList.toggle('active', this.isEditMode);
-    }
-
-    // Toggle edit mode on/off
-    toggleEditMode() {
-        if (!this.checklistManager?.isOwner()) return;
-
-        this.isEditMode = !this.isEditMode;
-        document.body.classList.toggle('edit-mode', this.isEditMode);
-        this.updateEditButton();
-
-        // Update card elements to show edit controls
-        this.updateCardEditControls();
-
-        // Fire callback
-        if (this.onEditModeChange) {
-            this.onEditModeChange(this.isEditMode);
-        }
-    }
-
-    // Add/remove edit controls on cards
-    updateCardEditControls() {
-        document.querySelectorAll('.card').forEach(card => {
-            const existingBtn = card.querySelector('.card-edit-btn');
-
-            if (this.isEditMode) {
-                // Add edit button if not exists
-                if (!existingBtn) {
-                    const editBtn = document.createElement('button');
-                    editBtn.className = 'card-edit-btn';
-                    editBtn.innerHTML = '✏️';
-                    editBtn.title = 'Edit card';
-                    editBtn.onclick = (e) => {
-                        e.stopPropagation();
-                        this.onCardEdit(card);
-                    };
-                    card.appendChild(editBtn);
-                }
-            } else {
-                // Remove edit button
-                if (existingBtn) {
-                    existingBtn.remove();
-                }
+        // Adjust if menu goes off screen
+        requestAnimationFrame(() => {
+            const rect = this.menu.getBoundingClientRect();
+            if (rect.right > window.innerWidth) {
+                this.menu.style.left = `${x - rect.width}px`;
+            }
+            if (rect.bottom > window.innerHeight) {
+                this.menu.style.top = `${y - rect.height}px`;
             }
         });
     }
 
-    // Handle card edit click (to be overridden by page)
-    onCardEdit(cardElement) {
-        // Get card ID from the checkbox or data attribute
-        const checkbox = cardElement.querySelector('input[type="checkbox"]');
-        const cardId = checkbox?.id || cardElement.dataset.cardId;
-        console.log('Edit card:', cardId);
-
-        // This will be overridden to open the editor modal
-        if (this.onCardEditClick) {
-            this.onCardEditClick(cardId, cardElement);
+    // Hide menu
+    hide() {
+        if (this.menu) {
+            this.menu.classList.remove('visible');
         }
+        this.currentCard = null;
+        this.currentCardId = null;
+    }
+
+    // Attach Add Card button in nav dropdown
+    attachAddCardButton() {
+        const addBtn = document.getElementById('add-card-btn');
+        if (!addBtn) return;
+
+        addBtn.onclick = (e) => {
+            e.stopPropagation();
+            // Close dropdown
+            document.getElementById('nav-avatar-btn')?.classList.remove('menu-open');
+            document.getElementById('nav-dropdown')?.classList.remove('open');
+            // Trigger add card
+            if (this.onAddCard) {
+                this.onAddCard();
+            }
+        };
     }
 }
+
+// Keep EditModeManager as alias for backward compatibility during transition
+const EditModeManager = CardContextMenu;
 
 /**
  * Image Processor - handles fetching, resizing, and converting images
