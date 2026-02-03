@@ -13,6 +13,11 @@ const ALLOWED_ORIGINS = [
   'http://127.0.0.1:8000',
 ];
 
+// Cloudflare Pages preview domains (branch deploys)
+const ALLOWED_ORIGIN_PATTERNS = [
+  /^https:\/\/[a-z0-9-]+\.sports-card-checklists\.pages\.dev$/,
+];
+
 const ALLOWED_IMAGE_DOMAINS = [
   'i.ebayimg.com',
   'ebay.com',
@@ -76,7 +81,14 @@ async function handleProxyImage(request, corsOrigin) {
 
 function getCorsOrigin(request) {
   const origin = request.headers.get('Origin');
-  return ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  if (ALLOWED_ORIGINS.includes(origin)) {
+    return origin;
+  }
+  // Check against patterns (e.g., Cloudflare Pages preview deployments)
+  if (origin && ALLOWED_ORIGIN_PATTERNS.some(pattern => pattern.test(origin))) {
+    return origin;
+  }
+  return ALLOWED_ORIGINS[0];
 }
 
 export default {
