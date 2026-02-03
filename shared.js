@@ -995,9 +995,6 @@ class CardEditorModal {
         this.onDelete = options.onDelete || (() => {});
         this.cardTypes = options.cardTypes || CARD_TYPES;
         this.categories = options.categories || null; // e.g., ['panini', 'topps', 'inserts', 'chase']
-        this.showPlayerField = options.showPlayerField !== false; // default true
-        this.showCardNameField = options.showCardNameField !== false; // default true
-        this.showAchievementField = options.showAchievementField !== false; // default true
         this.imageFolder = options.imageFolder || 'images'; // folder for processed images
         this.currentCard = null;
         this.currentCardId = null;
@@ -1005,6 +1002,111 @@ class CardEditorModal {
         this.backdrop = null;
         this.isNewCard = false;
         this.imageProcessor = new ImageProcessor();
+
+        // Schema-driven custom fields
+        // Format: { fieldName: { label, type, options?, placeholder?, fullWidth? } }
+        // Types: 'text', 'select', 'checkbox'
+        // For select: options is array of { value, label } or just strings
+        this.customFields = options.customFields || {};
+    }
+
+    // Generate HTML for custom fields based on schema
+    generateCustomFieldsHtml() {
+        return Object.entries(this.customFields).map(([fieldName, config]) => {
+            const id = `editor-${fieldName}`;
+            const fullWidth = config.fullWidth ? ' full-width' : '';
+            const placeholder = config.placeholder || '';
+
+            if (config.type === 'select') {
+                const options = (config.options || []).map(opt => {
+                    const value = typeof opt === 'string' ? opt : opt.value;
+                    const label = typeof opt === 'string' ? opt : opt.label;
+                    return `<option value="${value}">${label}</option>`;
+                }).join('');
+                return `<div class="card-editor-field${fullWidth}">
+                    <label class="card-editor-label">${config.label}</label>
+                    <select class="card-editor-select" id="${id}">${options}</select>
+                </div>`;
+            } else if (config.type === 'checkbox') {
+                return `<div class="card-editor-field${fullWidth}">
+                    <label class="card-editor-label">${config.label}</label>
+                    <label class="card-editor-checkbox">
+                        <input type="checkbox" id="${id}">
+                        <span>${config.checkboxLabel || 'Yes'}</span>
+                    </label>
+                </div>`;
+            } else {
+                // Default: text input
+                return `<div class="card-editor-field${fullWidth}">
+                    <label class="card-editor-label">${config.label}</label>
+                    <input type="text" class="card-editor-input" id="${id}" placeholder="${placeholder}">
+                </div>`;
+            }
+        }).join('');
+    }
+
+    // Populate custom fields from card data
+    populateCustomFields(cardData) {
+        for (const [fieldName, config] of Object.entries(this.customFields)) {
+            const el = this.backdrop.querySelector(`#editor-${fieldName}`);
+            if (!el) continue;
+
+            const value = cardData[fieldName];
+            if (config.type === 'checkbox') {
+                el.checked = !!value;
+            } else if (config.type === 'select') {
+                el.value = value || (config.options?.[0]?.value ?? config.options?.[0] ?? '');
+            } else {
+                // Text field - handle arrays (like achievements)
+                if (Array.isArray(value)) {
+                    el.value = value.join(', ');
+                } else {
+                    el.value = value || '';
+                }
+            }
+        }
+    }
+
+    // Clear custom fields for new card
+    clearCustomFields() {
+        for (const [fieldName, config] of Object.entries(this.customFields)) {
+            const el = this.backdrop.querySelector(`#editor-${fieldName}`);
+            if (!el) continue;
+
+            if (config.type === 'checkbox') {
+                el.checked = false;
+            } else if (config.type === 'select') {
+                el.value = config.options?.[0]?.value ?? config.options?.[0] ?? '';
+            } else {
+                el.value = '';
+            }
+        }
+    }
+
+    // Gather custom field values
+    getCustomFieldData() {
+        const data = {};
+        for (const [fieldName, config] of Object.entries(this.customFields)) {
+            const el = this.backdrop.querySelector(`#editor-${fieldName}`);
+            if (!el) continue;
+
+            if (config.type === 'checkbox') {
+                if (el.checked) data[fieldName] = true;
+            } else if (config.type === 'select') {
+                data[fieldName] = el.value;
+            } else {
+                const val = el.value.trim();
+                if (val) {
+                    // Parse comma-separated values if configured
+                    if (config.parseArray) {
+                        data[fieldName] = val.split(',').map(v => v.trim()).filter(v => v);
+                    } else {
+                        data[fieldName] = val;
+                    }
+                }
+            }
+        }
+        return data;
     }
 
     // Initialize - create modal DOM
@@ -1022,10 +1124,7 @@ class CardEditorModal {
                 </div>
                 <div class="card-editor-body">
                     <div class="card-editor-grid">
-                        ${this.showPlayerField ? `<div class="card-editor-field full-width">
-                            <label class="card-editor-label">Player Name</label>
-                            <input type="text" class="card-editor-input" id="editor-player" placeholder="Player name">
-                        </div>` : ''}
+                        ${this.generateCustomFieldsHtml()}
                         <div class="card-editor-field full-width">
                             <label class="card-editor-label">Set Name</label>
                             <input type="text" class="card-editor-input" id="editor-set" placeholder="2024 Panini Prizm">
@@ -1033,7 +1132,11 @@ class CardEditorModal {
                         ${this.categories ? `<div class="card-editor-field">
                             <label class="card-editor-label">Section</label>
                             <select class="card-editor-select" id="editor-category">
-                                ${this.categories.map(c => `<option value="${c}">${c.charAt(0).toUpperCase() + c.slice(1)}</option>`).join('')}
+                                ${this.categories.map(c => {
+                                    const label = typeof c === 'string' ? c.charAt(0).toUpperCase() + c.slice(1) : c.label;
+                                    const value = typeof c === 'string' ? c : c.value;
+                                    return `<option value="${value}">${label}</option>`;
+                                }).join('')}
                             </select>
                         </div>` : ''}
                         <div class="card-editor-field">
@@ -1053,14 +1156,6 @@ class CardEditorModal {
                                 <span>Auto</span>
                             </label>
                         </div>
-                        ${this.showCardNameField ? `<div class="card-editor-field full-width">
-                            <label class="card-editor-label">Card Name / Variant</label>
-                            <input type="text" class="card-editor-input" id="editor-name" placeholder="Silver Prizm /199">
-                        </div>` : ''}
-                        ${this.showAchievementField ? `<div class="card-editor-field full-width">
-                            <label class="card-editor-label">Achievements</label>
-                            <input type="text" class="card-editor-input" id="editor-achievement" placeholder="Pro Bowl, Super Bowl Champion">
-                        </div>` : ''}
                         <div class="card-editor-field">
                             <label class="card-editor-label">Price ($)</label>
                             <input type="number" class="card-editor-input" id="editor-price" placeholder="Auto-estimate" step="0.01" min="0">
@@ -1254,9 +1349,10 @@ class CardEditorModal {
         this.backdrop.querySelector('.card-editor-btn.save').textContent = 'Save Changes';
         this.backdrop.querySelector('.card-editor-btn.delete').style.display = '';
 
-        // Populate form
-        const playerField = this.backdrop.querySelector('#editor-player');
-        if (playerField) playerField.value = cardData.player || '';
+        // Populate custom fields
+        this.populateCustomFields(cardData);
+
+        // Populate core fields
         this.backdrop.querySelector('#editor-set').value = cardData.set || '';
         // Set category if dropdown exists
         const categoryField = this.backdrop.querySelector('#editor-category');
@@ -1265,16 +1361,8 @@ class CardEditorModal {
         }
         // Strip # from card number for editing
         this.backdrop.querySelector('#editor-num').value = (cardData.num || '').replace(/^#/, '');
-        const nameField = this.backdrop.querySelector('#editor-name');
-        if (nameField) nameField.value = cardData.name || '';
         this.backdrop.querySelector('#editor-type').value = cardData.type || 'Base';
         this.backdrop.querySelector('#editor-auto').checked = cardData.auto || false;
-        const achievementField = this.backdrop.querySelector('#editor-achievement');
-        if (achievementField) {
-            achievementField.value = Array.isArray(cardData.achievement)
-                ? cardData.achievement.join(', ')
-                : (cardData.achievement || '');
-        }
         this.backdrop.querySelector('#editor-price').value = cardData.price !== undefined ? cardData.price : '';
         this.backdrop.querySelector('#editor-ebay').value = cardData.ebay || cardData.search || '';
         this.backdrop.querySelector('#editor-img').value = cardData.img || '';
@@ -1285,9 +1373,12 @@ class CardEditorModal {
 
         // Show modal
         this.backdrop.classList.add('active');
-        // Focus first field
-        const firstField = playerField || this.backdrop.querySelector('#editor-set');
-        firstField.focus();
+        // Focus first field (first custom field or set name)
+        const customFieldNames = Object.keys(this.customFields);
+        const firstField = customFieldNames.length > 0
+            ? this.backdrop.querySelector(`#editor-${customFieldNames[0]}`)
+            : this.backdrop.querySelector('#editor-set');
+        if (firstField) firstField.focus();
     }
 
     // Open modal for adding new card
@@ -1303,15 +1394,18 @@ class CardEditorModal {
         this.backdrop.querySelector('.card-editor-btn.save').textContent = 'Add Card';
         this.backdrop.querySelector('.card-editor-btn.delete').style.display = 'none';
 
-        // Clear form
-        this.backdrop.querySelectorAll('input').forEach(input => {
-            if (input.type === 'checkbox') {
-                input.checked = false;
-            } else {
-                input.value = '';
-            }
-        });
+        // Clear core form fields
+        this.backdrop.querySelector('#editor-set').value = '';
+        this.backdrop.querySelector('#editor-num').value = '';
         this.backdrop.querySelector('#editor-type').value = 'Base';
+        this.backdrop.querySelector('#editor-auto').checked = false;
+        this.backdrop.querySelector('#editor-price').value = '';
+        this.backdrop.querySelector('#editor-ebay').value = '';
+        this.backdrop.querySelector('#editor-img').value = '';
+
+        // Clear custom fields
+        this.clearCustomFields();
+
         // Set category if dropdown exists
         const categoryField = this.backdrop.querySelector('#editor-category');
         if (categoryField && category) {
@@ -1323,7 +1417,12 @@ class CardEditorModal {
 
         // Show modal
         this.backdrop.classList.add('active');
-        this.backdrop.querySelector('#editor-set').focus();
+        // Focus first field (first custom field or set name)
+        const customFieldNames = Object.keys(this.customFields);
+        const firstField = customFieldNames.length > 0
+            ? this.backdrop.querySelector(`#editor-${customFieldNames[0]}`)
+            : this.backdrop.querySelector('#editor-set');
+        if (firstField) firstField.focus();
     }
 
     // Close modal
@@ -1345,20 +1444,13 @@ class CardEditorModal {
             num = '#' + num;
         }
 
-        const nameField = this.backdrop.querySelector('#editor-name');
+        // Core fields
         const data = {
             set: this.backdrop.querySelector('#editor-set').value.trim(),
             num: num,
-            name: nameField ? nameField.value.trim() : '',
             type: this.backdrop.querySelector('#editor-type').value,
             img: this.backdrop.querySelector('#editor-img').value.trim()
         };
-
-        // Player - only include if field exists and has value
-        const playerField = this.backdrop.querySelector('#editor-player');
-        if (playerField && playerField.value.trim()) {
-            data.player = playerField.value.trim();
-        }
 
         // Category - only include if field exists
         const categoryField = this.backdrop.querySelector('#editor-category');
@@ -1369,15 +1461,6 @@ class CardEditorModal {
         // Auto - only include if checked
         if (this.backdrop.querySelector('#editor-auto').checked) {
             data.auto = true;
-        }
-
-        // Achievement - parse comma-separated, only include if field exists and has value
-        const achievementField = this.backdrop.querySelector('#editor-achievement');
-        if (achievementField) {
-            const achievementVal = achievementField.value.trim();
-            if (achievementVal) {
-                data.achievement = achievementVal.split(',').map(a => a.trim()).filter(a => a);
-            }
         }
 
         // Price - only include if explicitly set
@@ -1393,10 +1476,12 @@ class CardEditorModal {
         }
 
         // Preserve category if editing and no category dropdown exists
-        // (If dropdown exists, user's selection from lines 884-888 should be used)
         if (!categoryField && this.currentCard && this.currentCard.category) {
             data.category = this.currentCard.category;
         }
+
+        // Add custom field data
+        Object.assign(data, this.getCustomFieldData());
 
         return data;
     }
