@@ -1390,7 +1390,7 @@ class CardEditorModal {
 
         // Update title
         this.backdrop.querySelector('.card-editor-title').textContent = 'ADD NEW CARD';
-        this.backdrop.querySelector('.card-editor-subtitle').textContent = category ? `Adding to ${category}` : 'Create a new card';
+        this.backdrop.querySelector('.card-editor-subtitle').textContent = 'Enter card details';
         this.backdrop.querySelector('.card-editor-btn.save').textContent = 'Add Card';
         this.backdrop.querySelector('.card-editor-btn.delete').style.display = 'none';
 

@@ -275,18 +275,43 @@
 
         async function loadCardData() {
             // Try to load from gist first (gist is source of truth)
-            if (window.githubSync?.isLoggedIn()) {
+            // Migrate old tier-based categories to sport-based categories
+        function migrateCategories(data) {
+            if (!data?.categories) return data;
+            const cats = data.categories;
+            // Check if migration needed (old categories exist)
+            if (cats.hof || cats.probowl || cats.modern) {
+                const migrated = {
+                    NFL: [...(cats.hof || []), ...(cats.probowl || []), ...(cats.modern || [])],
+                    USFL: cats.usfl || [],
+                    MLB: cats.mlb || [],
+                    NBA: cats.nba || [],
+                    MLS: cats.mls || []
+                };
+                // Remove empty categories
+                Object.keys(migrated).forEach(k => { if (!migrated[k].length) delete migrated[k]; });
+                data.categories = migrated;
+                data.categoryDescriptions = { NFL: 'NFL Players', USFL: 'USFL Players', MLB: 'MLB Players', NBA: 'NBA Players', MLS: 'MLS Players' };
+            }
+            return data;
+        }
+
+        if (window.githubSync?.isLoggedIn()) {
                 const gistData = await githubSync.loadCardData('jmu-pro-players');
                 if (gistData) {
-                    checklistData = gistData;
+                    checklistData = migrateCategories(gistData);
                     cards = checklistData.categories;
+                    // Re-save if migrated
+                    if (gistData !== checklistData) {
+                        await githubSync.saveCardData('jmu-pro-players', checklistData);
+                    }
                     return;
                 }
             } else {
                 // Not logged in - try public gist for latest data
                 const publicData = await githubSync.loadPublicCardData('jmu-pro-players');
                 if (publicData) {
-                    checklistData = publicData;
+                    checklistData = migrateCategories(publicData);
                     cards = checklistData.categories;
                     return;
                 }
