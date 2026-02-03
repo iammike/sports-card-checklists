@@ -273,11 +273,34 @@
         let cards = null;
         let checklistData = null;
 
+        // TEMPORARY: Migrate gist data from 'name' to 'variant' field
+        // DELETE THIS FUNCTION after migration is complete
+        async function migrateNameToVariant(data) {
+            if (!data?.categories) return false;
+            let migrated = false;
+            for (const category of Object.values(data.categories)) {
+                for (const card of category) {
+                    if (card.name !== undefined && card.variant === undefined) {
+                        card.variant = card.name;
+                        delete card.name;
+                        migrated = true;
+                    }
+                }
+            }
+            if (migrated && window.githubSync?.isLoggedIn()) {
+                console.log('Migrating gist data: name → variant');
+                await githubSync.saveCardData('jmu-pro-players', data);
+                console.log('Migration complete!');
+            }
+            return migrated;
+        }
+
         async function loadCardData() {
             // Try to load from gist first (gist is source of truth)
             if (window.githubSync?.isLoggedIn()) {
                 const gistData = await githubSync.loadCardData('jmu-pro-players');
                 if (gistData) {
+                    await migrateNameToVariant(gistData); // TEMPORARY - delete after migration
                     checklistData = gistData;
                     cards = checklistData.categories;
                     return;
