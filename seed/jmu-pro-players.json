@@ -4,16 +4,14 @@
   "subtitle": "James Madison University Alumni Cards",
   "imageFolder": "jmu-cards",
   "categoryDescriptions": {
-    "hof": "Hall of Fame",
-    "probowl": "Pro Bowl Players",
-    "usfl": "USFL Cards",
-    "modern": "Modern Era NFL",
-    "mlb": "MLB",
-    "nba": "NBA",
-    "mls": "MLS"
+    "NFL": "NFL Players",
+    "USFL": "USFL Players",
+    "MLB": "MLB Players",
+    "NBA": "NBA Players",
+    "MLS": "MLS Players"
   },
   "categories": {
-    "hof": [
+    "NFL": [
       {
         "player": "Charles Haley",
         "badges": [
@@ -28,9 +26,7 @@
         "price": 3,
         "search": "charles+haley+1987+topps+125+rookie",
         "img": "jmu-cards/haley_1987_topps.webp"
-      }
-    ],
-    "probowl": [
+      },
       {
         "player": "Gary Clark",
         "badges": [
@@ -74,35 +70,7 @@
         "search": "scott+norwood+1989+topps+42+bills",
         "img": "jmu-cards/norwood_1989_topps.webp",
         "alternate": true
-      }
-    ],
-    "usfl": [
-      {
-        "player": "Scott Norwood",
-        "badges": [],
-        "set": "1984 Topps USFL",
-        "num": "#14",
-        "name": "Birmingham Stallions",
-        "type": "XRC",
-        "sport": "usfl",
-        "price": 3,
-        "search": "scott+norwood+1984+topps+usfl+14+stallions",
-        "img": "jmu-cards/norwood_1984_usfl.webp"
       },
-      {
-        "player": "Gary Clark",
-        "badges": [],
-        "set": "1985 Topps USFL",
-        "num": "#49",
-        "name": "Jacksonville Bulls",
-        "type": "XRC",
-        "sport": "usfl",
-        "price": 9,
-        "search": "gary+clark+1985+topps+usfl+49+bulls",
-        "img": "jmu-cards/clark_1985_usfl.webp"
-      }
-    ],
-    "modern": [
       {
         "player": "Ed Perry",
         "badges": [],
@@ -632,7 +600,33 @@
         "img": "jmu-cards/dinucci_2020_select.webp"
       }
     ],
-    "mlb": [
+    "USFL": [
+      {
+        "player": "Scott Norwood",
+        "badges": [],
+        "set": "1984 Topps USFL",
+        "num": "#14",
+        "name": "Birmingham Stallions",
+        "type": "XRC",
+        "sport": "usfl",
+        "price": 3,
+        "search": "scott+norwood+1984+topps+usfl+14+stallions",
+        "img": "jmu-cards/norwood_1984_usfl.webp"
+      },
+      {
+        "player": "Gary Clark",
+        "badges": [],
+        "set": "1985 Topps USFL",
+        "num": "#49",
+        "name": "Jacksonville Bulls",
+        "type": "XRC",
+        "sport": "usfl",
+        "price": 9,
+        "search": "gary+clark+1985+topps+usfl+49+bulls",
+        "img": "jmu-cards/clark_1985_usfl.webp"
+      }
+    ],
+    "MLB": [
       {
         "player": "Billy Sample",
         "badges": [],
@@ -646,7 +640,7 @@
         "img": "jmu-cards/sample_1979_topps.webp"
       }
     ],
-    "nba": [
+    "NBA": [
       {
         "player": "Linton Townes",
         "badges": [],
@@ -660,7 +654,7 @@
         "img": "jmu-cards/townes_1991_wildcard.webp"
       }
     ],
-    "mls": [
+    "MLS": [
       {
         "player": "CJ Sapong",
         "badges": [
