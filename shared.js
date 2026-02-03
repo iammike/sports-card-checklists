@@ -660,10 +660,10 @@ class CardContextMenu {
         });
     }
 
-    // Attach right-click listeners to cards (uses event delegation)
+    // Attach right-click and long-press listeners to cards (uses event delegation)
     attachCardListeners() {
+        // Right-click (desktop)
         document.addEventListener('contextmenu', (e) => {
-            // Only show menu if user is owner
             if (!this.checklistManager?.isOwner()) return;
 
             const card = e.target.closest('.card');
@@ -673,7 +673,51 @@ class CardContextMenu {
             this.show(e.clientX, e.clientY, card);
         });
 
-        // Hide menu on click outside or ESC
+        // Long-press (mobile) - 500ms touch and hold
+        let longPressTimer = null;
+        let touchStartPos = null;
+        const LONG_PRESS_DURATION = 500;
+        const MOVE_THRESHOLD = 10; // pixels
+
+        document.addEventListener('touchstart', (e) => {
+            if (!this.checklistManager?.isOwner()) return;
+
+            const card = e.target.closest('.card');
+            if (!card) return;
+
+            const touch = e.touches[0];
+            touchStartPos = { x: touch.clientX, y: touch.clientY };
+
+            longPressTimer = setTimeout(() => {
+                // Vibrate if supported (haptic feedback)
+                if (navigator.vibrate) navigator.vibrate(50);
+                this.show(touch.clientX, touch.clientY, card);
+                longPressTimer = null;
+            }, LONG_PRESS_DURATION);
+        }, { passive: true });
+
+        document.addEventListener('touchmove', (e) => {
+            if (!longPressTimer || !touchStartPos) return;
+
+            const touch = e.touches[0];
+            const dx = Math.abs(touch.clientX - touchStartPos.x);
+            const dy = Math.abs(touch.clientY - touchStartPos.y);
+
+            // Cancel if finger moved too far
+            if (dx > MOVE_THRESHOLD || dy > MOVE_THRESHOLD) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+        }, { passive: true });
+
+        document.addEventListener('touchend', () => {
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+        });
+
+        // Hide menu on click/tap outside or ESC
         document.addEventListener('click', (e) => {
             if (!this.menu.contains(e.target)) {
                 this.hide();
