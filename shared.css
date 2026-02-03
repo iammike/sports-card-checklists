@@ -742,21 +742,19 @@ select, input[type="text"] {
 .price-badge.mid { background: var(--color-warning); }
 .price-badge.high { background: var(--color-error); }
 
-/* Auto Badge (autographed cards) - top left, prime visibility */
+/* Auto Badge (autographed cards) - matches price badge style with gold color */
 .auto-badge {
-    font-family: 'Bebas Neue', sans-serif;
+    font-family: 'Barlow', sans-serif;
     position: absolute;
     top: 8px;
     left: 8px;
-    background: linear-gradient(135deg, #d4af37 0%, #f5d67a 50%, #d4af37 100%);
+    background: linear-gradient(135deg, #d4af37 0%, #c4a030 100%);
     color: #1a1a2e;
-    padding: 4px 10px;
-    border-radius: 2px;
-    font-size: 13px;
-    font-weight: 400;
-    letter-spacing: 0.1em;
+    padding: 3px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 600;
     z-index: 10;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 
 .price-link {
