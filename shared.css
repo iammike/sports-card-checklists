@@ -733,7 +733,7 @@ select, input[type="text"] {
     background: var(--color-success);
     color: white;
     padding: 3px 8px;
-    border-radius: var(--radius-sm);
+    border-radius: 4px;
     font-size: 12px;
     font-weight: 600;
     z-index: 10;
@@ -751,7 +751,7 @@ select, input[type="text"] {
     background: linear-gradient(135deg, #d4af37 0%, #c4a030 100%);
     color: #1a1a2e;
     padding: 3px 8px;
-    border-radius: var(--radius-sm);
+    border-radius: 4px;
     font-size: 12px;
     font-weight: 600;
     z-index: 10;
