@@ -353,6 +353,82 @@ class ChecklistManager {
 }
 
 /**
+ * Card data utilities - parsing and display helpers
+ */
+const CardUtils = {
+    // Known parallel patterns (color/finish variants)
+    parallelPatterns: [
+        /\b(Silver|Gold|Red|Blue|Green|Orange|Purple|Pink|Black|White|Bronze|Platinum)\s*(Prizm|Refractor|Wave|Shimmer|Ice|Holo)?\b/i,
+        /\b(Prizm|Refractor|Wave|Shimmer|Ice|Holo)\b/i,
+        /\b(Mojo|Velocity|Disco|Laser|Speckle|Camo|Tie-Dye|Snakeskin)\b/i,
+    ],
+
+    // Parse print run from string (e.g., "/199" -> 199)
+    parsePrintRun(str) {
+        if (!str) return null;
+        const match = str.match(/\/(\d+)/);
+        return match ? parseInt(match[1], 10) : null;
+    },
+
+    // Parse name field into variant/parallel/printRun
+    parseName(name) {
+        if (!name) return { variant: null, parallel: null, printRun: null };
+
+        let remaining = name;
+        let parallel = null;
+        let printRun = null;
+
+        // Extract print run
+        const printRunMatch = remaining.match(/\s*\/(\d+)\s*/);
+        if (printRunMatch) {
+            printRun = parseInt(printRunMatch[1], 10);
+            remaining = remaining.replace(printRunMatch[0], ' ').trim();
+        }
+
+        // Extract parallel
+        for (const pattern of this.parallelPatterns) {
+            const match = remaining.match(pattern);
+            if (match) {
+                parallel = match[0].trim();
+                remaining = remaining.replace(match[0], ' ').trim();
+                break;
+            }
+        }
+
+        // What's left is the variant
+        const variant = remaining.replace(/\s+/g, ' ').trim() || null;
+
+        return { variant, parallel, printRun };
+    },
+
+    // Get display name from card data (prefers structured fields, falls back to name)
+    getDisplayName(card) {
+        // If structured fields exist, use them
+        if (card.variant || card.parallel || card.printRun) {
+            const parts = [];
+            if (card.variant && card.variant !== 'Base') parts.push(card.variant);
+            if (card.parallel) parts.push(card.parallel);
+            if (card.printRun) parts.push(`/${card.printRun}`);
+            return parts.join(' ') || 'Base';
+        }
+        // Fall back to name field
+        return card.name || 'Base';
+    },
+
+    // Check if card is a numbered parallel
+    isNumbered(card) {
+        return card.printRun != null || (card.name && card.name.includes('/'));
+    },
+
+    // Check if card is a parallel (colored/special finish)
+    isParallel(card) {
+        if (card.parallel) return true;
+        if (!card.name) return false;
+        return this.parallelPatterns.some(p => p.test(card.name));
+    }
+};
+
+/**
  * Price estimation utilities
  */
 const PriceUtils = {
@@ -388,19 +464,21 @@ const PriceUtils = {
             }
         }
 
-        // Numbered cards are pricier
-        if (card.name && card.name.includes('/')) {
-            const match = card.name.match(/\/(\d+)/);
-            if (match) base *= Math.max(3, 100 / parseInt(match[1]));
+        // Numbered cards are pricier - check printRun field first, fall back to name
+        const printRun = card.printRun ?? CardUtils.parsePrintRun(card.name);
+        if (printRun) {
+            base *= Math.max(3, 100 / printRun);
         }
 
-        // Special types
-        if (card.name) {
-            if (card.name.includes('Silver') || card.name.includes('Refractor')) base *= 3;
-            if (card.name.includes('Holo')) base *= 2;
-            if (card.name.includes('Downtown')) base = 60;
-            if (card.name.includes('Gold') && card.name.includes('/')) base *= 5;
-        }
+        // Parallel cards - check parallel field first, fall back to name patterns
+        const parallel = card.parallel || '';
+        const nameForParallel = card.name || '';
+        const checkStr = parallel + ' ' + nameForParallel;
+
+        if (/Silver|Refractor/i.test(checkStr)) base *= 3;
+        if (/Holo/i.test(checkStr)) base *= 2;
+        if (/Downtown/i.test(checkStr)) base = 60;
+        if (/Gold/i.test(checkStr) && printRun) base *= 5;
 
         return Math.round(base * 10) / 10;
     },
@@ -1583,6 +1661,7 @@ class AddCardButton {
 
 // Export for use in pages
 window.CARD_TYPES = CARD_TYPES;
+window.CardUtils = CardUtils;
 window.ChecklistManager = ChecklistManager;
 window.PriceUtils = PriceUtils;
 window.FilterUtils = FilterUtils;
