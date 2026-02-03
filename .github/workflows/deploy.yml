@@ -13,16 +13,27 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  actions: write
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  build:
+  # When a PR is merged, trigger deploy on main branch
+  trigger-deploy:
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
     runs-on: ubuntu-latest
-    # Run on push, workflow_dispatch, or merged PRs (not just closed)
-    if: github.event_name != 'pull_request' || github.event.pull_request.merged == true
+    steps:
+      - name: Trigger deploy workflow on main
+        run: gh workflow run deploy.yml --ref main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build:
+    # Skip for PR events (trigger-deploy handles those)
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,6 +51,7 @@ jobs:
           path: .
 
   deploy:
+    if: github.event_name != 'pull_request'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
