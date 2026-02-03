@@ -387,12 +387,6 @@
                 const gistData = await githubSync.loadCardData('washington-qbs');
                 if (gistData) {
                     checklistData = gistData;
-                    // Migrate legacy 'qbs' key to 'cards'
-                    if (checklistData.qbs && !checklistData.cards) {
-                        checklistData.cards = checklistData.qbs;
-                        delete checklistData.qbs;
-                        await githubSync.saveCardData('washington-qbs', checklistData);
-                    }
                     cards = checklistData.cards;
                     return;
                 }
@@ -401,8 +395,7 @@
                 const publicData = await githubSync.loadPublicCardData('washington-qbs');
                 if (publicData) {
                     checklistData = publicData;
-                    // Handle legacy 'qbs' key (can't migrate without login)
-                    cards = checklistData.cards || checklistData.qbs;
+                    cards = checklistData.cards;
                     return;
                 }
             }
@@ -432,7 +425,7 @@
             getStats: () => computeStats()
         });
 
-        // Wrapper functions for backward compatibility
+        // Helper functions
         function getCardId(card) {
             return btoa(card.player + card.set + card.num).replace(/[^a-zA-Z0-9]/g, '');
         }

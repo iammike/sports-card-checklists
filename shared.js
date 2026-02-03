@@ -779,9 +779,6 @@ class CardContextMenu {
     }
 }
 
-// Keep EditModeManager as alias for backward compatibility during transition
-const EditModeManager = CardContextMenu;
-
 /**
  * Image Processor - handles fetching, resizing, and converting images
  */
@@ -1591,7 +1588,6 @@ window.PriceUtils = PriceUtils;
 window.FilterUtils = FilterUtils;
 window.CardRenderer = CardRenderer;
 window.StatsAnimator = StatsAnimator;
-window.EditModeManager = EditModeManager;
 window.CardEditorModal = CardEditorModal;
 window.AddCardButton = AddCardButton;
 window.ImageProcessor = ImageProcessor;
