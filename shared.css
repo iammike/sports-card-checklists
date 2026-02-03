@@ -482,12 +482,18 @@ h1 {
 
 .stat-value {
     font-family: 'Bebas Neue', sans-serif;
-    font-size: 3.5em;
+    font-size: 3em;
     font-weight: 400;
     letter-spacing: 0.02em;
     color: #c8c8c8;
     line-height: 1;
     margin-bottom: 4px;
+}
+
+/* Larger size for owned/total count stats to fill their boxes */
+#owned-count,
+#total-count {
+    font-size: 3.5em;
 }
 
 .stat-value.highlight {
@@ -736,12 +742,12 @@ select, input[type="text"] {
 .price-badge.mid { background: var(--color-warning); }
 .price-badge.high { background: var(--color-error); }
 
-/* Auto Badge (autographed cards) */
+/* Auto Badge (autographed cards) - positioned below price badge */
 .auto-badge {
     font-family: 'Barlow', sans-serif;
     position: absolute;
-    top: 8px;
-    left: 8px;
+    top: 34px;
+    right: 8px;
     background: linear-gradient(135deg, #d4af37 0%, #b8960c 100%);
     color: #fff;
     padding: 3px 8px;

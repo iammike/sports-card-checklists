@@ -139,7 +139,8 @@
         "price": 2,
         "search": "curtis+keaton+2000+bowman+certified+auto",
         "img": "jmu-cards/keaton_2000_bowmancertified.webp",
-        "alternate": true
+        "alternate": true,
+        "auto": true
       },
       {
         "player": "Curtis Keaton",
