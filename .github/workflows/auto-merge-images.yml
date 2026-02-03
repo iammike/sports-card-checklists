@@ -11,6 +11,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write
 
 jobs:
   auto-merge:
@@ -42,5 +43,11 @@ jobs:
       - name: Merge PR
         if: steps.check.outputs.should_merge == 'true'
         run: gh pr merge ${{ github.event.pull_request.number }} --squash --delete-branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Trigger deploy
+        if: steps.check.outputs.should_merge == 'true'
+        run: gh workflow run deploy.yml
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
