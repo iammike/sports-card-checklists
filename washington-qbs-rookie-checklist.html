@@ -589,6 +589,7 @@
                     <div class="player-name">${card.player}</div>
                     <div class="player-years">${card.years} &bull; ${card.record}</div>
                     ${card.playoff !== '-' ? `<div class="player-record">Playoffs: ${card.playoff}</div>` : ''}
+                    ${CardRenderer.renderAchievements(card.achievement)}
                     <a href="${card.collectionLink}" class="collection-cta">View Full Collection →</a>
                 </div>`;
             }
@@ -610,6 +611,7 @@
                 <div class="card-info">
                     <span class="card-set">${card.set}</span> ${card.num}
                 </div>
+                ${CardRenderer.renderAchievements(card.achievement)}
                 <div class="card-actions${checklistManager.isReadOnly && !cardOwned ? ' links-only' : ''}">
                     ${!checklistManager.isReadOnly ? `<label class="checkbox-wrapper">
                         <input type="checkbox" id="${cardId}" ${cardOwned ? 'checked' : ''} onchange="toggleOwned('${cardId}')">
