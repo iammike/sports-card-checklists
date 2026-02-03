@@ -800,6 +800,8 @@
                         else delete foundCard.price;
                         if ('img' in cardData) foundCard.img = cardData.img;
                         else delete foundCard.img;
+                        if ('auto' in cardData) foundCard.auto = cardData.auto;
+                        else delete foundCard.auto;
                         if (cardData.ebay) foundCard.search = cardData.ebay;
                         // Re-sort: remove from current position and re-insert sorted
                         cards.splice(index, 1);
