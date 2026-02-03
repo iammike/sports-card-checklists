@@ -373,7 +373,7 @@
                     neededValue += price;
                 }
             });
-            const allCards = [...cards.hof, ...cards.probowl, ...cards.usfl, ...cards.modern, ...cards.mlb, ...cards.nba, ...cards.mls];
+            const allCards = [...(cards.NFL || []), ...(cards.USFL || []), ...(cards.MLB || []), ...(cards.NBA || []), ...(cards.MLS || [])];
             const alternates = allCards.filter(c => c.alternate);
             const ownedAlternates = alternates.filter(c => isOwned(getCardId(c))).length;
 
@@ -465,14 +465,14 @@
 
         function renderCards() {
             // Combine all football cards (NFL + USFL) into one array
-            const allFootballCards = [...cards.hof, ...cards.probowl, ...cards.usfl, ...cards.modern];
+            const allFootballCards = [...(cards.NFL || []), ...(cards.USFL || [])];
 
             // Sport-based sections
             const sportSections = [
                 { section: 'football', cards: allFootballCards },
-                { section: 'mlb', cards: cards.mlb },
-                { section: 'nba', cards: cards.nba },
-                { section: 'mls', cards: cards.mls },
+                { section: 'mlb', cards: cards.MLB || [] },
+                { section: 'nba', cards: cards.NBA || [] },
+                { section: 'mls', cards: cards.MLS || [] },
             ];
 
             // Group cards by player AND sport to keep USFL/NFL cards separate
@@ -562,21 +562,36 @@
 
         // Initialize card editor modal
         const cardEditor = new CardEditorModal({
+            customFields: {
+                player: { label: 'Player Name', type: 'text', fullWidth: true },
+                name: { label: 'Card Name / Variant', type: 'text', placeholder: 'Rookie Card, Auto, etc.', fullWidth: true }
+            },
+            categories: [
+                { value: 'NFL', label: 'NFL' },
+                { value: 'USFL', label: 'USFL' },
+                { value: 'MLB', label: 'MLB' },
+                { value: 'NBA', label: 'NBA' },
+                { value: 'MLS', label: 'MLS' }
+            ],
             imageFolder: 'jmu-cards',
             onSave: async (cardId, cardData, isNew) => {
                 if (isNew) {
-                    // Add new card
-                    const category = cardData.category || 'modern';
+                    // Add new card - category is now sport (NFL, MLB, etc.)
+                    const category = cardData.category || 'NFL';
                     delete cardData.category;
+                    // Map category to sport value
+                    const sportMap = { NFL: 'nfl', USFL: 'usfl', MLB: 'mlb', NBA: 'nba', MLS: 'mls' };
                     const newCard = {
                         player: cardData.player || 'Unknown Player',
-                        sport: 'Football',
+                        sport: sportMap[category] || 'nfl',
                         set: cardData.set,
                         num: cardData.num,
-                        type: cardData.type,
-                        img: cardData.img
+                        type: cardData.type
                     };
+                    if (cardData.name) newCard.name = cardData.name;
+                    if (cardData.img) newCard.img = cardData.img;
                     if (cardData.price !== undefined) newCard.price = cardData.price;
+                    if (cardData.auto) newCard.auto = true;
                     if (!cardData.ebay) {
                         newCard.search = `${newCard.player.replace(/\s+/g, '+')}+${newCard.set.replace(/\s+/g, '+')}`;
                     } else {
@@ -593,11 +608,16 @@
                         const { card, category: oldCategory, index } = found;
                         const newCategory = cardData.category || oldCategory;
                         delete cardData.category;
+                        // Map category to sport value
+                        const sportMap = { NFL: 'nfl', USFL: 'usfl', MLB: 'mlb', NBA: 'nba', MLS: 'mls' };
                         if (cardData.player) card.player = cardData.player;
+                        if (newCategory !== oldCategory) card.sport = sportMap[newCategory] || card.sport;
                         card.set = cardData.set;
                         card.num = cardData.num;
                         card.type = cardData.type;
                         // Handle optional fields - set if present, delete if cleared
+                        if (cardData.name) card.name = cardData.name;
+                        else delete card.name;
                         if ('price' in cardData) card.price = cardData.price;
                         else delete card.price;
                         if ('img' in cardData) card.img = cardData.img;
