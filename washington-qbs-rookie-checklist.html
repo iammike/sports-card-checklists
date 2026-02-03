@@ -750,7 +750,21 @@
 
         // Initialize card editor modal
         const cardEditor = new CardEditorModal({
-            showCardNameField: false,  // This page doesn't use card name/variant
+            customFields: {
+                player: { label: 'Player Name', type: 'text', fullWidth: true },
+                era: {
+                    label: 'Era',
+                    type: 'select',
+                    options: [
+                        { value: 'modern', label: 'Modern Era (2020-2025)' },
+                        { value: 'snyder', label: 'Snyder Era (2008-2019)' },
+                        { value: 'gibbs2', label: 'Gibbs Era II (2004-2007)' },
+                        { value: 'wilderness', label: 'Wilderness Years (1993-2003)' },
+                        { value: 'gibbs1', label: 'Gibbs Era I (1982-1992)' }
+                    ]
+                },
+                achievement: { label: 'Achievements', type: 'text', placeholder: 'Pro Bowl, Super Bowl Champion', fullWidth: true, parseArray: true }
+            },
             imageFolder: 'washington-qbs-cards',
             onSave: async (cardId, cardData, isNew) => {
                 if (isNew) {
@@ -762,10 +776,14 @@
                         playoff: '-',
                         era: cardData.era || 'modern',
                         set: cardData.set,
-                        num: cardData.num,
-                        price: cardData.price,
-                        img: cardData.img
+                        num: cardData.num
                     };
+                    if (cardData.price) newCard.price = cardData.price;
+                    if (cardData.img) newCard.img = cardData.img;
+                    if (cardData.auto) newCard.auto = true;
+                    if (cardData.achievement && cardData.achievement.length > 0) {
+                        newCard.achievement = cardData.achievement;
+                    }
                     if (!cardData.ebay) {
                         newCard.search = `${newCard.player.replace(/\s+/g, '+')}+rookie+card`;
                     } else {
@@ -779,6 +797,7 @@
                     if (found) {
                         const { card: foundCard, index } = found;
                         if (cardData.player) foundCard.player = cardData.player;
+                        if (cardData.era) foundCard.era = cardData.era;
                         foundCard.set = cardData.set;
                         foundCard.num = cardData.num;
                         // Handle optional fields - set if present, delete if cleared
@@ -788,6 +807,8 @@
                         else delete foundCard.img;
                         if ('auto' in cardData) foundCard.auto = cardData.auto;
                         else delete foundCard.auto;
+                        if ('achievement' in cardData && cardData.achievement.length > 0) foundCard.achievement = cardData.achievement;
+                        else delete foundCard.achievement;
                         if (cardData.ebay) foundCard.search = cardData.ebay;
                         // Re-sort: remove from current position and re-insert sorted
                         cards.splice(index, 1);
