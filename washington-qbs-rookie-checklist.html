@@ -747,8 +747,8 @@
         document.getElementById('status-filter').addEventListener('change', render);
         document.getElementById('search').addEventListener('input', render);
 
-        // Initialize edit mode manager
-        const editModeManager = new EditModeManager(checklistManager);
+        // Initialize context menu for right-click editing
+        const cardContextMenu = new CardContextMenu(checklistManager);
 
         // Save card data to GitHub repo
         async function saveCardDataToRepo() {
@@ -810,7 +810,6 @@
                     }
                 }
                 render();
-                editModeManager.updateCardEditControls();
                 // Save to GitHub repo
                 checklistManager.setSyncStatus('syncing', 'Saving...');
                 await saveCardDataToRepo();
@@ -822,17 +821,9 @@
                     console.log('Deleted card:', cardId);
                 }
                 render();
-                editModeManager.updateCardEditControls();
                 // Save to GitHub repo
                 checklistManager.setSyncStatus('syncing', 'Saving...');
                 await saveCardDataToRepo();
-            }
-        });
-
-        // Initialize add card button
-        const addCardBtn = new AddCardButton({
-            onClick: () => {
-                cardEditor.openNew('modern');
             }
         });
 
@@ -885,22 +876,26 @@
             else cards.splice(idx, 0, card);
         }
 
-        // Wire up edit mode to show/hide add button and handle card edits
-        editModeManager.onEditModeChange = (isEditMode) => {
-            editModeManager.updateCardEditControls();
-            if (isEditMode) {
-                addCardBtn.show();
-            } else {
-                addCardBtn.hide();
-            }
-        };
-
-        // Handle card edit click - open editor with card data
-        editModeManager.onCardEditClick = (cardId, cardElement) => {
+        // Wire up context menu callbacks
+        cardContextMenu.onEdit = (cardId, cardElement) => {
             const card = findCardById(cardId);
             if (card) {
                 cardEditor.open(cardId, card);
             }
+        };
+
+        cardContextMenu.onDelete = async (cardId) => {
+            const idx = cards.findIndex(card => getCardId(card) === cardId);
+            if (idx !== -1) {
+                cards.splice(idx, 1);
+            }
+            render();
+            checklistManager.setSyncStatus('syncing', 'Saving...');
+            await saveCardDataToRepo();
+        };
+
+        cardContextMenu.onAddCard = () => {
+            cardEditor.openNew('modern');
         };
 
         // Initialize
@@ -908,9 +903,8 @@
             try {
                 await loadCardData();
                 await checklistManager.init();
-                editModeManager.init();
+                cardContextMenu.init();
                 cardEditor.init();
-                addCardBtn.init();
                 await loadJaydenDanielsStats();
                 render();
             } catch (err) {
