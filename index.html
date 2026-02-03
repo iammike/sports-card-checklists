@@ -536,10 +536,10 @@
             if (card.id) return card.id;
             // JMU cards include player in the ID
             if (card.player) {
-                const str = (card.player || '') + (card.set || '') + (card.num || '') + (card.name || '');
+                const str = (card.player || '') + (card.set || '') + (card.num || '') + (card.variant || '');
                 return btoa(str).replace(/[^a-zA-Z0-9]/g, '');
             }
-            const str = (card.set || '') + (card.num || '') + (card.name || '');
+            const str = (card.set || '') + (card.num || '') + (card.variant || '');
             return btoa(str).replace(/[^a-zA-Z0-9]/g, '');
         }
 

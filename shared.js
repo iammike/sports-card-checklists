@@ -100,9 +100,9 @@ class ChecklistManager {
 
     // Generate unique card ID from card data
     getCardId(card) {
-        // Allow custom ID field, otherwise generate from set+num+name
+        // Allow custom ID field, otherwise generate from set+num+variant
         if (card.id) return card.id;
-        const str = (card.set || '') + (card.num || '') + (card.name || '');
+        const str = (card.set || '') + (card.num || '') + (card.variant || '');
         return btoa(str).replace(/[^a-zA-Z0-9]/g, '');
     }
 
@@ -401,30 +401,23 @@ const CardUtils = {
         return { variant, parallel, printRun };
     },
 
-    // Get display name from card data (prefers structured fields, falls back to name)
+    // Get display name from card data
     getDisplayName(card) {
-        // If structured fields exist, use them
-        if (card.variant || card.parallel || card.printRun) {
-            const parts = [];
-            if (card.variant && card.variant !== 'Base') parts.push(card.variant);
-            if (card.parallel) parts.push(card.parallel);
-            if (card.printRun) parts.push(`/${card.printRun}`);
-            return parts.join(' ') || 'Base';
-        }
-        // Fall back to name field
-        return card.name || 'Base';
+        const parts = [];
+        if (card.variant && card.variant !== 'Base') parts.push(card.variant);
+        if (card.parallel) parts.push(card.parallel);
+        if (card.printRun) parts.push(`/${card.printRun}`);
+        return parts.join(' ') || 'Base';
     },
 
     // Check if card is a numbered parallel
     isNumbered(card) {
-        return card.printRun != null || (card.name && card.name.includes('/'));
+        return card.printRun != null;
     },
 
     // Check if card is a parallel (colored/special finish)
     isParallel(card) {
-        if (card.parallel) return true;
-        if (!card.name) return false;
-        return this.parallelPatterns.some(p => p.test(card.name));
+        return !!card.parallel;
     }
 };
 
@@ -464,21 +457,20 @@ const PriceUtils = {
             }
         }
 
-        // Numbered cards are pricier - check printRun field first, fall back to name
-        const printRun = card.printRun ?? CardUtils.parsePrintRun(card.name);
-        if (printRun) {
-            base *= Math.max(3, 100 / printRun);
+        // Numbered cards are pricier
+        if (card.printRun) {
+            base *= Math.max(3, 100 / card.printRun);
         }
 
-        // Parallel cards - check parallel field first, fall back to name patterns
+        // Parallel cards
         const parallel = card.parallel || '';
-        const nameForParallel = card.name || '';
-        const checkStr = parallel + ' ' + nameForParallel;
+        if (/Silver|Refractor/i.test(parallel)) base *= 3;
+        if (/Holo/i.test(parallel)) base *= 2;
+        if (/Gold/i.test(parallel) && card.printRun) base *= 5;
 
-        if (/Silver|Refractor/i.test(checkStr)) base *= 3;
-        if (/Holo/i.test(checkStr)) base *= 2;
-        if (/Downtown/i.test(checkStr)) base = 60;
-        if (/Gold/i.test(checkStr) && printRun) base *= 5;
+        // Special insert types (check variant for Downtown, etc.)
+        const variant = card.variant || '';
+        if (/Downtown/i.test(variant)) base = 60;
 
         return Math.round(base * 10) / 10;
     },
