@@ -171,17 +171,11 @@
             font-size: 0.8em;
         }
 
-        .super-bowl-badge {
-            position: absolute;
-            bottom: 8px;
-            left: 8px;
-            background: linear-gradient(135deg, #f1c40f, #f39c12);
-            color: #000;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-size: 0.65em;
-            font-weight: bold;
-            z-index: 1;
+        .super-bowl-info {
+            color: #f39c12;
+            font-size: 0.8em;
+            font-weight: 600;
+            margin-top: 2px;
         }
 
         /* Player info */
@@ -605,7 +599,6 @@
 
             return `<div class="${cardClass}">
                 <div class="card-image-wrapper">
-                    ${card.superBowl ? '<span class="super-bowl-badge">SUPER BOWL</span>' : ''}
                     ${CardRenderer.renderAutoBadge(card)}
                     ${CardRenderer.renderPriceBadge(card.price)}
                     ${CardRenderer.renderCardImage(card.img, card.player, searchUrl)}
@@ -613,6 +606,7 @@
                 <div class="player-name">${card.player}</div>
                 <div class="player-years">${card.years} &bull; ${card.record}</div>
                 ${card.playoff !== '-' ? `<div class="player-record">Playoffs: ${card.playoff}</div>` : ''}
+                ${card.superBowl ? '<div class="super-bowl-info">🏆 Super Bowl Champion</div>' : ''}
                 <div class="card-info">
                     <span class="card-set">${card.set}</span> ${card.num}
                 </div>
