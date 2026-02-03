@@ -317,7 +317,7 @@
 
         // Custom getCardId includes player name for JMU
         function getCardId(card) {
-            return btoa(card.player + card.set + card.num + card.name).replace(/[^a-zA-Z0-9]/g, '');
+            return btoa(card.player + card.set + card.num + (card.variant || '')).replace(/[^a-zA-Z0-9]/g, '');
         }
 
         function isOwned(cardId) { return checklistManager.isOwned(cardId); }
@@ -420,7 +420,7 @@
                     </div>
                     <div class="player-name">${card.player}</div>
                     <div class="card-title">${card.set}</div>
-                    <div class="card-number">${card.num} ${card.name}</div>
+                    <div class="card-number">${card.num} ${card.variant || ''}</div>
                     <div class="card-type">${card.type}</div>
                     ${CardRenderer.renderAchievements(card.badges)}
                     <div class="card-actions${checklistManager.isReadOnly && !owned ? ' links-only' : ''}">
@@ -564,7 +564,7 @@
         const cardEditor = new CardEditorModal({
             customFields: {
                 player: { label: 'Player Name', type: 'text', fullWidth: true },
-                name: { label: 'Card Name / Variant', type: 'text', placeholder: 'Rookie Card, Auto, etc.', fullWidth: true }
+                variant: { label: 'Card Variant', type: 'text', placeholder: 'Rookie Card, Auto, etc.', fullWidth: true }
             },
             categories: [
                 { value: 'NFL', label: 'NFL' },
@@ -588,7 +588,7 @@
                         num: cardData.num,
                         type: cardData.type
                     };
-                    if (cardData.name) newCard.name = cardData.name;
+                    if (cardData.variant) newCard.variant = cardData.variant;
                     if (cardData.img) newCard.img = cardData.img;
                     if (cardData.price !== undefined) newCard.price = cardData.price;
                     if (cardData.auto) newCard.auto = true;
@@ -616,8 +616,8 @@
                         card.num = cardData.num;
                         card.type = cardData.type;
                         // Handle optional fields - set if present, delete if cleared
-                        if (cardData.name) card.name = cardData.name;
-                        else delete card.name;
+                        if (cardData.variant) card.variant = cardData.variant;
+                        else delete card.variant;
                         if ('price' in cardData) card.price = cardData.price;
                         else delete card.price;
                         if ('img' in cardData) card.img = cardData.img;
