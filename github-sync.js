@@ -2,7 +2,10 @@
 //
 // Configuration: Set these values after creating your GitHub OAuth App and Cloudflare Worker
 const CONFIG = {
-    GITHUB_CLIENT_ID: 'Ov23liik9Fs5C6RCeTgf',
+    // Use preview OAuth app for pages.dev, production app for github.io
+    GITHUB_CLIENT_ID: window.location.hostname.endsWith('.pages.dev')
+        ? 'Ov23limT2ZxKxthkupeT'  // Preview app
+        : 'Ov23liik9Fs5C6RCeTgf', // Production app
     OAUTH_PROXY_URL: 'https://cards-oauth.iammikec.workers.dev',
     GIST_FILENAME: 'sports-card-checklists.json',
     GIST_DESCRIPTION: 'Sports Card Checklist Collection Data',

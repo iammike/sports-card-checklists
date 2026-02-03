@@ -13,6 +13,11 @@ const ALLOWED_ORIGINS = [
   'http://127.0.0.1:8000',
 ];
 
+// Cloudflare Pages preview domains (branch deploys)
+const ALLOWED_ORIGIN_PATTERNS = [
+  /^https:\/\/[a-z0-9-]+\.sports-card-checklists\.pages\.dev$/,
+];
+
 const ALLOWED_IMAGE_DOMAINS = [
   'i.ebayimg.com',
   'ebay.com',
@@ -76,7 +81,14 @@ async function handleProxyImage(request, corsOrigin) {
 
 function getCorsOrigin(request) {
   const origin = request.headers.get('Origin');
-  return ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  if (ALLOWED_ORIGINS.includes(origin)) {
+    return origin;
+  }
+  // Check against patterns (e.g., Cloudflare Pages preview deployments)
+  if (origin && ALLOWED_ORIGIN_PATTERNS.some(pattern => pattern.test(origin))) {
+    return origin;
+  }
+  return ALLOWED_ORIGINS[0];
 }
 
 export default {
@@ -106,7 +118,7 @@ export default {
     }
 
     try {
-      const { code } = await request.json();
+      const { code, client_id } = await request.json();
 
       if (!code) {
         return new Response(JSON.stringify({ error: 'Missing code' }), {
@@ -114,6 +126,12 @@ export default {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': corsOrigin },
         });
       }
+
+      // Determine which OAuth app credentials to use
+      // Preview app for pages.dev origins, production app otherwise
+      const isPreview = ALLOWED_ORIGIN_PATTERNS.some(pattern => pattern.test(corsOrigin));
+      const oauthClientId = isPreview ? env.GITHUB_CLIENT_ID_PREVIEW : env.GITHUB_CLIENT_ID;
+      const oauthClientSecret = isPreview ? env.GITHUB_CLIENT_SECRET_PREVIEW : env.GITHUB_CLIENT_SECRET;
 
       // Exchange code for token
       const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
@@ -123,8 +141,8 @@ export default {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          client_id: env.GITHUB_CLIENT_ID,
-          client_secret: env.GITHUB_CLIENT_SECRET,
+          client_id: oauthClientId,
+          client_secret: oauthClientSecret,
           code: code,
         }),
       });
