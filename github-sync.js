@@ -249,6 +249,7 @@ class GitHubSync {
     }
 
     // Find existing gist or create new one
+    async findOrCreateGist() {
         if (!this.token) return null;
 
         // Check if we have a cached gist ID
