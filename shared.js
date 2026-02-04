@@ -25,6 +25,7 @@ function sanitizeUrl(url) {
  */
 const AuthUI = {
     ICON_LOGOUT: '<svg viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>',
+    ICON_SYNC: '<svg viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>',
 
     update(logoutFn = () => { githubSync.logout(); location.reload(); }) {
         const authContent = document.getElementById('auth-content');
@@ -34,6 +35,13 @@ const AuthUI = {
             const user = githubSync.getUser();
             const safeAvatarUrl = sanitizeUrl(user.avatar_url);
             const safeLogin = sanitizeText(user.login);
+            const isPreview = githubSync.isPreview();
+            const syncButton = isPreview ? `
+                    <button class="nav-dropdown-item" id="sync-from-prod-btn">
+                        ${this.ICON_SYNC}
+                        Sync from Production
+                    </button>
+                    <div class="nav-dropdown-divider"></div>` : '';
             authContent.innerHTML = `
                 <button class="nav-avatar-btn" id="nav-avatar-btn">
                     <img src="${safeAvatarUrl}" alt="${safeLogin}">
@@ -43,6 +51,7 @@ const AuthUI = {
                         <img src="${safeAvatarUrl}" alt="">
                         <span>${safeLogin}</span>
                     </div>
+                    ${syncButton}
                     <button class="nav-dropdown-item" id="auth-logout-btn">
                         ${this.ICON_LOGOUT}
                         Sign out
@@ -64,6 +73,24 @@ const AuthUI = {
                 dropdown.classList.remove('open');
             });
             document.getElementById('auth-logout-btn').onclick = logoutFn;
+            // Sync button (preview only)
+            const syncBtn = document.getElementById('sync-from-prod-btn');
+            if (syncBtn) {
+                syncBtn.onclick = async () => {
+                    if (!confirm('This will overwrite all preview data with production data. Continue?')) return;
+                    syncBtn.disabled = true;
+                    syncBtn.innerHTML = `${this.ICON_SYNC} Syncing...`;
+                    try {
+                        await githubSync.syncFromProduction();
+                        alert('Preview data synced from production!');
+                        location.reload();
+                    } catch (e) {
+                        alert('Sync failed: ' + e.message);
+                        syncBtn.disabled = false;
+                        syncBtn.innerHTML = `${this.ICON_SYNC} Sync from Production`;
+                    }
+                };
+            }
             this.loadCommitHash();
         } else {
             authContent.innerHTML = '';
@@ -213,6 +240,7 @@ class ChecklistManager {
             const safeAvatarUrl = sanitizeUrl(user.avatar_url);
             const safeLogin = sanitizeText(user.login);
             const isOwner = this.isOwner();
+            const isPreview = githubSync.isPreview();
 
             const ownerItemsHtml = isOwner ? `
                 <button class="nav-dropdown-item" id="add-card-btn">
@@ -222,6 +250,14 @@ class ChecklistManager {
                 <button class="nav-dropdown-item danger" id="clear-all-btn">
                     <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
                     Clear All
+                </button>
+                <div class="nav-dropdown-divider"></div>
+            ` : '';
+
+            const syncButtonHtml = isPreview ? `
+                <button class="nav-dropdown-item" id="sync-from-prod-btn">
+                    <svg viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+                    Sync from Production
                 </button>
                 <div class="nav-dropdown-divider"></div>
             ` : '';
@@ -236,6 +272,7 @@ class ChecklistManager {
                         <span>${safeLogin}</span>
                     </div>
                     ${ownerItemsHtml}
+                    ${syncButtonHtml}
                     <button class="nav-dropdown-item" id="auth-logout-btn">
                         <svg viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
                         Sign out
@@ -263,6 +300,24 @@ class ChecklistManager {
             document.getElementById('auth-logout-btn').onclick = () => this.logout();
             const clearAllBtn = document.getElementById('clear-all-btn');
             if (clearAllBtn) clearAllBtn.onclick = () => this.clearAll();
+            // Sync button (preview only)
+            const syncBtn = document.getElementById('sync-from-prod-btn');
+            if (syncBtn) {
+                syncBtn.onclick = async () => {
+                    if (!confirm('This will overwrite all preview data with production data. Continue?')) return;
+                    syncBtn.disabled = true;
+                    syncBtn.textContent = 'Syncing...';
+                    try {
+                        await githubSync.syncFromProduction();
+                        alert('Preview data synced from production!');
+                        location.reload();
+                    } catch (e) {
+                        alert('Sync failed: ' + e.message);
+                        syncBtn.disabled = false;
+                        syncBtn.textContent = 'Sync from Production';
+                    }
+                };
+            }
         } else {
             authContent.innerHTML = '';
         }
