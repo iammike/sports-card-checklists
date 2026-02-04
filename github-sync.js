@@ -55,11 +55,21 @@ class GitHubSync {
 
     // Start OAuth flow
     login() {
-        const redirectUri = window.location.origin + window.location.pathname;
+        // For branch previews, use main pages.dev as OAuth callback, then redirect back
+        const isBranchPreview = IS_PREVIEW && !window.location.hostname.match(/^sports-card-checklists\.pages\.dev$/);
+        let redirectUri;
+        let returnUrl = null;
+        if (isBranchPreview) {
+            returnUrl = window.location.href;
+            redirectUri = 'https://sports-card-checklists.pages.dev/';
+        } else {
+            redirectUri = window.location.origin + window.location.pathname;
+        }
         const scope = 'gist public_repo'; // gist for owned cards, public_repo for card data edits
-        // Generate state parameter for CSRF protection
-        const state = crypto.randomUUID();
-        sessionStorage.setItem('oauth_state', state);
+        // Generate state parameter for CSRF protection (include return URL if branch preview)
+        const stateData = { csrf: crypto.randomUUID(), returnUrl };
+        const state = btoa(JSON.stringify(stateData));
+        sessionStorage.setItem('oauth_state', stateData.csrf);
         const authUrl = `https://github.com/login/oauth/authorize?client_id=${CONFIG.GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&state=${encodeURIComponent(state)}`;
         window.location.href = authUrl;
     }
@@ -72,14 +82,28 @@ class GitHubSync {
 
         if (!code) return false;
 
-        // Verify state parameter for CSRF protection
+        // Parse state parameter (contains CSRF token and optional return URL)
+        let stateData = { csrf: null, returnUrl: null };
+        try {
+            stateData = JSON.parse(atob(state));
+        } catch (e) {
+            // Legacy: state might be just the CSRF token
+            stateData = { csrf: state, returnUrl: null };
+        }
+
+        // Verify CSRF token - check both sessionStorage (same-origin) and allow branch previews
         const expectedState = sessionStorage.getItem('oauth_state');
         sessionStorage.removeItem('oauth_state');
-        if (!state || state !== expectedState) {
+        // For branch preview redirects, we won't have sessionStorage, so trust the state if it has a valid returnUrl
+        const isBranchRedirect = stateData.returnUrl && stateData.returnUrl.includes('.pages.dev');
+        if (!isBranchRedirect && (!stateData.csrf || stateData.csrf !== expectedState)) {
             console.error('OAuth state mismatch - possible CSRF attack');
             window.history.replaceState({}, document.title, window.location.pathname);
             return false;
         }
+
+        // Store return URL for after auth completes
+        const returnUrl = stateData.returnUrl;
 
         // Clean URL
         window.history.replaceState({}, document.title, window.location.pathname);
@@ -107,6 +131,12 @@ class GitHubSync {
 
             // Find or create gist
             await this.findOrCreateGist();
+
+            // Check if we need to redirect back to a branch preview
+            if (returnUrl) {
+                window.location.href = returnUrl;
+                return true;
+            }
 
             if (this.onAuthChange) this.onAuthChange(true);
             return true;
