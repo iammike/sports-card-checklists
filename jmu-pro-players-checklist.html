@@ -397,6 +397,9 @@
             const owned = isOwned(cardId);
             const price = card.price;
             const searchUrl = CardRenderer.getEbayUrl(card.search);
+            // Clean up type/variant for display: remove "RC" (redundant for rookies) and "Base" (it's the default)
+            const displayType = (card.type || '').replace(/\s*RC\b/gi, '').replace(/\bBase\b/gi, '').trim();
+            const displayVariant = (card.variant && card.variant !== 'Base') ? card.variant : '';
 
             return `
                 <div class="card ${owned ? 'owned' : ''}" data-price="${price}" data-sport="${card.sport}">
@@ -407,8 +410,8 @@
                     </div>
                     <div class="player-name">${card.player}</div>
                     <div class="card-title">${card.set}</div>
-                    <div class="card-number">${card.num} ${card.variant || ''}</div>
-                    <div class="card-type">${card.type}</div>
+                    <div class="card-number">${card.num} ${displayVariant}</div>
+                    <div class="card-type">${displayType}</div>
                     ${CardRenderer.renderAchievements(card.badges)}
                     <div class="card-actions${checklistManager.isReadOnly && !owned ? ' links-only' : ''}">
                         ${CardRenderer.renderOwnedControl(cardId, owned, checklistManager.isReadOnly)}
