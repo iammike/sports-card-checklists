@@ -1,7 +1,7 @@
 # Sports Card Checklists Project
 
 ## Card Selection
-- **Avoid print-on-demand cards** - Do not add Topps Now or Panini Instant cards. These are made-to-order products, not traditional trading cards.
+- **Avoid print-on-demand cards** - Generally don't add Topps Now or Panini Instant cards. Exception: players with very limited card options where this is their only/best card.
 
 ## Data Storage
 - **The GitHub Gist is the source of truth** for all collection data (owned cards, stats)
