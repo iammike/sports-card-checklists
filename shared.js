@@ -1034,7 +1034,7 @@ class ImageProcessor {
         canvas.width = width;
         canvas.height = height;
 
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = this.resizeQuality;
         ctx.drawImage(img, 0, 0, width, height);
@@ -1052,7 +1052,7 @@ class ImageProcessor {
     }
 
     // Generate filename from card data
-    generateFilename(cardData) {
+    generateFilename(cardData, addTimestamp = false) {
         const parts = [];
 
         // Set name (required)
@@ -1068,6 +1068,11 @@ class ImageProcessor {
         // Card number
         if (cardData.num) {
             parts.push(cardData.num.replace('#', ''));
+        }
+
+        // Add short timestamp suffix to avoid filename collisions when re-uploading
+        if (addTimestamp) {
+            parts.push(Date.now().toString(36));
         }
 
         // Create filename, sanitize for filesystem
