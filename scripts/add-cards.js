@@ -41,7 +41,7 @@ const CHECKLIST_FILES = {
     'jmu-pro-players': 'jmu-pro-players-cards.json'
 };
 
-const VALID_CATEGORIES = ['college', 'panini', 'topps', 'other', 'inserts', 'chase'];
+const VALID_CATEGORIES = ['college', 'panini', 'topps', 'other', 'inserts', 'premium'];
 
 function printUsage() {
     console.log(`

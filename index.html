@@ -443,7 +443,7 @@
                         </div>
                         <div class="secondary-stats">
                             <span class="stat-pill">Inserts <span class="count" id="stat-inserts-jayden-daniels">0/0</span></span>
-                            <span class="stat-pill">Chase <span class="count" id="stat-chase-jayden-daniels">0/0</span></span>
+                            <span class="stat-pill">Premium <span class="count" id="stat-premium-jayden-daniels">0/0</span></span>
                         </div>
                     </div>
                 </div>
@@ -548,7 +548,7 @@
                 const cats = cardData.categories;
                 const baseCards = [...(cats.college || []), ...(cats.panini || []), ...(cats.topps || []), ...(cats.other || [])];
                 const inserts = cats.inserts || [];
-                const chase = cats.chase || [];
+                const premium = cats.premium || [];
 
                 let baseOwned = 0, baseValue = 0, baseOwnedValue = 0;
                 baseCards.forEach(c => {
@@ -563,8 +563,8 @@
                 let insertsOwned = 0;
                 inserts.forEach(c => { if (owned.has(getCardId(c))) insertsOwned++; });
 
-                let chaseOwned = 0;
-                chase.forEach(c => { if (owned.has(getCardId(c))) chaseOwned++; });
+                let premiumOwned = 0;
+                premium.forEach(c => { if (owned.has(getCardId(c))) premiumOwned++; });
 
                 return {
                     owned: baseOwned,
@@ -572,7 +572,7 @@
                     ownedValue: Math.round(baseOwnedValue),
                     neededValue: Math.round(baseValue - baseOwnedValue),
                     insertsOwned, insertsTotal: inserts.length,
-                    chaseOwned, chaseTotal: chase.length
+                    premiumOwned, premiumTotal: premium.length
                 };
             }
 
@@ -678,8 +678,8 @@
             if (jdStats) {
                 const insertsEl = document.getElementById('stat-inserts-jayden-daniels');
                 if (insertsEl) insertsEl.textContent = `${jdStats.insertsOwned || 0}/${jdStats.insertsTotal || 0}`;
-                const chaseEl = document.getElementById('stat-chase-jayden-daniels');
-                if (chaseEl) chaseEl.textContent = `${jdStats.chaseOwned || 0}/${jdStats.chaseTotal || 0}`;
+                const premiumEl = document.getElementById('stat-premium-jayden-daniels');
+                if (premiumEl) premiumEl.textContent = `${jdStats.premiumOwned || 0}/${jdStats.premiumTotal || 0}`;
             }
 
             // Washington QBs
