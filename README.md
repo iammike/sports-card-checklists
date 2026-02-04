@@ -16,7 +16,7 @@ A modern web app for tracking sports card collections with cloud sync, real-time
 
 ### Cloud Sync
 - **GitHub OAuth authentication** - Secure login via GitHub
-- **Gist-based storage** - Collection data synced to private GitHub Gist
+- **Gist-based storage** - Collection data synced to public GitHub Gist
 - **Cross-device sync** - Access your collection from any device
 - **Public viewing** - Visitors can view your collection (read-only)
 - **CSRF protection** - Secure OAuth flow with state parameter validation
@@ -24,7 +24,6 @@ A modern web app for tracking sports card collections with cloud sync, real-time
 ### Filtering & Search
 - **Status filter** - Show all, owned only, or needed cards
 - **Text search** - Find cards by name, set, or any text
-- **Price filtering** - Filter by estimated value ranges
 
 ### Inline Editing (Owner Only)
 - **Add new cards** - Add cards directly from the UI
@@ -104,6 +103,7 @@ The site supports Cloudflare Pages preview deployments for testing:
 ├── index.html                    # Landing page with all checklists
 ├── *-checklist.html              # Individual checklist pages
 ├── *-cards/                      # Card images (WebP format)
+├── seed/                         # Fallback JSON data (when gist unavailable)
 ├── github-sync.js                # OAuth + Gist storage
 ├── shared.js                     # Shared utilities and components
 ├── shared.css                    # Shared styles
