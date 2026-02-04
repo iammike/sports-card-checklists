@@ -1166,10 +1166,10 @@ class ImageEditorModal {
                         <img id="image-editor-img" src="" alt="Edit">
                     </div>
                     <div class="image-editor-toolbar">
-                        <button class="image-editor-tool" data-action="rotate-left" title="Rotate Left">
+                        <button class="image-editor-tool" data-action="rotate-left" title="Rotate 90° Left">
                             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7.11 8.53L5.7 7.11C4.8 8.27 4.24 9.61 4.07 11h2.02c.14-.87.49-1.72 1.02-2.47zM6.09 13H4.07c.17 1.39.72 2.73 1.62 3.89l1.41-1.42c-.52-.75-.87-1.59-1.01-2.47zm1.01 5.32c1.16.9 2.51 1.44 3.9 1.61V17.9c-.87-.15-1.71-.49-2.46-1.03L7.1 18.32zM13 4.07V1L8.45 5.55 13 10V6.09c2.84.48 5 2.94 5 5.91s-2.16 5.43-5 5.91v2.02c3.95-.49 7-3.85 7-7.93s-3.05-7.44-7-7.93z"/></svg>
                         </button>
-                        <button class="image-editor-tool" data-action="rotate-right" title="Rotate Right">
+                        <button class="image-editor-tool" data-action="rotate-right" title="Rotate 90° Right">
                             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.55 5.55L11 1v3.07C7.06 4.56 4 7.92 4 12s3.05 7.44 7 7.93v-2.02c-2.84-.48-5-2.94-5-5.91s2.16-5.43 5-5.91V10l4.55-4.45zM19.93 11c-.17-1.39-.72-2.73-1.62-3.89l-1.42 1.42c.54.75.88 1.6 1.02 2.47h2.02zM13 17.9v2.02c1.39-.17 2.74-.71 3.9-1.61l-1.44-1.44c-.75.54-1.59.89-2.46 1.03zm3.89-2.42l1.42 1.41c.9-1.16 1.45-2.5 1.62-3.89h-2.02c-.14.87-.48 1.72-1.02 2.48z"/></svg>
                         </button>
                         <div class="image-editor-divider"></div>
@@ -1177,12 +1177,19 @@ class ImageEditorModal {
                             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15 21h2v-2h-2v2zm4-12h2V7h-2v2zM3 5v14c0 1.1.9 2 2 2h4v-2H5V5h4V3H5c-1.1 0-2 .9-2 2zm16-2v2h2c0-1.1-.9-2-2-2zm-8 20h2V1h-2v22zm8-6h2v-2h-2v2zM15 5h2V3h-2v2zm4 8h2v-2h-2v2zm0 8c1.1 0 2-.9 2-2h-2v2z"/></svg>
                         </button>
                         <button class="image-editor-tool" data-action="flip-v" title="Flip Vertical">
-                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 15v2h2v-2H3zm0 4v2h2v-2H3zm0-8v2h2v-2H3zm12 12h2v-2h-2v2zM3 3v2h2V3H3zm0 4v2h2V7H3zm16 14h2v-2h-2v2zm0-4h2v-2h-2v2zM1 11h22v2H1zM19 3v2h2V3h-2zm0 8h2V9h-2v2zm-8 8h2v-2h-2v2zm0-16h2V1h-2v2zm-4 16h2v-2H7v2zm0-16h2V1H7v2z"/></svg>
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h2v2H3V3zm4 0h2v2H7V3zm4 0h2v2h-2V3zm4 0h2v2h-2V3zm4 0h2v2h-2V3zM3 19h2v2H3v-2zm4 0h2v2H7v-2zm4 0h2v2h-2v-2zm4 0h2v2h-2v-2zm4 0h2v2h-2v-2zM1 11h22v2H1v-2z"/></svg>
                         </button>
                         <div class="image-editor-divider"></div>
-                        <button class="image-editor-tool" data-action="reset" title="Reset">
+                        <button class="image-editor-tool" data-action="reset" title="Reset All">
                             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
                         </button>
+                    </div>
+                    <div class="image-editor-sliders">
+                        <div class="image-editor-slider-row">
+                            <label class="image-editor-slider-label">Straighten</label>
+                            <input type="range" class="image-editor-slider" id="image-editor-rotate" min="-45" max="45" value="0" step="0.5">
+                            <span class="image-editor-slider-value" id="image-editor-rotate-value">0°</span>
+                        </div>
                     </div>
                 </div>
                 <div class="image-editor-footer">
@@ -1219,6 +1226,25 @@ class ImageEditorModal {
             btn.onclick = () => this.handleToolAction(btn.dataset.action);
         });
 
+        // Rotation slider for fine-grained straightening
+        const rotateSlider = this.backdrop.querySelector('#image-editor-rotate');
+        const rotateValue = this.backdrop.querySelector('#image-editor-rotate-value');
+        if (rotateSlider) {
+            rotateSlider.oninput = () => {
+                const val = parseFloat(rotateSlider.value);
+                rotateValue.textContent = `${val}°`;
+                if (this.cropper) {
+                    this.cropper.rotateTo(val);
+                }
+            };
+            // Double-click to reset
+            rotateSlider.ondblclick = () => {
+                rotateSlider.value = 0;
+                rotateValue.textContent = '0°';
+                if (this.cropper) this.cropper.rotateTo(0);
+            };
+        }
+
         // Escape key to close
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && this.backdrop.classList.contains('active')) {
@@ -1246,6 +1272,13 @@ class ImageEditorModal {
                 break;
             case 'reset':
                 this.cropper.reset();
+                // Also reset the slider
+                const slider = this.backdrop.querySelector('#image-editor-rotate');
+                const sliderValue = this.backdrop.querySelector('#image-editor-rotate-value');
+                if (slider) {
+                    slider.value = 0;
+                    sliderValue.textContent = '0°';
+                }
                 break;
         }
     }
