@@ -1119,18 +1119,34 @@ class CardEditorModal {
         this.cardTypes = options.cardTypes || CARD_TYPES;
         this.categories = options.categories || null; // e.g., ['panini', 'topps', 'inserts', 'premium']
         this.imageFolder = options.imageFolder || 'images'; // folder for processed images
+        this.playerName = options.playerName || ''; // player name for search term generation
         this.currentCard = null;
         this.currentCardId = null;
         this.isDirty = false;
         this.backdrop = null;
         this.isNewCard = false;
         this.imageProcessor = new ImageProcessor();
+        this.ebayManuallyEdited = false; // Track if user manually edited eBay search term
 
         // Schema-driven custom fields
         // Format: { fieldName: { label, type, options?, placeholder?, fullWidth? } }
         // Types: 'text', 'select', 'checkbox'
         // For select: options is array of { value, label } or just strings
         this.customFields = options.customFields || {};
+    }
+
+    // Generate eBay search term from card data
+    generateSearchTerm(set, num, variant) {
+        const parts = [this.playerName, set];
+        // Add card number without # prefix
+        if (num) {
+            parts.push(num.replace(/^#/, ''));
+        }
+        // Add variant if not "Base"
+        if (variant && variant !== 'Base') {
+            parts.push(variant);
+        }
+        return parts.filter(Boolean).join('+').toLowerCase().replace(/\s+/g, '+');
     }
 
     // Generate HTML for custom fields based on schema
@@ -1347,6 +1363,12 @@ class CardEditorModal {
         modal.querySelectorAll('input, select').forEach(input => {
             input.oninput = () => this.setDirty(true);
         });
+
+        // Track manual edits to eBay search term
+        this.backdrop.querySelector('#editor-ebay').oninput = () => {
+            this.ebayManuallyEdited = true;
+            this.setDirty(true);
+        };
 
         // Image preview on URL change
         this.backdrop.querySelector('#editor-img').oninput = (e) => {
@@ -1614,6 +1636,7 @@ class CardEditorModal {
         this.updateImagePreview(cardData.img);
         this.updateProcessButton(cardData.img);
         this.setDirty(false);
+        this.ebayManuallyEdited = false;
 
         // Show modal
         this.backdrop.classList.add('active');
@@ -1658,6 +1681,7 @@ class CardEditorModal {
         this.updateImagePreview('');
         this.updateProcessButton('');
         this.setDirty(false);
+        this.ebayManuallyEdited = false;
 
         // Show modal
         this.backdrop.classList.add('active');
@@ -1751,6 +1775,25 @@ class CardEditorModal {
         if (!this.validate()) return;
 
         const data = this.getFormData();
+
+        // Check if set or num changed and eBay search wasn't manually edited
+        if (!this.ebayManuallyEdited && this.currentCard) {
+            const setChanged = data.set !== (this.currentCard.set || '');
+            const numChanged = data.num !== (this.currentCard.num || '');
+
+            if (setChanged || numChanged) {
+                // Regenerate search term
+                const variant = data.variant || this.currentCard.variant;
+                data.search = this.generateSearchTerm(data.set, data.num, variant);
+                // Clear any custom ebay field since we're regenerating
+                delete data.ebay;
+            }
+        }
+
+        // For new cards without an eBay search term, auto-generate one
+        if (this.isNewCard && !data.ebay) {
+            data.search = this.generateSearchTerm(data.set, data.num, data.variant);
+        }
 
         if (this.isNewCard) {
             this.onSave(null, data, true);
