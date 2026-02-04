@@ -1288,16 +1288,21 @@ class CardEditorModal {
                             <input type="text" class="card-editor-input" id="editor-ebay" placeholder="Auto-generate">
                         </div>
                         <div class="card-editor-field full-width card-editor-image-section">
-                            <label class="card-editor-label">Image URL</label>
+                            <label class="card-editor-label">Image</label>
                             <div class="card-editor-image-input-row">
-                                <input type="text" class="card-editor-input" id="editor-img" placeholder="https://...">
+                                <input type="text" class="card-editor-input" id="editor-img" placeholder="URL or upload file...">
+                                <input type="file" id="editor-img-file" accept="image/*" style="display: none;">
+                                <button type="button" class="card-editor-upload-btn" id="editor-upload-img" title="Upload local image">
+                                    <span class="upload-text">Upload</span>
+                                    <span class="upload-spinner"></span>
+                                </button>
                                 <button type="button" class="card-editor-process-btn" id="editor-process-img" title="Process image">
                                     <span class="process-text">Process</span>
                                     <span class="process-spinner"></span>
                                 </button>
                             </div>
-                            <div class="card-editor-image-preview">
-                                <span class="placeholder">No image</span>
+                            <div class="card-editor-image-preview" id="editor-img-dropzone">
+                                <span class="placeholder">No image (or drag & drop here)</span>
                             </div>
                         </div>
                     </div>
@@ -1351,6 +1356,35 @@ class CardEditorModal {
 
         // Process image button
         this.backdrop.querySelector('#editor-process-img').onclick = () => this.processImage();
+
+        // Upload image button
+        this.backdrop.querySelector('#editor-upload-img').onclick = () => {
+            this.backdrop.querySelector('#editor-img-file').click();
+        };
+
+        // File input change handler
+        this.backdrop.querySelector('#editor-img-file').onchange = (e) => {
+            if (e.target.files && e.target.files[0]) {
+                this.processLocalFile(e.target.files[0]);
+            }
+        };
+
+        // Drag and drop on preview area
+        const dropzone = this.backdrop.querySelector('#editor-img-dropzone');
+        dropzone.ondragover = (e) => {
+            e.preventDefault();
+            dropzone.classList.add('dragover');
+        };
+        dropzone.ondragleave = () => {
+            dropzone.classList.remove('dragover');
+        };
+        dropzone.ondrop = (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                this.processLocalFile(e.dataTransfer.files[0]);
+            }
+        };
 
         // Escape key to close
         document.addEventListener('keydown', (e) => {
@@ -1447,6 +1481,93 @@ class CardEditorModal {
         } catch (error) {
             console.error('Image processing failed:', error);
             alert('Failed to process image: ' + error.message);
+        } finally {
+            btn.classList.remove('processing');
+            btn.disabled = false;
+        }
+    }
+
+    // Process a local file: read, resize, commit via PR, update field with path
+    async processLocalFile(file) {
+        const imgInput = this.backdrop.querySelector('#editor-img');
+        const btn = this.backdrop.querySelector('#editor-upload-img');
+
+        // Check if githubSync is available and logged in
+        if (typeof githubSync === 'undefined' || !githubSync.isLoggedIn()) {
+            alert('Please sign in to upload images');
+            return;
+        }
+
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            alert('Please select an image file');
+            return;
+        }
+
+        // Show loading state
+        btn.classList.add('processing');
+        btn.disabled = true;
+        btn.title = 'Processing...';
+
+        try {
+            // Read file as data URL
+            const dataUrl = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+
+            // Load into image element
+            const img = await new Promise((resolve, reject) => {
+                const image = new Image();
+                image.onload = () => resolve(image);
+                image.onerror = reject;
+                image.src = dataUrl;
+            });
+
+            // Get card data from form to generate filename
+            const cardData = {
+                set: this.backdrop.querySelector('#editor-set')?.value || '',
+                name: this.backdrop.querySelector('#editor-name')?.value || '',
+                num: this.backdrop.querySelector('#editor-num')?.value || ''
+            };
+
+            // Generate filename and path
+            const filename = this.imageProcessor.generateFilename(cardData);
+            const path = `${this.imageFolder}/${filename}`;
+
+            // Process the image (resize, convert to webp)
+            const { base64: base64Content } = await this.imageProcessor.processImage(img);
+
+            // Commit via PR (will auto-merge)
+            btn.title = 'Creating PR...';
+            const committedPath = await githubSync.commitImageViaPR(
+                path,
+                base64Content,
+                `Add image: ${filename}`
+            );
+
+            if (!committedPath) {
+                throw new Error('Failed to commit image');
+            }
+
+            // Update the input field with the file path
+            imgInput.value = committedPath;
+            // Show the processed image as preview
+            this.updateImagePreview(`data:image/webp;base64,${base64Content}`);
+            this.updateProcessButton(committedPath);
+            this.setDirty(true);
+
+            // Show success message
+            btn.title = 'Done! Image committed via PR';
+
+            // Clear file input for future uploads
+            this.backdrop.querySelector('#editor-img-file').value = '';
+
+        } catch (error) {
+            console.error('Image upload failed:', error);
+            alert('Failed to upload image: ' + error.message);
         } finally {
             btn.classList.remove('processing');
             btn.disabled = false;

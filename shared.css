@@ -1282,6 +1282,56 @@ select, input[type="text"] {
     flex: 1;
 }
 
+/* Upload button - always visible */
+.card-editor-upload-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 16px;
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    border: none;
+    border-radius: 4px;
+    color: #1a1a2e;
+    font-family: 'Barlow', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    min-width: 80px;
+}
+
+.card-editor-upload-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(67, 233, 123, 0.4);
+}
+
+.card-editor-upload-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.card-editor-upload-btn .upload-spinner {
+    display: none;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(26, 26, 46, 0.3);
+    border-top-color: #1a1a2e;
+    border-radius: 50%;
+    animation: processSpinner 0.8s linear infinite;
+}
+
+.card-editor-upload-btn.processing .upload-text {
+    display: none;
+}
+
+.card-editor-upload-btn.processing .upload-spinner {
+    display: block;
+}
+
+/* Process button - conditionally visible */
 .card-editor-process-btn {
     display: none;
     align-items: center;
@@ -1357,6 +1407,11 @@ select, input[type="text"] {
     color: #555;
     font-size: 13px;
     font-weight: 500;
+}
+
+.card-editor-image-preview.dragover {
+    border-color: #43e97b;
+    background: rgba(67, 233, 123, 0.1);
 }
 
 /* Footer with actions */
