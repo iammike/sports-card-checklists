@@ -2146,8 +2146,8 @@ class CardEditorModal {
             }
         }
 
-        // For new cards without an eBay search term, auto-generate one
-        if (this.isNewCard && !data.ebay) {
+        // Auto-generate search term if ebay field is empty
+        if (!data.ebay) {
             data.search = this.generateSearchTerm(data.set, data.num, data.variant);
         }
 
