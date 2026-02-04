@@ -355,6 +355,7 @@ class GitHubSync {
         if (!this.token) return false;
 
         const gistId = this.getActiveGistId();
+        console.log('[DEBUG] saveData - IS_PREVIEW:', IS_PREVIEW, 'gistId:', gistId, 'this.gistId:', this.gistId);
         if (!gistId) {
             await this.findOrCreateGist();
         }
@@ -362,7 +363,9 @@ class GitHubSync {
         // Queue saves to prevent concurrent writes
         this._saveQueue = this._saveQueue.then(async () => {
             try {
-                const response = await fetch(`https://api.github.com/gists/${this.getActiveGistId()}`, {
+                const targetGistId = this.getActiveGistId();
+                console.log('[DEBUG] saveData PATCH to gist:', targetGistId);
+                const response = await fetch(`https://api.github.com/gists/${targetGistId}`, {
                     method: 'PATCH',
                     headers: {
                         'Authorization': `Bearer ${this.token}`,
