@@ -915,14 +915,15 @@ class ImageProcessor {
         this.sharpen = 0.5;      // Sharpen amount (0-1)
         this.smooth = 0.2;       // Smooth/anti-alias amount (0-1)
         this.resizeQuality = 'high'; // Canvas resize quality
+        this.allowedDomains = ['ebay', 'beckett'];
     }
 
-    // Check if URL is from eBay
-    isEbayUrl(url) {
+    // Check if URL is from a supported image domain
+    isProcessableUrl(url) {
         if (!url) return false;
         try {
             const parsed = new URL(url);
-            return parsed.hostname.includes('ebay');
+            return this.allowedDomains.some(domain => parsed.hostname.includes(domain));
         } catch {
             return false;
         }
@@ -1290,7 +1291,7 @@ class CardEditorModal {
                             <label class="card-editor-label">Image URL</label>
                             <div class="card-editor-image-input-row">
                                 <input type="text" class="card-editor-input" id="editor-img" placeholder="https://...">
-                                <button type="button" class="card-editor-process-btn" id="editor-process-img" title="Process eBay image">
+                                <button type="button" class="card-editor-process-btn" id="editor-process-img" title="Process image">
                                     <span class="process-text">Process</span>
                                     <span class="process-spinner"></span>
                                 </button>
@@ -1383,7 +1384,7 @@ class CardEditorModal {
         const btn = this.backdrop.querySelector('#editor-process-img');
         if (!btn) return;
 
-        const isEbay = this.imageProcessor.isEbayUrl(url);
+        const isEbay = this.imageProcessor.isProcessableUrl(url);
         btn.style.display = isEbay ? 'flex' : 'none';
     }
 
@@ -1393,7 +1394,7 @@ class CardEditorModal {
         const url = imgInput.value.trim();
         const btn = this.backdrop.querySelector('#editor-process-img');
 
-        if (!url || !this.imageProcessor.isEbayUrl(url)) return;
+        if (!url || !this.imageProcessor.isProcessableUrl(url)) return;
 
         // Check if githubSync is available and logged in
         if (typeof githubSync === 'undefined' || !githubSync.isLoggedIn()) {

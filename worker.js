@@ -23,6 +23,7 @@ const ALLOWED_IMAGE_DOMAINS = [
   'i.ebayimg.com',
   'ebay.com',
   'www.ebay.com',
+  'img.beckett.com',
 ];
 
 // Proxy image endpoint - fetches external images to bypass CORS
