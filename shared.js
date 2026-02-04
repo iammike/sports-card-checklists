@@ -1746,9 +1746,39 @@ class CardEditorModal {
         return true;
     }
 
-    // Save card
-    save() {
+    // Check if image URL needs processing (external URL from supported domain)
+    needsImageProcessing(url) {
+        if (!url) return false;
+        // Already a local path or data URL
+        if (url.startsWith(this.imageFolder) || url.startsWith('data:') || !url.startsWith('http')) {
+            return false;
+        }
+        return this.imageProcessor.isProcessableUrl(url);
+    }
+
+    // Save card (auto-processes image if needed)
+    async save() {
         if (!this.validate()) return;
+
+        const imgUrl = this.backdrop.querySelector('#editor-img').value.trim();
+
+        // Auto-process image if it's from a supported domain and not yet processed
+        if (this.needsImageProcessing(imgUrl)) {
+            const btn = this.backdrop.querySelector('.card-editor-btn.save');
+            const originalText = btn.textContent;
+            btn.textContent = 'Processing image...';
+            btn.disabled = true;
+
+            try {
+                await this.processImage();
+            } catch (error) {
+                console.error('Auto-process failed:', error);
+                // Continue with save even if processing fails
+            } finally {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        }
 
         const data = this.getFormData();
 
