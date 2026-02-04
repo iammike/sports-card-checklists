@@ -238,8 +238,17 @@ class GitHubSync {
         return true;
     }
 
+    // Get the active gist ID for read/write operations
+    // On preview sites, always use the preview gist (even when logged in)
+    // On production, use the user's personal gist
+    getActiveGistId() {
+        if (IS_PREVIEW) {
+            return CONFIG.PUBLIC_GIST_ID; // Preview gist
+        }
+        return this.gistId; // User's personal gist
+    }
+
     // Find existing gist or create new one
-    async findOrCreateGist() {
         if (!this.token) return null;
 
         // Check if we have a cached gist ID
@@ -294,7 +303,8 @@ class GitHubSync {
 
     // Load all collection data from gist (uses cache if available)
     async loadData() {
-        if (!this.token || !this.gistId) return null;
+        const gistId = this.getActiveGistId();
+        if (!this.token || !gistId) return null;
 
         // Use cache if available (prevents stale reads during save operations)
         if (this._cachedData) {
@@ -302,7 +312,7 @@ class GitHubSync {
         }
 
         try {
-            const response = await fetch(`https://api.github.com/gists/${this.gistId}`, {
+            const response = await fetch(`https://api.github.com/gists/${gistId}`, {
                 headers: { 'Authorization': `Bearer ${this.token}` },
             });
 
@@ -343,14 +353,15 @@ class GitHubSync {
     async saveData(data) {
         if (!this.token) return false;
 
-        if (!this.gistId) {
+        const gistId = this.getActiveGistId();
+        if (!gistId) {
             await this.findOrCreateGist();
         }
 
         // Queue saves to prevent concurrent writes
         this._saveQueue = this._saveQueue.then(async () => {
             try {
-                const response = await fetch(`https://api.github.com/gists/${this.gistId}`, {
+                const response = await fetch(`https://api.github.com/gists/${this.getActiveGistId()}`, {
                     method: 'PATCH',
                     headers: {
                         'Authorization': `Bearer ${this.token}`,
@@ -609,14 +620,15 @@ class GitHubSync {
     async saveCardData(checklistId, cardData) {
         if (!this.token) return false;
 
-        if (!this.gistId) {
+        const gistId = this.getActiveGistId();
+        if (!gistId) {
             await this.findOrCreateGist();
         }
 
         const filename = `${checklistId}-cards.json`;
 
         try {
-            const response = await fetch(`https://api.github.com/gists/${this.gistId}`, {
+            const response = await fetch(`https://api.github.com/gists/${this.getActiveGistId()}`, {
                 method: 'PATCH',
                 headers: {
                     'Authorization': `Bearer ${this.token}`,
@@ -640,12 +652,13 @@ class GitHubSync {
 
     // Load card data from gist (for logged-in user editing)
     async loadCardData(checklistId) {
-        if (!this.token || !this.gistId) return null;
+        const gistId = this.getActiveGistId();
+        if (!this.token || !gistId) return null;
 
         const filename = `${checklistId}-cards.json`;
 
         try {
-            const response = await fetch(`https://api.github.com/gists/${this.gistId}`, {
+            const response = await fetch(`https://api.github.com/gists/${gistId}`, {
                 headers: { 'Authorization': `Bearer ${this.token}` },
             });
 

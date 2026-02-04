@@ -13,8 +13,9 @@ const ALLOWED_ORIGINS = [
   'http://127.0.0.1:8000',
 ];
 
-// Cloudflare Pages preview domains (branch deploys)
+// Cloudflare Pages preview domains (main + branch deploys)
 const ALLOWED_ORIGIN_PATTERNS = [
+  /^https:\/\/sports-card-checklists\.pages\.dev$/,
   /^https:\/\/[a-z0-9-]+\.sports-card-checklists\.pages\.dev$/,
 ];
 
