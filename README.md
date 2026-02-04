@@ -103,7 +103,6 @@ The site supports Cloudflare Pages preview deployments for testing:
 ├── index.html                    # Landing page with all checklists
 ├── *-checklist.html              # Individual checklist pages
 ├── *-cards/                      # Card images (WebP format)
-├── seed/                         # Fallback JSON data (when gist unavailable)
 ├── github-sync.js                # OAuth + Gist storage
 ├── shared.js                     # Shared utilities and components
 ├── shared.css                    # Shared styles
