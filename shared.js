@@ -1187,9 +1187,9 @@ class ImageEditorModal {
                     <div class="image-editor-sliders">
                         <div class="image-editor-slider-row">
                             <label class="image-editor-slider-label">Straighten</label>
-                            <button class="image-editor-step-btn" id="rotate-minus" title="Decrease 1°">−</button>
+                            <button class="image-editor-step-btn" id="rotate-minus" title="Decrease 0.5°">−</button>
                             <input type="range" class="image-editor-slider" id="image-editor-rotate" min="-45" max="45" value="0" step="0.5">
-                            <button class="image-editor-step-btn" id="rotate-plus" title="Increase 1°">+</button>
+                            <button class="image-editor-step-btn" id="rotate-plus" title="Increase 0.5°">+</button>
                             <span class="image-editor-slider-value" id="image-editor-rotate-value">0°</span>
                         </div>
                     </div>
@@ -1253,8 +1253,8 @@ class ImageEditorModal {
                 rotateValue.textContent = `${newVal}°`;
                 if (this.cropper) this.cropper.rotateTo(newVal);
             };
-            this.backdrop.querySelector('#rotate-minus').onclick = () => updateRotation(-1);
-            this.backdrop.querySelector('#rotate-plus').onclick = () => updateRotation(1);
+            this.backdrop.querySelector('#rotate-minus').onclick = () => updateRotation(-0.5);
+            this.backdrop.querySelector('#rotate-plus').onclick = () => updateRotation(0.5);
         }
 
         // Escape key to close
