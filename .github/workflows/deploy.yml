@@ -25,6 +25,8 @@ jobs:
     if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Trigger deploy workflow on main
         run: gh workflow run deploy.yml --ref main
         env:
