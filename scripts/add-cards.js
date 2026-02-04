@@ -268,6 +268,8 @@ async function main() {
         }
 
         checklistData.categories[category].push(card);
+        // Sort by set name alphabetically
+        checklistData.categories[category].sort((a, b) => a.set.localeCompare(b.set));
         console.log(`  Added: ${card.set} ${card.num} -> ${category}`);
     }
 
