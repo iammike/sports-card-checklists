@@ -1110,6 +1110,233 @@ class ImageProcessor {
 }
 
 /**
+ * Image Editor Modal - crop and rotate images before processing
+ * Uses Cropper.js for crop functionality
+ */
+class ImageEditorModal {
+    constructor() {
+        this.backdrop = null;
+        this.cropper = null;
+        this.currentImage = null;
+        this.resolvePromise = null;
+        this.rejectPromise = null;
+        this.rotation = 0;
+    }
+
+    // Load Cropper.js from CDN if not already loaded
+    async loadCropperJS() {
+        if (window.Cropper) return;
+
+        // Load CSS
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css';
+        document.head.appendChild(link);
+
+        // Load JS
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js';
+            script.onload = resolve;
+            script.onerror = () => reject(new Error('Failed to load Cropper.js'));
+            document.head.appendChild(script);
+        });
+    }
+
+    // Initialize - create modal DOM
+    init() {
+        if (document.querySelector('.image-editor-backdrop')) return;
+
+        const backdrop = document.createElement('div');
+        backdrop.className = 'image-editor-backdrop';
+        backdrop.innerHTML = `
+            <div class="image-editor-modal">
+                <div class="image-editor-header">
+                    <h2 class="image-editor-title">EDIT IMAGE</h2>
+                    <div class="image-editor-subtitle">Crop and rotate before saving</div>
+                    <button class="image-editor-close" title="Cancel">×</button>
+                </div>
+                <div class="image-editor-body">
+                    <div class="image-editor-canvas">
+                        <img id="image-editor-img" src="" alt="Edit">
+                    </div>
+                    <div class="image-editor-toolbar">
+                        <button class="image-editor-tool" data-action="rotate-left" title="Rotate Left">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7.11 8.53L5.7 7.11C4.8 8.27 4.24 9.61 4.07 11h2.02c.14-.87.49-1.72 1.02-2.47zM6.09 13H4.07c.17 1.39.72 2.73 1.62 3.89l1.41-1.42c-.52-.75-.87-1.59-1.01-2.47zm1.01 5.32c1.16.9 2.51 1.44 3.9 1.61V17.9c-.87-.15-1.71-.49-2.46-1.03L7.1 18.32zM13 4.07V1L8.45 5.55 13 10V6.09c2.84.48 5 2.94 5 5.91s-2.16 5.43-5 5.91v2.02c3.95-.49 7-3.85 7-7.93s-3.05-7.44-7-7.93z"/></svg>
+                        </button>
+                        <button class="image-editor-tool" data-action="rotate-right" title="Rotate Right">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.55 5.55L11 1v3.07C7.06 4.56 4 7.92 4 12s3.05 7.44 7 7.93v-2.02c-2.84-.48-5-2.94-5-5.91s2.16-5.43 5-5.91V10l4.55-4.45zM19.93 11c-.17-1.39-.72-2.73-1.62-3.89l-1.42 1.42c.54.75.88 1.6 1.02 2.47h2.02zM13 17.9v2.02c1.39-.17 2.74-.71 3.9-1.61l-1.44-1.44c-.75.54-1.59.89-2.46 1.03zm3.89-2.42l1.42 1.41c.9-1.16 1.45-2.5 1.62-3.89h-2.02c-.14.87-.48 1.72-1.02 2.48z"/></svg>
+                        </button>
+                        <div class="image-editor-divider"></div>
+                        <button class="image-editor-tool" data-action="flip-h" title="Flip Horizontal">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15 21h2v-2h-2v2zm4-12h2V7h-2v2zM3 5v14c0 1.1.9 2 2 2h4v-2H5V5h4V3H5c-1.1 0-2 .9-2 2zm16-2v2h2c0-1.1-.9-2-2-2zm-8 20h2V1h-2v22zm8-6h2v-2h-2v2zM15 5h2V3h-2v2zm4 8h2v-2h-2v2zm0 8c1.1 0 2-.9 2-2h-2v2z"/></svg>
+                        </button>
+                        <button class="image-editor-tool" data-action="flip-v" title="Flip Vertical">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 15v2h2v-2H3zm0 4v2h2v-2H3zm0-8v2h2v-2H3zm12 12h2v-2h-2v2zM3 3v2h2V3H3zm0 4v2h2V7H3zm16 14h2v-2h-2v2zm0-4h2v-2h-2v2zM1 11h22v2H1zM19 3v2h2V3h-2zm0 8h2V9h-2v2zm-8 8h2v-2h-2v2zm0-16h2V1h-2v2zm-4 16h2v-2H7v2zm0-16h2V1H7v2z"/></svg>
+                        </button>
+                        <div class="image-editor-divider"></div>
+                        <button class="image-editor-tool" data-action="reset" title="Reset">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="image-editor-footer">
+                    <button class="image-editor-btn cancel">Cancel</button>
+                    <button class="image-editor-btn confirm">Apply & Continue</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(backdrop);
+        this.backdrop = backdrop;
+
+        this.bindEvents();
+    }
+
+    // Bind modal events
+    bindEvents() {
+        // Close button
+        this.backdrop.querySelector('.image-editor-close').onclick = () => this.cancel();
+
+        // Backdrop click to close
+        this.backdrop.onclick = (e) => {
+            if (e.target === this.backdrop) this.cancel();
+        };
+
+        // Cancel button
+        this.backdrop.querySelector('.image-editor-btn.cancel').onclick = () => this.cancel();
+
+        // Confirm button
+        this.backdrop.querySelector('.image-editor-btn.confirm').onclick = () => this.confirm();
+
+        // Toolbar buttons
+        this.backdrop.querySelectorAll('.image-editor-tool').forEach(btn => {
+            btn.onclick = () => this.handleToolAction(btn.dataset.action);
+        });
+
+        // Escape key to close
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.backdrop.classList.contains('active')) {
+                this.cancel();
+            }
+        });
+    }
+
+    // Handle toolbar actions
+    handleToolAction(action) {
+        if (!this.cropper) return;
+
+        switch (action) {
+            case 'rotate-left':
+                this.cropper.rotate(-90);
+                break;
+            case 'rotate-right':
+                this.cropper.rotate(90);
+                break;
+            case 'flip-h':
+                this.cropper.scaleX(-this.cropper.getData().scaleX || -1);
+                break;
+            case 'flip-v':
+                this.cropper.scaleY(-this.cropper.getData().scaleY || -1);
+                break;
+            case 'reset':
+                this.cropper.reset();
+                break;
+        }
+    }
+
+    // Open editor with image URL or data URL
+    async open(imageSrc) {
+        await this.loadCropperJS();
+        this.init();
+
+        // Destroy existing cropper
+        if (this.cropper) {
+            this.cropper.destroy();
+            this.cropper = null;
+        }
+
+        // Set image source
+        const img = this.backdrop.querySelector('#image-editor-img');
+        img.src = imageSrc;
+
+        // Show modal
+        this.backdrop.classList.add('active');
+
+        // Wait for image to load, then initialize cropper
+        return new Promise((resolve, reject) => {
+            this.resolvePromise = resolve;
+            this.rejectPromise = reject;
+
+            img.onload = () => {
+                this.cropper = new Cropper(img, {
+                    viewMode: 1,
+                    dragMode: 'move',
+                    aspectRatio: NaN, // Free crop
+                    autoCropArea: 1,
+                    restore: false,
+                    guides: true,
+                    center: true,
+                    highlight: false,
+                    cropBoxMovable: true,
+                    cropBoxResizable: true,
+                    toggleDragModeOnDblclick: false,
+                    background: true,
+                });
+            };
+            img.onerror = () => reject(new Error('Failed to load image'));
+        });
+    }
+
+    // Confirm - return cropped/edited image
+    confirm() {
+        if (!this.cropper) return;
+
+        try {
+            // Get cropped canvas
+            const canvas = this.cropper.getCroppedCanvas({
+                maxWidth: 1200,
+                maxHeight: 1200,
+            });
+
+            // Convert to data URL
+            const dataUrl = canvas.toDataURL('image/png');
+
+            this.close();
+            if (this.resolvePromise) {
+                this.resolvePromise(dataUrl);
+            }
+        } catch (error) {
+            if (this.rejectPromise) {
+                this.rejectPromise(error);
+            }
+        }
+    }
+
+    // Cancel - reject promise
+    cancel() {
+        this.close();
+        if (this.rejectPromise) {
+            this.rejectPromise(new Error('Cancelled'));
+        }
+    }
+
+    // Close modal
+    close() {
+        this.backdrop.classList.remove('active');
+        if (this.cropper) {
+            this.cropper.destroy();
+            this.cropper = null;
+        }
+        this.resolvePromise = null;
+        this.rejectPromise = null;
+    }
+}
+
+// Singleton instance
+const imageEditor = new ImageEditorModal();
+
+/**
  * Card Editor Modal - handles card editing UI
  */
 class CardEditorModal {
@@ -1117,7 +1344,7 @@ class CardEditorModal {
         this.onSave = options.onSave || (() => {});
         this.onDelete = options.onDelete || (() => {});
         this.cardTypes = options.cardTypes || CARD_TYPES;
-        this.categories = options.categories || null; // e.g., ['panini', 'topps', 'inserts', 'chase']
+        this.categories = options.categories || null; // e.g., ['panini', 'topps', 'inserts', 'premium']
         this.imageFolder = options.imageFolder || 'images'; // folder for processed images
         this.currentCard = null;
         this.currentCardId = null;
@@ -1422,7 +1649,7 @@ class CardEditorModal {
         btn.style.display = isEbay ? 'flex' : 'none';
     }
 
-    // Process image: fetch, resize, commit via PR, update field with path
+    // Process image: fetch, show editor, resize, commit via PR, update field with path
     async processImage() {
         const imgInput = this.backdrop.querySelector('#editor-img');
         const url = imgInput.value.trim();
@@ -1439,9 +1666,28 @@ class CardEditorModal {
         // Show loading state
         btn.classList.add('processing');
         btn.disabled = true;
-        btn.title = 'Processing...';
+        btn.title = 'Fetching image...';
 
         try {
+            // Fetch the image via proxy
+            const { base64: rawBase64, contentType } = await this.imageProcessor.fetchViaProxy(url);
+            const rawDataUrl = `data:${contentType};base64,${rawBase64}`;
+
+            // Show image editor for crop/rotate
+            btn.title = 'Edit image...';
+            const editedDataUrl = await imageEditor.open(rawDataUrl);
+
+            // User confirmed - now process the edited image
+            btn.title = 'Processing...';
+
+            // Load edited image into Image element
+            const img = await new Promise((resolve, reject) => {
+                const image = new Image();
+                image.onload = () => resolve(image);
+                image.onerror = reject;
+                image.src = editedDataUrl;
+            });
+
             // Get card data from form to generate filename
             const cardData = {
                 set: this.backdrop.querySelector('#editor-set')?.value || '',
@@ -1453,8 +1699,8 @@ class CardEditorModal {
             const filename = this.imageProcessor.generateFilename(cardData);
             const path = `${this.imageFolder}/${filename}`;
 
-            // Process the image and get base64 content
-            const base64Content = await this.imageProcessor.processFromUrl(url);
+            // Resize and convert to WebP
+            const { base64: base64Content } = await this.imageProcessor.processImage(img);
 
             // Commit via PR (will auto-merge)
             btn.title = 'Creating PR...';
@@ -1479,15 +1725,18 @@ class CardEditorModal {
             btn.title = 'Done! Image committed via PR';
 
         } catch (error) {
-            console.error('Image processing failed:', error);
-            alert('Failed to process image: ' + error.message);
+            // Don't show error if user just cancelled
+            if (error.message !== 'Cancelled') {
+                console.error('Image processing failed:', error);
+                alert('Failed to process image: ' + error.message);
+            }
         } finally {
             btn.classList.remove('processing');
             btn.disabled = false;
         }
     }
 
-    // Process a local file: read, resize, commit via PR, update field with path
+    // Process a local file: read, show editor, resize, commit via PR, update field with path
     async processLocalFile(file) {
         const imgInput = this.backdrop.querySelector('#editor-img');
         const btn = this.backdrop.querySelector('#editor-upload-img');
@@ -1507,7 +1756,7 @@ class CardEditorModal {
         // Show loading state
         btn.classList.add('processing');
         btn.disabled = true;
-        btn.title = 'Processing...';
+        btn.title = 'Loading...';
 
         try {
             // Read file as data URL
@@ -1518,12 +1767,19 @@ class CardEditorModal {
                 reader.readAsDataURL(file);
             });
 
-            // Load into image element
+            // Show image editor for crop/rotate
+            btn.title = 'Edit image...';
+            const editedDataUrl = await imageEditor.open(dataUrl);
+
+            // User confirmed - now process the edited image
+            btn.title = 'Processing...';
+
+            // Load edited image into Image element
             const img = await new Promise((resolve, reject) => {
                 const image = new Image();
                 image.onload = () => resolve(image);
                 image.onerror = reject;
-                image.src = dataUrl;
+                image.src = editedDataUrl;
             });
 
             // Get card data from form to generate filename
@@ -1566,8 +1822,11 @@ class CardEditorModal {
             this.backdrop.querySelector('#editor-img-file').value = '';
 
         } catch (error) {
-            console.error('Image upload failed:', error);
-            alert('Failed to upload image: ' + error.message);
+            // Don't show error if user just cancelled
+            if (error.message !== 'Cancelled') {
+                console.error('Image upload failed:', error);
+                alert('Failed to upload image: ' + error.message);
+            }
         } finally {
             btn.classList.remove('processing');
             btn.disabled = false;
@@ -1839,3 +2098,5 @@ window.StatsAnimator = StatsAnimator;
 window.CardEditorModal = CardEditorModal;
 window.AddCardButton = AddCardButton;
 window.ImageProcessor = ImageProcessor;
+window.ImageEditorModal = ImageEditorModal;
+window.imageEditor = imageEditor;
