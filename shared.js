@@ -1622,6 +1622,10 @@ class CardEditorModal {
                                     <span class="process-text">Process</span>
                                     <span class="process-spinner"></span>
                                 </button>
+                                <button type="button" class="card-editor-edit-btn" id="editor-edit-img" title="Edit existing image" style="display: none;">
+                                    <span class="edit-text">Edit</span>
+                                    <span class="edit-spinner"></span>
+                                </button>
                             </div>
                             <div class="card-editor-image-preview" id="editor-img-dropzone">
                                 <span class="placeholder">No image (or drag & drop here)</span>
@@ -1680,10 +1684,14 @@ class CardEditorModal {
         this.backdrop.querySelector('#editor-img').oninput = (e) => {
             this.updateImagePreview(e.target.value);
             this.updateProcessButton(e.target.value);
+            this.updateEditButton(e.target.value);
         };
 
         // Process image button
         this.backdrop.querySelector('#editor-process-img').onclick = () => this.processImage();
+
+        // Edit existing image button
+        this.backdrop.querySelector('#editor-edit-img').onclick = () => this.editExistingImage();
 
         // Upload image button
         this.backdrop.querySelector('#editor-upload-img').onclick = () => {
@@ -1748,6 +1756,71 @@ class CardEditorModal {
 
         const isEbay = this.imageProcessor.isProcessableUrl(url);
         btn.style.display = isEbay ? 'flex' : 'none';
+    }
+
+    // Update edit button visibility based on URL (show for local images)
+    updateEditButton(url) {
+        const btn = this.backdrop.querySelector('#editor-edit-img');
+        if (!btn) return;
+
+        // Show edit button for local images (in the imageFolder)
+        const isLocal = url && url.startsWith(this.imageFolder);
+        btn.style.display = isLocal ? 'flex' : 'none';
+    }
+
+    // Edit existing image: load into editor, save new version
+    async editExistingImage() {
+        const imgInput = this.backdrop.querySelector('#editor-img');
+        const url = imgInput.value.trim();
+        const btn = this.backdrop.querySelector('#editor-edit-img');
+
+        if (!url || !url.startsWith(this.imageFolder)) return;
+
+        // Check if githubSync is available and logged in
+        if (typeof githubSync === 'undefined' || !githubSync.isLoggedIn()) {
+            alert('Please sign in to edit images');
+            return;
+        }
+
+        btn.classList.add('processing');
+        btn.disabled = true;
+
+        try {
+            // Open the existing image in the editor
+            const editedDataUrl = await imageEditor.open(url);
+            if (!editedDataUrl) {
+                throw new Error('Cancelled');
+            }
+
+            // Convert data URL to base64
+            const base64Data = editedDataUrl.split(',')[1];
+
+            // Generate new filename (add _v2, _v3, etc. or timestamp)
+            const timestamp = Date.now();
+            const baseName = url.replace(/\.webp$/, '');
+            const newPath = `${baseName}_${timestamp}.webp`;
+
+            // Commit via PR
+            const committedPath = await githubSync.commitImage(newPath, base64Data);
+
+            // Update the input field
+            imgInput.value = committedPath;
+            this.updateImagePreview(`data:image/webp;base64,${base64Data}`);
+            this.updateProcessButton(committedPath);
+            this.updateEditButton(committedPath);
+            this.setDirty(true);
+
+            btn.title = 'Done! Edited image committed via PR';
+
+        } catch (error) {
+            if (error.message !== 'Cancelled') {
+                console.error('Image edit failed:', error);
+                alert('Failed to edit image: ' + error.message);
+            }
+        } finally {
+            btn.classList.remove('processing');
+            btn.disabled = false;
+        }
     }
 
     // Process image: fetch, show editor, resize, commit via PR, update field with path
@@ -1820,6 +1893,7 @@ class CardEditorModal {
             // Show the processed image as preview (path won't work until PR merges)
             this.updateImagePreview(`data:image/webp;base64,${base64Content}`);
             this.updateProcessButton(committedPath);
+            this.updateEditButton(committedPath);
             this.setDirty(true);
 
             // Show success message
@@ -1914,6 +1988,7 @@ class CardEditorModal {
             // Show the processed image as preview
             this.updateImagePreview(`data:image/webp;base64,${base64Content}`);
             this.updateProcessButton(committedPath);
+            this.updateEditButton(committedPath);
             this.setDirty(true);
 
             // Show success message
@@ -1973,6 +2048,7 @@ class CardEditorModal {
 
         this.updateImagePreview(cardData.img);
         this.updateProcessButton(cardData.img);
+        this.updateEditButton(cardData.img);
         this.setDirty(false);
         this.ebayManuallyEdited = false;
 
@@ -2018,6 +2094,7 @@ class CardEditorModal {
         }
         this.updateImagePreview('');
         this.updateProcessButton('');
+        this.updateEditButton('');
         this.setDirty(false);
         this.ebayManuallyEdited = false;
 
