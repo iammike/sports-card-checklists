@@ -405,15 +405,28 @@
 
             if (sortBy === 'default') {
                 // Show default sections, hide sorted section
-                defaultSections.forEach(s => s.style.display = '');
                 sortedSection.style.display = 'none';
                 document.getElementById('sorted-cards').innerHTML = '';
 
-                document.getElementById('college-cards').innerHTML = cards.college.map(createCardElement).join('');
-                document.getElementById('panini-cards').innerHTML = cards.panini.map(createCardElement).join('');
-                document.getElementById('topps-cards').innerHTML = cards.topps.map(createCardElement).join('');
-                document.getElementById('other-cards').innerHTML = cards.other.map(createCardElement).join('');
-                document.getElementById('insert-cards').innerHTML = cards.inserts.map(createCardElement).join('');
+                // Render each section, hiding if empty
+                const sections = [
+                    { id: 'college-cards', data: cards.college },
+                    { id: 'panini-cards', data: cards.panini },
+                    { id: 'topps-cards', data: cards.topps },
+                    { id: 'other-cards', data: cards.other },
+                    { id: 'insert-cards', data: cards.inserts }
+                ];
+                sections.forEach(({ id, data }) => {
+                    const el = document.getElementById(id);
+                    const section = el.closest('.section');
+                    if (data && data.length > 0) {
+                        el.innerHTML = data.map(createCardElement).join('');
+                        section.style.display = '';
+                    } else {
+                        el.innerHTML = '';
+                        section.style.display = 'none';
+                    }
+                });
             } else {
                 // Hide default sections, clear their content, show sorted section
                 defaultSections.forEach(s => s.style.display = 'none');
