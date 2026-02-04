@@ -29,8 +29,15 @@ A modern web app for tracking sports card collections with cloud sync, real-time
 - **Add new cards** - Add cards directly from the UI
 - **Edit card details** - Right-click or long-press to edit any card
 - **Delete cards** - Remove cards with confirmation
-- **Image processing** - Fetch eBay images, resize, convert to WebP, and commit via PR
 - **Schema-driven forms** - Custom fields per checklist type
+
+### Image Tools (Owner Only)
+- **Image editor** - Full-featured editor with crop, rotate, and flip tools (powered by Cropper.js)
+- **Fine rotation** - Rotation slider for precise straightening (-45° to +45°)
+- **Local file upload** - Upload images from your computer via button or drag & drop
+- **Multiple sources** - Fetch images from eBay or Beckett listings
+- **Auto-processing** - Images automatically resized and converted to WebP on save
+- **GitHub integration** - Processed images committed via PR with one click
 
 ### UI/UX
 - **Animated stats** - Numbers count up on first load
