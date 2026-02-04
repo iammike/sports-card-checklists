@@ -93,10 +93,21 @@ Then open http://localhost:8000
 
 ### Preview Deployments
 
-The site supports Cloudflare Pages preview deployments for testing:
-- Preview URLs: `https://<branch>.sports-card-checklists.pages.dev`
-- Automatic OAuth app switching based on domain
-- Worker supports both production and preview credentials
+The site supports Cloudflare Pages preview deployments for testing changes without affecting production data.
+
+**URLs:**
+- Production: `iammike.github.io/sports-card-checklists`
+- Preview (main): `sports-card-checklists.pages.dev`
+- Preview (branch): `<branch>.sports-card-checklists.pages.dev`
+
+**Gist Isolation:**
+- Preview sites use a separate gist so test changes don't affect production
+- "Sync from Production" button copies live data to preview for testing
+- Detection based on `.pages.dev` hostname
+
+**Worker Environment Variables:**
+- `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` - Production OAuth app
+- `GITHUB_CLIENT_ID_PREVIEW` / `GITHUB_CLIENT_SECRET_PREVIEW` - Preview OAuth app
 
 ### Project Structure
 ```
