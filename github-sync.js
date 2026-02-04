@@ -1,15 +1,20 @@
 // GitHub OAuth + Gist Storage for Sports Card Checklists
 //
 // Configuration: Set these values after creating your GitHub OAuth App and Cloudflare Worker
+const IS_PREVIEW = window.location.hostname.endsWith('.pages.dev');
 const CONFIG = {
     // Use preview OAuth app for pages.dev, production app for github.io
-    GITHUB_CLIENT_ID: window.location.hostname.endsWith('.pages.dev')
+    GITHUB_CLIENT_ID: IS_PREVIEW
         ? 'Ov23limT2ZxKxthkupeT'  // Preview app
         : 'Ov23liik9Fs5C6RCeTgf', // Production app
     OAUTH_PROXY_URL: 'https://cards-oauth.iammikec.workers.dev',
     GIST_FILENAME: 'sports-card-checklists.json',
     GIST_DESCRIPTION: 'Sports Card Checklist Collection Data',
-    PUBLIC_GIST_ID: '5f2b43f0588d72892273ae8f24f68c2d',
+    // Preview uses separate gist so testing doesn't affect production
+    PUBLIC_GIST_ID: IS_PREVIEW
+        ? 'ec645b5e213447ac37de95ffada2d31b'  // Preview gist
+        : '5f2b43f0588d72892273ae8f24f68c2d', // Production gist
+    PRODUCTION_GIST_ID: '5f2b43f0588d72892273ae8f24f68c2d', // For syncing preview from prod
 };
 
 // Storage keys
@@ -50,31 +55,75 @@ class GitHubSync {
 
     // Start OAuth flow
     login() {
-        const redirectUri = window.location.origin + window.location.pathname;
+        // For branch previews, use main pages.dev as OAuth callback, then redirect back
+        const isBranchPreview = IS_PREVIEW && !window.location.hostname.match(/^sports-card-checklists\.pages\.dev$/);
+        let redirectUri;
+        let returnUrl = null;
+        if (isBranchPreview) {
+            returnUrl = window.location.href;
+            redirectUri = 'https://sports-card-checklists.pages.dev/';
+        } else {
+            redirectUri = window.location.origin + window.location.pathname;
+        }
         const scope = 'gist public_repo'; // gist for owned cards, public_repo for card data edits
-        // Generate state parameter for CSRF protection
-        const state = crypto.randomUUID();
-        sessionStorage.setItem('oauth_state', state);
+        // Generate state parameter for CSRF protection (include return URL if branch preview)
+        const stateData = { csrf: crypto.randomUUID(), returnUrl };
+        const state = btoa(JSON.stringify(stateData));
+        sessionStorage.setItem('oauth_state', stateData.csrf);
         const authUrl = `https://github.com/login/oauth/authorize?client_id=${CONFIG.GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&state=${encodeURIComponent(state)}`;
         window.location.href = authUrl;
     }
 
     // Handle OAuth callback (call this on page load)
     async handleCallback() {
+        // Check for auth data passed via URL fragment (from branch preview redirect)
+        const hash = window.location.hash;
+        if (hash.startsWith('#auth=')) {
+            try {
+                const authData = JSON.parse(atob(hash.slice(6)));
+                this.token = authData.token;
+                this.user = authData.user;
+                this.gistId = authData.gistId;
+                localStorage.setItem(TOKEN_KEY, this.token);
+                localStorage.setItem(USER_KEY, JSON.stringify(this.user));
+                localStorage.setItem(GIST_ID_KEY, this.gistId);
+                // Clean URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+                if (this.onAuthChange) this.onAuthChange(true);
+                return true;
+            } catch (e) {
+                console.error('Failed to parse auth data from URL:', e);
+            }
+        }
+
         const params = new URLSearchParams(window.location.search);
         const code = params.get('code');
         const state = params.get('state');
 
         if (!code) return false;
 
-        // Verify state parameter for CSRF protection
+        // Parse state parameter (contains CSRF token and optional return URL)
+        let stateData = { csrf: null, returnUrl: null };
+        try {
+            stateData = JSON.parse(atob(state));
+        } catch (e) {
+            // Legacy: state might be just the CSRF token
+            stateData = { csrf: state, returnUrl: null };
+        }
+
+        // Verify CSRF token - check both sessionStorage (same-origin) and allow branch previews
         const expectedState = sessionStorage.getItem('oauth_state');
         sessionStorage.removeItem('oauth_state');
-        if (!state || state !== expectedState) {
+        // For branch preview redirects, we won't have sessionStorage, so trust the state if it has a valid returnUrl
+        const isBranchRedirect = stateData.returnUrl && stateData.returnUrl.includes('.pages.dev');
+        if (!isBranchRedirect && (!stateData.csrf || stateData.csrf !== expectedState)) {
             console.error('OAuth state mismatch - possible CSRF attack');
             window.history.replaceState({}, document.title, window.location.pathname);
             return false;
         }
+
+        // Store return URL for after auth completes
+        const returnUrl = stateData.returnUrl;
 
         // Clean URL
         window.history.replaceState({}, document.title, window.location.pathname);
@@ -103,6 +152,18 @@ class GitHubSync {
             // Find or create gist
             await this.findOrCreateGist();
 
+            // Check if we need to redirect back to a branch preview
+            if (returnUrl) {
+                // Pass auth data via URL fragment (not sent to server)
+                const authData = btoa(JSON.stringify({
+                    token: this.token,
+                    user: this.user,
+                    gistId: this.gistId
+                }));
+                window.location.href = returnUrl + '#auth=' + authData;
+                return true;
+            }
+
             if (this.onAuthChange) this.onAuthChange(true);
             return true;
         } catch (error) {
@@ -127,6 +188,54 @@ class GitHubSync {
         localStorage.removeItem(USER_KEY);
         localStorage.removeItem(GIST_ID_KEY);
         if (this.onAuthChange) this.onAuthChange(false);
+    }
+
+    // Check if running on preview environment
+    isPreview() {
+        return IS_PREVIEW;
+    }
+
+    // Sync preview gist from production (only works on preview sites)
+    async syncFromProduction() {
+        if (!IS_PREVIEW) {
+            throw new Error('Sync only available on preview sites');
+        }
+        if (!this.token) {
+            throw new Error('Must be logged in to sync');
+        }
+
+        // Fetch all data from production gist
+        const prodResponse = await fetch(`https://api.github.com/gists/${CONFIG.PRODUCTION_GIST_ID}`);
+        if (!prodResponse.ok) {
+            throw new Error('Failed to fetch production data');
+        }
+        const prodGist = await prodResponse.json();
+
+        // Copy all files to preview gist
+        const files = {};
+        for (const [filename, fileData] of Object.entries(prodGist.files)) {
+            files[filename] = { content: fileData.content };
+        }
+
+        // Update preview gist with production data
+        const previewGistId = CONFIG.PUBLIC_GIST_ID; // On preview, this is the preview gist
+        const updateResponse = await fetch(`https://api.github.com/gists/${previewGistId}`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${this.token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ files }),
+        });
+
+        if (!updateResponse.ok) {
+            throw new Error('Failed to update preview gist');
+        }
+
+        // Clear cache so next load gets fresh data
+        this._cachedData = null;
+
+        return true;
     }
 
     // Find existing gist or create new one
