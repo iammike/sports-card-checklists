@@ -219,6 +219,8 @@
                 if (gistData) {
                     checklistData = gistData;
                     cards = checklistData.categories;
+                    // Backwards compat: chase was renamed to premium
+                    if (cards.chase && !cards.premium) cards.premium = cards.chase;
                     return;
                 }
             }
@@ -227,6 +229,8 @@
             if (publicData) {
                 checklistData = publicData;
                 cards = checklistData.categories;
+                // Backwards compat: chase was renamed to premium
+                if (cards.chase && !cards.premium) cards.premium = cards.chase;
                 return;
             }
             throw new Error('Failed to load card data from gist');
