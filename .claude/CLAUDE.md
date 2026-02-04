@@ -1,5 +1,8 @@
 # Sports Card Checklists Project
 
+## Card Selection
+- **Avoid print-on-demand cards** - Do not add Topps Now or Panini Instant cards. These are made-to-order products, not traditional trading cards.
+
 ## Data Storage
 - **The GitHub Gist is the source of truth** for all collection data (owned cards, stats)
 - Never use localStorage as the primary data source - it won't work for online visitors
