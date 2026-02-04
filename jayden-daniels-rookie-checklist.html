@@ -54,27 +54,27 @@
             border-bottom: 1px solid rgba(243, 156, 18, 0.2);
         }
 
-        /* Chase section */
-        .section-header.chase {
+        /* Premium section */
+        .section-header.premium {
             background: linear-gradient(135deg, #f39c12 0%, #e74c3c 100%);
             cursor: pointer;
             user-select: none;
         }
-        .section-header.chase::after {
+        .section-header.premium::after {
             content: ' ▼';
             font-size: 12px;
             opacity: 0.7;
         }
-        .section-header.chase.collapsed::after {
+        .section-header.premium.collapsed::after {
             content: ' ▶';
         }
-        .chase-section .card-grid {
+        .premium-section .card-grid {
             display: none;
         }
-        .chase-section.expanded .card-grid {
+        .premium-section.expanded .card-grid {
             display: grid;
         }
-        .chase-note {
+        .premium-note {
             background: rgba(243, 156, 18, 0.1);
             color: #b36b00;
             padding: 10px 15px;
@@ -197,10 +197,10 @@
     </div>
 
     <!-- CHASE CARDS (expensive/rare) -->
-    <div class="section chase-section expanded" id="chase-section">
-        <div class="section-header chase" onclick="toggleChaseSection()">Chase Cards (SSP/Case Hits)</div>
-        <div class="chase-note">Rare SSPs and premium product cards ($50+). Not included in main checklist totals.</div>
-        <div class="card-grid" id="chase-cards"></div>
+    <div class="section premium-section expanded" id="premium-section">
+        <div class="section-header premium" onclick="togglePremiumSection()">Premium Cards (SSP/Case Hits)</div>
+        <div class="premium-note">Rare SSPs and premium product cards ($50+). Not included in main checklist totals.</div>
+        <div class="card-grid" id="premium-cards"></div>
     </div>
 
     </div><!-- end page-content -->
@@ -273,7 +273,7 @@
                 }
             });
             const ownedInserts = cards.inserts.filter(c => isOwned(getCardId(c))).length;
-            const ownedChase = cards.chase.filter(c => isOwned(getCardId(c))).length;
+            const ownedPremium = cards.premium.filter(c => isOwned(getCardId(c))).length;
 
             return {
                 owned: ownedVisible,
@@ -282,8 +282,8 @@
                 neededValue: Math.round(neededValue),
                 insertsOwned: ownedInserts,
                 insertsTotal: cards.inserts.length,
-                chaseOwned: ownedChase,
-                chaseTotal: cards.chase.length
+                premiumOwned: ownedPremium,
+                premiumTotal: cards.premium.length
             };
         }
 
@@ -301,8 +301,8 @@
             // Stats are now saved atomically with owned cards via getStats callback
         }
 
-        function toggleChaseSection() {
-            const section = document.getElementById('chase-section');
+        function togglePremiumSection() {
+            const section = document.getElementById('premium-section');
             const header = section.querySelector('.section-header');
             section.classList.toggle('expanded');
             header.classList.toggle('collapsed');
@@ -425,8 +425,8 @@
                 const sorted = sortCards(allCards, sortBy);
                 document.getElementById('sorted-cards').innerHTML = sorted.map(createCardElement).join('');
             }
-            // Always render chase cards (separate from sorting)
-            document.getElementById('chase-cards').innerHTML = cards.chase.map(createCardElement).join('');
+            // Always render premium cards (separate from sorting)
+            document.getElementById('premium-cards').innerHTML = cards.premium.map(createCardElement).join('');
             updateStats();
         }
 
@@ -456,7 +456,7 @@
                 variant: { label: 'Card Variant', type: 'text', placeholder: 'Silver Prizm /199', fullWidth: true }
             },
             imageFolder: 'jayden-daniels-cards',
-            categories: ['college', 'panini', 'topps', 'other', 'inserts', 'chase'],
+            categories: ['college', 'panini', 'topps', 'other', 'inserts', 'premium'],
             onSave: async (cardId, cardData, isNew) => {
                 if (isNew) {
                     // Add new card to appropriate category

@@ -1117,7 +1117,7 @@ class CardEditorModal {
         this.onSave = options.onSave || (() => {});
         this.onDelete = options.onDelete || (() => {});
         this.cardTypes = options.cardTypes || CARD_TYPES;
-        this.categories = options.categories || null; // e.g., ['panini', 'topps', 'inserts', 'chase']
+        this.categories = options.categories || null; // e.g., ['panini', 'topps', 'inserts', 'premium']
         this.imageFolder = options.imageFolder || 'images'; // folder for processed images
         this.currentCard = null;
         this.currentCardId = null;
