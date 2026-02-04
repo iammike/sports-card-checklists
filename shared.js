@@ -1295,7 +1295,14 @@ class ImageEditorModal {
 
     // Confirm - return cropped/edited image
     confirm() {
-        if (!this.cropper) return;
+        if (!this.cropper) {
+            // Cropper not initialized - reject with error
+            this.close();
+            if (this.rejectPromise) {
+                this.rejectPromise(new Error('Image editor not ready'));
+            }
+            return;
+        }
 
         try {
             // Get cropped canvas
@@ -1303,6 +1310,10 @@ class ImageEditorModal {
                 maxWidth: 1200,
                 maxHeight: 1200,
             });
+
+            if (!canvas) {
+                throw new Error('Failed to get cropped image');
+            }
 
             // Convert to data URL
             const dataUrl = canvas.toDataURL('image/png');
@@ -1312,6 +1323,7 @@ class ImageEditorModal {
                 this.resolvePromise(dataUrl);
             }
         } catch (error) {
+            this.close();
             if (this.rejectPromise) {
                 this.rejectPromise(error);
             }
