@@ -1456,9 +1456,22 @@ class CardEditorModal {
         return parts.filter(Boolean).join('+').toLowerCase().replace(/\s+/g, '+');
     }
 
+    // Check if running on a preview site (not production)
+    isPreviewSite() {
+        const hostname = window.location.hostname;
+        // Preview sites are on .pages.dev but not the main domain
+        if (hostname.endsWith('.pages.dev') && !hostname.startsWith('sports-card-checklists.')) {
+            return true;
+        }
+        return false;
+    }
+
     // Generate HTML for custom fields based on schema
-    generateCustomFieldsHtml() {
-        return Object.entries(this.customFields).map(([fieldName, config]) => {
+    // position: 'top' (before set) or 'after-num' (after card number)
+    generateCustomFieldsHtml(position = 'top') {
+        return Object.entries(this.customFields)
+            .filter(([_, config]) => (config.position || 'top') === position)
+            .map(([fieldName, config]) => {
             const id = `editor-${fieldName}`;
             const fullWidth = config.fullWidth ? ' full-width' : '';
             const placeholder = config.placeholder || '';
@@ -1569,10 +1582,21 @@ class CardEditorModal {
                 </div>
                 <div class="card-editor-body">
                     <div class="card-editor-grid">
-                        ${this.generateCustomFieldsHtml()}
+                        ${this.generateCustomFieldsHtml('top')}
                         <div class="card-editor-field full-width">
                             <label class="card-editor-label">Set Name</label>
                             <input type="text" class="card-editor-input" id="editor-set" placeholder="2024 Panini Prizm">
+                        </div>
+                        <div class="card-editor-field">
+                            <label class="card-editor-label">Card Number</label>
+                            <input type="text" class="card-editor-input" id="editor-num" placeholder="123">
+                        </div>
+                        ${this.generateCustomFieldsHtml('after-num')}
+                        <div class="card-editor-field">
+                            <label class="card-editor-label">Card Type</label>
+                            <select class="card-editor-select" id="editor-type">
+                                ${this.cardTypes.map(t => `<option value="${t}">${t}</option>`).join('')}
+                            </select>
                         </div>
                         ${this.categories ? `<div class="card-editor-field">
                             <label class="card-editor-label">Section</label>
@@ -1585,16 +1609,6 @@ class CardEditorModal {
                             </select>
                         </div>` : ''}
                         <div class="card-editor-field">
-                            <label class="card-editor-label">Card Number</label>
-                            <input type="text" class="card-editor-input" id="editor-num" placeholder="123">
-                        </div>
-                        <div class="card-editor-field">
-                            <label class="card-editor-label">Card Type</label>
-                            <select class="card-editor-select" id="editor-type">
-                                ${this.cardTypes.map(t => `<option value="${t}">${t}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div class="card-editor-field">
                             <label class="card-editor-label">Autographed</label>
                             <label class="card-editor-checkbox">
                                 <input type="checkbox" id="editor-auto">
@@ -1605,7 +1619,7 @@ class CardEditorModal {
                             <label class="card-editor-label">Price ($)</label>
                             <input type="number" class="card-editor-input" id="editor-price" placeholder="Auto-estimate" step="0.01" min="0">
                         </div>
-                        <div class="card-editor-field">
+                        <div class="card-editor-field full-width">
                             <label class="card-editor-label">eBay Search Term</label>
                             <input type="text" class="card-editor-input" id="editor-ebay" placeholder="Auto-generate">
                         </div>
@@ -1614,15 +1628,15 @@ class CardEditorModal {
                             <div class="card-editor-image-input-row">
                                 <input type="text" class="card-editor-input" id="editor-img" placeholder="URL or upload file...">
                                 <input type="file" id="editor-img-file" accept="image/*" style="display: none;">
-                                <button type="button" class="card-editor-upload-btn" id="editor-upload-img" title="Upload local image">
+                                <button type="button" class="card-editor-upload-btn" id="editor-upload-img" title="${this.isPreviewSite() ? 'Uploads disabled on preview sites' : 'Upload local image'}" ${this.isPreviewSite() ? 'disabled' : ''}>
                                     <span class="upload-text">Upload</span>
                                     <span class="upload-spinner"></span>
                                 </button>
-                                <button type="button" class="card-editor-process-btn" id="editor-process-img" title="Process image">
+                                <button type="button" class="card-editor-process-btn" id="editor-process-img" title="${this.isPreviewSite() ? 'Processing disabled on preview sites' : 'Process image'}" ${this.isPreviewSite() ? 'disabled' : ''}>
                                     <span class="process-text">Process</span>
                                     <span class="process-spinner"></span>
                                 </button>
-                                <button type="button" class="card-editor-edit-btn" id="editor-edit-img" title="Edit existing image" style="display: none;">
+                                <button type="button" class="card-editor-edit-btn" id="editor-edit-img" title="${this.isPreviewSite() ? 'Editing disabled on preview sites' : 'Edit existing image'}" style="display: none;" ${this.isPreviewSite() ? 'disabled' : ''}>
                                     <span class="edit-text">Edit</span>
                                     <span class="edit-spinner"></span>
                                 </button>
