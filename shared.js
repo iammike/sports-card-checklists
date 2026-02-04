@@ -1333,9 +1333,10 @@ class ImageEditorModal {
         if (!this.cropper) {
             // Cropper not initialized - reject with error
             console.error('ImageEditor: No cropper instance');
+            const reject = this.rejectPromise;
             this.close();
-            if (this.rejectPromise) {
-                this.rejectPromise(new Error('Image editor not ready'));
+            if (reject) {
+                reject(new Error('Image editor not ready'));
             }
             return;
         }
@@ -1359,28 +1360,32 @@ class ImageEditorModal {
             const dataUrl = canvas.toDataURL('image/png');
             console.log('ImageEditor: Data URL length:', dataUrl?.length);
 
+            // Save resolve function before close() clears it
+            const resolve = this.resolvePromise;
             this.close();
             console.log('ImageEditor: Resolving promise...');
-            if (this.resolvePromise) {
-                this.resolvePromise(dataUrl);
+            if (resolve) {
+                resolve(dataUrl);
                 console.log('ImageEditor: Promise resolved');
             } else {
                 console.error('ImageEditor: No resolvePromise!');
             }
         } catch (error) {
             console.error('ImageEditor: Error in confirm():', error);
+            const reject = this.rejectPromise;
             this.close();
-            if (this.rejectPromise) {
-                this.rejectPromise(error);
+            if (reject) {
+                reject(error);
             }
         }
     }
 
     // Cancel - reject promise
     cancel() {
+        const reject = this.rejectPromise;
         this.close();
-        if (this.rejectPromise) {
-            this.rejectPromise(new Error('Cancelled'));
+        if (reject) {
+            reject(new Error('Cancelled'));
         }
     }
 
