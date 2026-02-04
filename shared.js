@@ -2042,9 +2042,14 @@ class CardEditorModal {
         const data = {
             set: this.backdrop.querySelector('#editor-set').value.trim(),
             num: num,
-            type: this.backdrop.querySelector('#editor-type').value,
-            img: this.backdrop.querySelector('#editor-img').value.trim()
+            type: this.backdrop.querySelector('#editor-type').value
         };
+
+        // Image - only include if set (so clearing can delete it)
+        const imgVal = this.backdrop.querySelector('#editor-img').value.trim();
+        if (imgVal) {
+            data.img = imgVal;
+        }
 
         // Category - only include if field exists
         const categoryField = this.backdrop.querySelector('#editor-category');
