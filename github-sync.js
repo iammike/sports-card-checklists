@@ -76,6 +76,26 @@ class GitHubSync {
 
     // Handle OAuth callback (call this on page load)
     async handleCallback() {
+        // Check for auth data passed via URL fragment (from branch preview redirect)
+        const hash = window.location.hash;
+        if (hash.startsWith('#auth=')) {
+            try {
+                const authData = JSON.parse(atob(hash.slice(6)));
+                this.token = authData.token;
+                this.user = authData.user;
+                this.gistId = authData.gistId;
+                localStorage.setItem(TOKEN_KEY, this.token);
+                localStorage.setItem(USER_KEY, JSON.stringify(this.user));
+                localStorage.setItem(GIST_ID_KEY, this.gistId);
+                // Clean URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+                if (this.onAuthChange) this.onAuthChange(true);
+                return true;
+            } catch (e) {
+                console.error('Failed to parse auth data from URL:', e);
+            }
+        }
+
         const params = new URLSearchParams(window.location.search);
         const code = params.get('code');
         const state = params.get('state');
@@ -134,7 +154,13 @@ class GitHubSync {
 
             // Check if we need to redirect back to a branch preview
             if (returnUrl) {
-                window.location.href = returnUrl;
+                // Pass auth data via URL fragment (not sent to server)
+                const authData = btoa(JSON.stringify({
+                    token: this.token,
+                    user: this.user,
+                    gistId: this.gistId
+                }));
+                window.location.href = returnUrl + '#auth=' + authData;
                 return true;
             }
 
