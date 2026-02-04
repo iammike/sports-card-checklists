@@ -1328,8 +1328,11 @@ class ImageEditorModal {
 
     // Confirm - return cropped/edited image
     confirm() {
+        console.log('ImageEditor: confirm() called, cropper:', !!this.cropper);
+
         if (!this.cropper) {
             // Cropper not initialized - reject with error
+            console.error('ImageEditor: No cropper instance');
             this.close();
             if (this.rejectPromise) {
                 this.rejectPromise(new Error('Image editor not ready'));
@@ -1338,24 +1341,34 @@ class ImageEditorModal {
         }
 
         try {
+            console.log('ImageEditor: Getting cropped canvas...');
             // Get cropped canvas
             const canvas = this.cropper.getCroppedCanvas({
                 maxWidth: 1200,
                 maxHeight: 1200,
             });
 
+            console.log('ImageEditor: Canvas result:', !!canvas, canvas?.width, canvas?.height);
+
             if (!canvas) {
                 throw new Error('Failed to get cropped image');
             }
 
             // Convert to data URL
+            console.log('ImageEditor: Converting to data URL...');
             const dataUrl = canvas.toDataURL('image/png');
+            console.log('ImageEditor: Data URL length:', dataUrl?.length);
 
             this.close();
+            console.log('ImageEditor: Resolving promise...');
             if (this.resolvePromise) {
                 this.resolvePromise(dataUrl);
+                console.log('ImageEditor: Promise resolved');
+            } else {
+                console.error('ImageEditor: No resolvePromise!');
             }
         } catch (error) {
+            console.error('ImageEditor: Error in confirm():', error);
             this.close();
             if (this.rejectPromise) {
                 this.rejectPromise(error);
