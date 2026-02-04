@@ -493,6 +493,7 @@
                         if (!('img' in cardData)) delete card.img;
                         if (!('achievement' in cardData)) delete card.achievement;
                         if (!('auto' in cardData)) delete card.auto;
+                        if (!cardData.variant) delete card.variant;
                         // Remove from old category
                         cards[oldCategory].splice(index, 1);
                         // Insert into (possibly new) category

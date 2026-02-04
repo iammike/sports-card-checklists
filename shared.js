@@ -1530,13 +1530,12 @@ class CardEditorModal {
                 data[fieldName] = el.value;
             } else {
                 const val = el.value.trim();
-                if (val) {
-                    // Parse comma-separated values if configured
-                    if (config.parseArray) {
-                        data[fieldName] = val.split(',').map(v => v.trim()).filter(v => v);
-                    } else {
-                        data[fieldName] = val;
-                    }
+                // Parse comma-separated values if configured
+                if (config.parseArray) {
+                    data[fieldName] = val ? val.split(',').map(v => v.trim()).filter(v => v) : [];
+                } else {
+                    // Always include the value (even empty string) so calling code can clear fields
+                    data[fieldName] = val;
                 }
             }
         }
