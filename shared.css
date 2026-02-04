@@ -1790,6 +1790,30 @@ select, input[type="text"] {
     font-variant-numeric: tabular-nums;
 }
 
+.image-editor-step-btn {
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+}
+
+.image-editor-step-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.image-editor-step-btn:active {
+    background: rgba(255, 255, 255, 0.35);
+}
+
 @media (max-width: 600px) {
     .image-editor-modal {
         width: 100vw;
