@@ -252,6 +252,14 @@ class GitHubSync {
     async findOrCreateGist() {
         if (!this.token) return null;
 
+        // On preview sites, always use the preview gist - don't search
+        // This prevents finding the wrong gist when multiple exist with same filename
+        if (IS_PREVIEW) {
+            this.gistId = CONFIG.PUBLIC_GIST_ID;
+            localStorage.setItem(GIST_ID_KEY, this.gistId);
+            return this.gistId;
+        }
+
         // Check if we have a cached gist ID
         if (this.gistId) {
             try {
@@ -264,7 +272,7 @@ class GitHubSync {
             }
         }
 
-        // Search for existing gist
+        // Search for existing gist (production only)
         const response = await fetch('https://api.github.com/gists', {
             headers: { 'Authorization': `Bearer ${this.token}` },
         });
@@ -355,7 +363,6 @@ class GitHubSync {
         if (!this.token) return false;
 
         const gistId = this.getActiveGistId();
-        console.log('[DEBUG] saveData - IS_PREVIEW:', IS_PREVIEW, 'gistId:', gistId, 'this.gistId:', this.gistId);
         if (!gistId) {
             await this.findOrCreateGist();
         }
@@ -363,9 +370,7 @@ class GitHubSync {
         // Queue saves to prevent concurrent writes
         this._saveQueue = this._saveQueue.then(async () => {
             try {
-                const targetGistId = this.getActiveGistId();
-                console.log('[DEBUG] saveData PATCH to gist:', targetGistId);
-                const response = await fetch(`https://api.github.com/gists/${targetGistId}`, {
+                const response = await fetch(`https://api.github.com/gists/${this.getActiveGistId()}`, {
                     method: 'PATCH',
                     headers: {
                         'Authorization': `Bearer ${this.token}`,
