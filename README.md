@@ -47,7 +47,7 @@ A modern web app for tracking sports card collections with cloud sync, real-time
 - **Responsive design** - Works on desktop and mobile
 - **Print-friendly** - Clean layout for printing checklists
 - **Direct eBay links** - One-click search for any card
-- **Price guide links** - Quick access to SportsCardsPro pricing
+- **Price guide links** - Quick access to price lookups
 
 ## Checklists
 
