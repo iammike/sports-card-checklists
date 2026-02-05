@@ -1697,30 +1697,20 @@ select, input[type="text"] {
     display: block;
 }
 
-/* Unified control bar - three-zone layout for centered rotation */
+/* Two-row control layout: tools + slider on top, text input below */
 .image-editor-controls {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
+    gap: 8px;
     padding: 12px 24px;
 }
 
-.image-editor-controls-side {
+.image-editor-controls-row {
     display: flex;
     align-items: center;
-    gap: 4px;
-    width: 84px; /* Fixed width for balance: 2 buttons (36px) + gap */
-}
-
-.image-editor-controls-side:last-child {
-    justify-content: flex-end;
-}
-
-.image-editor-controls-center {
-    display: flex;
-    align-items: center;
+    justify-content: center;
     gap: 6px;
-    padding: 0 12px;
 }
 
 .image-editor-tool {
@@ -1907,20 +1897,11 @@ select, input[type="text"] {
     }
 
     .image-editor-controls {
-        flex-wrap: wrap;
-        gap: 8px;
         padding: 12px 16px;
     }
 
-    .image-editor-controls-side {
-        width: auto;
-    }
-
-    .image-editor-controls-center {
-        width: 100%;
-        justify-content: center;
-        order: -1;
-        padding: 0 0 8px 0;
+    .image-editor-controls-row {
+        flex-wrap: wrap;
     }
 
     .image-editor-slider {
