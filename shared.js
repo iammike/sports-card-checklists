@@ -1624,15 +1624,15 @@ class CardEditorModal {
                             <div class="card-editor-image-input-row">
                                 <input type="text" class="card-editor-input" id="editor-img" placeholder="URL or upload file...">
                                 <input type="file" id="editor-img-file" accept="image/*" style="display: none;">
-                                <button type="button" class="card-editor-upload-btn" id="editor-upload-img" title="${this.isPreviewSite() ? 'Uploads disabled on preview sites' : 'Upload local image'}" ${this.isPreviewSite() ? 'disabled' : ''}>
+                                <button type="button" class="card-editor-upload-btn" id="editor-upload-img" title="Upload local image">
                                     <span class="upload-text">Upload</span>
                                     <span class="upload-spinner"></span>
                                 </button>
-                                <button type="button" class="card-editor-process-btn" id="editor-process-img" title="${this.isPreviewSite() ? 'Processing disabled on preview sites' : 'Process image'}" ${this.isPreviewSite() ? 'disabled' : ''}>
+                                <button type="button" class="card-editor-process-btn" id="editor-process-img" title="Process image">
                                     <span class="process-text">Process</span>
                                     <span class="process-spinner"></span>
                                 </button>
-                                <button type="button" class="card-editor-edit-btn" id="editor-edit-img" title="${this.isPreviewSite() ? 'Editing disabled on preview sites' : 'Edit existing image'}" style="display: none;" ${this.isPreviewSite() ? 'disabled' : ''}>
+                                <button type="button" class="card-editor-edit-btn" id="editor-edit-img" title="Edit existing image" style="display: none;">
                                     <span class="edit-text">Edit</span>
                                     <span class="edit-spinner"></span>
                                 </button>
@@ -1838,6 +1838,16 @@ class CardEditorModal {
             const newPath = `${baseName}_${timestamp}.webp`;
             const filename = newPath.split('/').pop();
 
+            // On preview sites, show the result but don't commit
+            if (this.isPreviewSite()) {
+                imgInput.value = newPath;
+                this.updateImagePreview(`data:image/webp;base64,${base64Data}`);
+                this.updateProcessButton(newPath);
+                this.updateEditButton(newPath);
+                alert('Preview site: Image edited but not saved. Commits are disabled on preview deployments.');
+                return;
+            }
+
             // Commit via PR
             btn.title = 'Creating PR...';
             const committedPath = await githubSync.commitImageViaPR(
@@ -1924,6 +1934,16 @@ class CardEditorModal {
 
             // Resize and convert to WebP
             const { base64: base64Content } = await this.imageProcessor.processImage(img);
+
+            // On preview sites, show the result but don't commit
+            if (this.isPreviewSite()) {
+                imgInput.value = path;
+                this.updateImagePreview(`data:image/webp;base64,${base64Content}`);
+                this.updateProcessButton(path);
+                this.updateEditButton(path);
+                alert('Preview site: Image processed but not saved. Commits are disabled on preview deployments.');
+                return;
+            }
 
             // Commit via PR (will auto-merge)
             btn.title = 'Creating PR...';
@@ -2021,6 +2041,16 @@ class CardEditorModal {
 
             // Process the image (resize, convert to webp)
             const { base64: base64Content } = await this.imageProcessor.processImage(img);
+
+            // On preview sites, show the result but don't commit
+            if (this.isPreviewSite()) {
+                imgInput.value = path;
+                this.updateImagePreview(`data:image/webp;base64,${base64Content}`);
+                this.updateProcessButton(path);
+                this.updateEditButton(path);
+                alert('Preview site: Image uploaded but not saved. Commits are disabled on preview deployments.');
+                return;
+            }
 
             // Commit via PR (will auto-merge)
             btn.title = 'Creating PR...';
