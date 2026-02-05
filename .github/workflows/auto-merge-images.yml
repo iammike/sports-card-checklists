@@ -4,9 +4,9 @@ on:
   pull_request:
     types: [opened]
     paths:
-      - 'jayden-daniels-cards/**'
-      - 'washington-qbs-cards/**'
-      - 'jmu-cards/**'
+      - 'images/jayden-daniels/**'
+      - 'images/washington-qbs/**'
+      - 'images/jmu-pro-players/**'
 
 permissions:
   contents: write
@@ -28,7 +28,7 @@ jobs:
 
           # Check all files are in image folders
           for FILE in $FILES; do
-            if [[ ! "$FILE" =~ ^(jayden-daniels-cards|washington-qbs-cards|jmu-cards)/.+\.(webp|png|jpg|jpeg)$ ]]; then
+            if [[ ! "$FILE" =~ ^images/(jayden-daniels|washington-qbs|jmu-pro-players)/.+\.(webp|png|jpg|jpeg)$ ]]; then
               echo "Non-image file found: $FILE"
               echo "should_merge=false" >> $GITHUB_OUTPUT
               exit 0
