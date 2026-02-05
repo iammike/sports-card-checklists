@@ -1794,6 +1794,20 @@ class CardEditorModal {
         btn.style.display = isLocal ? 'flex' : 'none';
     }
 
+    // Set image processing state - disables Save button while processing
+    setImageProcessing(isProcessing) {
+        const saveBtn = this.backdrop.querySelector('.card-editor-btn.save');
+        if (saveBtn) {
+            saveBtn.disabled = isProcessing;
+            if (isProcessing) {
+                saveBtn.dataset.originalText = saveBtn.textContent;
+                saveBtn.textContent = 'Processing...';
+            } else if (saveBtn.dataset.originalText) {
+                saveBtn.textContent = saveBtn.dataset.originalText;
+            }
+        }
+    }
+
     // Edit existing image: load into editor, save new version
     async editExistingImage() {
         const imgInput = this.backdrop.querySelector('#editor-img');
@@ -1810,6 +1824,7 @@ class CardEditorModal {
 
         btn.classList.add('processing');
         btn.disabled = true;
+        this.setImageProcessing(true);
 
         try {
             // Open the existing image in the editor
@@ -1856,6 +1871,7 @@ class CardEditorModal {
         } finally {
             btn.classList.remove('processing');
             btn.disabled = false;
+            this.setImageProcessing(false);
         }
     }
 
@@ -1877,6 +1893,7 @@ class CardEditorModal {
         btn.classList.add('processing');
         btn.disabled = true;
         btn.title = 'Fetching image...';
+        this.setImageProcessing(true);
 
         try {
             // Fetch the image via proxy
@@ -1944,6 +1961,7 @@ class CardEditorModal {
         } finally {
             btn.classList.remove('processing');
             btn.disabled = false;
+            this.setImageProcessing(false);
         }
     }
 
@@ -1968,6 +1986,7 @@ class CardEditorModal {
         btn.classList.add('processing');
         btn.disabled = true;
         btn.title = 'Loading...';
+        this.setImageProcessing(true);
 
         try {
             // Read file as data URL
@@ -2042,6 +2061,7 @@ class CardEditorModal {
         } finally {
             btn.classList.remove('processing');
             btn.disabled = false;
+            this.setImageProcessing(false);
         }
     }
 
