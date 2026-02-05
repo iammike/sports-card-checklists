@@ -1697,21 +1697,40 @@ select, input[type="text"] {
     display: block;
 }
 
-.image-editor-toolbar {
+/* Unified control bar - single row with three zones */
+.image-editor-controls {
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 16px;
+    padding: 12px 16px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    margin: 12px 24px;
+}
+
+.image-editor-controls-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.image-editor-controls-center {
+    display: flex;
+    align-items: center;
     gap: 8px;
-    padding: 16px 0 8px;
+    padding: 0 12px;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .image-editor-tool {
-    width: 44px;
-    height: 44px;
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
     background: rgba(255, 255, 255, 0.05);
-    color: rgba(255, 255, 255, 0.8);
+    color: rgba(255, 255, 255, 0.7);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -1720,25 +1739,18 @@ select, input[type="text"] {
 }
 
 .image-editor-tool svg {
-    width: 22px;
-    height: 22px;
+    width: 18px;
+    height: 18px;
 }
 
 .image-editor-tool:hover {
     background: rgba(255, 255, 255, 0.15);
     color: white;
-    border-color: rgba(255, 255, 255, 0.4);
+    border-color: rgba(255, 255, 255, 0.3);
 }
 
 .image-editor-tool:active {
     transform: scale(0.95);
-}
-
-.image-editor-divider {
-    width: 1px;
-    height: 28px;
-    background: rgba(255, 255, 255, 0.15);
-    margin: 0 8px;
 }
 
 .image-editor-footer {
@@ -1780,29 +1792,9 @@ select, input[type="text"] {
     filter: brightness(1.1);
 }
 
-/* Image Editor Sliders */
-.image-editor-sliders {
-    padding: 8px 0;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.image-editor-slider-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.image-editor-slider-label {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.6);
-    min-width: 70px;
-}
-
+/* Rotation slider and input in center zone */
 .image-editor-slider {
-    flex: 1;
-    max-width: 200px;
+    width: 100px;
     height: 4px;
     -webkit-appearance: none;
     appearance: none;
@@ -1814,36 +1806,34 @@ select, input[type="text"] {
 .image-editor-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
     background: white;
     cursor: pointer;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .image-editor-slider::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
     background: white;
     cursor: pointer;
     border: none;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
-.image-editor-slider-value {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.8);
-    min-width: 36px;
-    text-align: right;
-    font-variant-numeric: tabular-nums;
+.image-editor-rotation-value {
+    display: flex;
+    align-items: center;
+    gap: 1px;
 }
 
 .image-editor-rotation-input {
-    width: 50px;
+    width: 42px;
     padding: 4px 6px;
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 4px;
     background: rgba(0, 0, 0, 0.3);
     color: white;
@@ -1855,8 +1845,8 @@ select, input[type="text"] {
 
 .image-editor-rotation-input:focus {
     outline: none;
-    border-color: rgba(255, 255, 255, 0.5);
-    background: rgba(0, 0, 0, 0.5);
+    border-color: rgba(255, 255, 255, 0.4);
+    background: rgba(0, 0, 0, 0.4);
 }
 
 /* Hide number input spinners */
@@ -1870,9 +1860,8 @@ select, input[type="text"] {
 }
 
 .image-editor-rotation-unit {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.6);
-    margin-left: -4px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.5);
 }
 
 .image-editor-step-btn {
@@ -1880,23 +1869,24 @@ select, input[type="text"] {
     height: 24px;
     border: none;
     border-radius: 4px;
-    background: rgba(255, 255, 255, 0.15);
-    color: white;
-    font-size: 16px;
-    font-weight: bold;
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 14px;
+    font-weight: 600;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.15s;
+    transition: all 0.15s;
 }
 
 .image-editor-step-btn:hover {
-    background: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
 }
 
 .image-editor-step-btn:active {
-    background: rgba(255, 255, 255, 0.35);
+    transform: scale(0.95);
 }
 
 @media (max-width: 600px) {
@@ -1913,7 +1903,18 @@ select, input[type="text"] {
         flex: 1;
     }
 
-    .image-editor-toolbar {
+    .image-editor-controls {
         flex-wrap: wrap;
+        gap: 12px;
+        margin: 8px 12px;
+    }
+
+    .image-editor-controls-center {
+        order: 1;
+        width: 100%;
+        justify-content: center;
+        border: none;
+        padding: 8px 0 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
     }
 }
