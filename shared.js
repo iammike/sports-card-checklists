@@ -1703,7 +1703,7 @@ class CardEditorModal {
                     ${innerHtml}
                     <div class="card-editor-attr-text card-editor-attr-price">
                         <label for="editor-price">Price:</label>
-                        <input type="number" class="card-editor-input" id="editor-price" placeholder="Auto" step="0.01" min="0">
+                        <input type="number" class="card-editor-input" id="editor-price" placeholder="Auto" step="1" min="0">
                     </div>
                 </div>
             </div>`;
@@ -1934,6 +1934,16 @@ class CardEditorModal {
             advancedFields.style.display = isHidden ? 'flex' : 'none';
             advancedToggle.textContent = isHidden ? 'Hide advanced' : 'Advanced';
         };
+
+        // Dynamic price step: scale increments with value
+        const priceInput = this.backdrop.querySelector('#editor-price');
+        priceInput.addEventListener('input', () => {
+            const val = parseFloat(priceInput.value) || 0;
+            if (val >= 100) priceInput.step = 25;
+            else if (val >= 50) priceInput.step = 10;
+            else if (val >= 20) priceInput.step = 5;
+            else priceInput.step = 1;
+        });
 
         // Track manual edits to eBay search term
         this.backdrop.querySelector('#editor-ebay').oninput = () => {
