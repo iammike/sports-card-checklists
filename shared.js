@@ -1253,14 +1253,14 @@ class ImageEditorModal {
             this.setFineRotation = setFineRotation;
 
             // Slider input - update in real-time
-            rotateSlider.oninput = () => setRotation(rotateSlider.value);
+            rotateSlider.oninput = () => setFineRotation(rotateSlider.value);
 
             // Text input - only apply on blur/enter to allow typing "-" and "."
-            rotateInput.onchange = () => setRotation(rotateInput.value);
+            rotateInput.onchange = () => setFineRotation(rotateInput.value);
             rotateInput.onkeydown = (e) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();
-                    setRotation(rotateInput.value);
+                    setFineRotation(rotateInput.value);
                     rotateInput.blur();
                 }
             };
@@ -1268,11 +1268,11 @@ class ImageEditorModal {
             rotateInput.onfocus = () => rotateInput.select();
 
             // Double-click slider to reset
-            rotateSlider.ondblclick = () => setRotation(0);
+            rotateSlider.ondblclick = () => setFineRotation(0);
 
             // +/- buttons for fine adjustment
-            this.backdrop.querySelector('#rotate-minus').onclick = () => setRotation(parseFloat(rotateSlider.value) - 0.5);
-            this.backdrop.querySelector('#rotate-plus').onclick = () => setRotation(parseFloat(rotateSlider.value) + 0.5);
+            this.backdrop.querySelector('#rotate-minus').onclick = () => setFineRotation(parseFloat(rotateSlider.value) - 0.5);
+            this.backdrop.querySelector('#rotate-plus').onclick = () => setFineRotation(parseFloat(rotateSlider.value) + 0.5);
         }
 
         // Escape key to close
