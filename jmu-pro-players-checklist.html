@@ -549,7 +549,7 @@
                 rc: { label: 'RC', type: 'checkbox', position: 'attributes' },
                 auto: { label: 'Auto', type: 'checkbox', position: 'attributes' },
                 patch: { label: 'Patch', type: 'checkbox', position: 'attributes' },
-                serial: { label: 'Serial', type: 'text', placeholder: '/99', position: 'attributes' }
+                serial: { label: 'Serial', type: 'text', placeholder: '99', position: 'attributes' }
             },
             categories: [
                 { value: 'NFL', label: 'NFL' },
@@ -577,6 +577,9 @@
                     if (cardData.img) newCard.img = cardData.img;
                     if (cardData.price !== undefined) newCard.price = cardData.price;
                     if (cardData.auto) newCard.auto = true;
+                    if (cardData.rc) newCard.rc = true;
+                    if (cardData.patch) newCard.patch = true;
+                    if (cardData.serial) newCard.serial = cardData.serial;
                     if (!cardData.ebay) {
                         newCard.search = `${newCard.player.replace(/\s+/g, '+')}+${newCard.set.replace(/\s+/g, '+')}`;
                     } else {
@@ -609,6 +612,12 @@
                         else delete card.img;
                         if ('auto' in cardData) card.auto = cardData.auto;
                         else delete card.auto;
+                        if ('rc' in cardData) card.rc = cardData.rc;
+                        else delete card.rc;
+                        if ('patch' in cardData) card.patch = cardData.patch;
+                        else delete card.patch;
+                        if (cardData.serial) card.serial = cardData.serial;
+                        else delete card.serial;
                         if (cardData.ebay) card.search = cardData.ebay;
                         if (cardData.priceSearch) card.priceSearch = cardData.priceSearch;
                         else delete card.priceSearch;

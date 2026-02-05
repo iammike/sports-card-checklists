@@ -751,7 +751,7 @@
                 rc: { label: 'RC', type: 'checkbox', position: 'attributes' },
                 auto: { label: 'Auto', type: 'checkbox', position: 'attributes' },
                 patch: { label: 'Patch', type: 'checkbox', position: 'attributes' },
-                serial: { label: 'Serial', type: 'text', placeholder: '/99', position: 'attributes' }
+                serial: { label: 'Serial', type: 'text', placeholder: '99', position: 'attributes' }
             },
             imageFolder: 'images/washington-qbs',
             onSave: async (cardId, cardData, isNew) => {
@@ -769,6 +769,9 @@
                     if (cardData.price) newCard.price = cardData.price;
                     if (cardData.img) newCard.img = cardData.img;
                     if (cardData.auto) newCard.auto = true;
+                    if (cardData.rc) newCard.rc = true;
+                    if (cardData.patch) newCard.patch = true;
+                    if (cardData.serial) newCard.serial = cardData.serial;
                     if (cardData.achievement && cardData.achievement.length > 0) {
                         newCard.achievement = cardData.achievement;
                     }
@@ -795,6 +798,12 @@
                         else delete foundCard.img;
                         if ('auto' in cardData) foundCard.auto = cardData.auto;
                         else delete foundCard.auto;
+                        if ('rc' in cardData) foundCard.rc = cardData.rc;
+                        else delete foundCard.rc;
+                        if ('patch' in cardData) foundCard.patch = cardData.patch;
+                        else delete foundCard.patch;
+                        if (cardData.serial) foundCard.serial = cardData.serial;
+                        else delete foundCard.serial;
                         if ('achievement' in cardData && cardData.achievement.length > 0) foundCard.achievement = cardData.achievement;
                         else delete foundCard.achievement;
                         if (cardData.ebay) foundCard.search = cardData.ebay;

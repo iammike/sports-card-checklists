@@ -638,11 +638,14 @@ const PriceUtils = {
         'Totally Certified': 1, 'Gold Standard': 1.5, 'Illusions': 1
     },
 
-    // Parse serial string (e.g., "/99", "/25", "1/1") to numeric print run
+    // Parse serial string (e.g., "/99", "99", "1/1") to numeric print run
     parseSerial(serial) {
         if (!serial) return null;
-        const match = serial.match(/\/(\d+)/);
-        return match ? parseInt(match[1], 10) : null;
+        // Try "/99" format first, then bare number "99"
+        const slashMatch = serial.match(/\/(\d+)/);
+        if (slashMatch) return parseInt(slashMatch[1], 10);
+        const bareMatch = serial.match(/^(\d+)$/);
+        return bareMatch ? parseInt(bareMatch[1], 10) : null;
     },
 
     // Estimate price for a card
@@ -799,7 +802,8 @@ const CardRenderer = {
     // Render serial badge HTML (for numbered cards, e.g. "/99")
     renderSerialBadge(card) {
         if (!card.serial) return '';
-        return `<span class="serial-badge">${sanitizeText(card.serial)}</span>`;
+        const display = card.serial.startsWith('/') ? card.serial : '/' + card.serial;
+        return `<span class="serial-badge">${sanitizeText(display)}</span>`;
     },
 
     // Render all attribute badges for a card

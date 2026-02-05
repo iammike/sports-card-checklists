@@ -430,7 +430,7 @@
                 rc: { label: 'RC', type: 'checkbox', position: 'attributes' },
                 auto: { label: 'Auto', type: 'checkbox', position: 'attributes' },
                 patch: { label: 'Patch', type: 'checkbox', position: 'attributes' },
-                serial: { label: 'Serial', type: 'text', placeholder: '/99', position: 'attributes' }
+                serial: { label: 'Serial', type: 'text', placeholder: '99', position: 'attributes' }
             },
             imageFolder: 'images/jayden-daniels',
             categories: ['college', 'panini', 'topps', 'other', 'inserts', 'premium'],
@@ -472,6 +472,9 @@
                         if (!('img' in cardData)) delete card.img;
                         if (!('achievement' in cardData)) delete card.achievement;
                         if (!('auto' in cardData)) delete card.auto;
+                        if (!('rc' in cardData)) delete card.rc;
+                        if (!('patch' in cardData)) delete card.patch;
+                        if (!cardData.serial) delete card.serial;
                         if (!cardData.variant) delete card.variant;
                         // Remove from old category
                         cards[oldCategory].splice(index, 1);
