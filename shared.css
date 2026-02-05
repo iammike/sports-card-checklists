@@ -1822,18 +1822,21 @@ select, input[type="text"] {
     padding: 6px 8px;
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 4px;
-    background: rgba(0, 0, 0, 0.3);
-    color: white;
+    background: rgba(0, 0, 0, 0.3) !important;
+    color: #fff !important;
     font-size: 13px;
     font-family: inherit;
     font-variant-numeric: tabular-nums;
     text-align: center;
+    -webkit-text-fill-color: #fff;
 }
 
 .image-editor-rotation-input:focus {
     outline: none;
     border-color: rgba(102, 126, 234, 0.6);
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.5) !important;
+    color: #fff !important;
+    -webkit-text-fill-color: #fff;
 }
 
 .image-editor-step-btn {
