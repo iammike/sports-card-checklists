@@ -1697,13 +1697,9 @@ class CardEditorModal {
                     </div>`;
                 }
             }).join('');
-            const priceHtml = `<div class="card-editor-attr-text">
-                <label for="editor-price">$:</label>
-                <input type="number" class="card-editor-input" id="editor-price" placeholder="Auto" step="0.01" min="0">
-            </div>`;
             return `<div class="card-editor-field full-width card-editor-attributes">
                 <label class="card-editor-label">Card Attributes</label>
-                <div class="card-editor-attr-row">${innerHtml}${priceHtml}</div>
+                <div class="card-editor-attr-row">${innerHtml}</div>
             </div>`;
         }
 
@@ -1819,6 +1815,7 @@ class CardEditorModal {
                 <div class="card-editor-body">
                     <div class="card-editor-grid">
                         ${this.generateCustomFieldsHtml('top')}
+                        ${this.generateCustomFieldsHtml('top') ? '<div class="card-editor-separator full-width"></div>' : ''}
                         <div class="card-editor-field full-width">
                             <label class="card-editor-label">Set Name</label>
                             <input type="text" class="card-editor-input" id="editor-set" placeholder="2024 Panini Prizm">
@@ -1845,6 +1842,10 @@ class CardEditorModal {
                                 }).join('')}
                             </select>
                         </div>` : ''}
+                        <div class="card-editor-field">
+                            <label class="card-editor-label">Price ($)</label>
+                            <input type="number" class="card-editor-input" id="editor-price" placeholder="Auto-estimate" step="0.01" min="0">
+                        </div>
                         <div class="card-editor-field full-width card-editor-advanced-toggle">
                             <button type="button" class="card-editor-toggle-btn" id="editor-toggle-advanced">Advanced</button>
                         </div>
