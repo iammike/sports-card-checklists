@@ -27,24 +27,9 @@
             background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
         }
 
-        /* Inserts section */
+        /* Inserts section - background color only, collapsible handled by shared.js */
         .group-header.inserts {
             background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            cursor: pointer;
-        }
-        .group-header.inserts::after {
-            content: ' ▼';
-            font-size: 12px;
-            opacity: 0.7;
-        }
-        .group-header.inserts.collapsed::after {
-            content: ' ▶';
-        }
-        .inserts-section .section-group {
-            display: none;
-        }
-        .inserts-section.expanded .section-group {
-            display: block;
         }
         .inserts-note {
             background: rgba(243, 156, 18, 0.1);
@@ -54,25 +39,9 @@
             border-bottom: 1px solid rgba(243, 156, 18, 0.2);
         }
 
-        /* Premium section */
+        /* Premium section - background color only, collapsible handled by shared.js */
         .section-header.premium {
             background: linear-gradient(135deg, #f39c12 0%, #e74c3c 100%);
-            cursor: pointer;
-            user-select: none;
-        }
-        .section-header.premium::after {
-            content: ' ▼';
-            font-size: 12px;
-            opacity: 0.7;
-        }
-        .section-header.premium.collapsed::after {
-            content: ' ▶';
-        }
-        .premium-section .card-grid {
-            display: none;
-        }
-        .premium-section.expanded .card-grid {
-            display: grid;
         }
         .premium-note {
             background: rgba(243, 156, 18, 0.1);
@@ -187,7 +156,7 @@
 
     <!-- INSERTS 2024 -->
     <div class="section inserts-section expanded" id="inserts-section">
-        <div class="group-header inserts" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); cursor: pointer;" onclick="toggleInsertsSection()">Inserts</div>
+        <div class="group-header inserts" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">Inserts</div>
         <div class="inserts-note">Optional insert cards. Not included in main checklist totals.</div>
         <div class="section-group">
             <div class="section default-section">
@@ -198,7 +167,7 @@
 
     <!-- CHASE CARDS (expensive/rare) -->
     <div class="section premium-section expanded" id="premium-section">
-        <div class="section-header premium" onclick="togglePremiumSection()">Premium Cards (SSP/Case Hits)</div>
+        <div class="section-header premium">Premium Cards (SSP/Case Hits)</div>
         <div class="premium-note">Rare SSPs and premium product cards ($50+). Not included in main checklist totals.</div>
         <div class="card-grid" id="premium-cards"></div>
     </div>
@@ -299,20 +268,6 @@
                 neededValue: { el: document.getElementById('needed-value'), value: stats.neededValue }
             });
             // Stats are now saved atomically with owned cards via getStats callback
-        }
-
-        function togglePremiumSection() {
-            const section = document.getElementById('premium-section');
-            const header = section.querySelector('.section-header');
-            section.classList.toggle('expanded');
-            header.classList.toggle('collapsed');
-        }
-
-        function toggleInsertsSection() {
-            const section = document.getElementById('inserts-section');
-            const header = section.querySelector('.group-header');
-            section.classList.toggle('expanded');
-            header.classList.toggle('collapsed');
         }
 
         function createCardElement(card) {
@@ -601,6 +556,7 @@
                 cardContextMenu.init();
                 cardEditor.init();
                 renderCards();
+                CollapsibleSections.init({ persist: true, storageKey: 'jayden-daniels-collapsed' });
             } catch (err) {
                 console.error('Failed to initialize:', err);
                 document.querySelector('.page-content').innerHTML =

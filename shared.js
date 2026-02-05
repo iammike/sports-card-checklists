@@ -21,6 +21,121 @@ function sanitizeUrl(url) {
 }
 
 /**
+ * Collapsible Sections - Makes section headers clickable to expand/collapse
+ * Usage: CollapsibleSections.init() or CollapsibleSections.init({ persist: true, storageKey: 'myPage' })
+ */
+const CollapsibleSections = {
+    init(options = {}) {
+        const { persist = false, storageKey = 'collapsedSections' } = options;
+
+        // Find all section and group headers
+        const headers = document.querySelectorAll('.section-header, .group-header');
+
+        headers.forEach(header => {
+            // Skip if already has onclick handler or explicitly marked non-collapsible
+            if (header.onclick || header.dataset.noCollapse) return;
+
+            // Add collapsible class for styling
+            header.classList.add('collapsible');
+
+            // Find the associated content (next sibling or section-group/card-grid within parent)
+            const section = header.closest('.section, [class*="-section"]');
+            const sectionId = header.textContent.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+            // Restore collapsed state from localStorage
+            if (persist) {
+                const collapsed = this.getCollapsedState(storageKey);
+                if (collapsed.includes(sectionId)) {
+                    header.classList.add('collapsed');
+                    if (section) section.classList.remove('expanded');
+                    this.hideContent(header, section);
+                }
+            }
+
+            // Add click handler
+            header.addEventListener('click', () => {
+                const isCollapsing = !header.classList.contains('collapsed');
+                header.classList.toggle('collapsed');
+
+                if (section) {
+                    section.classList.toggle('expanded', !isCollapsing);
+                }
+
+                // Toggle content visibility
+                if (isCollapsing) {
+                    this.hideContent(header, section);
+                } else {
+                    this.showContent(header, section);
+                }
+
+                // Persist state
+                if (persist) {
+                    this.saveCollapsedState(storageKey, sectionId, isCollapsing);
+                }
+            });
+        });
+    },
+
+    hideContent(header, section) {
+        // Hide card-grid or section-group that follows the header
+        const content = this.getContent(header, section);
+        if (content) content.style.display = 'none';
+        // Also hide any notes
+        const note = header.nextElementSibling;
+        if (note && (note.classList.contains('section-note') || note.className.includes('-note'))) {
+            note.style.display = 'none';
+        }
+    },
+
+    showContent(header, section) {
+        const content = this.getContent(header, section);
+        if (content) content.style.display = '';
+        const note = header.nextElementSibling;
+        if (note && (note.classList.contains('section-note') || note.className.includes('-note'))) {
+            note.style.display = '';
+        }
+    },
+
+    getContent(header, section) {
+        // Try to find content: section-group, card-grid, or next significant sibling
+        if (section) {
+            return section.querySelector('.section-group, .card-grid');
+        }
+        // Walk siblings to find content
+        let sibling = header.nextElementSibling;
+        while (sibling) {
+            if (sibling.classList.contains('section-group') || sibling.classList.contains('card-grid')) {
+                return sibling;
+            }
+            if (sibling.classList.contains('section-header') || sibling.classList.contains('group-header')) {
+                break; // Hit next section
+            }
+            sibling = sibling.nextElementSibling;
+        }
+        return null;
+    },
+
+    getCollapsedState(key) {
+        try {
+            return JSON.parse(localStorage.getItem(key)) || [];
+        } catch {
+            return [];
+        }
+    },
+
+    saveCollapsedState(key, sectionId, isCollapsed) {
+        const collapsed = this.getCollapsedState(key);
+        const index = collapsed.indexOf(sectionId);
+        if (isCollapsed && index === -1) {
+            collapsed.push(sectionId);
+        } else if (!isCollapsed && index !== -1) {
+            collapsed.splice(index, 1);
+        }
+        localStorage.setItem(key, JSON.stringify(collapsed));
+    }
+};
+
+/**
  * Shared Auth UI helpers (for pages without ChecklistManager)
  */
 const AuthUI = {

@@ -875,18 +875,21 @@ select, input[type="text"] {
 /* ============================================
    Collapsible Sections
    ============================================ */
-.section-header.collapsible {
+.section-header.collapsible,
+.group-header.collapsible {
     cursor: pointer;
     user-select: none;
 }
 
-.section-header.collapsible::after {
+.section-header.collapsible::after,
+.group-header.collapsible::after {
     content: ' ▼';
     font-size: 12px;
     opacity: 0.7;
 }
 
-.section-header.collapsible.collapsed::after {
+.section-header.collapsible.collapsed::after,
+.group-header.collapsible.collapsed::after {
     content: ' ▶';
 }
 
