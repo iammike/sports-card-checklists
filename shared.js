@@ -1796,7 +1796,7 @@ class CardEditorModal {
                             </div>
                             <div class="card-editor-field full-width">
                                 <label class="card-editor-label">Price Search Term</label>
-                                <input type="text" class="card-editor-input" id="editor-price-search" placeholder="Defaults to 'Player Name rookie'">
+                                <input type="text" class="card-editor-input" id="editor-price-search" placeholder="Defaults to player + set + number">
                             </div>
                         </div>
                         <div class="card-editor-field full-width card-editor-image-section">
