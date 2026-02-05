@@ -1227,10 +1227,12 @@ class ImageEditorModal {
         });
 
         // Rotation slider for fine-grained straightening
+        // Track base rotation (from 90° buttons) separately from fine adjustment
+        this.baseRotation = 0;
         const rotateSlider = this.backdrop.querySelector('#image-editor-rotate');
         const rotateInput = this.backdrop.querySelector('#image-editor-rotate-value');
         if (rotateSlider && rotateInput) {
-            // Sync rotation from any source
+            // Sync fine rotation from any source (adds to base rotation)
             const setRotation = (val, updateInput = true) => {
                 // Strip ° if present, then parse and round to 1 decimal
                 const numVal = parseFloat(String(val).replace('°', '')) || 0;
@@ -1238,8 +1240,10 @@ class ImageEditorModal {
                 const clamped = Math.max(-45, Math.min(45, rounded));
                 rotateSlider.value = clamped;
                 if (updateInput) rotateInput.value = clamped + '°';
-                if (this.cropper) this.cropper.rotateTo(clamped);
+                if (this.cropper) this.cropper.rotateTo(this.baseRotation + clamped);
             };
+            // Store setRotation for use in handleToolAction
+            this.setFineRotation = setRotation;
 
             // Slider input - update in real-time
             rotateSlider.oninput = () => setRotation(rotateSlider.value);
@@ -1276,22 +1280,14 @@ class ImageEditorModal {
     handleToolAction(action) {
         if (!this.cropper) return;
 
-        // Helper to reset fine rotation display
-        const resetFineRotation = () => {
-            const slider = this.backdrop.querySelector('#image-editor-rotate');
-            const input = this.backdrop.querySelector('#image-editor-rotate-value');
-            if (slider) slider.value = 0;
-            if (input) input.value = '0°';
-        };
-
         switch (action) {
             case 'rotate-left':
-                this.cropper.rotate(-90);
-                resetFineRotation();
+                this.baseRotation -= 90;
+                if (this.setFineRotation) this.setFineRotation(0);
                 break;
             case 'rotate-right':
-                this.cropper.rotate(90);
-                resetFineRotation();
+                this.baseRotation += 90;
+                if (this.setFineRotation) this.setFineRotation(0);
                 break;
             case 'flip-h':
                 this.cropper.scaleX(-this.cropper.getData().scaleX || -1);
@@ -1300,12 +1296,9 @@ class ImageEditorModal {
                 this.cropper.scaleY(-this.cropper.getData().scaleY || -1);
                 break;
             case 'reset':
+                this.baseRotation = 0;
                 this.cropper.reset();
-                // Also reset the slider and input
-                const slider = this.backdrop.querySelector('#image-editor-rotate');
-                const rotationInput = this.backdrop.querySelector('#image-editor-rotate-value');
-                if (slider) slider.value = 0;
-                if (rotationInput) rotationInput.value = '0°';
+                if (this.setFineRotation) this.setFineRotation(0);
                 break;
         }
     }
