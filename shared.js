@@ -1678,9 +1678,9 @@ class CardEditorModal {
         const fields = Object.entries(this.customFields)
             .filter(([_, config]) => (config.position || 'top') === position);
 
-        if (fields.length === 0) return '';
+        if (fields.length === 0 && position !== 'attributes') return '';
 
-        // Attributes position renders as a compact horizontal row
+        // Attributes position renders as a compact horizontal row (always includes Price)
         if (position === 'attributes') {
             const innerHtml = fields.map(([fieldName, config]) => {
                 const id = `editor-${fieldName}`;
@@ -1699,7 +1699,13 @@ class CardEditorModal {
             }).join('');
             return `<div class="card-editor-field full-width card-editor-attributes">
                 <label class="card-editor-label">Card Attributes</label>
-                <div class="card-editor-attr-row">${innerHtml}</div>
+                <div class="card-editor-attr-row">
+                    ${innerHtml}
+                    <div class="card-editor-attr-text card-editor-attr-price">
+                        <label for="editor-price">Price:</label>
+                        <input type="number" class="card-editor-input" id="editor-price" placeholder="Auto" step="0.01" min="0">
+                    </div>
+                </div>
             </div>`;
         }
 
@@ -1842,10 +1848,6 @@ class CardEditorModal {
                                 }).join('')}
                             </select>
                         </div>` : ''}
-                        <div class="card-editor-field">
-                            <label class="card-editor-label">Price ($)</label>
-                            <input type="number" class="card-editor-input" id="editor-price" placeholder="Auto-estimate" step="0.01" min="0">
-                        </div>
                         <div class="card-editor-field full-width card-editor-advanced-toggle">
                             <button type="button" class="card-editor-toggle-btn" id="editor-toggle-advanced">Advanced</button>
                         </div>

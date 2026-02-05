@@ -1440,6 +1440,16 @@ select, input[type="text"] {
     font-size: 13px !important;
 }
 
+.card-editor-attr-price {
+    margin-left: auto;
+    padding-left: 8px;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.card-editor-attr-price .card-editor-input {
+    width: 70px;
+}
+
 /* Advanced toggle for eBay field */
 .card-editor-toggle-btn {
     background: none;
