@@ -1787,16 +1787,17 @@ class CardEditorModal {
                             <input type="number" class="card-editor-input" id="editor-price" placeholder="Auto-estimate" step="0.01" min="0">
                         </div>
                         <div class="card-editor-field full-width card-editor-advanced-toggle">
-                            <button type="button" class="card-editor-toggle-btn" id="editor-toggle-ebay">Customize eBay search</button>
-                            <button type="button" class="card-editor-toggle-btn" id="editor-toggle-price-search">Customize price search</button>
+                            <button type="button" class="card-editor-toggle-btn" id="editor-toggle-advanced">Advanced</button>
                         </div>
-                        <div class="card-editor-field full-width card-editor-ebay-field" style="display: none;">
-                            <label class="card-editor-label">eBay Search Term</label>
-                            <input type="text" class="card-editor-input" id="editor-ebay" placeholder="Auto-generate from card data">
-                        </div>
-                        <div class="card-editor-field full-width card-editor-price-search-field" style="display: none;">
-                            <label class="card-editor-label">Price Search Term</label>
-                            <input type="text" class="card-editor-input" id="editor-price-search" placeholder="Auto-generate from player name">
+                        <div class="card-editor-advanced-fields" style="display: none;">
+                            <div class="card-editor-field full-width">
+                                <label class="card-editor-label">eBay Search Term</label>
+                                <input type="text" class="card-editor-input" id="editor-ebay" placeholder="Auto-generated from card data">
+                            </div>
+                            <div class="card-editor-field full-width">
+                                <label class="card-editor-label">Price Search Term</label>
+                                <input type="text" class="card-editor-input" id="editor-price-search" placeholder="Auto-generated from player name">
+                            </div>
                         </div>
                         <div class="card-editor-field full-width card-editor-image-section">
                             <label class="card-editor-label">Image</label>
@@ -1863,28 +1864,19 @@ class CardEditorModal {
             input.oninput = () => this.setDirty(true);
         });
 
-        // Toggle eBay search field visibility
-        const ebayToggle = this.backdrop.querySelector('#editor-toggle-ebay');
-        const ebayField = this.backdrop.querySelector('.card-editor-ebay-field');
-        ebayToggle.onclick = () => {
-            const isHidden = ebayField.style.display === 'none';
-            ebayField.style.display = isHidden ? 'flex' : 'none';
-            ebayToggle.textContent = isHidden ? 'Hide eBay search' : 'Customize eBay search';
+        // Toggle advanced fields visibility
+        const advancedToggle = this.backdrop.querySelector('#editor-toggle-advanced');
+        const advancedFields = this.backdrop.querySelector('.card-editor-advanced-fields');
+        advancedToggle.onclick = () => {
+            const isHidden = advancedFields.style.display === 'none';
+            advancedFields.style.display = isHidden ? 'block' : 'none';
+            advancedToggle.textContent = isHidden ? 'Hide advanced' : 'Advanced';
         };
 
         // Track manual edits to eBay search term
         this.backdrop.querySelector('#editor-ebay').oninput = () => {
             this.ebayManuallyEdited = true;
             this.setDirty(true);
-        };
-
-        // Toggle price search field visibility
-        const priceSearchToggle = this.backdrop.querySelector('#editor-toggle-price-search');
-        const priceSearchField = this.backdrop.querySelector('.card-editor-price-search-field');
-        priceSearchToggle.onclick = () => {
-            const isHidden = priceSearchField.style.display === 'none';
-            priceSearchField.style.display = isHidden ? 'flex' : 'none';
-            priceSearchToggle.textContent = isHidden ? 'Hide price search' : 'Customize price search';
         };
 
         // Image preview on URL change
@@ -2326,21 +2318,16 @@ class CardEditorModal {
         this.backdrop.querySelector('#editor-ebay').value = ebayValue;
         this.backdrop.querySelector('#editor-img').value = cardData.img || '';
 
-        // Show eBay field only if it has a custom value
-        const ebayField = this.backdrop.querySelector('.card-editor-ebay-field');
-        const ebayToggle = this.backdrop.querySelector('#editor-toggle-ebay');
-        const hasCustomEbay = ebayValue !== '';
-        ebayField.style.display = hasCustomEbay ? 'flex' : 'none';
-        ebayToggle.textContent = hasCustomEbay ? 'Hide eBay search' : 'Customize eBay search';
-
-        // Populate and show price search field if it has a custom value
+        // Populate price search field
         const priceSearchValue = cardData.priceSearch || '';
         this.backdrop.querySelector('#editor-price-search').value = priceSearchValue;
-        const priceSearchField = this.backdrop.querySelector('.card-editor-price-search-field');
-        const priceSearchToggle = this.backdrop.querySelector('#editor-toggle-price-search');
-        const hasCustomPriceSearch = priceSearchValue !== '';
-        priceSearchField.style.display = hasCustomPriceSearch ? 'flex' : 'none';
-        priceSearchToggle.textContent = hasCustomPriceSearch ? 'Hide price search' : 'Customize price search';
+
+        // Show advanced section if either search field has a custom value
+        const hasCustomSearch = ebayValue !== '' || priceSearchValue !== '';
+        const advancedFields = this.backdrop.querySelector('.card-editor-advanced-fields');
+        const advancedToggle = this.backdrop.querySelector('#editor-toggle-advanced');
+        advancedFields.style.display = hasCustomSearch ? 'block' : 'none';
+        advancedToggle.textContent = hasCustomSearch ? 'Hide advanced' : 'Advanced';
 
         this.updateImagePreview(cardData.img);
         this.updateProcessButton(cardData.img);
@@ -2380,14 +2367,10 @@ class CardEditorModal {
         this.backdrop.querySelector('#editor-ebay').value = '';
         this.backdrop.querySelector('#editor-img').value = '';
 
-        // Hide eBay field by default for new cards
-        this.backdrop.querySelector('.card-editor-ebay-field').style.display = 'none';
-        this.backdrop.querySelector('#editor-toggle-ebay').textContent = 'Customize eBay search';
-
-        // Hide price search field by default for new cards
+        // Hide advanced section by default for new cards
         this.backdrop.querySelector('#editor-price-search').value = '';
-        this.backdrop.querySelector('.card-editor-price-search-field').style.display = 'none';
-        this.backdrop.querySelector('#editor-toggle-price-search').textContent = 'Customize price search';
+        this.backdrop.querySelector('.card-editor-advanced-fields').style.display = 'none';
+        this.backdrop.querySelector('#editor-toggle-advanced').textContent = 'Advanced';
 
         // Clear custom fields
         this.clearCustomFields();
