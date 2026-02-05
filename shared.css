@@ -1221,6 +1221,11 @@ select, input[type="text"] {
     grid-column: 1 / -1;
 }
 
+.card-editor-advanced-toggle {
+    display: flex;
+    align-items: flex-end;
+}
+
 .card-editor-advanced-fields {
     grid-column: 1 / -1;
     display: flex;

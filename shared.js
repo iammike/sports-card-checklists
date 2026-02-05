@@ -1786,7 +1786,7 @@ class CardEditorModal {
                             <label class="card-editor-label">Price ($)</label>
                             <input type="number" class="card-editor-input" id="editor-price" placeholder="Auto-estimate" step="0.01" min="0">
                         </div>
-                        <div class="card-editor-field full-width card-editor-advanced-toggle">
+                        <div class="card-editor-field card-editor-advanced-toggle">
                             <button type="button" class="card-editor-toggle-btn" id="editor-toggle-advanced">Advanced</button>
                         </div>
                         <div class="card-editor-advanced-fields" style="display: none;">
