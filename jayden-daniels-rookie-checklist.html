@@ -274,8 +274,10 @@
             const cardId = getCardId(card);
             const owned = isOwned(cardId);
             const price = estimatePrice(card);
-            const searchUrl = CardRenderer.getEbayUrl(card.search);
-            const scpUrl = CardRenderer.getScpUrl(card.priceSearch || card.search);
+            const defaultSearch = encodeURIComponent(`Jayden Daniels ${card.set} ${card.num}`);
+            const searchUrl = CardRenderer.getEbayUrl(card.search || defaultSearch);
+            const priceSearchTerm = card.priceSearch || defaultSearch;
+            const scpUrl = CardRenderer.getScpUrl(priceSearchTerm);
             // Clean up type/variant for display: remove "RC" (all cards are rookies) and "Base" (it's the default)
             const displayType = (card.type || '').replace(/\s*RC\b/gi, '').replace(/\bBase\b/gi, '').trim();
             const displayVariant = (card.variant && card.variant !== 'Base') ? card.variant : '';

@@ -568,8 +568,9 @@
             }
 
             const cardClass = `card ${cardOwned ? 'owned' : ''} ${card.superBowl ? 'super-bowl' : ''}`;
-            const searchUrl = CardRenderer.getEbayUrl(card.search);
-            const priceSearchTerm = card.priceSearch || encodeURIComponent(card.player + ' rookie');
+            const defaultSearch = encodeURIComponent(`${card.player} ${card.set} ${card.num}`);
+            const searchUrl = CardRenderer.getEbayUrl(card.search || defaultSearch);
+            const priceSearchTerm = card.priceSearch || defaultSearch;
             const scpUrl = CardRenderer.getScpUrl(priceSearchTerm);
 
             return `<div class="${cardClass}">
