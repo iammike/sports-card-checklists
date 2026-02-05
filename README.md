@@ -33,7 +33,8 @@ A modern web app for tracking sports card collections with cloud sync, real-time
 
 ### Image Tools (Owner Only)
 - **Image editor** - Full-featured editor with crop, rotate, and flip tools (powered by Cropper.js)
-- **Fine rotation** - Rotation slider for precise straightening (-45° to +45°)
+- **Edit existing images** - Re-edit previously saved images with one click
+- **Fine rotation** - Slider plus +/- buttons for precise straightening (0.5° increments)
 - **Local file upload** - Upload images from your computer via button or drag & drop
 - **Multiple sources** - Fetch images from eBay or Beckett listings
 - **Auto-processing** - Images automatically resized and converted to WebP on save
@@ -41,6 +42,8 @@ A modern web app for tracking sports card collections with cloud sync, real-time
 
 ### UI/UX
 - **Animated stats** - Numbers count up on first load
+- **Collapsible sections** - Click section headers to expand/collapse
+- **Auto-hiding sections** - Empty sections automatically hidden
 - **Responsive design** - Works on desktop and mobile
 - **Print-friendly** - Clean layout for printing checklists
 - **Direct eBay links** - One-click search for any card
@@ -48,7 +51,7 @@ A modern web app for tracking sports card collections with cloud sync, real-time
 
 ## Checklists
 
-- **[Jayden Daniels Rookie Cards](https://iammike.github.io/sports-card-checklists/jayden-daniels-rookie-checklist.html)** - 2023 College + 2024 NFL rookie cards
+- **[Jayden Daniels Rookie Cards](https://iammike.github.io/sports-card-checklists/jayden-daniels-rookie-checklist.html)** - College and NFL rookie cards
 - **[Washington Commanders QBs](https://iammike.github.io/sports-card-checklists/washington-qbs-rookie-checklist.html)** - Rookie cards of Washington starting QBs (1970-present)
 - **[JMU Pro Players](https://iammike.github.io/sports-card-checklists/jmu-pro-players-checklist.html)** - Cards of JMU alumni who played professionally
 
@@ -103,6 +106,7 @@ Then open http://localhost:8000
 Cloudflare Pages preview deployments allow testing changes without affecting production:
 - Branch previews at `<branch>.sports-card-checklists.pages.dev`
 - Isolated data storage (changes don't affect production)
+- Image uploads disabled (to prevent accidental production commits)
 
 ### Project Structure
 ```
