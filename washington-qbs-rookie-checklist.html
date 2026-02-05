@@ -735,11 +735,10 @@
         // Initialize card editor modal
         const cardEditor = new CardEditorModal({
             customFields: {
-                player: { label: 'Player Name', type: 'text', fullWidth: true },
+                player: { label: 'Player Name', type: 'text' },
                 era: {
                     label: 'Era',
                     type: 'select',
-                    fullWidth: true,
                     options: [
                         { value: 'modern', label: 'Modern Era (2020-2025)' },
                         { value: 'snyder', label: 'Snyder Era (2008-2019)' },
