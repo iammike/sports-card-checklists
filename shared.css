@@ -1697,31 +1697,20 @@ select, input[type="text"] {
     display: block;
 }
 
-/* Unified control bar - single row with three zones */
+/* Unified control bar - centered rotation with flanking tools */
 .image-editor-controls {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 16px;
-    padding: 12px 16px;
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 8px;
-    margin: 12px 24px;
-}
-
-.image-editor-controls-group {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.image-editor-controls-center {
-    display: flex;
-    align-items: center;
     gap: 8px;
-    padding: 0 12px;
-    border-left: 1px solid rgba(255, 255, 255, 0.1);
-    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 12px 24px;
+}
+
+.image-editor-divider {
+    width: 1px;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.15);
+    margin: 0 4px;
 }
 
 .image-editor-tool {
@@ -1757,8 +1746,12 @@ select, input[type="text"] {
     padding: 16px 24px 20px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
     gap: 12px;
+}
+
+.image-editor-footer-spacer {
+    flex: 1;
 }
 
 .image-editor-btn {
@@ -1905,16 +1898,15 @@ select, input[type="text"] {
 
     .image-editor-controls {
         flex-wrap: wrap;
-        gap: 12px;
-        margin: 8px 12px;
+        gap: 8px;
+        padding: 12px 16px;
     }
 
-    .image-editor-controls-center {
-        order: 1;
-        width: 100%;
-        justify-content: center;
-        border: none;
-        padding: 8px 0 0;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
+    .image-editor-divider {
+        display: none;
+    }
+
+    .image-editor-slider {
+        width: 80px;
     }
 }
