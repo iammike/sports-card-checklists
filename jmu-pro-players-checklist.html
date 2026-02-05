@@ -397,6 +397,7 @@
             const owned = isOwned(cardId);
             const price = card.price;
             const searchUrl = CardRenderer.getEbayUrl(card.search);
+            const scpUrl = CardRenderer.getScpUrl(encodeURIComponent(card.player + ' rookie'));
             // Clean up type/variant for display: remove "RC" (redundant for rookies) and "Base" (it's the default)
             const displayType = (card.type || '').replace(/\s*RC\b/gi, '').replace(/\bBase\b/gi, '').trim();
             const displayVariant = (card.variant && card.variant !== 'Base') ? card.variant : '';
@@ -415,7 +416,7 @@
                     ${CardRenderer.renderAchievements(card.badges)}
                     <div class="card-actions${checklistManager.isReadOnly && !owned ? ' links-only' : ''}">
                         ${CardRenderer.renderOwnedControl(cardId, owned, checklistManager.isReadOnly)}
-                        ${CardRenderer.renderSearchLinks(searchUrl)}
+                        ${CardRenderer.renderSearchLinks(searchUrl, scpUrl)}
                     </div>
                 </div>
             `;
