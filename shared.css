@@ -1221,6 +1221,13 @@ select, input[type="text"] {
     grid-column: 1 / -1;
 }
 
+.card-editor-advanced-fields {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
 .card-editor-label {
     font-family: 'Barlow', sans-serif;
     font-size: 0.7em;
