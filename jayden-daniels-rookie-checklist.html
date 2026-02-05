@@ -275,7 +275,7 @@
             const owned = isOwned(cardId);
             const price = estimatePrice(card);
             const searchUrl = CardRenderer.getEbayUrl(card.search);
-            const scpUrl = CardRenderer.getScpUrl(card.search);
+            const scpUrl = CardRenderer.getScpUrl(card.priceSearch || card.search);
             // Clean up type/variant for display: remove "RC" (all cards are rookies) and "Base" (it's the default)
             const displayType = (card.type || '').replace(/\s*RC\b/gi, '').replace(/\bBase\b/gi, '').trim();
             const displayVariant = (card.variant && card.variant !== 'Base') ? card.variant : '';
@@ -455,6 +455,11 @@
                         if (cardData.ebay) {
                             card.search = cardData.ebay;
                             delete card.ebay;
+                        }
+                        if (cardData.priceSearch) {
+                            card.priceSearch = cardData.priceSearch;
+                        } else {
+                            delete card.priceSearch;
                         }
                         // Delete optional properties that were cleared
                         if (!('price' in cardData)) delete card.price;
