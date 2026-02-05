@@ -1225,10 +1225,13 @@ select, input[type="text"] {
     display: flex;
     align-items: flex-end;
     justify-content: center;
+    width: 100%;
 }
 
 .card-editor-advanced-toggle .card-editor-toggle-btn {
     padding: 12px 14px;
+    width: 100%;
+    text-align: center;
 }
 
 .card-editor-advanced-fields {
