@@ -1697,9 +1697,13 @@ class CardEditorModal {
                     </div>`;
                 }
             }).join('');
+            const priceHtml = `<div class="card-editor-attr-text">
+                <label for="editor-price">$:</label>
+                <input type="number" class="card-editor-input" id="editor-price" placeholder="Auto" step="0.01" min="0">
+            </div>`;
             return `<div class="card-editor-field full-width card-editor-attributes">
                 <label class="card-editor-label">Card Attributes</label>
-                <div class="card-editor-attr-row">${innerHtml}</div>
+                <div class="card-editor-attr-row">${innerHtml}${priceHtml}</div>
             </div>`;
         }
 
@@ -1841,10 +1845,6 @@ class CardEditorModal {
                                 }).join('')}
                             </select>
                         </div>` : ''}
-                        <div class="card-editor-field">
-                            <label class="card-editor-label">Price ($)</label>
-                            <input type="number" class="card-editor-input" id="editor-price" placeholder="Auto-estimate" step="0.01" min="0">
-                        </div>
                         <div class="card-editor-field full-width card-editor-advanced-toggle">
                             <button type="button" class="card-editor-toggle-btn" id="editor-toggle-advanced">Advanced</button>
                         </div>
