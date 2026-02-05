@@ -743,7 +743,18 @@ select, input[type="text"] {
 .price-badge.mid { background: var(--color-warning); }
 .price-badge.high { background: var(--color-error); }
 
-/* Auto Badge (autographed cards) - matches price badge style with gold color */
+/* Left-side attribute badges container */
+.card-badges-left {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 10;
+}
+
+/* Auto Badge (autographed cards) - gold */
 .auto-badge {
     font-family: 'Barlow', sans-serif;
     position: absolute;
@@ -756,6 +767,42 @@ select, input[type="text"] {
     font-size: 12px;
     font-weight: 600;
     z-index: 10;
+}
+
+/* Patch Badge (relic/patch cards) - purple */
+.patch-badge {
+    font-family: 'Barlow', sans-serif;
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+    color: white;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    z-index: 10;
+}
+
+/* Serial Badge (numbered cards) - dark with border */
+.serial-badge {
+    font-family: 'Barlow', sans-serif;
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    background: rgba(0, 0, 0, 0.75);
+    color: #e0e0e0;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    z-index: 10;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* When auto + patch both present, stack them */
+.auto-badge + .patch-badge {
+    top: 30px;
 }
 
 .price-link {
@@ -1320,6 +1367,69 @@ select, input[type="text"] {
     font-size: 14px;
     font-weight: 500;
     color: #e0e0e0;
+}
+
+/* Card Attributes Row (compact horizontal checkboxes + text fields) */
+.card-editor-attributes {
+    margin-top: -4px;
+}
+
+.card-editor-attr-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.card-editor-attr-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.card-editor-attr-checkbox:hover {
+    border-color: rgba(102, 126, 234, 0.3);
+}
+
+.card-editor-attr-checkbox input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: #667eea;
+}
+
+.card-editor-attr-checkbox span {
+    font-family: 'Barlow', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: #e0e0e0;
+    white-space: nowrap;
+}
+
+.card-editor-attr-text {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.card-editor-attr-text label {
+    font-family: 'Barlow', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: #888;
+    white-space: nowrap;
+}
+
+.card-editor-attr-text .card-editor-input {
+    width: 80px;
+    padding: 8px 10px !important;
+    font-size: 13px !important;
 }
 
 /* Advanced toggle for eBay field */

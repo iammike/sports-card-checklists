@@ -638,6 +638,13 @@ const PriceUtils = {
         'Totally Certified': 1, 'Gold Standard': 1.5, 'Illusions': 1
     },
 
+    // Parse serial string (e.g., "/99", "/25", "1/1") to numeric print run
+    parseSerial(serial) {
+        if (!serial) return null;
+        const match = serial.match(/\/(\d+)/);
+        return match ? parseInt(match[1], 10) : null;
+    },
+
     // Estimate price for a card
     estimate(card) {
         // If card has explicit price, use it
@@ -653,16 +660,27 @@ const PriceUtils = {
             }
         }
 
-        // Numbered cards are pricier
-        if (card.printRun) {
-            base *= Math.max(3, 100 / card.printRun);
+        // Numbered cards - use structured serial field first, fall back to legacy printRun
+        const printRun = this.parseSerial(card.serial) || card.printRun;
+        if (printRun) {
+            base *= Math.max(3, 100 / printRun);
+        }
+
+        // Patch/relic cards
+        if (card.patch) {
+            base *= 2.5;
+        }
+
+        // RC multiplier (only if type doesn't already include RC)
+        if (card.rc && !/RC/i.test(card.type || '')) {
+            base *= 1.5;
         }
 
         // Parallel cards
         const parallel = card.parallel || '';
         if (/Silver|Refractor/i.test(parallel)) base *= 3;
         if (/Holo/i.test(parallel)) base *= 2;
-        if (/Gold/i.test(parallel) && card.printRun) base *= 5;
+        if (/Gold/i.test(parallel) && printRun) base *= 5;
 
         // Special insert types (check variant for Downtown, etc.)
         const variant = card.variant || '';
@@ -770,6 +788,23 @@ const CardRenderer = {
     renderAutoBadge(card) {
         if (!card.auto) return '';
         return `<span class="auto-badge">AUTO</span>`;
+    },
+
+    // Render patch badge HTML (for relic/patch cards)
+    renderPatchBadge(card) {
+        if (!card.patch) return '';
+        return `<span class="patch-badge">PATCH</span>`;
+    },
+
+    // Render serial badge HTML (for numbered cards, e.g. "/99")
+    renderSerialBadge(card) {
+        if (!card.serial) return '';
+        return `<span class="serial-badge">${sanitizeText(card.serial)}</span>`;
+    },
+
+    // Render all attribute badges for a card
+    renderAttributeBadges(card) {
+        return this.renderAutoBadge(card) + this.renderPatchBadge(card) + this.renderSerialBadge(card);
     },
 
     // Render card image with fallback
@@ -1634,11 +1669,37 @@ class CardEditorModal {
     }
 
     // Generate HTML for custom fields based on schema
-    // position: 'top' (before set) or 'after-num' (after card number)
+    // position: 'top' (before set), 'after-num' (after card number), 'attributes' (horizontal row)
     generateCustomFieldsHtml(position = 'top') {
-        return Object.entries(this.customFields)
-            .filter(([_, config]) => (config.position || 'top') === position)
-            .map(([fieldName, config]) => {
+        const fields = Object.entries(this.customFields)
+            .filter(([_, config]) => (config.position || 'top') === position);
+
+        if (fields.length === 0) return '';
+
+        // Attributes position renders as a compact horizontal row
+        if (position === 'attributes') {
+            const innerHtml = fields.map(([fieldName, config]) => {
+                const id = `editor-${fieldName}`;
+                if (config.type === 'checkbox') {
+                    return `<label class="card-editor-attr-checkbox">
+                        <input type="checkbox" id="${id}">
+                        <span>${config.label}</span>
+                    </label>`;
+                } else {
+                    // Text field (e.g., serial)
+                    return `<div class="card-editor-attr-text">
+                        <label for="${id}">${config.label}:</label>
+                        <input type="text" class="card-editor-input" id="${id}" placeholder="${config.placeholder || ''}">
+                    </div>`;
+                }
+            }).join('');
+            return `<div class="card-editor-field full-width card-editor-attributes">
+                <label class="card-editor-label">Card Attributes</label>
+                <div class="card-editor-attr-row">${innerHtml}</div>
+            </div>`;
+        }
+
+        return fields.map(([fieldName, config]) => {
             const id = `editor-${fieldName}`;
             const fullWidth = config.fullWidth ? ' full-width' : '';
             const placeholder = config.placeholder || '';
@@ -1765,6 +1826,7 @@ class CardEditorModal {
                             </select>
                         </div>
                         ${this.generateCustomFieldsHtml('after-num')}
+                        ${this.generateCustomFieldsHtml('attributes')}
                         ${this.categories ? `<div class="card-editor-field">
                             <label class="card-editor-label">Section</label>
                             <select class="card-editor-select" id="editor-category">
@@ -1775,13 +1837,6 @@ class CardEditorModal {
                                 }).join('')}
                             </select>
                         </div>` : ''}
-                        <div class="card-editor-field">
-                            <label class="card-editor-label">Autographed</label>
-                            <label class="card-editor-checkbox">
-                                <input type="checkbox" id="editor-auto">
-                                <span>Auto</span>
-                            </label>
-                        </div>
                         <div class="card-editor-field">
                             <label class="card-editor-label">Price ($)</label>
                             <input type="number" class="card-editor-input" id="editor-price" placeholder="Auto-estimate" step="0.01" min="0">
@@ -2312,7 +2367,6 @@ class CardEditorModal {
         // Strip # from card number for editing
         this.backdrop.querySelector('#editor-num').value = (cardData.num || '').replace(/^#/, '');
         this.backdrop.querySelector('#editor-type').value = cardData.type || 'Base';
-        this.backdrop.querySelector('#editor-auto').checked = cardData.auto || false;
         this.backdrop.querySelector('#editor-price').value = cardData.price !== undefined ? cardData.price : '';
         const ebayValue = cardData.ebay || '';
         this.backdrop.querySelector('#editor-ebay').value = ebayValue;
@@ -2362,7 +2416,6 @@ class CardEditorModal {
         this.backdrop.querySelector('#editor-set').value = '';
         this.backdrop.querySelector('#editor-num').value = '';
         this.backdrop.querySelector('#editor-type').value = 'Base';
-        this.backdrop.querySelector('#editor-auto').checked = false;
         this.backdrop.querySelector('#editor-price').value = '';
         this.backdrop.querySelector('#editor-ebay').value = '';
         this.backdrop.querySelector('#editor-img').value = '';
@@ -2432,11 +2485,6 @@ class CardEditorModal {
         const categoryField = this.backdrop.querySelector('#editor-category');
         if (categoryField) {
             data.category = categoryField.value;
-        }
-
-        // Auto - only include if checked
-        if (this.backdrop.querySelector('#editor-auto').checked) {
-            data.auto = true;
         }
 
         // Price - only include if explicitly set

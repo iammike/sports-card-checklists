@@ -285,7 +285,7 @@
             return `
                 <div class="card ${owned ? 'owned' : ''}" data-price="${price}" data-type="${card.type}">
                     <div class="card-image-wrapper">
-                        ${CardRenderer.renderAutoBadge(card)}
+                        ${CardRenderer.renderAttributeBadges(card)}
                         ${CardRenderer.renderPriceBadge(price)}
                         ${CardRenderer.renderCardImage(card.img, card.set, searchUrl)}
                     </div>
@@ -426,7 +426,11 @@
         // Initialize card editor modal (no player field - all cards are Jayden Daniels)
         const cardEditor = new CardEditorModal({
             customFields: {
-                variant: { label: 'Card Variant', type: 'text', placeholder: 'Silver Prizm /199', fullWidth: true, position: 'after-num' }
+                variant: { label: 'Card Variant', type: 'text', placeholder: 'Silver Prizm', fullWidth: true, position: 'after-num' },
+                rc: { label: 'RC', type: 'checkbox', position: 'attributes' },
+                auto: { label: 'Auto', type: 'checkbox', position: 'attributes' },
+                patch: { label: 'Patch', type: 'checkbox', position: 'attributes' },
+                serial: { label: 'Serial', type: 'text', placeholder: '/99', position: 'attributes' }
             },
             imageFolder: 'images/jayden-daniels',
             categories: ['college', 'panini', 'topps', 'other', 'inserts', 'premium'],
