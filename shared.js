@@ -1792,7 +1792,7 @@ class CardEditorModal {
                         <div class="card-editor-advanced-fields" style="display: none;">
                             <div class="card-editor-field full-width">
                                 <label class="card-editor-label">eBay Search Term</label>
-                                <input type="text" class="card-editor-input" id="editor-ebay" placeholder="Auto-generated from card data">
+                                <input type="text" class="card-editor-input" id="editor-ebay" placeholder="Defaults to player + set + number">
                             </div>
                             <div class="card-editor-field full-width">
                                 <label class="card-editor-label">Price Search Term</label>
