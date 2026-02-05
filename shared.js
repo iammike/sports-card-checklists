@@ -1837,7 +1837,6 @@ class CardEditorModal {
                             </select>
                         </div>
                         ${this.generateCustomFieldsHtml('after-num')}
-                        ${this.generateCustomFieldsHtml('attributes')}
                         ${this.categories ? `<div class="card-editor-field">
                             <label class="card-editor-label">Section</label>
                             <select class="card-editor-select" id="editor-category">
@@ -1848,6 +1847,7 @@ class CardEditorModal {
                                 }).join('')}
                             </select>
                         </div>` : ''}
+                        ${this.generateCustomFieldsHtml('attributes')}
                         <div class="card-editor-field full-width card-editor-advanced-toggle">
                             <button type="button" class="card-editor-toggle-btn" id="editor-toggle-advanced">Advanced</button>
                         </div>
