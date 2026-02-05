@@ -6,4 +6,8 @@ main = "worker.js"
 compatibility_date = "2024-01-01"
 
 # Account ID is set via CLOUDFLARE_ACCOUNT_ID secret in GitHub Actions
-# Environment variables (GITHUB_CLIENT_ID, etc.) are configured in Cloudflare dashboard
+# Secrets (GITHUB_CLIENT_SECRET, GITHUB_CLIENT_SECRET_PREVIEW) are configured in Cloudflare dashboard
+
+[vars]
+GITHUB_CLIENT_ID = "Ov23liik9Fs5C6RCeTgf"
+GITHUB_CLIENT_ID_PREVIEW = "Ov23limT2ZxKxthkupeT"
