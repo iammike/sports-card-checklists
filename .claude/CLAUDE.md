@@ -15,7 +15,7 @@
 - GitHub Pages deploys in ~30-60 seconds after push
 - After a PR is merged, wait for user to test before pushing more fixes - create new PRs instead of adding to old branches
 - **Preview gist sync** - Before testing on Cloudflare preview sites, remind user to sync preview gist from production (login on preview site, use "Sync from Production" button). Otherwise data may be stale or have outdated schema.
-- **Preview URL format** - Cloudflare Pages converts branch names: slashes become dashes, truncated to ~28 chars. Example: `experiment/rotation-text-input` → `https://experiment-rotation-text-inp.sports-card-checklists.pages.dev`. Always include `https://` when sharing URLs.
+- **Preview URL format** - Cloudflare Pages converts branch names: slashes become dashes, truncated to exactly 28 characters. Example: `fix/consolidate-search-toggles` (30 chars) → `https://fix-consolidate-search-toggl.sports-card-checklists.pages.dev` (28 chars). Always include `https://` when sharing URLs.
 
 ## Consistency
 - When making changes to a page or card component, consider applying the same change to all checklists/cards
