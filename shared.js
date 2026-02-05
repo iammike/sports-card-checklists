@@ -1232,9 +1232,10 @@ class ImageEditorModal {
         if (rotateSlider && rotateInput) {
             // Sync rotation from any source
             const setRotation = (val, updateInput = true) => {
-                // Strip ° if present, then parse
+                // Strip ° if present, then parse and round to 1 decimal
                 const numVal = parseFloat(String(val).replace('°', '')) || 0;
-                const clamped = Math.max(-45, Math.min(45, numVal));
+                const rounded = Math.round(numVal * 10) / 10;
+                const clamped = Math.max(-45, Math.min(45, rounded));
                 rotateSlider.value = clamped;
                 if (updateInput) rotateInput.value = clamped + '°';
                 if (this.cropper) this.cropper.rotateTo(clamped);
