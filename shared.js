@@ -87,19 +87,23 @@ const CollapsibleSections = {
         const elements = this.getContentElements(header, section);
         if (elements.length === 0) return null;
 
+        // Save insertion point BEFORE moving elements
+        const firstElement = elements[0];
+        const parent = firstElement.parentNode;
+
         // Create wrapper for animation
         const wrapper = document.createElement('div');
         wrapper.className = 'collapsible-content';
 
         // Create inner div (needed for grid animation)
         const inner = document.createElement('div');
-
-        // Move elements into wrapper
-        const parent = elements[0].parentNode;
-        const insertBefore = elements[0];
-        elements.forEach(el => inner.appendChild(el));
         wrapper.appendChild(inner);
-        parent.insertBefore(wrapper, insertBefore);
+
+        // Insert wrapper right before first element (while it's still in DOM)
+        parent.insertBefore(wrapper, firstElement);
+
+        // Now move elements into the inner div
+        elements.forEach(el => inner.appendChild(el));
 
         return wrapper;
     },
