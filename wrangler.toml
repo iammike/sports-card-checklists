@@ -1,0 +1,9 @@
+# Cloudflare Worker configuration
+# https://developers.cloudflare.com/workers/wrangler/configuration/
+
+name = "cards-oauth"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# Account ID is set via CLOUDFLARE_ACCOUNT_ID secret in GitHub Actions
+# Environment variables (GITHUB_CLIENT_ID, etc.) are configured in Cloudflare dashboard
