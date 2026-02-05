@@ -1645,9 +1645,12 @@ class CardEditorModal {
                             <label class="card-editor-label">Price ($)</label>
                             <input type="number" class="card-editor-input" id="editor-price" placeholder="Auto-estimate" step="0.01" min="0">
                         </div>
-                        <div class="card-editor-field full-width">
+                        <div class="card-editor-field full-width card-editor-advanced-toggle">
+                            <button type="button" class="card-editor-toggle-btn" id="editor-toggle-ebay">Customize eBay search</button>
+                        </div>
+                        <div class="card-editor-field full-width card-editor-ebay-field" style="display: none;">
                             <label class="card-editor-label">eBay Search Term</label>
-                            <input type="text" class="card-editor-input" id="editor-ebay" placeholder="Auto-generate">
+                            <input type="text" class="card-editor-input" id="editor-ebay" placeholder="Auto-generate from card data">
                         </div>
                         <div class="card-editor-field full-width card-editor-image-section">
                             <label class="card-editor-label">Image</label>
@@ -1713,6 +1716,15 @@ class CardEditorModal {
         modal.querySelectorAll('input, select').forEach(input => {
             input.oninput = () => this.setDirty(true);
         });
+
+        // Toggle eBay search field visibility
+        const ebayToggle = this.backdrop.querySelector('#editor-toggle-ebay');
+        const ebayField = this.backdrop.querySelector('.card-editor-ebay-field');
+        ebayToggle.onclick = () => {
+            const isHidden = ebayField.style.display === 'none';
+            ebayField.style.display = isHidden ? 'flex' : 'none';
+            ebayToggle.textContent = isHidden ? 'Hide eBay search' : 'Customize eBay search';
+        };
 
         // Track manual edits to eBay search term
         this.backdrop.querySelector('#editor-ebay').oninput = () => {
@@ -2155,8 +2167,16 @@ class CardEditorModal {
         this.backdrop.querySelector('#editor-type').value = cardData.type || 'Base';
         this.backdrop.querySelector('#editor-auto').checked = cardData.auto || false;
         this.backdrop.querySelector('#editor-price').value = cardData.price !== undefined ? cardData.price : '';
-        this.backdrop.querySelector('#editor-ebay').value = cardData.ebay || cardData.search || '';
+        const ebayValue = cardData.ebay || '';
+        this.backdrop.querySelector('#editor-ebay').value = ebayValue;
         this.backdrop.querySelector('#editor-img').value = cardData.img || '';
+
+        // Show eBay field only if it has a custom value
+        const ebayField = this.backdrop.querySelector('.card-editor-ebay-field');
+        const ebayToggle = this.backdrop.querySelector('#editor-toggle-ebay');
+        const hasCustomEbay = ebayValue !== '';
+        ebayField.style.display = hasCustomEbay ? 'flex' : 'none';
+        ebayToggle.textContent = hasCustomEbay ? 'Hide eBay search' : 'Customize eBay search';
 
         this.updateImagePreview(cardData.img);
         this.updateProcessButton(cardData.img);
@@ -2195,6 +2215,10 @@ class CardEditorModal {
         this.backdrop.querySelector('#editor-price').value = '';
         this.backdrop.querySelector('#editor-ebay').value = '';
         this.backdrop.querySelector('#editor-img').value = '';
+
+        // Hide eBay field by default for new cards
+        this.backdrop.querySelector('.card-editor-ebay-field').style.display = 'none';
+        this.backdrop.querySelector('#editor-toggle-ebay').textContent = 'Customize eBay search';
 
         // Clear custom fields
         this.clearCustomFields();

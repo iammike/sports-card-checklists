@@ -1265,6 +1265,27 @@ select, input[type="text"] {
     color: #e0e0e0;
 }
 
+/* Advanced toggle for eBay field */
+.card-editor-toggle-btn {
+    background: none;
+    border: none;
+    color: rgba(102, 126, 234, 0.8);
+    font-family: 'Barlow', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 4px 0;
+    transition: color 0.15s;
+}
+
+.card-editor-toggle-btn:hover {
+    color: #667eea;
+}
+
+.card-editor-ebay-field {
+    margin-top: -8px;
+}
+
 /* Image preview section */
 .card-editor-image-section {
     margin-top: 8px;
