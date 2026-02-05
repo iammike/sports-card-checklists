@@ -1835,6 +1835,10 @@ class CardEditorModal {
                 `Update image: ${filename}`
             );
 
+            if (!committedPath) {
+                throw new Error('Failed to create PR - check console for details');
+            }
+
             // Update the input field
             imgInput.value = committedPath;
             this.updateImagePreview(`data:image/webp;base64,${base64Data}`);

@@ -592,7 +592,11 @@ class GitHubSync {
                     })
                 }
             );
-            if (!commitImage.ok) throw new Error('Failed to commit image');
+            if (!commitImage.ok) {
+                const errorData = await commitImage.json().catch(() => ({}));
+                console.error('Commit image failed:', commitImage.status, errorData);
+                throw new Error(`Failed to commit image: ${errorData.message || commitImage.status}`);
+            }
 
             // 4. Create PR (GitHub Action will auto-merge)
             const createPR = await fetch(
@@ -611,7 +615,11 @@ class GitHubSync {
                     })
                 }
             );
-            if (!createPR.ok) throw new Error('Failed to create PR');
+            if (!createPR.ok) {
+                const errorData = await createPR.json().catch(() => ({}));
+                console.error('Create PR failed:', createPR.status, errorData);
+                throw new Error(`Failed to create PR: ${errorData.message || createPR.status}`);
+            }
 
             // Return the path - image will be available after PR merges (~30-60s)
             return path;
