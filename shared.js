@@ -1756,8 +1756,19 @@ class CardEditorModal {
     updateImagePreview(url) {
         const preview = this.backdrop.querySelector('.card-editor-image-preview');
         if (url) {
-            // Handle data URLs, absolute URLs, and relative paths (like jayden-daniels-cards/img.webp)
-            const src = url.startsWith('data:') ? url : sanitizeUrl(url);
+            // Determine the source URL:
+            // - data: URLs used as-is
+            // - Relative paths (local images) used as-is
+            // - Absolute URLs (http/https) go through sanitizeUrl
+            let src;
+            if (url.startsWith('data:')) {
+                src = url;
+            } else if (url.startsWith('http://') || url.startsWith('https://')) {
+                src = sanitizeUrl(url);
+            } else {
+                // Relative path - use as-is
+                src = url;
+            }
             preview.innerHTML = `<img src="${src}" alt="Preview" onerror="this.outerHTML='<span class=\\'placeholder\\'>Failed to load</span>'">`;
         } else {
             preview.innerHTML = '<span class="placeholder">No image</span>';
