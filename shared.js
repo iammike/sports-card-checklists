@@ -1276,12 +1276,22 @@ class ImageEditorModal {
     handleToolAction(action) {
         if (!this.cropper) return;
 
+        // Helper to reset fine rotation display
+        const resetFineRotation = () => {
+            const slider = this.backdrop.querySelector('#image-editor-rotate');
+            const input = this.backdrop.querySelector('#image-editor-rotate-value');
+            if (slider) slider.value = 0;
+            if (input) input.value = '0°';
+        };
+
         switch (action) {
             case 'rotate-left':
                 this.cropper.rotate(-90);
+                resetFineRotation();
                 break;
             case 'rotate-right':
                 this.cropper.rotate(90);
+                resetFineRotation();
                 break;
             case 'flip-h':
                 this.cropper.scaleX(-this.cropper.getData().scaleX || -1);
