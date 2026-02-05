@@ -1227,23 +1227,30 @@ class ImageEditorModal {
         });
 
         // Rotation slider for fine-grained straightening
-        // Track base rotation (from 90° buttons) separately from fine adjustment
+        // Track fine rotation value and base rotation separately
+        this.fineRotation = 0;
         this.baseRotation = 0;
         const rotateSlider = this.backdrop.querySelector('#image-editor-rotate');
         const rotateInput = this.backdrop.querySelector('#image-editor-rotate-value');
         if (rotateSlider && rotateInput) {
-            // Sync fine rotation from any source (adds to base rotation)
-            const setRotation = (val, updateInput = true) => {
+            // Set fine rotation (relative to base from 90° buttons)
+            const setFineRotation = (val, updateInput = true) => {
                 // Strip ° if present, then parse and round to 1 decimal
                 const numVal = parseFloat(String(val).replace('°', '')) || 0;
                 const rounded = Math.round(numVal * 10) / 10;
                 const clamped = Math.max(-45, Math.min(45, rounded));
+
+                this.fineRotation = clamped;
                 rotateSlider.value = clamped;
                 if (updateInput) rotateInput.value = clamped + '°';
-                if (this.cropper) this.cropper.rotateTo(this.baseRotation + clamped);
+
+                // Apply total rotation (base + fine)
+                if (this.cropper) {
+                    this.cropper.rotateTo(this.baseRotation + this.fineRotation);
+                }
             };
-            // Store setRotation for use in handleToolAction
-            this.setFineRotation = setRotation;
+            // Store for use in handleToolAction
+            this.setFineRotation = setFineRotation;
 
             // Slider input - update in real-time
             rotateSlider.oninput = () => setRotation(rotateSlider.value);
@@ -1283,10 +1290,12 @@ class ImageEditorModal {
         switch (action) {
             case 'rotate-left':
                 this.baseRotation -= 90;
+                this.fineRotation = 0;
                 if (this.setFineRotation) this.setFineRotation(0);
                 break;
             case 'rotate-right':
                 this.baseRotation += 90;
+                this.fineRotation = 0;
                 if (this.setFineRotation) this.setFineRotation(0);
                 break;
             case 'flip-h':
@@ -1297,6 +1306,7 @@ class ImageEditorModal {
                 break;
             case 'reset':
                 this.baseRotation = 0;
+                this.fineRotation = 0;
                 this.cropper.reset();
                 if (this.setFineRotation) this.setFineRotation(0);
                 break;
@@ -1313,6 +1323,14 @@ class ImageEditorModal {
             this.cropper.destroy();
             this.cropper = null;
         }
+
+        // Reset rotation state
+        this.baseRotation = 0;
+        this.fineRotation = 0;
+        const slider = this.backdrop.querySelector('#image-editor-rotate');
+        const input = this.backdrop.querySelector('#image-editor-rotate-value');
+        if (slider) slider.value = 0;
+        if (input) input.value = '0°';
 
         // Set image source
         const img = this.backdrop.querySelector('#image-editor-img');
