@@ -1224,6 +1224,11 @@ select, input[type="text"] {
 .card-editor-advanced-toggle {
     display: flex;
     align-items: flex-end;
+    justify-content: center;
+}
+
+.card-editor-advanced-toggle .card-editor-toggle-btn {
+    padding: 12px 14px;
 }
 
 .card-editor-advanced-fields {
