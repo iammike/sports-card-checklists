@@ -1,7 +1,7 @@
 // Sports Card Checklists - Shared JavaScript Utilities
 
 // Standard card types used across all checklists
-const CARD_TYPES = ['Base', 'Parallel', 'Insert', 'Insert SSP', 'Chase SSP'];
+const CARD_TYPES = ['Base', 'Parallel', 'Insert', 'Chase'];
 
 // Sanitization helpers for XSS prevention
 function sanitizeText(text) {
