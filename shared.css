@@ -1697,20 +1697,29 @@ select, input[type="text"] {
     display: block;
 }
 
-/* Two-row control layout: tools + slider on top, text input below */
+/* Single-row toolbar with rotation group in center */
 .image-editor-controls {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 24px;
-}
-
-.image-editor-controls-row {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
+    padding: 12px 24px;
+}
+
+.image-editor-rotation-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0 6px;
+}
+
+.image-editor-rotation-input-wrap {
+    position: relative;
+}
+
+.image-editor-rotation-input-wrap .image-editor-rotation-input {
+    width: 54px;
+    text-align: center;
 }
 
 .image-editor-tool {
@@ -1817,44 +1826,23 @@ select, input[type="text"] {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
-.image-editor-rotation-value {
-    display: flex;
-    align-items: center;
-    gap: 1px;
-}
-
 .image-editor-rotation-input {
-    width: 42px;
-    padding: 4px 6px;
+    width: 54px;
+    padding: 6px 8px;
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 4px;
     background: rgba(0, 0, 0, 0.3);
     color: white;
-    font-size: 12px;
+    font-size: 13px;
     font-family: inherit;
     font-variant-numeric: tabular-nums;
-    text-align: right;
+    text-align: center;
 }
 
 .image-editor-rotation-input:focus {
     outline: none;
-    border-color: rgba(255, 255, 255, 0.4);
-    background: rgba(0, 0, 0, 0.4);
-}
-
-/* Hide number input spinners */
-.image-editor-rotation-input::-webkit-inner-spin-button,
-.image-editor-rotation-input::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-.image-editor-rotation-input[type=number] {
-    -moz-appearance: textfield;
-}
-
-.image-editor-rotation-unit {
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.5);
+    border-color: rgba(102, 126, 234, 0.6);
+    background: rgba(0, 0, 0, 0.5);
 }
 
 .image-editor-step-btn {
@@ -1897,11 +1885,15 @@ select, input[type="text"] {
     }
 
     .image-editor-controls {
+        flex-wrap: wrap;
         padding: 12px 16px;
+        gap: 8px;
     }
 
-    .image-editor-controls-row {
-        flex-wrap: wrap;
+    .image-editor-rotation-group {
+        order: -1;
+        width: 100%;
+        justify-content: center;
     }
 
     .image-editor-slider {
