@@ -1165,36 +1165,34 @@ class ImageEditorModal {
                     <div class="image-editor-canvas">
                         <img id="image-editor-img" src="" alt="Edit">
                     </div>
-                    <div class="image-editor-toolbar">
-                        <button class="image-editor-tool" data-action="rotate-left" title="Rotate 90° Left">
-                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7.11 8.53L5.7 7.11C4.8 8.27 4.24 9.61 4.07 11h2.02c.14-.87.49-1.72 1.02-2.47zM6.09 13H4.07c.17 1.39.72 2.73 1.62 3.89l1.41-1.42c-.52-.75-.87-1.59-1.01-2.47zm1.01 5.32c1.16.9 2.51 1.44 3.9 1.61V17.9c-.87-.15-1.71-.49-2.46-1.03L7.1 18.32zM13 4.07V1L8.45 5.55 13 10V6.09c2.84.48 5 2.94 5 5.91s-2.16 5.43-5 5.91v2.02c3.95-.49 7-3.85 7-7.93s-3.05-7.44-7-7.93z"/></svg>
-                        </button>
-                        <button class="image-editor-tool" data-action="rotate-right" title="Rotate 90° Right">
-                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.55 5.55L11 1v3.07C7.06 4.56 4 7.92 4 12s3.05 7.44 7 7.93v-2.02c-2.84-.48-5-2.94-5-5.91s2.16-5.43 5-5.91V10l4.55-4.45zM19.93 11c-.17-1.39-.72-2.73-1.62-3.89l-1.42 1.42c.54.75.88 1.6 1.02 2.47h2.02zM13 17.9v2.02c1.39-.17 2.74-.71 3.9-1.61l-1.44-1.44c-.75.54-1.59.89-2.46 1.03zm3.89-2.42l1.42 1.41c.9-1.16 1.45-2.5 1.62-3.89h-2.02c-.14.87-.48 1.72-1.02 2.48z"/></svg>
-                        </button>
-                        <div class="image-editor-divider"></div>
-                        <button class="image-editor-tool" data-action="flip-h" title="Flip Horizontal">
-                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15 21h2v-2h-2v2zm4-12h2V7h-2v2zM3 5v14c0 1.1.9 2 2 2h4v-2H5V5h4V3H5c-1.1 0-2 .9-2 2zm16-2v2h2c0-1.1-.9-2-2-2zm-8 20h2V1h-2v22zm8-6h2v-2h-2v2zM15 5h2V3h-2v2zm4 8h2v-2h-2v2zm0 8c1.1 0 2-.9 2-2h-2v2z"/></svg>
-                        </button>
-                        <button class="image-editor-tool" data-action="flip-v" title="Flip Vertical">
-                            <svg viewBox="0 0 24 24" fill="currentColor" style="transform: rotate(90deg)"><path d="M15 21h2v-2h-2v2zm4-12h2V7h-2v2zM3 5v14c0 1.1.9 2 2 2h4v-2H5V5h4V3H5c-1.1 0-2 .9-2 2zm16-2v2h2c0-1.1-.9-2-2-2zm-8 20h2V1h-2v22zm8-6h2v-2h-2v2zM15 5h2V3h-2v2zm4 8h2v-2h-2v2zm0 8c1.1 0 2-.9 2-2h-2v2z"/></svg>
-                        </button>
-                        <div class="image-editor-divider"></div>
-                        <button class="image-editor-tool" data-action="reset" title="Reset All">
-                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
-                        </button>
-                    </div>
-                    <div class="image-editor-sliders">
-                        <div class="image-editor-slider-row">
-                            <label class="image-editor-slider-label">Straighten</label>
+                    <div class="image-editor-controls">
+                        <div class="image-editor-controls-row">
+                            <button class="image-editor-tool" data-action="rotate-left" title="Rotate 90° Left">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7.11 8.53L5.7 7.11C4.8 8.27 4.24 9.61 4.07 11h2.02c.14-.87.49-1.72 1.02-2.47zM6.09 13H4.07c.17 1.39.72 2.73 1.62 3.89l1.41-1.42c-.52-.75-.87-1.59-1.01-2.47zm1.01 5.32c1.16.9 2.51 1.44 3.9 1.61V17.9c-.87-.15-1.71-.49-2.46-1.03L7.1 18.32zM13 4.07V1L8.45 5.55 13 10V6.09c2.84.48 5 2.94 5 5.91s-2.16 5.43-5 5.91v2.02c3.95-.49 7-3.85 7-7.93s-3.05-7.44-7-7.93z"/></svg>
+                            </button>
+                            <button class="image-editor-tool" data-action="rotate-right" title="Rotate 90° Right">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.55 5.55L11 1v3.07C7.06 4.56 4 7.92 4 12s3.05 7.44 7 7.93v-2.02c-2.84-.48-5-2.94-5-5.91s2.16-5.43 5-5.91V10l4.55-4.45zM19.93 11c-.17-1.39-.72-2.73-1.62-3.89l-1.42 1.42c.54.75.88 1.6 1.02 2.47h2.02zM13 17.9v2.02c1.39-.17 2.74-.71 3.9-1.61l-1.44-1.44c-.75.54-1.59.89-2.46 1.03zm3.89-2.42l1.42 1.41c.9-1.16 1.45-2.5 1.62-3.89h-2.02c-.14.87-.48 1.72-1.02 2.48z"/></svg>
+                            </button>
                             <button class="image-editor-step-btn" id="rotate-minus" title="Decrease 0.5°">−</button>
                             <input type="range" class="image-editor-slider" id="image-editor-rotate" min="-45" max="45" value="0" step="0.5">
                             <button class="image-editor-step-btn" id="rotate-plus" title="Increase 0.5°">+</button>
-                            <span class="image-editor-slider-value" id="image-editor-rotate-value">0°</span>
+                            <button class="image-editor-tool" data-action="flip-h" title="Flip Horizontal">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15 21h2v-2h-2v2zm4-12h2V7h-2v2zM3 5v14c0 1.1.9 2 2 2h4v-2H5V5h4V3H5c-1.1 0-2 .9-2 2zm16-2v2h2c0-1.1-.9-2-2-2zm-8 20h2V1h-2v22zm8-6h2v-2h-2v2zM15 5h2V3h-2v2zm4 8h2v-2h-2v2zm0 8c1.1 0 2-.9 2-2h-2v2z"/></svg>
+                            </button>
+                            <button class="image-editor-tool" data-action="flip-v" title="Flip Vertical">
+                                <svg viewBox="0 0 24 24" fill="currentColor" style="transform: rotate(90deg)"><path d="M15 21h2v-2h-2v2zm4-12h2V7h-2v2zM3 5v14c0 1.1.9 2 2 2h4v-2H5V5h4V3H5c-1.1 0-2 .9-2 2zm16-2v2h2c0-1.1-.9-2-2-2zm-8 20h2V1h-2v22zm8-6h2v-2h-2v2zM15 5h2V3h-2v2zm4 8h2v-2h-2v2zm0 8c1.1 0 2-.9 2-2h-2v2z"/></svg>
+                            </button>
+                        </div>
+                        <div class="image-editor-controls-row">
+                            <input type="text" class="image-editor-rotation-input" id="image-editor-rotate-value" value="0°" inputmode="decimal">
                         </div>
                     </div>
                 </div>
                 <div class="image-editor-footer">
+                    <button class="image-editor-tool" data-action="reset" title="Reset All">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+                    </button>
+                    <div class="image-editor-footer-spacer"></div>
                     <button class="image-editor-btn cancel">Cancel</button>
                     <button class="image-editor-btn confirm">Apply & Continue</button>
                 </div>
@@ -1229,32 +1227,52 @@ class ImageEditorModal {
         });
 
         // Rotation slider for fine-grained straightening
+        // Track fine rotation value and base rotation separately
+        this.fineRotation = 0;
+        this.baseRotation = 0;
         const rotateSlider = this.backdrop.querySelector('#image-editor-rotate');
-        const rotateValue = this.backdrop.querySelector('#image-editor-rotate-value');
-        if (rotateSlider) {
-            rotateSlider.oninput = () => {
-                const val = parseFloat(rotateSlider.value);
-                rotateValue.textContent = `${val}°`;
+        const rotateInput = this.backdrop.querySelector('#image-editor-rotate-value');
+        if (rotateSlider && rotateInput) {
+            // Set fine rotation (relative to base from 90° buttons)
+            const setFineRotation = (val, updateInput = true) => {
+                // Strip ° if present, then parse and round to 1 decimal
+                const numVal = parseFloat(String(val).replace('°', '')) || 0;
+                const rounded = Math.round(numVal * 10) / 10;
+                const clamped = Math.max(-45, Math.min(45, rounded));
+
+                this.fineRotation = clamped;
+                rotateSlider.value = clamped;
+                if (updateInput) rotateInput.value = clamped + '°';
+
+                // Apply total rotation (base + fine)
                 if (this.cropper) {
-                    this.cropper.rotateTo(val);
+                    this.cropper.rotateTo(this.baseRotation + this.fineRotation);
                 }
             };
-            // Double-click to reset
-            rotateSlider.ondblclick = () => {
-                rotateSlider.value = 0;
-                rotateValue.textContent = '0°';
-                if (this.cropper) this.cropper.rotateTo(0);
+            // Store for use in handleToolAction
+            this.setFineRotation = setFineRotation;
+
+            // Slider input - update in real-time
+            rotateSlider.oninput = () => setFineRotation(rotateSlider.value);
+
+            // Text input - only apply on blur/enter to allow typing "-" and "."
+            rotateInput.onchange = () => setFineRotation(rotateInput.value);
+            rotateInput.onkeydown = (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    setFineRotation(rotateInput.value);
+                    rotateInput.blur();
+                }
             };
+            // Select all on focus for easy replacement
+            rotateInput.onfocus = () => rotateInput.select();
+
+            // Double-click slider to reset
+            rotateSlider.ondblclick = () => setFineRotation(0);
 
             // +/- buttons for fine adjustment
-            const updateRotation = (delta) => {
-                const newVal = Math.max(-45, Math.min(45, parseFloat(rotateSlider.value) + delta));
-                rotateSlider.value = newVal;
-                rotateValue.textContent = `${newVal}°`;
-                if (this.cropper) this.cropper.rotateTo(newVal);
-            };
-            this.backdrop.querySelector('#rotate-minus').onclick = () => updateRotation(-0.5);
-            this.backdrop.querySelector('#rotate-plus').onclick = () => updateRotation(0.5);
+            this.backdrop.querySelector('#rotate-minus').onclick = () => setFineRotation(parseFloat(rotateSlider.value) - 0.5);
+            this.backdrop.querySelector('#rotate-plus').onclick = () => setFineRotation(parseFloat(rotateSlider.value) + 0.5);
         }
 
         // Escape key to close
@@ -1271,10 +1289,14 @@ class ImageEditorModal {
 
         switch (action) {
             case 'rotate-left':
-                this.cropper.rotate(-90);
+                this.baseRotation -= 90;
+                this.fineRotation = 0;
+                if (this.setFineRotation) this.setFineRotation(0);
                 break;
             case 'rotate-right':
-                this.cropper.rotate(90);
+                this.baseRotation += 90;
+                this.fineRotation = 0;
+                if (this.setFineRotation) this.setFineRotation(0);
                 break;
             case 'flip-h':
                 this.cropper.scaleX(-this.cropper.getData().scaleX || -1);
@@ -1283,14 +1305,10 @@ class ImageEditorModal {
                 this.cropper.scaleY(-this.cropper.getData().scaleY || -1);
                 break;
             case 'reset':
+                this.baseRotation = 0;
+                this.fineRotation = 0;
                 this.cropper.reset();
-                // Also reset the slider
-                const slider = this.backdrop.querySelector('#image-editor-rotate');
-                const sliderValue = this.backdrop.querySelector('#image-editor-rotate-value');
-                if (slider) {
-                    slider.value = 0;
-                    sliderValue.textContent = '0°';
-                }
+                if (this.setFineRotation) this.setFineRotation(0);
                 break;
         }
     }
@@ -1305,6 +1323,14 @@ class ImageEditorModal {
             this.cropper.destroy();
             this.cropper = null;
         }
+
+        // Reset rotation state
+        this.baseRotation = 0;
+        this.fineRotation = 0;
+        const slider = this.backdrop.querySelector('#image-editor-rotate');
+        const input = this.backdrop.querySelector('#image-editor-rotate-value');
+        if (slider) slider.value = 0;
+        if (input) input.value = '0°';
 
         // Set image source
         const img = this.backdrop.querySelector('#image-editor-img');
@@ -1628,15 +1654,15 @@ class CardEditorModal {
                             <div class="card-editor-image-input-row">
                                 <input type="text" class="card-editor-input" id="editor-img" placeholder="URL or upload file...">
                                 <input type="file" id="editor-img-file" accept="image/*" style="display: none;">
-                                <button type="button" class="card-editor-upload-btn" id="editor-upload-img" title="${this.isPreviewSite() ? 'Uploads disabled on preview sites' : 'Upload local image'}" ${this.isPreviewSite() ? 'disabled' : ''}>
+                                <button type="button" class="card-editor-upload-btn" id="editor-upload-img" title="Upload local image">
                                     <span class="upload-text">Upload</span>
                                     <span class="upload-spinner"></span>
                                 </button>
-                                <button type="button" class="card-editor-process-btn" id="editor-process-img" title="${this.isPreviewSite() ? 'Processing disabled on preview sites' : 'Process image'}" ${this.isPreviewSite() ? 'disabled' : ''}>
+                                <button type="button" class="card-editor-process-btn" id="editor-process-img" title="Process image">
                                     <span class="process-text">Process</span>
                                     <span class="process-spinner"></span>
                                 </button>
-                                <button type="button" class="card-editor-edit-btn" id="editor-edit-img" title="${this.isPreviewSite() ? 'Editing disabled on preview sites' : 'Edit existing image'}" style="display: none;" ${this.isPreviewSite() ? 'disabled' : ''}>
+                                <button type="button" class="card-editor-edit-btn" id="editor-edit-img" title="Edit existing image" style="display: none;">
                                     <span class="edit-text">Edit</span>
                                     <span class="edit-spinner"></span>
                                 </button>
@@ -1842,6 +1868,16 @@ class CardEditorModal {
             const newPath = `${baseName}_${timestamp}.webp`;
             const filename = newPath.split('/').pop();
 
+            // On preview sites, show the result but don't commit
+            if (this.isPreviewSite()) {
+                imgInput.value = newPath;
+                this.updateImagePreview(`data:image/webp;base64,${base64Data}`);
+                this.updateProcessButton(newPath);
+                this.updateEditButton(newPath);
+                alert('Preview site: Image edited but not saved. Commits are disabled on preview deployments.');
+                return;
+            }
+
             // Commit via PR
             btn.title = 'Creating PR...';
             const committedPath = await githubSync.commitImageViaPR(
@@ -1928,6 +1964,16 @@ class CardEditorModal {
 
             // Resize and convert to WebP
             const { base64: base64Content } = await this.imageProcessor.processImage(img);
+
+            // On preview sites, show the result but don't commit
+            if (this.isPreviewSite()) {
+                imgInput.value = path;
+                this.updateImagePreview(`data:image/webp;base64,${base64Content}`);
+                this.updateProcessButton(path);
+                this.updateEditButton(path);
+                alert('Preview site: Image processed but not saved. Commits are disabled on preview deployments.');
+                return;
+            }
 
             // Commit via PR (will auto-merge)
             btn.title = 'Creating PR...';
@@ -2025,6 +2071,16 @@ class CardEditorModal {
 
             // Process the image (resize, convert to webp)
             const { base64: base64Content } = await this.imageProcessor.processImage(img);
+
+            // On preview sites, show the result but don't commit
+            if (this.isPreviewSite()) {
+                imgInput.value = path;
+                this.updateImagePreview(`data:image/webp;base64,${base64Content}`);
+                this.updateProcessButton(path);
+                this.updateEditButton(path);
+                alert('Preview site: Image uploaded but not saved. Commits are disabled on preview deployments.');
+                return;
+            }
 
             // Commit via PR (will auto-merge)
             btn.title = 'Creating PR...';
