@@ -257,8 +257,8 @@
 
     <!-- EXTRAS -->
     <div class="section" id="alternates-section" style="display: none;">
-        <div class="section-header alternates-header" onclick="toggleAlternatesSection()" style="cursor: pointer; background: linear-gradient(135deg, #666 0%, #444 100%);">
-            <span id="alternates-toggle" class="expanded">▼</span> Extra Cards <span id="alternates-count" style="font-weight: normal; font-size: 14px; opacity: 0.8;"></span>
+        <div class="section-header alternates-header" style="background: linear-gradient(135deg, #666 0%, #444 100%);">
+            Extra Cards <span id="alternates-count" style="font-weight: normal; font-size: 14px; opacity: 0.8;"></span>
         </div>
         <div class="extras-note">Alternate cards for players above. Not included in main checklist totals.</div>
         <div class="card-grid" id="alternates-cards"></div>
@@ -419,18 +419,6 @@
                     </div>
                 </div>
             `;
-        }
-
-        function toggleAlternatesSection() {
-            const cardsEl = document.getElementById('alternates-cards');
-            const toggleEl = document.getElementById('alternates-toggle');
-            if (cardsEl.style.display === 'none') {
-                cardsEl.style.display = '';
-                toggleEl.classList.add('expanded');
-            } else {
-                cardsEl.style.display = 'none';
-                toggleEl.classList.remove('expanded');
-            }
         }
 
         // For players with alternates in the same sport, returns which card to show
@@ -720,6 +708,7 @@
                 cardContextMenu.init();
                 cardEditor.init();
                 renderCards();
+                CollapsibleSections.init({ persist: true, storageKey: 'jmu-collapsed' });
             } catch (err) {
                 console.error('Failed to initialize:', err);
                 document.querySelector('.page-content').innerHTML =

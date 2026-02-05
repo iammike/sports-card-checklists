@@ -107,21 +107,21 @@
             border: 1px solid rgba(255,255,255,0.05);
         }
 
-        /* Era sections */
-        .era-section { margin-bottom: 30px; }
-        .era-title {
-            font-size: 1.3em;
-            color: #FFB612;
-            margin-bottom: 15px;
-            padding-bottom: 5px;
-            border-bottom: 2px solid rgba(255,182,18,0.3);
+        /* Era sections - use shared section structure */
+        .section { margin-bottom: 28px; }
+
+        .group-header {
+            background: linear-gradient(135deg, #5A1414 0%, #3d0e0e 100%);
+            border-bottom-color: #FFB612;
         }
 
-        /* Card grid (uses different class name) */
-        .cards-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 20px;
+        .section-group {
+            background: rgba(255,255,255,0.02);
+        }
+
+        .card-grid {
+            background: transparent;
+            box-shadow: none;
         }
 
         /* Dark theme cards */
@@ -279,7 +279,7 @@
         .collection-cta:hover { transform: scale(1.02); }
 
         @media (max-width: 600px) {
-            .cards-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+            .card-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
             h1 { font-size: 1.5em; }
             .card { padding: 8px; }
         }
@@ -616,11 +616,12 @@
             // For non-default sort, render as flat list
             if (sortBy !== 'default') {
                 const sorted = sortCards(filtered, sortBy);
-                let html = '<div class="era-section"><div class="cards-grid">';
+                let html = '<div class="section"><div class="group-header" data-no-collapse>All Cards</div>';
+                html += '<div class="section-group"><div class="card-grid">';
                 sorted.forEach(card => {
                     html += createCardElement(card);
                 });
-                html += '</div></div>';
+                html += '</div></div></div>';
                 container.innerHTML = html;
                 updateStats(filtered);
                 return;
@@ -642,16 +643,17 @@
             let html = '';
             Object.entries(eras).forEach(([key, era]) => {
                 if (era.cards.length === 0) return;
-                html += `<div class="era-section">
-                    <h2 class="era-title">${era.title}</h2>
-                    <div class="cards-grid">`;
+                html += `<div class="section">
+                    <div class="group-header">${era.title}</div>
+                    <div class="section-group"><div class="card-grid">`;
                 era.cards.forEach(card => {
                     html += createCardElement(card);
                 });
-                html += '</div></div>';
+                html += '</div></div></div>';
             });
 
             container.innerHTML = html;
+            CollapsibleSections.init({ persist: true, storageKey: 'washington-qbs-collapsed' });
             updateStats(filtered);
         }
 
