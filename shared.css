@@ -1802,6 +1802,7 @@ select, input[type="text"] {
 
 .image-editor-slider {
     flex: 1;
+    max-width: 200px;
     height: 4px;
     -webkit-appearance: none;
     appearance: none;
@@ -1837,6 +1838,41 @@ select, input[type="text"] {
     min-width: 36px;
     text-align: right;
     font-variant-numeric: tabular-nums;
+}
+
+.image-editor-rotation-input {
+    width: 50px;
+    padding: 4px 6px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.3);
+    color: white;
+    font-size: 12px;
+    font-family: inherit;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+.image-editor-rotation-input:focus {
+    outline: none;
+    border-color: rgba(255, 255, 255, 0.5);
+    background: rgba(0, 0, 0, 0.5);
+}
+
+/* Hide number input spinners */
+.image-editor-rotation-input::-webkit-inner-spin-button,
+.image-editor-rotation-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.image-editor-rotation-input[type=number] {
+    -moz-appearance: textfield;
+}
+
+.image-editor-rotation-unit {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+    margin-left: -4px;
 }
 
 .image-editor-step-btn {

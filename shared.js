@@ -1190,7 +1190,8 @@ class ImageEditorModal {
                             <button class="image-editor-step-btn" id="rotate-minus" title="Decrease 0.5°">−</button>
                             <input type="range" class="image-editor-slider" id="image-editor-rotate" min="-45" max="45" value="0" step="0.5">
                             <button class="image-editor-step-btn" id="rotate-plus" title="Increase 0.5°">+</button>
-                            <span class="image-editor-slider-value" id="image-editor-rotate-value">0°</span>
+                            <input type="number" class="image-editor-rotation-input" id="image-editor-rotate-value" value="0" min="-45" max="45" step="0.1">
+                            <span class="image-editor-rotation-unit">°</span>
                         </div>
                     </div>
                 </div>
@@ -1230,31 +1231,28 @@ class ImageEditorModal {
 
         // Rotation slider for fine-grained straightening
         const rotateSlider = this.backdrop.querySelector('#image-editor-rotate');
-        const rotateValue = this.backdrop.querySelector('#image-editor-rotate-value');
-        if (rotateSlider) {
-            rotateSlider.oninput = () => {
-                const val = parseFloat(rotateSlider.value);
-                rotateValue.textContent = `${val}°`;
-                if (this.cropper) {
-                    this.cropper.rotateTo(val);
-                }
-            };
-            // Double-click to reset
-            rotateSlider.ondblclick = () => {
-                rotateSlider.value = 0;
-                rotateValue.textContent = '0°';
-                if (this.cropper) this.cropper.rotateTo(0);
+        const rotateInput = this.backdrop.querySelector('#image-editor-rotate-value');
+        if (rotateSlider && rotateInput) {
+            // Sync rotation from any source
+            const setRotation = (val) => {
+                val = Math.max(-45, Math.min(45, parseFloat(val) || 0));
+                rotateSlider.value = val;
+                rotateInput.value = val;
+                if (this.cropper) this.cropper.rotateTo(val);
             };
 
+            // Slider input
+            rotateSlider.oninput = () => setRotation(rotateSlider.value);
+
+            // Text input
+            rotateInput.oninput = () => setRotation(rotateInput.value);
+
+            // Double-click slider to reset
+            rotateSlider.ondblclick = () => setRotation(0);
+
             // +/- buttons for fine adjustment
-            const updateRotation = (delta) => {
-                const newVal = Math.max(-45, Math.min(45, parseFloat(rotateSlider.value) + delta));
-                rotateSlider.value = newVal;
-                rotateValue.textContent = `${newVal}°`;
-                if (this.cropper) this.cropper.rotateTo(newVal);
-            };
-            this.backdrop.querySelector('#rotate-minus').onclick = () => updateRotation(-0.5);
-            this.backdrop.querySelector('#rotate-plus').onclick = () => updateRotation(0.5);
+            this.backdrop.querySelector('#rotate-minus').onclick = () => setRotation(parseFloat(rotateSlider.value) - 0.5);
+            this.backdrop.querySelector('#rotate-plus').onclick = () => setRotation(parseFloat(rotateSlider.value) + 0.5);
         }
 
         // Escape key to close
@@ -1284,13 +1282,11 @@ class ImageEditorModal {
                 break;
             case 'reset':
                 this.cropper.reset();
-                // Also reset the slider
+                // Also reset the slider and input
                 const slider = this.backdrop.querySelector('#image-editor-rotate');
-                const sliderValue = this.backdrop.querySelector('#image-editor-rotate-value');
-                if (slider) {
-                    slider.value = 0;
-                    sliderValue.textContent = '0°';
-                }
+                const rotationInput = this.backdrop.querySelector('#image-editor-rotate-value');
+                if (slider) slider.value = 0;
+                if (rotationInput) rotationInput.value = 0;
                 break;
         }
     }
