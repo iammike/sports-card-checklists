@@ -1441,6 +1441,7 @@ select, input[type="text"] {
 }
 
 .card-editor-attr-price {
+    margin-left: auto;
 }
 
 .card-editor-attr-price .card-editor-input {
