@@ -1810,13 +1810,19 @@ class CardEditorModal {
             // Convert data URL to base64
             const base64Data = editedDataUrl.split(',')[1];
 
-            // Generate new filename (add _v2, _v3, etc. or timestamp)
+            // Generate new filename (add timestamp suffix)
             const timestamp = Date.now();
             const baseName = url.replace(/\.webp$/, '');
             const newPath = `${baseName}_${timestamp}.webp`;
+            const filename = newPath.split('/').pop();
 
             // Commit via PR
-            const committedPath = await githubSync.commitImage(newPath, base64Data);
+            btn.title = 'Creating PR...';
+            const committedPath = await githubSync.commitImageViaPR(
+                newPath,
+                base64Data,
+                `Update image: ${filename}`
+            );
 
             // Update the input field
             imgInput.value = committedPath;
