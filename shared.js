@@ -1755,7 +1755,8 @@ class CardEditorModal {
     // Update image preview
     updateImagePreview(url) {
         const preview = this.backdrop.querySelector('.card-editor-image-preview');
-        if (url && (url.startsWith('http') || url.startsWith('/') || url.startsWith('data:'))) {
+        if (url) {
+            // Handle data URLs, absolute URLs, and relative paths (like jayden-daniels-cards/img.webp)
             const src = url.startsWith('data:') ? url : sanitizeUrl(url);
             preview.innerHTML = `<img src="${src}" alt="Preview" onerror="this.outerHTML='<span class=\\'placeholder\\'>Failed to load</span>'">`;
         } else {
