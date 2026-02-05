@@ -1869,7 +1869,7 @@ class CardEditorModal {
         const advancedFields = this.backdrop.querySelector('.card-editor-advanced-fields');
         advancedToggle.onclick = () => {
             const isHidden = advancedFields.style.display === 'none';
-            advancedFields.style.display = isHidden ? 'block' : 'none';
+            advancedFields.style.display = isHidden ? 'flex' : 'none';
             advancedToggle.textContent = isHidden ? 'Hide advanced' : 'Advanced';
         };
 
@@ -2326,7 +2326,7 @@ class CardEditorModal {
         const hasCustomSearch = ebayValue !== '' || priceSearchValue !== '';
         const advancedFields = this.backdrop.querySelector('.card-editor-advanced-fields');
         const advancedToggle = this.backdrop.querySelector('#editor-toggle-advanced');
-        advancedFields.style.display = hasCustomSearch ? 'block' : 'none';
+        advancedFields.style.display = hasCustomSearch ? 'flex' : 'none';
         advancedToggle.textContent = hasCustomSearch ? 'Hide advanced' : 'Advanced';
 
         this.updateImagePreview(cardData.img);
