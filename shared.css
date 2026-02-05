@@ -912,6 +912,21 @@ select, input[type="text"] {
     margin-bottom: 24px;
 }
 
+/* Slide animation for collapsible content */
+.collapsible-content {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows 0.25s ease-out;
+}
+
+.collapsible-content > * {
+    overflow: hidden;
+}
+
+.collapsible-content.collapsed {
+    grid-template-rows: 0fr;
+}
+
 /* ============================================
    Notes (for inserts, premium, extras)
    ============================================ */

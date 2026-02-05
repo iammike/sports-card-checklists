@@ -38,17 +38,25 @@ const CollapsibleSections = {
             // Add collapsible class for styling
             header.classList.add('collapsible');
 
-            // Find the associated content (next sibling or section-group/card-grid within parent)
+            // Find the associated content and wrap it for animation
             const section = header.closest('.section, [class*="-section"]');
             const sectionId = header.textContent.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+            const wrapper = this.wrapContent(header, section);
 
-            // Restore collapsed state from localStorage
+            // Restore collapsed state from localStorage (instant, no animation on load)
             if (persist) {
                 const collapsed = this.getCollapsedState(storageKey);
                 if (collapsed.includes(sectionId)) {
                     header.classList.add('collapsed');
                     if (section) section.classList.remove('expanded');
-                    this.hideContent(header, section);
+                    if (wrapper) {
+                        wrapper.style.transition = 'none';
+                        wrapper.classList.add('collapsed');
+                        // Re-enable transition after layout
+                        requestAnimationFrame(() => {
+                            wrapper.style.transition = '';
+                        });
+                    }
                 }
             }
 
@@ -61,11 +69,9 @@ const CollapsibleSections = {
                     section.classList.toggle('expanded', !isCollapsing);
                 }
 
-                // Toggle content visibility
-                if (isCollapsing) {
-                    this.hideContent(header, section);
-                } else {
-                    this.showContent(header, section);
+                // Toggle content with animation
+                if (wrapper) {
+                    wrapper.classList.toggle('collapsed', isCollapsing);
                 }
 
                 // Persist state
@@ -76,43 +82,59 @@ const CollapsibleSections = {
         });
     },
 
-    hideContent(header, section) {
-        // Hide card-grid or section-group that follows the header
-        const content = this.getContent(header, section);
-        if (content) content.style.display = 'none';
-        // Also hide any notes
-        const note = header.nextElementSibling;
-        if (note && (note.classList.contains('section-note') || note.className.includes('-note'))) {
-            note.style.display = 'none';
-        }
+    wrapContent(header, section) {
+        // Find content elements to wrap
+        const elements = this.getContentElements(header, section);
+        if (elements.length === 0) return null;
+
+        // Create wrapper for animation
+        const wrapper = document.createElement('div');
+        wrapper.className = 'collapsible-content';
+
+        // Create inner div (needed for grid animation)
+        const inner = document.createElement('div');
+
+        // Move elements into wrapper
+        const parent = elements[0].parentNode;
+        const insertBefore = elements[0];
+        elements.forEach(el => inner.appendChild(el));
+        wrapper.appendChild(inner);
+        parent.insertBefore(wrapper, insertBefore);
+
+        return wrapper;
     },
 
-    showContent(header, section) {
-        const content = this.getContent(header, section);
-        if (content) content.style.display = '';
-        const note = header.nextElementSibling;
-        if (note && (note.classList.contains('section-note') || note.className.includes('-note'))) {
-            note.style.display = '';
-        }
-    },
+    getContentElements(header, section) {
+        const elements = [];
 
-    getContent(header, section) {
-        // Try to find content: section-group, card-grid, or next significant sibling
-        if (section) {
-            return section.querySelector('.section-group, .card-grid');
-        }
-        // Walk siblings to find content
+        // Check for note immediately after header
         let sibling = header.nextElementSibling;
-        while (sibling) {
-            if (sibling.classList.contains('section-group') || sibling.classList.contains('card-grid')) {
-                return sibling;
-            }
-            if (sibling.classList.contains('section-header') || sibling.classList.contains('group-header')) {
-                break; // Hit next section
-            }
+        if (sibling && (sibling.classList.contains('section-note') || sibling.className.includes('-note'))) {
+            elements.push(sibling);
             sibling = sibling.nextElementSibling;
         }
-        return null;
+
+        // Find main content
+        if (section) {
+            const content = section.querySelector('.section-group, .card-grid');
+            if (content && !elements.includes(content)) {
+                elements.push(content);
+            }
+        } else {
+            // Walk siblings to find content
+            while (sibling) {
+                if (sibling.classList.contains('section-group') || sibling.classList.contains('card-grid')) {
+                    elements.push(sibling);
+                    break;
+                }
+                if (sibling.classList.contains('section-header') || sibling.classList.contains('group-header')) {
+                    break;
+                }
+                sibling = sibling.nextElementSibling;
+            }
+        }
+
+        return elements;
     },
 
     getCollapsedState(key) {
