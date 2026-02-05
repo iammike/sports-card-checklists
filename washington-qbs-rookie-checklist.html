@@ -569,7 +569,8 @@
 
             const cardClass = `card ${cardOwned ? 'owned' : ''} ${card.superBowl ? 'super-bowl' : ''}`;
             const searchUrl = CardRenderer.getEbayUrl(card.search);
-            const scpUrl = CardRenderer.getScpUrl(encodeURIComponent(card.player + ' rookie'));
+            const priceSearchTerm = card.priceSearch || encodeURIComponent(card.player + ' rookie');
+            const scpUrl = CardRenderer.getScpUrl(priceSearchTerm);
 
             return `<div class="${cardClass}">
                 <div class="card-image-wrapper">
@@ -792,6 +793,8 @@
                         if ('achievement' in cardData && cardData.achievement.length > 0) foundCard.achievement = cardData.achievement;
                         else delete foundCard.achievement;
                         if (cardData.ebay) foundCard.search = cardData.ebay;
+                        if (cardData.priceSearch) foundCard.priceSearch = cardData.priceSearch;
+                        else delete foundCard.priceSearch;
                         // Re-sort: remove from current position and re-insert sorted
                         cards.splice(index, 1);
                         insertCardSorted(foundCard);

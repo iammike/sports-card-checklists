@@ -1788,10 +1788,15 @@ class CardEditorModal {
                         </div>
                         <div class="card-editor-field full-width card-editor-advanced-toggle">
                             <button type="button" class="card-editor-toggle-btn" id="editor-toggle-ebay">Customize eBay search</button>
+                            <button type="button" class="card-editor-toggle-btn" id="editor-toggle-price-search">Customize price search</button>
                         </div>
                         <div class="card-editor-field full-width card-editor-ebay-field" style="display: none;">
                             <label class="card-editor-label">eBay Search Term</label>
                             <input type="text" class="card-editor-input" id="editor-ebay" placeholder="Auto-generate from card data">
+                        </div>
+                        <div class="card-editor-field full-width card-editor-price-search-field" style="display: none;">
+                            <label class="card-editor-label">Price Search Term</label>
+                            <input type="text" class="card-editor-input" id="editor-price-search" placeholder="Auto-generate from player name">
                         </div>
                         <div class="card-editor-field full-width card-editor-image-section">
                             <label class="card-editor-label">Image</label>
@@ -1871,6 +1876,15 @@ class CardEditorModal {
         this.backdrop.querySelector('#editor-ebay').oninput = () => {
             this.ebayManuallyEdited = true;
             this.setDirty(true);
+        };
+
+        // Toggle price search field visibility
+        const priceSearchToggle = this.backdrop.querySelector('#editor-toggle-price-search');
+        const priceSearchField = this.backdrop.querySelector('.card-editor-price-search-field');
+        priceSearchToggle.onclick = () => {
+            const isHidden = priceSearchField.style.display === 'none';
+            priceSearchField.style.display = isHidden ? 'flex' : 'none';
+            priceSearchToggle.textContent = isHidden ? 'Hide price search' : 'Customize price search';
         };
 
         // Image preview on URL change
@@ -2319,6 +2333,15 @@ class CardEditorModal {
         ebayField.style.display = hasCustomEbay ? 'flex' : 'none';
         ebayToggle.textContent = hasCustomEbay ? 'Hide eBay search' : 'Customize eBay search';
 
+        // Populate and show price search field if it has a custom value
+        const priceSearchValue = cardData.priceSearch || '';
+        this.backdrop.querySelector('#editor-price-search').value = priceSearchValue;
+        const priceSearchField = this.backdrop.querySelector('.card-editor-price-search-field');
+        const priceSearchToggle = this.backdrop.querySelector('#editor-toggle-price-search');
+        const hasCustomPriceSearch = priceSearchValue !== '';
+        priceSearchField.style.display = hasCustomPriceSearch ? 'flex' : 'none';
+        priceSearchToggle.textContent = hasCustomPriceSearch ? 'Hide price search' : 'Customize price search';
+
         this.updateImagePreview(cardData.img);
         this.updateProcessButton(cardData.img);
         this.updateEditButton(cardData.img);
@@ -2360,6 +2383,11 @@ class CardEditorModal {
         // Hide eBay field by default for new cards
         this.backdrop.querySelector('.card-editor-ebay-field').style.display = 'none';
         this.backdrop.querySelector('#editor-toggle-ebay').textContent = 'Customize eBay search';
+
+        // Hide price search field by default for new cards
+        this.backdrop.querySelector('#editor-price-search').value = '';
+        this.backdrop.querySelector('.card-editor-price-search-field').style.display = 'none';
+        this.backdrop.querySelector('#editor-toggle-price-search').textContent = 'Customize price search';
 
         // Clear custom fields
         this.clearCustomFields();
@@ -2438,6 +2466,12 @@ class CardEditorModal {
         const ebayVal = this.backdrop.querySelector('#editor-ebay').value.trim();
         if (ebayVal !== '') {
             data.ebay = ebayVal;
+        }
+
+        // Price search term - only include if explicitly set
+        const priceSearchVal = this.backdrop.querySelector('#editor-price-search').value.trim();
+        if (priceSearchVal !== '') {
+            data.priceSearch = priceSearchVal;
         }
 
         // Preserve category if editing and no category dropdown exists
