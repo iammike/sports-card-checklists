@@ -498,6 +498,16 @@
                 </div>
             </a>
         </div>
+
+        <!-- Dynamic checklists from registry will be appended here -->
+        <div class="checklist-grid" id="dynamic-checklist-grid" style="display:none"></div>
+
+        <!-- Create New Checklist button (owner-only, shown by JS) -->
+        <div id="create-checklist-container" style="display:none; text-align:center; padding: 0 20px 20px;">
+            <button class="create-checklist-btn" id="create-checklist-btn">
+                <span class="plus-icon">+</span> Create New Checklist
+            </button>
+        </div>
     </div>
 
     <script src="github-sync.js"></script>
@@ -788,6 +798,25 @@
             // Load progress data for individual cards and aggregate stats
             const stats = await loadProgress();
             updateAggregateStats(stats);
+
+            // Show create button for owner
+            if (githubSync.isLoggedIn()) {
+                const user = githubSync.getUser();
+                if (user && user.login === 'iammike') {
+                    document.getElementById('create-checklist-container').style.display = '';
+                }
+            }
+
+            // Wire up create checklist button
+            const checklistCreator = new ChecklistCreatorModal({
+                onCreated: (config) => {
+                    // Navigate to the new checklist
+                    window.location.href = `checklist.html?id=${config.id}`;
+                }
+            });
+            document.getElementById('create-checklist-btn').addEventListener('click', () => {
+                checklistCreator.open();
+            });
         }
         init();
     </script>

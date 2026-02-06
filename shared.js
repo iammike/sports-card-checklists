@@ -3111,6 +3111,368 @@ const DynamicNav = {
     }
 };
 
+/**
+ * ChecklistCreatorModal - Form for creating new dynamic checklists
+ * Also used for editing settings of existing checklists.
+ */
+class ChecklistCreatorModal {
+    constructor(options = {}) {
+        this.onCreated = options.onCreated || (() => {});
+        this.backdrop = null;
+        this.editMode = false;
+        this.existingConfig = null;
+    }
+
+    init() {
+        if (this.backdrop) return;
+
+        const backdrop = document.createElement('div');
+        backdrop.className = 'card-editor-backdrop checklist-creator-backdrop';
+        backdrop.innerHTML = `
+            <div class="card-editor-modal checklist-creator-modal">
+                <div class="card-editor-header">
+                    <div>
+                        <div class="card-editor-title">CREATE NEW CHECKLIST</div>
+                        <div class="card-editor-subtitle">Set up your card collection</div>
+                    </div>
+                    <button class="card-editor-close" title="Close">&times;</button>
+                </div>
+                <div class="card-editor-body">
+                    <div class="card-editor-field">
+                        <label class="card-editor-label">Checklist Title</label>
+                        <input type="text" class="card-editor-input" id="creator-title" placeholder="My Card Collection">
+                    </div>
+                    <div class="card-editor-field">
+                        <label class="card-editor-label">Subtitle</label>
+                        <input type="text" class="card-editor-input" id="creator-subtitle" placeholder="Optional subtitle">
+                    </div>
+                    <div class="card-editor-field">
+                        <label class="card-editor-label">Nav Label (short name for navigation)</label>
+                        <input type="text" class="card-editor-input" id="creator-nav-label" placeholder="MY CARDS" maxlength="20">
+                    </div>
+                    <div class="card-editor-row">
+                        <div class="card-editor-field">
+                            <label class="card-editor-label">Primary Color</label>
+                            <input type="color" id="creator-primary-color" value="#667eea" class="card-editor-input">
+                        </div>
+                        <div class="card-editor-field">
+                            <label class="card-editor-label">Accent Color</label>
+                            <input type="color" id="creator-accent-color" value="#f39c12" class="card-editor-input">
+                        </div>
+                        <div class="card-editor-field">
+                            <label class="card-editor-label">Dark Theme</label>
+                            <label class="card-editor-checkbox-label">
+                                <input type="checkbox" id="creator-dark-theme">
+                                <span>Dark background</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="card-editor-field">
+                        <label class="card-editor-label">Data Shape</label>
+                        <select class="card-editor-input" id="creator-data-shape">
+                            <option value="categories">Categories (group cards into sections)</option>
+                            <option value="flat">Flat (single list, optionally grouped by field)</option>
+                        </select>
+                    </div>
+                    <div class="card-editor-field" id="creator-categories-field">
+                        <label class="card-editor-label">Categories (one per line: id|Label)</label>
+                        <textarea class="card-editor-input card-editor-textarea" id="creator-categories" rows="4" placeholder="base|Base Cards&#10;inserts|Inserts&#10;premium|Premium Cards"></textarea>
+                        <div class="card-editor-hint">First category is the main one (counted in totals). Add * after id to exclude from totals: inserts*|Inserts</div>
+                    </div>
+                    <div class="card-editor-field" id="creator-groups-field" style="display:none">
+                        <label class="card-editor-label">Groups (one per line: id|Title)</label>
+                        <textarea class="card-editor-input card-editor-textarea" id="creator-groups" rows="4" placeholder="era1|First Era&#10;era2|Second Era"></textarea>
+                        <div class="card-editor-hint">Group field name: <input type="text" class="card-editor-input" id="creator-group-field" value="era" style="width:100px;display:inline-block;padding:2px 6px"></div>
+                    </div>
+                    <div class="card-editor-row">
+                        <div class="card-editor-field">
+                            <label class="card-editor-label">Price Mode</label>
+                            <select class="card-editor-input" id="creator-price-mode">
+                                <option value="estimated">Estimated (auto-calculated)</option>
+                                <option value="explicit">Explicit (manual entry)</option>
+                            </select>
+                        </div>
+                        <div class="card-editor-field">
+                            <label class="card-editor-label">Show Player Name</label>
+                            <label class="card-editor-checkbox-label">
+                                <input type="checkbox" id="creator-show-player">
+                                <span>Show on cards</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="card-editor-field">
+                        <label class="card-editor-label">Index Card Description</label>
+                        <textarea class="card-editor-input card-editor-textarea" id="creator-description" rows="2" placeholder="Description shown on index page"></textarea>
+                    </div>
+                </div>
+                <div class="card-editor-footer">
+                    <button class="card-editor-btn save" id="creator-save">Create Checklist</button>
+                    <button class="card-editor-btn cancel" id="creator-cancel">Cancel</button>
+                </div>
+            </div>
+        `;
+
+        backdrop.querySelector('.card-editor-close').onclick = () => this.close();
+        backdrop.querySelector('#creator-cancel').onclick = () => this.close();
+        backdrop.querySelector('#creator-save').onclick = () => this.save();
+        backdrop.addEventListener('click', (e) => {
+            if (e.target === backdrop) this.close();
+        });
+
+        // Toggle categories vs groups field based on data shape
+        backdrop.querySelector('#creator-data-shape').addEventListener('change', (e) => {
+            const isFlat = e.target.value === 'flat';
+            backdrop.querySelector('#creator-categories-field').style.display = isFlat ? 'none' : '';
+            backdrop.querySelector('#creator-groups-field').style.display = isFlat ? '' : 'none';
+        });
+
+        document.body.appendChild(backdrop);
+        this.backdrop = backdrop;
+    }
+
+    open() {
+        this.init();
+        this.editMode = false;
+        this.existingConfig = null;
+        this.backdrop.querySelector('.card-editor-title').textContent = 'CREATE NEW CHECKLIST';
+        this.backdrop.querySelector('.card-editor-subtitle').textContent = 'Set up your card collection';
+        this.backdrop.querySelector('#creator-save').textContent = 'Create Checklist';
+        this._clearForm();
+        this.backdrop.classList.add('active');
+        this.backdrop.querySelector('#creator-title').focus();
+    }
+
+    openEdit(config) {
+        this.init();
+        this.editMode = true;
+        this.existingConfig = config;
+        this.backdrop.querySelector('.card-editor-title').textContent = 'CHECKLIST SETTINGS';
+        this.backdrop.querySelector('.card-editor-subtitle').textContent = 'Edit checklist configuration';
+        this.backdrop.querySelector('#creator-save').textContent = 'Save Settings';
+        this._populateForm(config);
+        this.backdrop.classList.add('active');
+        this.backdrop.querySelector('#creator-title').focus();
+    }
+
+    close() {
+        if (this.backdrop) {
+            this.backdrop.classList.remove('active');
+        }
+    }
+
+    _clearForm() {
+        this.backdrop.querySelector('#creator-title').value = '';
+        this.backdrop.querySelector('#creator-subtitle').value = '';
+        this.backdrop.querySelector('#creator-nav-label').value = '';
+        this.backdrop.querySelector('#creator-primary-color').value = '#667eea';
+        this.backdrop.querySelector('#creator-accent-color').value = '#f39c12';
+        this.backdrop.querySelector('#creator-dark-theme').checked = false;
+        this.backdrop.querySelector('#creator-data-shape').value = 'categories';
+        this.backdrop.querySelector('#creator-categories').value = 'base|Base Cards';
+        this.backdrop.querySelector('#creator-groups').value = '';
+        this.backdrop.querySelector('#creator-group-field').value = 'era';
+        this.backdrop.querySelector('#creator-price-mode').value = 'estimated';
+        this.backdrop.querySelector('#creator-show-player').checked = false;
+        this.backdrop.querySelector('#creator-description').value = '';
+        // Show categories, hide groups
+        this.backdrop.querySelector('#creator-categories-field').style.display = '';
+        this.backdrop.querySelector('#creator-groups-field').style.display = 'none';
+    }
+
+    _populateForm(config) {
+        this.backdrop.querySelector('#creator-title').value = config.title || '';
+        this.backdrop.querySelector('#creator-subtitle').value = config.subtitle || '';
+        this.backdrop.querySelector('#creator-nav-label').value = config.navLabel || '';
+        this.backdrop.querySelector('#creator-primary-color').value = config.theme?.primaryColor || '#667eea';
+        this.backdrop.querySelector('#creator-accent-color').value = config.theme?.accentColor || '#f39c12';
+        this.backdrop.querySelector('#creator-dark-theme').checked = config.theme?.darkTheme || false;
+        this.backdrop.querySelector('#creator-data-shape').value = config.dataShape || 'categories';
+        this.backdrop.querySelector('#creator-price-mode').value = config.cardDisplay?.priceMode || 'estimated';
+        this.backdrop.querySelector('#creator-show-player').checked = config.cardDisplay?.showPlayerName !== false;
+        this.backdrop.querySelector('#creator-description').value = config.indexCard?.description || '';
+
+        // Categories
+        if (config.categories && config.categories.length > 0) {
+            this.backdrop.querySelector('#creator-categories').value = config.categories.map(c =>
+                `${c.id}${c.isMain === false ? '*' : ''}|${c.label}`
+            ).join('\n');
+        }
+
+        // Groups
+        if (config.groups && config.groups.length > 0) {
+            this.backdrop.querySelector('#creator-groups').value = config.groups.map(g =>
+                `${g.id}|${g.title}`
+            ).join('\n');
+        }
+        if (config.groupField) {
+            this.backdrop.querySelector('#creator-group-field').value = config.groupField;
+        }
+
+        // Toggle visibility
+        const isFlat = config.dataShape === 'flat';
+        this.backdrop.querySelector('#creator-categories-field').style.display = isFlat ? 'none' : '';
+        this.backdrop.querySelector('#creator-groups-field').style.display = isFlat ? '' : 'none';
+    }
+
+    _generateId(title) {
+        return title.toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, '')
+            .replace(/\s+/g, '-')
+            .replace(/-+/g, '-')
+            .substring(0, 40);
+    }
+
+    _buildConfig() {
+        const title = this.backdrop.querySelector('#creator-title').value.trim();
+        if (!title) {
+            alert('Title is required');
+            return null;
+        }
+
+        const id = this.editMode ? this.existingConfig.id : this._generateId(title);
+        const dataShape = this.backdrop.querySelector('#creator-data-shape').value;
+
+        const config = {
+            id,
+            title,
+            subtitle: this.backdrop.querySelector('#creator-subtitle').value.trim() || undefined,
+            navLabel: this.backdrop.querySelector('#creator-nav-label').value.trim() || title.toUpperCase().substring(0, 20),
+            theme: {
+                primaryColor: this.backdrop.querySelector('#creator-primary-color').value,
+                accentColor: this.backdrop.querySelector('#creator-accent-color').value,
+                darkTheme: this.backdrop.querySelector('#creator-dark-theme').checked,
+            },
+            dataShape,
+            cardDisplay: {
+                priceMode: this.backdrop.querySelector('#creator-price-mode').value,
+                showPlayerName: this.backdrop.querySelector('#creator-show-player').checked,
+            },
+            customFields: {
+                variant: { label: 'Card Variant', type: 'text', placeholder: 'Silver Prizm', fullWidth: true, position: 'after-num' },
+                auto: { label: 'Auto', type: 'checkbox', position: 'attributes' },
+                patch: { label: 'Patch', type: 'checkbox', position: 'attributes' },
+                serial: { label: 'Run', type: 'text', placeholder: '99', position: 'attributes' },
+            },
+            sortOptions: ['default', 'year', 'set', 'price-low', 'price-high', 'owned', 'needed'],
+            indexCard: {
+                description: this.backdrop.querySelector('#creator-description').value.trim() || undefined,
+            },
+        };
+
+        // Add player field if showing player names
+        if (config.cardDisplay.showPlayerName) {
+            config.customFields = {
+                player: { label: 'Player Name', type: 'text', fullWidth: true },
+                ...config.customFields,
+            };
+            config.cardDisplay.includePlayerInCardId = true;
+        }
+
+        // Parse categories or groups
+        if (dataShape === 'categories') {
+            const catText = this.backdrop.querySelector('#creator-categories').value.trim();
+            if (!catText) {
+                alert('At least one category is required');
+                return null;
+            }
+            config.categories = catText.split('\n').filter(Boolean).map(line => {
+                const [rawId, label] = line.split('|').map(s => s.trim());
+                const isExtra = rawId.endsWith('*');
+                const id = isExtra ? rawId.slice(0, -1) : rawId;
+                return {
+                    id,
+                    label: label || id,
+                    isMain: !isExtra,
+                };
+            });
+        } else {
+            // Flat data shape
+            const groupsText = this.backdrop.querySelector('#creator-groups').value.trim();
+            if (groupsText) {
+                config.groupField = this.backdrop.querySelector('#creator-group-field').value.trim() || 'era';
+                config.groups = groupsText.split('\n').filter(Boolean).map(line => {
+                    const [id, title] = line.split('|').map(s => s.trim());
+                    return { id, title: title || id };
+                });
+            }
+        }
+
+        // Clean undefined values
+        Object.keys(config).forEach(k => { if (config[k] === undefined) delete config[k]; });
+
+        return config;
+    }
+
+    async save() {
+        const config = this._buildConfig();
+        if (!config) return;
+
+        const saveBtn = this.backdrop.querySelector('#creator-save');
+        saveBtn.disabled = true;
+        saveBtn.textContent = this.editMode ? 'Saving...' : 'Creating...';
+
+        try {
+            if (this.editMode) {
+                // Save updated config
+                const success = await githubSync.saveChecklistConfig(config.id, config);
+                if (!success) throw new Error('Failed to save config');
+
+                // Update registry nav label if changed
+                const registry = await githubSync.loadRegistry();
+                if (registry) {
+                    const entry = registry.checklists.find(c => c.id === config.id);
+                    if (entry) {
+                        entry.title = config.title;
+                        entry.navLabel = config.navLabel;
+                        await githubSync.saveRegistry(registry);
+                        // Clear nav cache
+                        DynamicNav._registry = null;
+                        sessionStorage.removeItem(DynamicNav._sessionKey);
+                    }
+                }
+            } else {
+                // Load or create registry
+                let registry = await githubSync.loadRegistry();
+                if (!registry) {
+                    registry = { checklists: [] };
+                }
+
+                // Check for ID conflict
+                if (registry.checklists.find(c => c.id === config.id)) {
+                    alert('A checklist with this ID already exists. Try a different title.');
+                    return;
+                }
+
+                // Add to registry
+                registry.checklists.push({
+                    id: config.id,
+                    title: config.title,
+                    navLabel: config.navLabel,
+                    type: 'dynamic',
+                    order: registry.checklists.length,
+                });
+
+                // Create checklist (config + empty cards + updated registry)
+                const success = await githubSync.createChecklist(config.id, config, registry);
+                if (!success) throw new Error('Failed to create checklist');
+
+                // Clear nav cache
+                DynamicNav._registry = null;
+                sessionStorage.removeItem(DynamicNav._sessionKey);
+            }
+
+            this.close();
+            this.onCreated(config);
+        } catch (error) {
+            console.error('Failed to save checklist:', error);
+            alert('Failed to save: ' + error.message);
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.textContent = this.editMode ? 'Save Settings' : 'Create Checklist';
+        }
+    }
+}
+
 // Export for use in pages
 window.CARD_TYPES = CARD_TYPES;
 window.ChecklistManager = ChecklistManager;
@@ -3124,3 +3486,4 @@ window.ImageProcessor = ImageProcessor;
 window.ImageEditorModal = ImageEditorModal;
 window.imageEditor = imageEditor;
 window.DynamicNav = DynamicNav;
+window.ChecklistCreatorModal = ChecklistCreatorModal;
