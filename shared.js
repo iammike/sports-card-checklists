@@ -3138,71 +3138,88 @@ class ChecklistCreatorModal {
                     <button class="card-editor-close" title="Close">&times;</button>
                 </div>
                 <div class="card-editor-body">
-                    <div class="card-editor-field">
-                        <label class="card-editor-label">Checklist Title</label>
-                        <input type="text" class="card-editor-input" id="creator-title" placeholder="My Card Collection">
-                    </div>
-                    <div class="card-editor-field">
-                        <label class="card-editor-label">Subtitle</label>
-                        <input type="text" class="card-editor-input" id="creator-subtitle" placeholder="Optional subtitle">
-                    </div>
-                    <div class="card-editor-field">
-                        <label class="card-editor-label">Nav Label (short name for navigation)</label>
-                        <input type="text" class="card-editor-input" id="creator-nav-label" placeholder="MY CARDS" maxlength="20">
-                    </div>
-                    <div class="card-editor-row">
-                        <div class="card-editor-field">
-                            <label class="card-editor-label">Primary Color</label>
-                            <input type="color" id="creator-primary-color" value="#667eea" class="card-editor-input">
+                    <div class="card-editor-grid">
+                        <div class="card-editor-field full-width">
+                            <label class="card-editor-label">Checklist Title</label>
+                            <input type="text" class="card-editor-input" id="creator-title" placeholder="My Card Collection">
                         </div>
                         <div class="card-editor-field">
-                            <label class="card-editor-label">Accent Color</label>
-                            <input type="color" id="creator-accent-color" value="#f39c12" class="card-editor-input">
+                            <label class="card-editor-label">Subtitle</label>
+                            <input type="text" class="card-editor-input" id="creator-subtitle" placeholder="Optional subtitle">
                         </div>
                         <div class="card-editor-field">
-                            <label class="card-editor-label">Dark Theme</label>
-                            <label class="card-editor-checkbox-label">
-                                <input type="checkbox" id="creator-dark-theme">
-                                <span>Dark background</span>
-                            </label>
+                            <label class="card-editor-label">Nav Label</label>
+                            <input type="text" class="card-editor-input" id="creator-nav-label" placeholder="MY CARDS" maxlength="20">
                         </div>
                     </div>
-                    <div class="card-editor-field">
-                        <label class="card-editor-label">Data Shape</label>
-                        <select class="card-editor-input" id="creator-data-shape">
-                            <option value="categories">Categories (group cards into sections)</option>
-                            <option value="flat">Flat (single list, optionally grouped by field)</option>
-                        </select>
+
+                    <div class="card-editor-separator"></div>
+                    <div class="creator-section-label">Theme</div>
+
+                    <div class="creator-theme-row">
+                        <div class="creator-color-field">
+                            <label class="card-editor-label">Primary</label>
+                            <div class="creator-color-picker">
+                                <input type="color" id="creator-primary-color" value="#667eea">
+                                <span class="creator-color-hex" id="creator-primary-hex">#667eea</span>
+                            </div>
+                        </div>
+                        <div class="creator-color-field">
+                            <label class="card-editor-label">Accent</label>
+                            <div class="creator-color-picker">
+                                <input type="color" id="creator-accent-color" value="#f39c12">
+                                <span class="creator-color-hex" id="creator-accent-hex">#f39c12</span>
+                            </div>
+                        </div>
+                        <label class="card-editor-checkbox creator-dark-toggle">
+                            <input type="checkbox" id="creator-dark-theme">
+                            <span>Dark theme</span>
+                        </label>
                     </div>
-                    <div class="card-editor-field" id="creator-categories-field">
-                        <label class="card-editor-label">Categories (one per line: id|Label)</label>
-                        <textarea class="card-editor-input card-editor-textarea" id="creator-categories" rows="4" placeholder="base|Base Cards&#10;inserts|Inserts&#10;premium|Premium Cards"></textarea>
-                        <div class="card-editor-hint">First category is the main one (counted in totals). Add * after id to exclude from totals: inserts*|Inserts</div>
-                    </div>
-                    <div class="card-editor-field" id="creator-groups-field" style="display:none">
-                        <label class="card-editor-label">Groups (one per line: id|Title)</label>
-                        <textarea class="card-editor-input card-editor-textarea" id="creator-groups" rows="4" placeholder="era1|First Era&#10;era2|Second Era"></textarea>
-                        <div class="card-editor-hint">Group field name: <input type="text" class="card-editor-input" id="creator-group-field" value="era" style="width:100px;display:inline-block;padding:2px 6px"></div>
-                    </div>
-                    <div class="card-editor-row">
+
+                    <div class="card-editor-separator"></div>
+                    <div class="creator-section-label">Structure</div>
+
+                    <div class="card-editor-grid">
                         <div class="card-editor-field">
-                            <label class="card-editor-label">Price Mode</label>
-                            <select class="card-editor-input" id="creator-price-mode">
-                                <option value="estimated">Estimated (auto-calculated)</option>
-                                <option value="explicit">Explicit (manual entry)</option>
+                            <label class="card-editor-label">Data Shape</label>
+                            <select class="card-editor-input card-editor-select" id="creator-data-shape">
+                                <option value="categories">Categories</option>
+                                <option value="flat">Flat list</option>
                             </select>
                         </div>
                         <div class="card-editor-field">
-                            <label class="card-editor-label">Show Player Name</label>
-                            <label class="card-editor-checkbox-label">
-                                <input type="checkbox" id="creator-show-player">
-                                <span>Show on cards</span>
-                            </label>
+                            <label class="card-editor-label">Price Mode</label>
+                            <select class="card-editor-input card-editor-select" id="creator-price-mode">
+                                <option value="estimated">Estimated</option>
+                                <option value="explicit">Explicit</option>
+                            </select>
+                        </div>
+                        <div class="card-editor-field full-width" id="creator-categories-field">
+                            <label class="card-editor-label">Categories <span class="creator-hint-inline">one per line: id|Label</span></label>
+                            <textarea class="card-editor-input creator-textarea" id="creator-categories" rows="3" placeholder="base|Base Cards&#10;inserts*|Inserts&#10;premium*|Premium Cards"></textarea>
+                            <div class="creator-hint">Use * after id to exclude from totals (e.g. inserts*|Inserts)</div>
+                        </div>
+                        <div class="card-editor-field full-width" id="creator-groups-field" style="display:none">
+                            <label class="card-editor-label">Groups <span class="creator-hint-inline">one per line: id|Title</span></label>
+                            <textarea class="card-editor-input creator-textarea" id="creator-groups" rows="3" placeholder="era1|First Era&#10;era2|Second Era"></textarea>
+                            <div class="creator-hint">Group field: <input type="text" class="card-editor-input creator-inline-input" id="creator-group-field" value="era"></div>
                         </div>
                     </div>
-                    <div class="card-editor-field">
-                        <label class="card-editor-label">Index Card Description</label>
-                        <textarea class="card-editor-input card-editor-textarea" id="creator-description" rows="2" placeholder="Description shown on index page"></textarea>
+
+                    <div class="card-editor-separator"></div>
+                    <div class="creator-section-label">Display</div>
+
+                    <div class="creator-options-row">
+                        <label class="card-editor-checkbox">
+                            <input type="checkbox" id="creator-show-player">
+                            <span>Show player name on cards</span>
+                        </label>
+                    </div>
+
+                    <div class="card-editor-field" style="margin-top: 12px;">
+                        <label class="card-editor-label">Index Page Description</label>
+                        <textarea class="card-editor-input creator-textarea" id="creator-description" rows="2" placeholder="Short description shown on the home page"></textarea>
                     </div>
                 </div>
                 <div class="card-editor-footer">
@@ -3224,6 +3241,14 @@ class ChecklistCreatorModal {
             const isFlat = e.target.value === 'flat';
             backdrop.querySelector('#creator-categories-field').style.display = isFlat ? 'none' : '';
             backdrop.querySelector('#creator-groups-field').style.display = isFlat ? '' : 'none';
+        });
+
+        // Sync color hex displays
+        backdrop.querySelector('#creator-primary-color').addEventListener('input', (e) => {
+            backdrop.querySelector('#creator-primary-hex').textContent = e.target.value;
+        });
+        backdrop.querySelector('#creator-accent-color').addEventListener('input', (e) => {
+            backdrop.querySelector('#creator-accent-hex').textContent = e.target.value;
         });
 
         document.body.appendChild(backdrop);
@@ -3265,7 +3290,9 @@ class ChecklistCreatorModal {
         this.backdrop.querySelector('#creator-subtitle').value = '';
         this.backdrop.querySelector('#creator-nav-label').value = '';
         this.backdrop.querySelector('#creator-primary-color').value = '#667eea';
+        this.backdrop.querySelector('#creator-primary-hex').textContent = '#667eea';
         this.backdrop.querySelector('#creator-accent-color').value = '#f39c12';
+        this.backdrop.querySelector('#creator-accent-hex').textContent = '#f39c12';
         this.backdrop.querySelector('#creator-dark-theme').checked = false;
         this.backdrop.querySelector('#creator-data-shape').value = 'categories';
         this.backdrop.querySelector('#creator-categories').value = 'base|Base Cards';
@@ -3280,11 +3307,15 @@ class ChecklistCreatorModal {
     }
 
     _populateForm(config) {
+        const primaryColor = config.theme?.primaryColor || '#667eea';
+        const accentColor = config.theme?.accentColor || '#f39c12';
         this.backdrop.querySelector('#creator-title').value = config.title || '';
         this.backdrop.querySelector('#creator-subtitle').value = config.subtitle || '';
         this.backdrop.querySelector('#creator-nav-label').value = config.navLabel || '';
-        this.backdrop.querySelector('#creator-primary-color').value = config.theme?.primaryColor || '#667eea';
-        this.backdrop.querySelector('#creator-accent-color').value = config.theme?.accentColor || '#f39c12';
+        this.backdrop.querySelector('#creator-primary-color').value = primaryColor;
+        this.backdrop.querySelector('#creator-primary-hex').textContent = primaryColor;
+        this.backdrop.querySelector('#creator-accent-color').value = accentColor;
+        this.backdrop.querySelector('#creator-accent-hex').textContent = accentColor;
         this.backdrop.querySelector('#creator-dark-theme').checked = config.theme?.darkTheme || false;
         this.backdrop.querySelector('#creator-data-shape').value = config.dataShape || 'categories';
         this.backdrop.querySelector('#creator-price-mode').value = config.cardDisplay?.priceMode || 'estimated';

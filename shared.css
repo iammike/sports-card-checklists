@@ -2175,40 +2175,121 @@ select, input[type="text"] {
    Creator Modal & Settings
    ======================================== */
 .checklist-creator-modal {
-    max-width: 560px;
+    max-width: 520px;
 }
 
-.checklist-creator-modal .card-editor-textarea {
-    width: 100%;
-    min-height: 60px;
-    resize: vertical;
-    font-family: inherit;
-    font-size: 13px;
-    padding: 8px 10px;
-    border: 1px solid #ddd;
+/* Section labels between groups */
+.creator-section-label {
+    font-family: 'Barlow', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: rgba(102, 126, 234, 0.7);
+    margin-bottom: 12px;
+}
+
+/* Theme row: colors + dark toggle inline */
+.creator-theme-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.creator-color-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.creator-color-picker {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 4px;
+    padding: 6px 10px;
+    transition: border-color 0.2s;
+}
+
+.creator-color-picker:hover {
+    border-color: rgba(102, 126, 234, 0.3);
+}
+
+.creator-color-picker input[type="color"] {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 0;
+    background: none;
+}
+
+.creator-color-picker input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+.creator-color-picker input[type="color"]::-webkit-color-swatch {
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+}
+
+.creator-color-hex {
+    font-family: 'Barlow', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    color: #888;
+    letter-spacing: 0.02em;
+}
+
+.creator-dark-toggle {
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+/* Textarea for categories/groups */
+.creator-textarea {
+    width: 100%;
+    min-height: 50px;
+    resize: vertical;
+    font-family: 'Barlow', monospace;
+    font-size: 13px;
+    line-height: 1.6;
     box-sizing: border-box;
 }
 
-.checklist-creator-modal .card-editor-hint {
+/* Hints */
+.creator-hint {
+    font-family: 'Barlow', sans-serif;
     font-size: 11px;
-    color: #999;
-    margin-top: 4px;
-}
-
-.checklist-creator-modal .card-editor-checkbox-label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 13px;
     color: #555;
-    cursor: pointer;
-    padding-top: 4px;
+    margin-top: 2px;
 }
 
-.checklist-creator-modal .card-editor-checkbox-label input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
+.creator-hint-inline {
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    color: #555;
+    font-size: 10px;
+    margin-left: 4px;
+}
+
+.creator-inline-input {
+    display: inline-block !important;
+    width: 80px !important;
+    padding: 2px 8px !important;
+    font-size: 12px !important;
+}
+
+/* Options row (checkboxes) */
+.creator-options-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
 /* Settings Gear Button (dynamic checklist pages) */
