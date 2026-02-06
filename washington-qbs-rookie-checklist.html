@@ -283,6 +283,11 @@
             h1 { font-size: 1.5em; }
             .card { padding: 8px; }
         }
+
+        /* QBs editor: tighter attributes row */
+        .card-editor-attr-text .card-editor-input { width: 60px; }
+        .card-editor-attr-price .card-editor-input { width: 80px; }
+        .card-editor-attr-price { border-left: none; padding-left: 0; }
     </style>
 </head>
 <body>
@@ -575,7 +580,7 @@
 
             return `<div class="${cardClass}">
                 <div class="card-image-wrapper">
-                    ${CardRenderer.renderAutoBadge(card)}
+                    ${CardRenderer.renderAttributeBadges(card)}
                     ${CardRenderer.renderPriceBadge(card.price)}
                     ${CardRenderer.renderCardImage(card.img, card.player, searchUrl)}
                 </div>
@@ -735,7 +740,7 @@
         // Initialize card editor modal
         const cardEditor = new CardEditorModal({
             customFields: {
-                player: { label: 'Player Name', type: 'text', fullWidth: true },
+                player: { label: 'Player Name', type: 'text' },
                 era: {
                     label: 'Era',
                     type: 'select',
@@ -747,8 +752,12 @@
                         { value: 'gibbs1', label: 'Gibbs Era I (1982-1992)' }
                     ]
                 },
-                achievement: { label: 'Achievements', type: 'text', placeholder: 'Pro Bowl, Super Bowl Champion', fullWidth: true, parseArray: true }
+                achievement: { label: 'Achievements', type: 'text', placeholder: 'Pro Bowl, Super Bowl Champion', fullWidth: true, parseArray: true },
+                auto: { label: 'Auto', type: 'checkbox', position: 'attributes' },
+                patch: { label: 'Patch', type: 'checkbox', position: 'attributes' },
+                serial: { label: 'Run', type: 'text', placeholder: '99', position: 'attributes' }
             },
+            priceInAttributes: true,
             imageFolder: 'images/washington-qbs',
             onSave: async (cardId, cardData, isNew) => {
                 if (isNew) {
@@ -765,6 +774,9 @@
                     if (cardData.price) newCard.price = cardData.price;
                     if (cardData.img) newCard.img = cardData.img;
                     if (cardData.auto) newCard.auto = true;
+                    if (cardData.rc) newCard.rc = true;
+                    if (cardData.patch) newCard.patch = true;
+                    if (cardData.serial) newCard.serial = cardData.serial;
                     if (cardData.achievement && cardData.achievement.length > 0) {
                         newCard.achievement = cardData.achievement;
                     }
@@ -791,6 +803,12 @@
                         else delete foundCard.img;
                         if ('auto' in cardData) foundCard.auto = cardData.auto;
                         else delete foundCard.auto;
+                        if ('rc' in cardData) foundCard.rc = cardData.rc;
+                        else delete foundCard.rc;
+                        if ('patch' in cardData) foundCard.patch = cardData.patch;
+                        else delete foundCard.patch;
+                        if (cardData.serial) foundCard.serial = cardData.serial;
+                        else delete foundCard.serial;
                         if ('achievement' in cardData && cardData.achievement.length > 0) foundCard.achievement = cardData.achievement;
                         else delete foundCard.achievement;
                         if (cardData.ebay) foundCard.search = cardData.ebay;

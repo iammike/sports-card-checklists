@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; img-src 'self' https: data:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.github.com https://cards-oauth.iammikec.workers.dev;">
-    <title>JMU Pro Players Card Checklist</title>
+    <title>JMU Pro Players Rookie Card Checklist</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="shared.css">
     <style>
@@ -185,8 +185,8 @@
     </nav>
 
     <div class="page-header">
-        <h1>JMU Pro Players Card Checklist</h1>
-        <p class="subtitle">James Madison University Alumni in Professional Sports</p>
+        <h1>JMU Pro Players Rookie Card Checklist</h1>
+        <p class="subtitle">JMU Alumni Rookie Cards</p>
 
         <div class="intro-text">
             <strong>Go Dukes!</strong> This checklist features trading cards of James Madison University alumni who made it to the pros.
@@ -407,7 +407,7 @@
             return `
                 <div class="card ${owned ? 'owned' : ''}" data-price="${price}" data-sport="${card.sport}">
                     <div class="card-image-wrapper">
-                        ${CardRenderer.renderAutoBadge(card)}
+                        ${CardRenderer.renderAttributeBadges(card)}
                         ${CardRenderer.renderPriceBadge(price, jmuPriceThresholds)}
                         ${CardRenderer.renderCardImage(card.img, card.set, searchUrl)}
                     </div>
@@ -545,7 +545,10 @@
         const cardEditor = new CardEditorModal({
             customFields: {
                 player: { label: 'Player Name', type: 'text', fullWidth: true },
-                variant: { label: 'Card Variant', type: 'text', placeholder: 'Rookie Card, Auto, etc.', fullWidth: true, position: 'after-num' }
+                variant: { label: 'Card Variant', type: 'text', placeholder: 'Silver Prizm', fullWidth: true, position: 'after-num' },
+                auto: { label: 'Auto', type: 'checkbox', position: 'attributes' },
+                patch: { label: 'Patch', type: 'checkbox', position: 'attributes' },
+                serial: { label: 'Run', type: 'text', placeholder: '99', position: 'attributes' }
             },
             categories: [
                 { value: 'NFL', label: 'NFL' },
@@ -573,6 +576,9 @@
                     if (cardData.img) newCard.img = cardData.img;
                     if (cardData.price !== undefined) newCard.price = cardData.price;
                     if (cardData.auto) newCard.auto = true;
+                    if (cardData.rc) newCard.rc = true;
+                    if (cardData.patch) newCard.patch = true;
+                    if (cardData.serial) newCard.serial = cardData.serial;
                     if (!cardData.ebay) {
                         newCard.search = `${newCard.player.replace(/\s+/g, '+')}+${newCard.set.replace(/\s+/g, '+')}`;
                     } else {
@@ -605,6 +611,12 @@
                         else delete card.img;
                         if ('auto' in cardData) card.auto = cardData.auto;
                         else delete card.auto;
+                        if ('rc' in cardData) card.rc = cardData.rc;
+                        else delete card.rc;
+                        if ('patch' in cardData) card.patch = cardData.patch;
+                        else delete card.patch;
+                        if (cardData.serial) card.serial = cardData.serial;
+                        else delete card.serial;
                         if (cardData.ebay) card.search = cardData.ebay;
                         if (cardData.priceSearch) card.priceSearch = cardData.priceSearch;
                         else delete card.priceSearch;
