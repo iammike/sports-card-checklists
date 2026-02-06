@@ -845,7 +845,12 @@ class GitHubSync {
                 }
             }
 
-            if (Object.keys(files).length === 0) return false;
+            // If nothing to update, the checklist data is already gone
+            if (Object.keys(files).length === 0) {
+                this._gistCache = null;
+                this._publicGistCache = null;
+                return true;
+            }
 
             const response = await fetch(`https://api.github.com/gists/${gistId}`, {
                 method: 'PATCH',

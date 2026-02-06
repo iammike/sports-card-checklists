@@ -131,9 +131,10 @@ class ChecklistEngine {
             const title = this.config?.title || this.id;
             if (!confirm(`Delete "${title}"? This will permanently remove the checklist, all its cards, and stats. This cannot be undone.`)) return;
             const success = await githubSync.deleteChecklist(this.id);
+            // Always clear nav cache so phantom entries disappear
+            DynamicNav._registry = null;
+            sessionStorage.removeItem(DynamicNav._sessionKey);
             if (success) {
-                DynamicNav._registry = null;
-                sessionStorage.removeItem(DynamicNav._sessionKey);
                 window.location.href = 'index.html';
             } else {
                 alert('Failed to delete checklist. Please try again.');
