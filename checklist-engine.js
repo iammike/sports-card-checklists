@@ -25,6 +25,12 @@ class ChecklistEngine {
             throw new Error('No checklist ID specified. Use ?id=your-checklist');
         }
 
+        // Initialize auth UI early so the dropdown exists even if loading fails
+        if (window.githubSync) {
+            await githubSync.handleCallback();
+            AuthUI.update();
+        }
+
         // Dynamic nav (non-blocking)
         DynamicNav.init();
 
@@ -44,7 +50,7 @@ class ChecklistEngine {
         // Load card data
         await this._loadCardData();
 
-        // Set up ChecklistManager
+        // Set up ChecklistManager (re-renders auth UI with add/clear buttons)
         this.checklistManager = new ChecklistManager({
             checklistId: this.id,
             ownerUsername: 'iammike',
@@ -53,6 +59,10 @@ class ChecklistEngine {
             getStats: () => this.computeStats(),
         });
         await this.checklistManager.init();
+
+        // Re-add delete and settings buttons (ChecklistManager.init re-renders the dropdown)
+        this._initDeleteButton();
+        this._initSettingsButton();
 
         // Set up CardContextMenu
         this.cardContextMenu = new CardContextMenu(this.checklistManager);
@@ -93,30 +103,28 @@ class ChecklistEngine {
         this.cardEditor.init();
         this.renderCards();
         CollapsibleSections.init({ persist: true, storageKey: `${this.id}-collapsed` });
-
-        // Settings (owner-only)
-        this._initSettingsButton();
     }
 
     // ========================================
     // Settings
     // ========================================
 
-    // Delete button runs early - available even if checklist fails to load
+    // Delete button - available even if checklist fails to load
     _initDeleteButton() {
-        if (!githubSync.isLoggedIn()) return;
+        if (!window.githubSync || !githubSync.isLoggedIn()) return;
         const user = githubSync.getUser();
         if (!user || user.login !== 'iammike') return;
 
         const dropdown = document.querySelector('.nav-dropdown');
         if (!dropdown) return;
-        const logoutBtn = dropdown.querySelector('.nav-dropdown-item:last-child');
+        const logoutBtn = document.getElementById('auth-logout-btn');
         if (!logoutBtn) return;
 
         const divider = document.createElement('div');
         divider.className = 'nav-dropdown-divider';
         const deleteBtn = document.createElement('button');
         deleteBtn.className = 'nav-dropdown-item danger';
+        deleteBtn.id = 'checklist-delete-btn';
         deleteBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg> Delete Checklist';
         deleteBtn.onclick = async () => {
             dropdown.classList.remove('open');
@@ -153,8 +161,10 @@ class ChecklistEngine {
 
         const dropdown = document.querySelector('.nav-dropdown');
         if (!dropdown) return;
-        const logoutBtn = dropdown.querySelector('.nav-dropdown-item:last-child');
-        if (!logoutBtn) return;
+        // Insert before the delete button's divider
+        const deleteBtn = document.getElementById('checklist-delete-btn');
+        const insertBefore = deleteBtn?.previousElementSibling || document.getElementById('auth-logout-btn');
+        if (!insertBefore) return;
 
         const settingsBtn = document.createElement('button');
         settingsBtn.className = 'nav-dropdown-item';
@@ -163,13 +173,7 @@ class ChecklistEngine {
             dropdown.classList.remove('open');
             creator.openEdit(this.config);
         };
-        // Insert before the delete divider
-        const deleteDivider = logoutBtn.previousElementSibling?.previousElementSibling;
-        if (deleteDivider?.className === 'nav-dropdown-divider') {
-            dropdown.insertBefore(settingsBtn, deleteDivider);
-        } else {
-            dropdown.insertBefore(settingsBtn, logoutBtn);
-        }
+        dropdown.insertBefore(settingsBtn, insertBefore);
     }
 
     // ========================================
