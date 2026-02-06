@@ -628,6 +628,7 @@
                     }
                 }
                 renderCards();
+                applyFilters();
                 // Save to GitHub repo
                 checklistManager.setSyncStatus('syncing', 'Saving...');
                 await saveCardDataToRepo();
@@ -642,6 +643,7 @@
                     }
                 }
                 renderCards();
+                applyFilters();
                 // Save to GitHub repo
                 checklistManager.setSyncStatus('syncing', 'Saving...');
                 await saveCardDataToRepo();
