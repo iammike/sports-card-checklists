@@ -624,19 +624,29 @@ const PriceUtils = {
     // Default price guide by card type
     priceGuide: {
         'Base': 1, 'Base RC': 1.5, 'Base Rookie': 1.5,
-        'Parallel': 5, 'Insert': 4, 'Insert SSP': 50,
+        'Premium Base': 3, 'Chase': 15,
+        'Parallel': 5, 'Insert': 4, 'Insert RC': 5, 'Insert SSP': 50,
         'Chase SSP': 100,
     },
 
-    // Set-specific price modifiers
-    setMods: {
-        'Score': 0.5, 'Donruss': 0.8, 'Prizm': 2, 'Select': 1.5, 'Mosaic': 1.2,
-        'Optic': 1.8, 'Chrome': 2.5, 'Origins': 2, 'Contenders': 1.5, 'Phoenix': 1.2,
-        'Leaf': 0.5, 'SAGE': 0.3, 'Wild Card': 0.4, 'Bowman': 1, 'Topps Now': 3,
-        'Cosmic Chrome': 2, 'Certified': 1, 'Luminance': 1, 'Prestige': 0.8,
-        'Chronicles': 0.8, 'Absolute': 1, 'Zenith': 1, 'Rookies & Stars': 1,
-        'Totally Certified': 1, 'Gold Standard': 1.5, 'Illusions': 1
-    },
+    // Set-specific price modifiers (longest names first to avoid partial matches)
+    setMods: [
+        ['Donruss Optic', 1.3], ['Donruss Elite', 1.5], ['Cosmic Chrome', 2],
+        ['Topps Chrome', 2.5], ['Topps Now', 3], ['Totally Certified', 1],
+        ['Rookies & Stars', 1], ['Gold Standard', 1.5], ['Wild Card', 0.4],
+        ['Prizm', 2], ['Select', 1.5], ['Mosaic', 1.2], ['Donruss', 0.8],
+        ['Optic', 1.3], ['Chrome', 2.5], ['Origins', 5], ['Contenders', 2.5],
+        ['Phoenix', 1.2], ['Absolute', 0.7], ['Score', 0.5], ['Leaf', 0.5],
+        ['SAGE', 0.3], ['Bowman', 1], ['Certified', 1], ['Luminance', 1],
+        ['Prestige', 0.8], ['Chronicles', 0.8], ['Zenith', 1],
+        ['Illusions', 1],
+    ],
+
+    // High-value variant/insert overrides (checked against set name)
+    variantPricing: [
+        [/Color Blast/i, 500], [/Kaboom/i, 200], [/Downtown/i, 60],
+        [/Stained Glass/i, 40],
+    ],
 
     // Parse serial string (e.g., "/99", "99", "1/1") to numeric print run
     parseSerial(serial) {
@@ -655,8 +665,8 @@ const PriceUtils = {
 
         let base = this.priceGuide[card.type] || 2;
 
-        // Check set modifiers
-        for (const [setKey, mod] of Object.entries(this.setMods)) {
+        // Check set modifiers (ordered longest-first to avoid partial matches)
+        for (const [setKey, mod] of this.setMods) {
             if (card.set && card.set.includes(setKey)) {
                 base *= mod;
                 break;
@@ -666,12 +676,22 @@ const PriceUtils = {
         // Numbered cards - use structured serial field first, fall back to legacy printRun
         const printRun = this.parseSerial(card.serial) || card.printRun;
         if (printRun) {
-            base *= Math.max(3, 100 / printRun);
+            if (printRun === 1) {
+                base *= 200;
+            } else {
+                base *= Math.max(3, Math.pow(100 / printRun, 1.3));
+            }
         }
 
-        // Patch/relic cards
-        if (card.patch) {
-            base *= 2.5;
+        // Patch/relic cards (check flag or detect from card name)
+        const nameStr = (card.name || '') + ' ' + (card.variant || '');
+        if (card.patch || /Swatch|Jersey|Relic|Memorabilia|Patch/i.test(nameStr)) {
+            base *= 2;
+        }
+
+        // Autographed cards
+        if (card.auto) {
+            base *= 5;
         }
 
         // RC multiplier (only if type doesn't already include RC)
@@ -685,9 +705,14 @@ const PriceUtils = {
         if (/Holo/i.test(parallel)) base *= 2;
         if (/Gold/i.test(parallel) && printRun) base *= 5;
 
-        // Special insert types (check variant for Downtown, etc.)
-        const variant = card.variant || '';
-        if (/Downtown/i.test(variant)) base = 60;
+        // High-value variant/insert overrides (check set name for insert names)
+        const checkStr = (card.variant || '') + ' ' + (card.set || '');
+        for (const [pattern, price] of this.variantPricing) {
+            if (pattern.test(checkStr)) {
+                base = Math.max(base, price);
+                break;
+            }
+        }
 
         return Math.round(base * 10) / 10;
     },
