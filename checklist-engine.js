@@ -75,6 +75,15 @@ class ChecklistEngine {
             this.cardEditor.openNew(defaultCat);
         };
 
+        // Expose global toggleOwned for inline onchange handlers
+        window.toggleOwned = (cardId, checkbox) => {
+            const nowOwned = checkbox ? checkbox.checked : !this.isOwned(cardId);
+            this.checklistManager.toggleOwned(cardId, nowOwned);
+            const cardEl = checkbox ? checkbox.closest('.card') : null;
+            if (cardEl) cardEl.classList.toggle('owned', nowOwned);
+            this.updateStats();
+        };
+
         // Render
         this._renderFilters();
         this.cardContextMenu.init();
@@ -135,8 +144,6 @@ class ChecklistEngine {
     }
 
     async _loadCardData() {
-        const filename = `${this.id}-cards.json`;
-
         if (window.githubSync?.isLoggedIn()) {
             const data = await githubSync.loadCardData(this.id);
             if (data) {
