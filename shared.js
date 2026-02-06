@@ -549,84 +549,12 @@ class ChecklistManager {
 }
 
 /**
- * Card data utilities - parsing and display helpers
- */
-const CardUtils = {
-    // Known parallel patterns (color/finish variants)
-    parallelPatterns: [
-        /\b(Silver|Gold|Red|Blue|Green|Orange|Purple|Pink|Black|White|Bronze|Platinum)\s*(Prizm|Refractor|Wave|Shimmer|Ice|Holo)?\b/i,
-        /\b(Prizm|Refractor|Wave|Shimmer|Ice|Holo)\b/i,
-        /\b(Mojo|Velocity|Disco|Laser|Speckle|Camo|Tie-Dye|Snakeskin)\b/i,
-    ],
-
-    // Parse print run from string (e.g., "/199" -> 199)
-    parsePrintRun(str) {
-        if (!str) return null;
-        const match = str.match(/\/(\d+)/);
-        return match ? parseInt(match[1], 10) : null;
-    },
-
-    // Parse name field into variant/parallel/printRun
-    parseName(name) {
-        if (!name) return { variant: null, parallel: null, printRun: null };
-
-        let remaining = name;
-        let parallel = null;
-        let printRun = null;
-
-        // Extract print run
-        const printRunMatch = remaining.match(/\s*\/(\d+)\s*/);
-        if (printRunMatch) {
-            printRun = parseInt(printRunMatch[1], 10);
-            remaining = remaining.replace(printRunMatch[0], ' ').trim();
-        }
-
-        // Extract parallel
-        for (const pattern of this.parallelPatterns) {
-            const match = remaining.match(pattern);
-            if (match) {
-                parallel = match[0].trim();
-                remaining = remaining.replace(match[0], ' ').trim();
-                break;
-            }
-        }
-
-        // What's left is the variant
-        const variant = remaining.replace(/\s+/g, ' ').trim() || null;
-
-        return { variant, parallel, printRun };
-    },
-
-    // Get display name from card data
-    getDisplayName(card) {
-        const parts = [];
-        if (card.variant && card.variant !== 'Base') parts.push(card.variant);
-        if (card.parallel) parts.push(card.parallel);
-        if (card.printRun) parts.push(`/${card.printRun}`);
-        return parts.join(' ') || 'Base';
-    },
-
-    // Check if card is a numbered parallel
-    isNumbered(card) {
-        return card.printRun != null;
-    },
-
-    // Check if card is a parallel (colored/special finish)
-    isParallel(card) {
-        return !!card.parallel;
-    }
-};
-
-/**
  * Price estimation utilities
  */
 const PriceUtils = {
     // Default price guide by card type
     priceGuide: {
-        'Base': 1, 'Base RC': 1.5, 'Base Rookie': 1.5,
-        'Premium Base': 3, 'Chase': 15,
-        'Parallel': 5, 'Insert': 4, 'Insert RC': 5, 'Insert SSP': 50,
-        'Chase SSP': 100,
+        'Base': 1, 'Insert': 4, 'Chase': 15,
     },
 
     // Set-specific price modifiers (longest names first to avoid partial matches)
@@ -673,8 +601,8 @@ const PriceUtils = {
             }
         }
 
-        // Numbered cards - use structured serial field first, fall back to legacy printRun
-        const printRun = this.parseSerial(card.serial) || card.printRun;
+        // Numbered cards
+        const printRun = this.parseSerial(card.serial);
         if (printRun) {
             if (printRun === 1) {
                 base *= 200;
@@ -683,9 +611,9 @@ const PriceUtils = {
             }
         }
 
-        // Patch/relic cards (check flag or detect from card name)
-        const nameStr = (card.name || '') + ' ' + (card.variant || '');
-        if (card.patch || /Swatch|Jersey|Relic|Memorabilia|Patch/i.test(nameStr)) {
+        // Patch/relic cards (check flag or detect from variant)
+        const variantStr = card.variant || '';
+        if (card.patch || /Swatch|Jersey|Relic|Memorabilia|Patch/i.test(variantStr)) {
             base *= 2;
         }
 
@@ -694,16 +622,10 @@ const PriceUtils = {
             base *= 5;
         }
 
-        // RC multiplier (only if type doesn't already include RC)
-        if (card.rc && !/RC/i.test(card.type || '')) {
+        // RC multiplier
+        if (card.rc) {
             base *= 1.5;
         }
-
-        // Parallel cards
-        const parallel = card.parallel || '';
-        if (/Silver|Refractor/i.test(parallel)) base *= 3;
-        if (/Holo/i.test(parallel)) base *= 2;
-        if (/Gold/i.test(parallel) && printRun) base *= 5;
 
         // High-value variant/insert overrides (check set name for insert names)
         const checkStr = (card.variant || '') + ' ' + (card.set || '');
@@ -2714,7 +2636,6 @@ class AddCardButton {
 
 // Export for use in pages
 window.CARD_TYPES = CARD_TYPES;
-window.CardUtils = CardUtils;
 window.ChecklistManager = ChecklistManager;
 window.PriceUtils = PriceUtils;
 window.FilterUtils = FilterUtils;
