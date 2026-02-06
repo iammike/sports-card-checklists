@@ -733,12 +733,10 @@
         let hasAnimatedStats = false;
 
         function updateAggregateStats(allStats) {
-            const checklists = ['jayden-daniels', 'washington-qbs', 'jmu-pro-players'];
             let totalOwned = 0, totalCards = 0, totalOwnedValue = 0, totalNeededValue = 0;
             let hasAnyStats = false;
 
-            checklists.forEach(id => {
-                const stats = allStats[id];
+            Object.values(allStats).forEach(stats => {
                 if (stats) {
                     hasAnyStats = true;
                     totalOwned += stats.owned || 0;
@@ -781,6 +779,73 @@
             }
         }
 
+        // Render checklist cards for dynamic (non-legacy) entries from registry
+        async function renderDynamicChecklists() {
+            const registry = await DynamicNav.loadRegistry();
+            if (!registry || !registry.checklists) return {};
+
+            const dynamicEntries = registry.checklists.filter(e => e.type === 'dynamic');
+            if (dynamicEntries.length === 0) return {};
+
+            const grid = document.getElementById('dynamic-checklist-grid');
+            grid.style.display = '';
+
+            // Load stats for all dynamic checklists from gist
+            const gistData = githubSync.isLoggedIn()
+                ? await githubSync.loadData()
+                : await githubSync.loadPublicData();
+            const allGistStats = gistData?.stats || {};
+            const ownedCards = gistData?.checklists || {};
+
+            const dynamicStats = {};
+
+            dynamicEntries.forEach(entry => {
+                const stats = allGistStats[entry.id];
+                const owned = ownedCards[entry.id] || [];
+                const hasStats = stats && typeof stats.owned === 'number';
+
+                dynamicStats[entry.id] = hasStats ? stats : null;
+
+                const pct = hasStats && stats.total > 0 ? Math.round((stats.owned / stats.total) * 100) : 0;
+                const offset = PROGRESS_RING_CIRCUMFERENCE - (pct / 100) * PROGRESS_RING_CIRCUMFERENCE;
+                const description = entry.description || '';
+
+                const card = document.createElement('a');
+                card.href = `checklist.html?id=${entry.id}`;
+                card.className = 'checklist-card';
+                card.dataset.checklist = entry.id;
+                card.innerHTML = `
+                    <h2>${sanitizeText(entry.title)}</h2>
+                    ${description ? `<p>${sanitizeText(description)}</p>` : ''}
+                    ${hasStats ? `
+                    <div class="progress-section" style="display:block">
+                        <div class="main-progress">
+                            <div class="progress-ring">
+                                <svg viewBox="0 0 48 48">
+                                    <circle class="bg" cx="24" cy="24" r="20"/>
+                                    <circle class="fill" cx="24" cy="24" r="20"
+                                        stroke-dasharray="${PROGRESS_RING_CIRCUMFERENCE}" stroke-dashoffset="${offset}"/>
+                                </svg>
+                                <span class="percentage">${pct}%</span>
+                            </div>
+                            <div class="progress-details">
+                                <div class="progress-main-text">
+                                    ${stats.owned} of ${stats.total} cards
+                                </div>
+                                <div class="value-line">
+                                    <span class="value-owned">$${stats.ownedValue || 0} owned</span> ·
+                                    <span class="value-needed">$${stats.neededValue || 0} to complete</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>` : '<div class="progress-section" style="display:block"><p style="font-size:12px;color:#999;">No cards yet</p></div>'}
+                `;
+                grid.appendChild(card);
+            });
+
+            return dynamicStats;
+        }
+
         async function init() {
             if (window.githubSync) {
                 await githubSync.handleCallback();
@@ -797,7 +862,13 @@
 
             // Load progress data for individual cards and aggregate stats
             const stats = await loadProgress();
-            updateAggregateStats(stats);
+
+            // Render dynamic checklist cards from registry
+            const dynamicStats = await renderDynamicChecklists();
+
+            // Merge dynamic stats into aggregate
+            const allStats = { ...stats, ...dynamicStats };
+            updateAggregateStats(allStats);
 
             // Show create button for owner
             if (githubSync.isLoggedIn()) {
