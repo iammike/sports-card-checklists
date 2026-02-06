@@ -3086,19 +3086,29 @@ const DynamicNav = {
         return path.endsWith('checklist.html') && search.includes(`id=${entry.id}`);
     },
 
-    // Render nav links into the .nav-links container
+    // Add dynamic checklist links to the nav (preserves hardcoded legacy links)
     renderNav(registry) {
         const navLinks = document.querySelector('.nav-links');
         if (!navLinks) return;
 
-        // Sort by order
-        const sorted = [...registry.checklists].sort((a, b) => (a.order || 0) - (b.order || 0));
+        // Only add dynamic entries - legacy links are already hardcoded in HTML
+        const dynamicEntries = registry.checklists
+            .filter(e => e.type === 'dynamic')
+            .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-        navLinks.innerHTML = sorted.map(entry => {
+        // Remove any previously added dynamic links
+        navLinks.querySelectorAll('.nav-link[data-dynamic]').forEach(el => el.remove());
+
+        dynamicEntries.forEach(entry => {
             const url = this.getUrl(entry);
             const active = this.isActive(entry) ? ' active' : '';
-            return `<a href="${url}" class="nav-link${active}">${sanitizeText(entry.navLabel || entry.title)}</a>`;
-        }).join('');
+            const link = document.createElement('a');
+            link.href = url;
+            link.className = `nav-link${active}`;
+            link.dataset.dynamic = 'true';
+            link.textContent = entry.navLabel || entry.title;
+            navLinks.appendChild(link);
+        });
     },
 
     // Initialize: load registry and update nav
