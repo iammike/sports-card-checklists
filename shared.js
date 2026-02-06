@@ -1586,7 +1586,10 @@ class ImageEditorModal {
             this.rejectPromise = reject;
 
             img.onload = () => {
-                this.cropper = new Cropper(img, this.cropperOptions);
+                this.cropper = new Cropper(img, {
+                    ...this.cropperOptions,
+                    ready: () => this.enterPerspectiveMode(),
+                });
             };
             img.onerror = () => reject(new Error('Failed to load image'));
         });
