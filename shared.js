@@ -3020,6 +3020,97 @@ class AddCardButton {
     }
 }
 
+/**
+ * DynamicNav - Loads registry from gist and renders nav links dynamically
+ * Falls back to hardcoded links if registry isn't available
+ */
+const DynamicNav = {
+    _registry: null,
+    _sessionKey: 'checklists-registry',
+
+    // Get cached registry from sessionStorage
+    _getCached() {
+        try {
+            const cached = sessionStorage.getItem(this._sessionKey);
+            if (cached) return JSON.parse(cached);
+        } catch (e) { /* ignore */ }
+        return null;
+    },
+
+    _setCache(registry) {
+        try {
+            sessionStorage.setItem(this._sessionKey, JSON.stringify(registry));
+        } catch (e) { /* ignore */ }
+    },
+
+    // Load registry (from cache or gist)
+    async loadRegistry() {
+        if (this._registry) return this._registry;
+
+        // Try sessionStorage cache first
+        const cached = this._getCached();
+        if (cached) {
+            this._registry = cached;
+            return cached;
+        }
+
+        // Load from gist
+        if (typeof githubSync !== 'undefined') {
+            const registry = await githubSync.loadRegistry();
+            if (registry) {
+                this._registry = registry;
+                this._setCache(registry);
+                return registry;
+            }
+        }
+        return null;
+    },
+
+    // Get the URL for a checklist entry
+    getUrl(entry) {
+        if (entry.type === 'legacy') {
+            return entry.href;
+        }
+        return `checklist.html?id=${entry.id}`;
+    },
+
+    // Determine if a nav link is active based on current page
+    isActive(entry) {
+        const path = window.location.pathname;
+        const search = window.location.search;
+
+        if (entry.type === 'legacy') {
+            return path.endsWith(entry.href);
+        }
+        // Dynamic checklist: check ?id= param
+        return path.endsWith('checklist.html') && search.includes(`id=${entry.id}`);
+    },
+
+    // Render nav links into the .nav-links container
+    renderNav(registry) {
+        const navLinks = document.querySelector('.nav-links');
+        if (!navLinks) return;
+
+        // Sort by order
+        const sorted = [...registry.checklists].sort((a, b) => (a.order || 0) - (b.order || 0));
+
+        navLinks.innerHTML = sorted.map(entry => {
+            const url = this.getUrl(entry);
+            const active = this.isActive(entry) ? ' active' : '';
+            return `<a href="${url}" class="nav-link${active}">${sanitizeText(entry.navLabel || entry.title)}</a>`;
+        }).join('');
+    },
+
+    // Initialize: load registry and update nav
+    async init() {
+        const registry = await this.loadRegistry();
+        if (registry && registry.checklists && registry.checklists.length > 0) {
+            this.renderNav(registry);
+        }
+        // If no registry, hardcoded nav links stay as fallback
+    }
+};
+
 // Export for use in pages
 window.CARD_TYPES = CARD_TYPES;
 window.ChecklistManager = ChecklistManager;
@@ -3032,3 +3123,4 @@ window.AddCardButton = AddCardButton;
 window.ImageProcessor = ImageProcessor;
 window.ImageEditorModal = ImageEditorModal;
 window.imageEditor = imageEditor;
+window.DynamicNav = DynamicNav;

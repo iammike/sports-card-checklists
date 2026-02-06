@@ -722,6 +722,7 @@
 
         async function init() {
             try {
+                DynamicNav.init(); // non-blocking nav update
                 await loadCardData();
                 await checklistManager.init();
                 cardContextMenu.init();

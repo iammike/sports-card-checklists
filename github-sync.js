@@ -36,11 +36,15 @@ class GitHubSync {
         this.onAuthChange = null;
         this._saveQueue = Promise.resolve(); // Queue to prevent concurrent saves
         this._cachedData = null; // Cache to avoid stale reads during saves
+        this._gistCache = null; // Raw gist cache for registry/config reads
+        this._publicGistCache = null; // Public gist cache
 
         // Clear cache when tab becomes visible (handles multi-tab edits)
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
                 this._cachedData = null;
+                this._gistCache = null;
+                this._publicGistCache = null;
             }
         });
     }
@@ -234,6 +238,8 @@ class GitHubSync {
 
         // Clear cache so next load gets fresh data
         this._cachedData = null;
+        this._gistCache = null;
+        this._publicGistCache = null;
 
         return true;
     }
@@ -641,6 +647,148 @@ class GitHubSync {
             console.error('Failed to commit image via PR:', error);
             return null;
         }
+    }
+
+    // ========================================
+    // Registry & Config Operations (stored in gist)
+    // ========================================
+
+    // Fetch raw gist data with caching (avoids duplicate API calls)
+    async _fetchGist(forcePublic = false) {
+        const cacheKey = forcePublic ? '_publicGistCache' : '_gistCache';
+        if (this[cacheKey]) return this[cacheKey];
+
+        try {
+            let response;
+            if (!forcePublic && this.token) {
+                const gistId = this.getActiveGistId();
+                if (!gistId) return null;
+                response = await fetch(`https://api.github.com/gists/${gistId}`, {
+                    headers: { 'Authorization': `Bearer ${this.token}` },
+                });
+            } else {
+                response = await fetch(`https://api.github.com/gists/${CONFIG.PUBLIC_GIST_ID}`);
+            }
+            if (!response.ok) return null;
+            const gist = await response.json();
+            this[cacheKey] = gist;
+            return gist;
+        } catch (error) {
+            console.error('Failed to fetch gist:', error);
+            return null;
+        }
+    }
+
+    // Read a JSON file from the gist
+    async _readGistFile(filename) {
+        const gist = this.token
+            ? await this._fetchGist()
+            : await this._fetchGist(true);
+        if (!gist) return null;
+        const content = gist.files[filename]?.content;
+        return content ? JSON.parse(content) : null;
+    }
+
+    // Write a JSON file to the gist
+    async _writeGistFile(filename, data) {
+        if (!this.token) return false;
+        const gistId = this.getActiveGistId();
+        if (!gistId) return false;
+
+        try {
+            const response = await fetch(`https://api.github.com/gists/${gistId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${this.token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    files: {
+                        [filename]: {
+                            content: JSON.stringify(data, null, 2),
+                        },
+                    },
+                }),
+            });
+            // Invalidate gist cache on write
+            if (response.ok) {
+                this._gistCache = null;
+                this._publicGistCache = null;
+            }
+            return response.ok;
+        } catch (error) {
+            console.error(`Failed to write ${filename}:`, error);
+            return false;
+        }
+    }
+
+    // Write multiple JSON files to the gist in one API call
+    async _writeGistFiles(filesMap) {
+        if (!this.token) return false;
+        const gistId = this.getActiveGistId();
+        if (!gistId) return false;
+
+        const files = {};
+        for (const [filename, data] of Object.entries(filesMap)) {
+            files[filename] = {
+                content: JSON.stringify(data, null, 2),
+            };
+        }
+
+        try {
+            const response = await fetch(`https://api.github.com/gists/${gistId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${this.token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ files }),
+            });
+            if (response.ok) {
+                this._gistCache = null;
+                this._publicGistCache = null;
+            }
+            return response.ok;
+        } catch (error) {
+            console.error('Failed to write gist files:', error);
+            return false;
+        }
+    }
+
+    // Load checklists registry from gist
+    async loadRegistry() {
+        return this._readGistFile('checklists-registry.json');
+    }
+
+    // Save checklists registry to gist
+    async saveRegistry(registry) {
+        return this._writeGistFile('checklists-registry.json', registry);
+    }
+
+    // Load per-checklist config from gist
+    async loadChecklistConfig(checklistId) {
+        return this._readGistFile(`${checklistId}-config.json`);
+    }
+
+    // Save per-checklist config to gist
+    async saveChecklistConfig(checklistId, config) {
+        return this._writeGistFile(`${checklistId}-config.json`, config);
+    }
+
+    // Create a new dynamic checklist: saves config, empty cards, and updates registry in one call
+    async createChecklist(checklistId, config, registry) {
+        const emptyCards = { categories: {} };
+        // Initialize empty categories from config
+        if (config.categories) {
+            config.categories.forEach(cat => {
+                emptyCards.categories[cat.id] = [];
+            });
+        }
+        return this._writeGistFiles({
+            [`${checklistId}-config.json`]: config,
+            [`${checklistId}-cards.json`]: emptyCards,
+            'checklists-registry.json': registry,
+        });
     }
 
     // ========================================

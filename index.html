@@ -777,6 +777,7 @@
                 AuthUI.update();
                 githubSync.onAuthChange = () => AuthUI.update();
             }
+            DynamicNav.init(); // non-blocking nav update
             // Secret login: click "Mike's" to sign in
             document.getElementById('mike-link').addEventListener('click', () => {
                 if (!githubSync.isLoggedIn()) {
