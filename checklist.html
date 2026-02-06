@@ -72,8 +72,12 @@
         const engine = new ChecklistEngine();
         engine.init().catch(err => {
             console.error('Failed to initialize checklist:', err);
-            document.getElementById('page-content').innerHTML =
-                '<p style="color:red;padding:20px;">Failed to load checklist. Please refresh the page.</p>';
+            const content = document.getElementById('page-content');
+            content.innerHTML = `
+                <div style="padding:20px;text-align:center;">
+                    <p style="color:#ff5252;margin-bottom:12px;">Failed to load checklist.</p>
+                    <a href="index.html" style="color:#667eea;">Back to all checklists</a>
+                </div>`;
         });
     </script>
 </body>

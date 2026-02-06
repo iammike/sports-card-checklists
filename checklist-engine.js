@@ -25,6 +25,12 @@ class ChecklistEngine {
             throw new Error('No checklist ID specified. Use ?id=your-checklist');
         }
 
+        // Dynamic nav (non-blocking)
+        DynamicNav.init();
+
+        // Set up delete button early so it's available even if loading fails
+        this._initDeleteButton();
+
         // Load config
         this.config = await this._loadConfig();
         if (!this.config) {
@@ -34,9 +40,6 @@ class ChecklistEngine {
         // Apply theme and page metadata
         this._applyTheme();
         this._setPageMeta();
-
-        // Dynamic nav (non-blocking)
-        DynamicNav.init();
 
         // Load card data
         await this._loadCardData();
@@ -91,13 +94,46 @@ class ChecklistEngine {
         this.renderCards();
         CollapsibleSections.init({ persist: true, storageKey: `${this.id}-collapsed` });
 
-        // Settings gear (owner-only)
+        // Settings (owner-only)
         this._initSettingsButton();
     }
 
     // ========================================
     // Settings
     // ========================================
+
+    // Delete button runs early - available even if checklist fails to load
+    _initDeleteButton() {
+        if (!githubSync.isLoggedIn()) return;
+        const user = githubSync.getUser();
+        if (!user || user.login !== 'iammike') return;
+
+        const dropdown = document.querySelector('.nav-dropdown');
+        if (!dropdown) return;
+        const logoutBtn = dropdown.querySelector('.nav-dropdown-item:last-child');
+        if (!logoutBtn) return;
+
+        const divider = document.createElement('div');
+        divider.className = 'nav-dropdown-divider';
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'nav-dropdown-item danger';
+        deleteBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg> Delete Checklist';
+        deleteBtn.onclick = async () => {
+            dropdown.classList.remove('open');
+            const title = this.config?.title || this.id;
+            if (!confirm(`Delete "${title}"? This will permanently remove the checklist, all its cards, and stats. This cannot be undone.`)) return;
+            const success = await githubSync.deleteChecklist(this.id);
+            if (success) {
+                DynamicNav._registry = null;
+                sessionStorage.removeItem(DynamicNav._sessionKey);
+                window.location.href = 'index.html';
+            } else {
+                alert('Failed to delete checklist. Please try again.');
+            }
+        };
+        dropdown.insertBefore(divider, logoutBtn);
+        dropdown.insertBefore(deleteBtn, logoutBtn);
+    }
 
     _initSettingsButton() {
         if (!this.checklistManager.isOwner()) return;
@@ -115,14 +151,11 @@ class ChecklistEngine {
             }
         });
 
-        // Add "Checklist Settings" to nav dropdown menu
         const dropdown = document.querySelector('.nav-dropdown');
         if (!dropdown) return;
         const logoutBtn = dropdown.querySelector('.nav-dropdown-item:last-child');
         if (!logoutBtn) return;
 
-        const divider = document.createElement('div');
-        divider.className = 'nav-dropdown-divider';
         const settingsBtn = document.createElement('button');
         settingsBtn.className = 'nav-dropdown-item';
         settingsBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.49.49 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 00-.48-.41h-3.84a.48.48 0 00-.48.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 00-.59.22L2.74 8.87a.48.48 0 00.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.26.41.48.41h3.84c.24 0 .44-.17.48-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1115.6 12 3.6 3.6 0 0112 15.6z"/></svg> Checklist Settings';
@@ -130,26 +163,13 @@ class ChecklistEngine {
             dropdown.classList.remove('open');
             creator.openEdit(this.config);
         };
-        dropdown.insertBefore(divider, logoutBtn);
-        dropdown.insertBefore(settingsBtn, logoutBtn);
-
-        // Delete checklist button
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'nav-dropdown-item danger';
-        deleteBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg> Delete Checklist';
-        deleteBtn.onclick = async () => {
-            dropdown.classList.remove('open');
-            if (!confirm(`Delete "${this.config.title}"? This will permanently remove the checklist, all its cards, and stats. This cannot be undone.`)) return;
-            const success = await githubSync.deleteChecklist(this.id);
-            if (success) {
-                DynamicNav._registry = null;
-                sessionStorage.removeItem(DynamicNav._sessionKey);
-                window.location.href = 'index.html';
-            } else {
-                alert('Failed to delete checklist. Please try again.');
-            }
-        };
-        dropdown.insertBefore(deleteBtn, logoutBtn);
+        // Insert before the delete divider
+        const deleteDivider = logoutBtn.previousElementSibling?.previousElementSibling;
+        if (deleteDivider?.className === 'nav-dropdown-divider') {
+            dropdown.insertBefore(settingsBtn, deleteDivider);
+        } else {
+            dropdown.insertBefore(settingsBtn, logoutBtn);
+        }
     }
 
     // ========================================
