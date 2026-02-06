@@ -2099,30 +2099,30 @@ select, input[type="text"] {
 
 .perspective-handle {
     position: absolute;
-    width: 24px;
-    height: 24px;
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
-    background: rgba(102, 126, 234, 0.9);
-    border: 2px solid white;
+    background: rgba(102, 126, 234, 0.25);
+    border: 2px solid rgba(255, 255, 255, 0.8);
     cursor: grab;
     transform: translate(-50%, -50%);
     z-index: 10;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
     touch-action: none;
     transition: background 0.15s, transform 0.1s;
 }
 
 .perspective-handle:hover {
-    background: rgba(102, 126, 234, 1);
+    background: rgba(102, 126, 234, 0.4);
     transform: translate(-50%, -50%) scale(1.15);
 }
 
 .perspective-handle:active,
 .perspective-handle.dragging {
     cursor: grabbing;
-    background: #667eea;
+    background: rgba(102, 126, 234, 0.5);
     transform: translate(-50%, -50%) scale(1.2);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
 }
 
 .perspective-controls {
@@ -2162,7 +2162,7 @@ select, input[type="text"] {
     }
 
     .perspective-handle {
-        width: 32px;
-        height: 32px;
+        width: 24px;
+        height: 24px;
     }
 }
