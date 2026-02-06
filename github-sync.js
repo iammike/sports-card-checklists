@@ -810,28 +810,43 @@ class GitHubSync {
         const gistId = this.getActiveGistId();
         if (!gistId) return false;
 
-        // Load current registry
-        const registry = await this.loadRegistry();
-        if (!registry) return false;
-
-        // Remove from registry
-        registry.checklists = registry.checklists.filter(e => e.id !== checklistId);
-
-        // Delete config + cards files (null = delete), update registry
-        const files = {
-            [`${checklistId}-config.json`]: null,
-            [`${checklistId}-cards.json`]: null,
-            'checklists-registry.json': { content: JSON.stringify(registry, null, 2) },
-        };
-
-        // Also remove stats entry if present
-        const data = await this.loadData();
-        if (data?.stats?.[checklistId]) {
-            delete data.stats[checklistId];
-            files['sports-card-stats.json'] = { content: JSON.stringify(data.stats, null, 2) };
-        }
-
         try {
+            // Fetch current gist to see what files exist
+            const gistResponse = await fetch(`https://api.github.com/gists/${gistId}`, {
+                headers: { 'Authorization': `Bearer ${this.token}` },
+            });
+            if (!gistResponse.ok) return false;
+            const gist = await gistResponse.json();
+            const gistFiles = gist.files;
+
+            const files = {};
+
+            // Only delete config/cards files if they actually exist in the gist
+            const configFile = `${checklistId}-config.json`;
+            const cardsFile = `${checklistId}-cards.json`;
+            if (gistFiles[configFile]) files[configFile] = null;
+            if (gistFiles[cardsFile]) files[cardsFile] = null;
+
+            // Update registry to remove the entry
+            const registryContent = gistFiles['checklists-registry.json']?.content;
+            if (registryContent) {
+                const registry = JSON.parse(registryContent);
+                registry.checklists = registry.checklists.filter(e => e.id !== checklistId);
+                files['checklists-registry.json'] = { content: JSON.stringify(registry, null, 2) };
+            }
+
+            // Remove stats entry if present
+            const statsContent = gistFiles['sports-card-stats.json']?.content;
+            if (statsContent) {
+                const stats = JSON.parse(statsContent);
+                if (stats[checklistId]) {
+                    delete stats[checklistId];
+                    files['sports-card-stats.json'] = { content: JSON.stringify(stats, null, 2) };
+                }
+            }
+
+            if (Object.keys(files).length === 0) return false;
+
             const response = await fetch(`https://api.github.com/gists/${gistId}`, {
                 method: 'PATCH',
                 headers: {
@@ -844,6 +859,9 @@ class GitHubSync {
                 this._gistCache = null;
                 this._publicGistCache = null;
                 this._cachedData = null;
+            } else {
+                const err = await response.text();
+                console.error('Gist PATCH failed:', response.status, err);
             }
             return response.ok;
         } catch (error) {
