@@ -81,6 +81,46 @@ class ChecklistEngine {
         this.cardEditor.init();
         this.renderCards();
         CollapsibleSections.init({ persist: true, storageKey: `${this.id}-collapsed` });
+
+        // Settings gear (owner-only)
+        this._initSettingsButton();
+    }
+
+    // ========================================
+    // Settings
+    // ========================================
+
+    _initSettingsButton() {
+        if (!this.checklistManager.isOwner()) return;
+
+        const header = document.getElementById('page-header');
+        if (!header) return;
+
+        header.style.position = 'relative';
+        const btn = document.createElement('button');
+        btn.className = 'checklist-settings-btn';
+        btn.title = 'Checklist Settings';
+        btn.innerHTML = '&#9881;'; // gear icon
+        header.appendChild(btn);
+
+        const creator = new ChecklistCreatorModal({
+            onCreated: (updatedConfig) => {
+                // Re-apply theme and meta, re-render
+                this.config = updatedConfig;
+                this._applyTheme();
+                this._setPageMeta();
+                this.renderCards();
+                this.updateStats();
+                // Re-init nav
+                DynamicNav._registry = null;
+                sessionStorage.removeItem(DynamicNav._sessionKey);
+                DynamicNav.init();
+            }
+        });
+
+        btn.addEventListener('click', () => {
+            creator.openEdit(this.config);
+        });
     }
 
     // ========================================
