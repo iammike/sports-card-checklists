@@ -1300,9 +1300,9 @@ class ImageEditorModal {
                             <button class="image-editor-tool" data-action="rotate-right" title="Rotate 90° Right">
                                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.55 5.55L11 1v3.07C7.06 4.56 4 7.92 4 12s3.05 7.44 7 7.93v-2.02c-2.84-.48-5-2.94-5-5.91s2.16-5.43 5-5.91V10l4.55-4.45zM19.93 11c-.17-1.39-.72-2.73-1.62-3.89l-1.42 1.42c.54.75.88 1.6 1.02 2.47h2.02zM13 17.9v2.02c1.39-.17 2.74-.71 3.9-1.61l-1.44-1.44c-.75.54-1.59.89-2.46 1.03zm3.89-2.42l1.42 1.41c.9-1.16 1.45-2.5 1.62-3.89h-2.02c-.14.87-.48 1.72-1.02 2.48z"/></svg>
                             </button>
-                            <button class="image-editor-step-btn" id="rotate-minus" title="Decrease 0.5°">−</button>
-                            <input type="range" class="image-editor-slider" id="image-editor-rotate" min="-45" max="45" value="0" step="0.5">
-                            <button class="image-editor-step-btn" id="rotate-plus" title="Increase 0.5°">+</button>
+                            <button class="image-editor-step-btn" id="rotate-minus" title="Decrease 0.1°">−</button>
+                            <input type="range" class="image-editor-slider" id="image-editor-rotate" min="-45" max="45" value="0" step="0.1">
+                            <button class="image-editor-step-btn" id="rotate-plus" title="Increase 0.1°">+</button>
                             <button class="image-editor-tool" data-action="flip-h" title="Flip Horizontal">
                                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15 21h2v-2h-2v2zm4-12h2V7h-2v2zM3 5v14c0 1.1.9 2 2 2h4v-2H5V5h4V3H5c-1.1 0-2 .9-2 2zm16-2v2h2c0-1.1-.9-2-2-2zm-8 20h2V1h-2v22zm8-6h2v-2h-2v2zM15 5h2V3h-2v2zm4 8h2v-2h-2v2zm0 8c1.1 0 2-.9 2-2h-2v2z"/></svg>
                             </button>
@@ -1398,8 +1398,8 @@ class ImageEditorModal {
             rotateSlider.ondblclick = () => setFineRotation(0);
 
             // +/- buttons for fine adjustment
-            this.backdrop.querySelector('#rotate-minus').onclick = () => setFineRotation(parseFloat(rotateSlider.value) - 0.5);
-            this.backdrop.querySelector('#rotate-plus').onclick = () => setFineRotation(parseFloat(rotateSlider.value) + 0.5);
+            this.backdrop.querySelector('#rotate-minus').onclick = () => setFineRotation(parseFloat(rotateSlider.value) - 0.1);
+            this.backdrop.querySelector('#rotate-plus').onclick = () => setFineRotation(parseFloat(rotateSlider.value) + 0.1);
         }
 
         // Escape key to close
