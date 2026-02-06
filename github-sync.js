@@ -215,14 +215,27 @@ class GitHubSync {
         }
         const prodGist = await prodResponse.json();
 
-        // Copy all files to preview gist
+        // Copy all files from production to preview gist
         const files = {};
         for (const [filename, fileData] of Object.entries(prodGist.files)) {
             files[filename] = { content: fileData.content };
         }
 
+        // Delete files that exist in preview but not in production
+        const previewGistId = CONFIG.PUBLIC_GIST_ID;
+        const previewResponse = await fetch(`https://api.github.com/gists/${previewGistId}`, {
+            headers: { 'Authorization': `Bearer ${this.token}` },
+        });
+        if (previewResponse.ok) {
+            const previewGist = await previewResponse.json();
+            for (const filename of Object.keys(previewGist.files)) {
+                if (!prodGist.files[filename]) {
+                    files[filename] = null; // null deletes the file from the gist
+                }
+            }
+        }
+
         // Update preview gist with production data
-        const previewGistId = CONFIG.PUBLIC_GIST_ID; // On preview, this is the preview gist
         const updateResponse = await fetch(`https://api.github.com/gists/${previewGistId}`, {
             method: 'PATCH',
             headers: {
