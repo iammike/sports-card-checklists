@@ -1,0 +1,990 @@
+/**
+ * ChecklistEngine - Config-driven checklist renderer
+ *
+ * Reads ?id= from URL, loads config + card data from gist,
+ * and renders a fully functional checklist page.
+ */
+class ChecklistEngine {
+    constructor() {
+        this.id = new URLSearchParams(window.location.search).get('id');
+        this.config = null;
+        this.cardData = null;     // Raw card data from gist
+        this.cards = null;        // categories object or flat cards array
+        this.checklistManager = null;
+        this.cardEditor = null;
+        this.cardContextMenu = null;
+        this.addCardButton = null;
+    }
+
+    // ========================================
+    // Initialization
+    // ========================================
+
+    async init() {
+        if (!this.id) {
+            throw new Error('No checklist ID specified. Use ?id=your-checklist');
+        }
+
+        // Load config
+        this.config = await this._loadConfig();
+        if (!this.config) {
+            throw new Error(`Checklist config not found for "${this.id}"`);
+        }
+
+        // Apply theme and page metadata
+        this._applyTheme();
+        this._setPageMeta();
+
+        // Dynamic nav (non-blocking)
+        DynamicNav.init();
+
+        // Load card data
+        await this._loadCardData();
+
+        // Set up ChecklistManager
+        this.checklistManager = new ChecklistManager({
+            checklistId: this.id,
+            ownerUsername: 'iammike',
+            localStorageKey: `${this.id}-owned`,
+            onOwnedChange: () => { this.renderCards(); this.updateStats(); },
+            getStats: () => this.computeStats(),
+        });
+        await this.checklistManager.init();
+
+        // Set up CardContextMenu
+        this.cardContextMenu = new CardContextMenu(this.checklistManager);
+
+        // Set up CardEditorModal
+        this._initCardEditor();
+
+        // Wire up context menu
+        this.cardContextMenu.onEdit = (cardId, cardElement) => {
+            const found = this._findCardWithLocation(cardId);
+            if (found) {
+                this.cardEditor.open(cardId, found.editData);
+            }
+        };
+        this.cardContextMenu.onDelete = async (cardId) => {
+            this._removeCard(cardId);
+            this.renderCards();
+            this.checklistManager.setSyncStatus('syncing', 'Saving...');
+            await this._saveCardData();
+        };
+        this.cardContextMenu.onAddCard = () => {
+            const defaultCat = this._getDefaultCategory();
+            this.cardEditor.openNew(defaultCat);
+        };
+
+        // Render
+        this._renderFilters();
+        this.cardContextMenu.init();
+        this.cardEditor.init();
+        this.renderCards();
+        CollapsibleSections.init({ persist: true, storageKey: `${this.id}-collapsed` });
+    }
+
+    // ========================================
+    // Config & Data Loading
+    // ========================================
+
+    async _loadConfig() {
+        if (typeof githubSync !== 'undefined') {
+            return githubSync.loadChecklistConfig(this.id);
+        }
+        return null;
+    }
+
+    async _loadCardData() {
+        const filename = `${this.id}-cards.json`;
+
+        if (window.githubSync?.isLoggedIn()) {
+            const data = await githubSync.loadCardData(this.id);
+            if (data) {
+                this.cardData = data;
+                this.cards = this._isFlat() ? data.cards : data.categories;
+                return;
+            }
+        }
+
+        const publicData = await githubSync.loadPublicCardData(this.id);
+        if (publicData) {
+            this.cardData = publicData;
+            this.cards = this._isFlat() ? publicData.cards : publicData.categories;
+            return;
+        }
+
+        throw new Error('Failed to load card data');
+    }
+
+    async _saveCardData() {
+        if (this._isFlat()) {
+            this.cardData.cards = this.cards;
+        } else {
+            this.cardData.categories = this.cards;
+        }
+        const success = await githubSync.saveCardData(this.id, this.cardData);
+        if (success) {
+            this.checklistManager.setSyncStatus('synced', 'Saved');
+        } else {
+            this.checklistManager.setSyncStatus('error', 'Save failed');
+        }
+        return success;
+    }
+
+    // ========================================
+    // Theme & Page Setup
+    // ========================================
+
+    _applyTheme() {
+        const theme = this.config.theme || {};
+        const primary = theme.primaryColor || '#667eea';
+        const dark = theme.darkColor || '#764ba2';
+        const accent = theme.accentColor || primary;
+        const isDark = theme.darkTheme || false;
+
+        let css = `:root {
+            --color-primary: ${primary};
+            --color-primary-dark: ${dark};
+            --color-accent: ${accent};
+        }\n`;
+
+        if (isDark) {
+            css += `
+            :root {
+                --color-background: linear-gradient(135deg, ${dark} 0%, #1a1a1a 100%);
+                --color-surface: rgba(255,255,255,0.05);
+                --color-text: #fff;
+                --auth-bg: rgba(0,0,0,0.2);
+                --stat-bg: rgba(255,255,255,0.1);
+                --stat-value-color: ${accent};
+                --stat-label-color: #ccc;
+                --card-border: transparent;
+                --card-hover-color: rgba(255,255,255,0.2);
+                --card-owned-bg: rgba(255,255,255,0.1);
+                --card-owned-border: ${accent};
+                --nav-bg: linear-gradient(180deg, ${dark} 0%, #1a1a1a 100%);
+            }
+            body {
+                background: linear-gradient(135deg, ${dark} 0%, #1a1a1a 100%);
+                min-height: 100vh;
+                color: #fff;
+            }
+            .page-header {
+                background: rgba(0,0,0,0.3);
+                padding: 20px 20px 24px;
+                margin-bottom: 24px;
+                position: relative;
+            }
+            .page-header::after {
+                content: '';
+                position: absolute;
+                bottom: 0; left: 0; right: 0;
+                height: 3px;
+                background: linear-gradient(90deg, transparent, ${accent}, transparent);
+            }
+            h1 {
+                background: linear-gradient(180deg, #d0d0d0 0%, ${accent} 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+            }
+            .subtitle { color: #888; }
+            .stat {
+                background: rgba(0,0,0,0.3);
+                border: 1px solid rgba(255,255,255,0.08);
+            }
+            .stat-value { color: #c8c8c8; }
+            .stat-value.highlight { color: ${accent}; }
+            .group-header {
+                background: linear-gradient(135deg, ${dark} 0%, #1a1a1a 100%);
+                border-bottom-color: ${accent};
+            }
+            select, input[type="text"] {
+                border: 1px solid rgba(255,255,255,0.2);
+                background: rgba(0,0,0,0.3);
+                color: #fff;
+            }
+            .filters {
+                background: rgba(255,255,255,0.03);
+                box-shadow: none;
+                border: 1px solid rgba(255,255,255,0.05);
+            }
+            .card {
+                background: rgba(255,255,255,0.05);
+                border: 2px solid transparent;
+            }
+            .card:hover {
+                border-color: rgba(255,255,255,0.2);
+                box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            }
+            .card.owned {
+                border-color: ${accent};
+                background: rgba(255,255,255,0.1);
+            }
+            .player-name { color: #fff; }
+            .card-image-wrapper {
+                background: rgba(0,0,0,0.3);
+                border-radius: 8px;
+            }
+            `;
+        } else {
+            // Light theme overrides
+            css += `
+            .page-header::after {
+                content: '';
+                position: absolute;
+                bottom: 0; left: 0; right: 0;
+                height: 3px;
+                background: linear-gradient(90deg, transparent, ${accent}, transparent);
+            }
+            h1 {
+                background: linear-gradient(180deg, #d0d0d0 0%, ${accent} 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+            }
+            .player-name { color: ${primary}; font-size: 14px; font-weight: bold; margin-bottom: 4px; }
+            `;
+        }
+
+        // Category-specific header colors
+        if (this.config.categories) {
+            this.config.categories.forEach(cat => {
+                if (cat.gradient) {
+                    css += `.section-header.cat-${cat.id} { background: ${cat.gradient}; }\n`;
+                }
+            });
+        }
+
+        // Page-specific custom CSS
+        if (this.config.customCss) {
+            css += this.config.customCss;
+        }
+
+        document.getElementById('dynamic-theme').textContent = css;
+    }
+
+    _setPageMeta() {
+        document.title = this.config.title || 'Checklist';
+        document.getElementById('page-title').textContent = this.config.title || '';
+        const subtitle = document.getElementById('page-subtitle');
+        if (this.config.subtitle) {
+            subtitle.textContent = this.config.subtitle;
+        } else {
+            subtitle.style.display = 'none';
+        }
+
+        // Intro text
+        const introEl = document.getElementById('page-intro');
+        if (this.config.introHtml) {
+            introEl.innerHTML = `<div class="intro-text">${this.config.introHtml}</div>`;
+        }
+
+        // Total label
+        const totalLabel = document.getElementById('total-label');
+        if (this.config.totalLabel) {
+            totalLabel.textContent = this.config.totalLabel;
+        }
+    }
+
+    // ========================================
+    // Data Shape Helpers
+    // ========================================
+
+    _isFlat() {
+        return this.config.dataShape === 'flat';
+    }
+
+    _getDefaultCategory() {
+        if (this._isFlat()) return null;
+        const cats = this.config.categories || [];
+        const main = cats.find(c => c.isMain);
+        return main ? main.id : (cats[0]?.id || null);
+    }
+
+    // ========================================
+    // Card ID
+    // ========================================
+
+    getCardId(card) {
+        if (this.config.cardDisplay?.includePlayerInCardId) {
+            return btoa((card.player || '') + card.set + card.num + (card.variant || '')).replace(/[^a-zA-Z0-9]/g, '');
+        }
+        return this.checklistManager.getCardId(card);
+    }
+
+    isOwned(cardId) {
+        return this.checklistManager.isOwned(cardId);
+    }
+
+    // ========================================
+    // Price
+    // ========================================
+
+    getPrice(card) {
+        const mode = this.config.cardDisplay?.priceMode || 'estimated';
+        if (mode === 'explicit') {
+            return card.price || 0;
+        }
+        return PriceUtils.estimate(card);
+    }
+
+    getPriceThresholds() {
+        return this.config.cardDisplay?.priceThresholds || { mid: 3, high: 10 };
+    }
+
+    // ========================================
+    // Card Rendering
+    // ========================================
+
+    createCardElement(card) {
+        const cardId = card.collectionLink ? null : this.getCardId(card);
+        const owned = cardId ? this.isOwned(cardId) : false;
+        const price = this.getPrice(card);
+        const showPlayer = this.config.cardDisplay?.showPlayerName !== false && card.player;
+        const playerForSearch = showPlayer ? card.player + ' ' : '';
+        const defaultSearch = encodeURIComponent(`${playerForSearch}${card.set} ${card.num}`);
+        const searchUrl = CardRenderer.getEbayUrl(card.search || defaultSearch);
+        const priceSearchTerm = card.priceSearch || defaultSearch;
+        const scpUrl = CardRenderer.getScpUrl(priceSearchTerm);
+        const thresholds = this.getPriceThresholds();
+
+        // Clean up type/variant display
+        const displayType = (card.type || '').replace(/\s*RC\b/gi, '').replace(/\bBase\b/gi, '').trim();
+        const displayVariant = (card.variant && card.variant !== 'Base') ? card.variant : '';
+
+        // Collection link cards (special type)
+        if (card.collectionLink) {
+            return this._renderCollectionLinkCard(card);
+        }
+
+        const cardClass = `card ${owned ? 'owned' : ''} ${card.superBowl ? 'super-bowl' : ''}`.trim();
+
+        let html = `<div class="${cardClass}" data-price="${price}"${card.sport ? ` data-sport="${card.sport}"` : ''}${card.era ? ` data-era="${card.era}"` : ''} data-type="${card.type || ''}">`;
+        html += `<div class="card-image-wrapper">`;
+        html += CardRenderer.renderAttributeBadges(card);
+        html += CardRenderer.renderPriceBadge(price, thresholds);
+        html += CardRenderer.renderCardImage(card.img, card.set, searchUrl);
+        html += `</div>`;
+
+        // Player name (JMU, Washington QBs)
+        if (showPlayer) {
+            html += `<div class="player-name">${sanitizeText(card.player)}</div>`;
+        }
+
+        // Player years + record (Washington QBs style)
+        if (card.years) {
+            html += `<div class="player-years">${sanitizeText(card.years)}`;
+            if (card.record) html += ` &bull; ${sanitizeText(card.record)}`;
+            html += `</div>`;
+        }
+        if (card.playoff && card.playoff !== '-') {
+            html += `<div class="player-record">Playoffs: ${sanitizeText(card.playoff)}</div>`;
+        }
+
+        // Card info (set, number, variant)
+        if (card.years) {
+            // Washington QBs style: set + num on one line
+            html += `<div class="card-info"><span class="card-set">${sanitizeText(card.set)}</span> ${sanitizeText(card.num)}</div>`;
+        } else {
+            // Standard style: set title, number + variant, type
+            html += `<div class="card-title">${sanitizeText(card.set)}</div>`;
+            html += `<div class="card-number">${sanitizeText(card.num)} ${sanitizeText(displayVariant)}</div>`;
+            if (displayType) {
+                html += `<div class="card-type">${sanitizeText(displayType)}</div>`;
+            }
+        }
+
+        // Achievements
+        html += CardRenderer.renderAchievements(card.badges || card.achievement);
+
+        // Card actions
+        const isReadOnly = this.checklistManager.isReadOnly;
+        html += `<div class="card-actions${isReadOnly && !owned ? ' links-only' : ''}">`;
+        html += CardRenderer.renderOwnedControl(cardId, owned, isReadOnly);
+        html += CardRenderer.renderSearchLinks(searchUrl, scpUrl);
+        html += `</div>`;
+
+        html += `</div>`;
+        return html;
+    }
+
+    _renderCollectionLinkCard(card) {
+        return `<div class="card collection-link" onclick="window.location.href='${sanitizeUrl(card.collectionLink)}'">
+            <div class="card-image-wrapper">
+                ${card.cardCount ? `<span class="collection-badge">${card.cardCount} CARDS</span>` : ''}
+                ${CardRenderer.renderCardImage(card.img, card.player, card.collectionLink)}
+            </div>
+            <div class="player-name">${sanitizeText(card.player)}</div>
+            ${card.years ? `<div class="player-years">${sanitizeText(card.years)} &bull; ${sanitizeText(card.record || '')}</div>` : ''}
+            ${CardRenderer.renderAchievements(card.achievement)}
+            <a href="${sanitizeUrl(card.collectionLink)}" class="collection-cta">View Full Collection</a>
+        </div>`;
+    }
+
+    // ========================================
+    // Filters
+    // ========================================
+
+    _renderFilters() {
+        const container = document.getElementById('filters-container');
+        const sorts = this.config.sortOptions || ['default', 'year', 'set', 'price-low', 'price-high', 'owned', 'needed'];
+        const customFilters = this.config.customFilters || [];
+
+        let html = '';
+
+        // Sort dropdown
+        if (sorts.length > 1) {
+            html += `<select id="sort-filter">`;
+            sorts.forEach(s => {
+                const label = this._getSortLabel(s);
+                html += `<option value="${s}">${label}</option>`;
+            });
+            html += `</select>`;
+        }
+
+        // Custom filter dropdowns (sport, era, etc.)
+        customFilters.forEach(f => {
+            html += `<select id="${f.id}-filter">`;
+            html += `<option value="all">${sanitizeText(f.allLabel || 'All')}</option>`;
+            f.options.forEach(opt => {
+                html += `<option value="${opt.value}">${sanitizeText(opt.label)}</option>`;
+            });
+            html += `</select>`;
+        });
+
+        // Status filter
+        html += `<select id="status-filter">
+            <option value="all">All Cards</option>
+            <option value="owned">Owned Only</option>
+            <option value="need">Needed Only</option>
+        </select>`;
+
+        // Search
+        html += `<input type="text" id="search" placeholder="Search cards...">`;
+
+        container.innerHTML = html;
+
+        // Bind events
+        container.querySelectorAll('select').forEach(sel => {
+            sel.addEventListener('change', () => this._onFilterChange());
+        });
+        container.querySelector('#search')?.addEventListener('input', () => this._onFilterChange());
+    }
+
+    _getSortLabel(key) {
+        const labels = {
+            'default': 'Sort: Default',
+            'year': 'Sort: Year',
+            'set': 'Sort: Set/Brand',
+            'price-low': 'Sort: Price (Low to High)',
+            'price-high': 'Sort: Price (High to Low)',
+            'owned': 'Sort: Owned First',
+            'needed': 'Sort: Needed First',
+            'winpct': 'Sort: Win %',
+            'wins': 'Sort: Games Won',
+            'games': 'Sort: Games Played',
+            'superbowl': 'Sort: Super Bowl Winners',
+        };
+        return labels[key] || `Sort: ${key}`;
+    }
+
+    _onFilterChange() {
+        this.renderCards();
+        this.updateStats();
+    }
+
+    // ========================================
+    // Sorting
+    // ========================================
+
+    _getYear(card) {
+        const match = (card.set || '').match(/(\d{4})/);
+        return match ? parseInt(match[1]) : 9999;
+    }
+
+    _getSetName(card) {
+        return (card.set || '').replace(/^\d{4}\s*/, '').toLowerCase();
+    }
+
+    sortCards(cardsToSort, sortBy) {
+        const sorted = [...cardsToSort];
+        switch (sortBy) {
+            case 'year':
+                sorted.sort((a, b) => this._getYear(a) - this._getYear(b) || this._getSetName(a).localeCompare(this._getSetName(b)));
+                break;
+            case 'set':
+                sorted.sort((a, b) => this._getSetName(a).localeCompare(this._getSetName(b)));
+                break;
+            case 'price-low':
+                sorted.sort((a, b) => this.getPrice(a) - this.getPrice(b));
+                break;
+            case 'price-high':
+                sorted.sort((a, b) => this.getPrice(b) - this.getPrice(a));
+                break;
+            case 'owned':
+                sorted.sort((a, b) => {
+                    const ownedA = this.isOwned(this.getCardId(a)) ? 0 : 1;
+                    const ownedB = this.isOwned(this.getCardId(b)) ? 0 : 1;
+                    return ownedA - ownedB;
+                });
+                break;
+            case 'needed':
+                sorted.sort((a, b) => {
+                    const ownedA = this.isOwned(this.getCardId(a)) ? 1 : 0;
+                    const ownedB = this.isOwned(this.getCardId(b)) ? 1 : 0;
+                    return ownedA - ownedB;
+                });
+                break;
+            case 'winpct':
+                sorted.sort((a, b) => this._getWinPct(b) - this._getWinPct(a));
+                break;
+            case 'wins':
+                sorted.sort((a, b) => this._getWins(b) - this._getWins(a));
+                break;
+            case 'games':
+                sorted.sort((a, b) => this._getGamesPlayed(b) - this._getGamesPlayed(a));
+                break;
+            case 'superbowl':
+                sorted.sort((a, b) => (b.superBowl ? 1 : 0) - (a.superBowl ? 1 : 0));
+                break;
+        }
+        return sorted;
+    }
+
+    _getWinPct(card) {
+        if (!card.record || card.record === '-') return 0;
+        const parts = card.record.split('-');
+        if (parts.length < 2) return 0;
+        const wins = parseInt(parts[0]) || 0;
+        const losses = parseInt(parts[1]) || 0;
+        const total = wins + losses;
+        return total > 0 ? wins / total : 0;
+    }
+
+    _getWins(card) {
+        if (!card.record || card.record === '-') return 0;
+        return parseInt(card.record.split('-')[0]) || 0;
+    }
+
+    _getGamesPlayed(card) {
+        if (!card.record || card.record === '-') return 0;
+        const parts = card.record.split('-');
+        if (parts.length < 2) return 0;
+        return (parseInt(parts[0]) || 0) + (parseInt(parts[1]) || 0);
+    }
+
+    // ========================================
+    // Rendering
+    // ========================================
+
+    renderCards() {
+        const container = document.getElementById('sections-container');
+        const sortBy = document.getElementById('sort-filter')?.value || 'default';
+
+        // Get filter values
+        const statusFilter = document.getElementById('status-filter')?.value || 'all';
+        const searchTerm = (document.getElementById('search')?.value || '').toLowerCase();
+        const customFilterValues = {};
+        (this.config.customFilters || []).forEach(f => {
+            const el = document.getElementById(`${f.id}-filter`);
+            if (el) customFilterValues[f.id] = el.value;
+        });
+
+        if (this._isFlat()) {
+            this._renderFlatCards(container, sortBy, statusFilter, searchTerm, customFilterValues);
+        } else {
+            this._renderCategoryCards(container, sortBy, statusFilter, searchTerm, customFilterValues);
+        }
+
+        this.updateStats();
+    }
+
+    _filterCard(card, statusFilter, searchTerm, customFilterValues) {
+        // Status filter
+        if (statusFilter !== 'all') {
+            const cardId = card.collectionLink ? null : this.getCardId(card);
+            const owned = cardId ? this.isOwned(cardId) : false;
+            if (statusFilter === 'owned' && !owned) return false;
+            if (statusFilter === 'need' && owned) return false;
+            if (statusFilter === 'needed' && owned) return false;
+        }
+
+        // Search
+        if (searchTerm) {
+            const cardText = [card.player, card.set, card.num, card.variant, card.type].filter(Boolean).join(' ').toLowerCase();
+            if (!cardText.includes(searchTerm)) return false;
+        }
+
+        // Custom filters
+        for (const [filterId, filterValue] of Object.entries(customFilterValues)) {
+            if (filterValue === 'all') continue;
+            const filterDef = (this.config.customFilters || []).find(f => f.id === filterId);
+            if (!filterDef) continue;
+            const cardField = filterDef.cardField || filterId;
+            const cardValue = card[cardField];
+
+            // Multi-value match (e.g., sport filter matching "football" to both "nfl" and "usfl")
+            if (filterDef.multiMatch && filterDef.multiMatch[filterValue]) {
+                if (!filterDef.multiMatch[filterValue].includes(cardValue)) return false;
+            } else {
+                if (cardValue !== filterValue) return false;
+            }
+        }
+
+        return true;
+    }
+
+    _renderFlatCards(container, sortBy, statusFilter, searchTerm, customFilterValues) {
+        // Flat data shape (like Washington QBs)
+        let filtered = this.cards.filter(card => this._filterCard(card, statusFilter, searchTerm, customFilterValues));
+
+        if (sortBy !== 'default') {
+            const sorted = this.sortCards(filtered, sortBy);
+            container.innerHTML = `
+                <div class="section">
+                    <div class="group-header" data-no-collapse>All Cards</div>
+                    <div class="section-group"><div class="card-grid">
+                        ${sorted.map(c => this.createCardElement(c)).join('')}
+                    </div></div>
+                </div>`;
+            return;
+        }
+
+        // Default: group by groupField (e.g., "era")
+        const groupField = this.config.groupField || 'era';
+        const groups = this.config.groups || [];
+
+        if (groups.length === 0) {
+            // No grouping defined - render as flat list
+            container.innerHTML = `<div class="card-grid">${filtered.map(c => this.createCardElement(c)).join('')}</div>`;
+            return;
+        }
+
+        let html = '';
+        groups.forEach(group => {
+            const groupCards = filtered.filter(c => c[groupField] === group.id);
+            if (groupCards.length === 0) return;
+            html += `<div class="section">
+                <div class="group-header">${sanitizeText(group.title)}</div>
+                <div class="section-group"><div class="card-grid">
+                    ${groupCards.map(c => this.createCardElement(c)).join('')}
+                </div></div>
+            </div>`;
+        });
+        container.innerHTML = html;
+        CollapsibleSections.init({ persist: true, storageKey: `${this.id}-collapsed` });
+    }
+
+    _renderCategoryCards(container, sortBy, statusFilter, searchTerm, customFilterValues) {
+        // Category data shape (like Jayden Daniels, JMU)
+        const categories = this.config.categories || [];
+
+        if (sortBy !== 'default') {
+            // Flatten all cards with category info, filter, sort
+            const allCards = this._getAllCardsFlat();
+            let filtered = allCards.filter(card => this._filterCard(card, statusFilter, searchTerm, customFilterValues));
+            const sorted = this.sortCards(filtered, sortBy);
+            container.innerHTML = `
+                <div class="section">
+                    <div class="section-header">All Cards</div>
+                    <div class="card-grid">${sorted.map(c => this.createCardElement(c)).join('')}</div>
+                </div>`;
+            return;
+        }
+
+        // Default: render each category as a section
+        let html = '';
+        categories.forEach(cat => {
+            const catCards = this.cards[cat.id] || [];
+            let filtered = catCards.filter(card => this._filterCard(card, statusFilter, searchTerm, customFilterValues));
+
+            if (filtered.length === 0 && catCards.length === 0) return;
+
+            const sectionClass = cat.isMain ? 'default-section' : '';
+            const headerClass = `section-header cat-${cat.id}`;
+
+            // Sections with notes (like inserts, premium)
+            if (cat.note) {
+                html += `<div class="section ${sectionClass}" id="${cat.id}-section">`;
+                html += `<div class="${headerClass}">${sanitizeText(cat.label)}</div>`;
+                html += `<div class="inserts-note">${sanitizeText(cat.note)}</div>`;
+                html += `<div class="card-grid" id="${cat.id}-cards">${filtered.map(c => this.createCardElement(c)).join('')}</div>`;
+                html += `</div>`;
+            } else {
+                html += `<div class="section ${sectionClass}">`;
+                html += `<div class="${headerClass}">${sanitizeText(cat.label)}</div>`;
+                html += `<div class="card-grid" id="${cat.id}-cards">${filtered.map(c => this.createCardElement(c)).join('')}</div>`;
+                html += `</div>`;
+            }
+        });
+
+        container.innerHTML = html;
+
+        // Apply visibility filter (hide sections with no visible cards after filtering)
+        container.querySelectorAll('.section').forEach(section => {
+            const cards = section.querySelectorAll('.card');
+            const hasVisible = cards.length > 0;
+            section.style.display = hasVisible ? '' : 'none';
+        });
+    }
+
+    _getAllCardsFlat() {
+        if (this._isFlat()) return [...this.cards];
+
+        const categories = this.config.categories || [];
+        const allCards = [];
+        categories.forEach((cat, idx) => {
+            const catCards = this.cards[cat.id] || [];
+            catCards.forEach(c => {
+                allCards.push({ ...c, _category: cat.id, _sortOrder: idx });
+            });
+        });
+        return allCards;
+    }
+
+    // ========================================
+    // Stats
+    // ========================================
+
+    computeStats() {
+        const categories = this.config.categories || [];
+        const mainCats = categories.filter(c => c.isMain !== false);
+        const extraCats = categories.filter(c => c.isMain === false);
+
+        if (this._isFlat()) {
+            // Flat: count all non-collectionLink cards
+            const countable = this.cards.filter(c => !c.collectionLink);
+            let ownedCount = 0, totalValue = 0, ownedValue = 0, neededValue = 0;
+            countable.forEach(card => {
+                const price = this.getPrice(card);
+                const owned = this.isOwned(this.getCardId(card));
+                totalValue += price;
+                if (owned) {
+                    ownedCount++;
+                    ownedValue += price;
+                } else {
+                    neededValue += price;
+                }
+            });
+            return {
+                owned: ownedCount,
+                total: countable.length,
+                ownedValue: Math.round(ownedValue),
+                neededValue: Math.round(neededValue),
+            };
+        }
+
+        // Category-based: count only main categories
+        let ownedCount = 0, totalCount = 0, totalValue = 0, ownedValue = 0, neededValue = 0;
+        mainCats.forEach(cat => {
+            const catCards = this.cards[cat.id] || [];
+            catCards.forEach(card => {
+                const price = this.getPrice(card);
+                const owned = this.isOwned(this.getCardId(card));
+                totalCount++;
+                totalValue += price;
+                if (owned) {
+                    ownedCount++;
+                    ownedValue += price;
+                } else {
+                    neededValue += price;
+                }
+            });
+        });
+
+        const stats = {
+            owned: ownedCount,
+            total: totalCount,
+            ownedValue: Math.round(ownedValue),
+            neededValue: Math.round(neededValue),
+        };
+
+        // Add extra category stats
+        extraCats.forEach(cat => {
+            const catCards = this.cards[cat.id] || [];
+            const label = cat.statLabel || `${cat.id}Owned`;
+            stats[label] = catCards.filter(c => this.isOwned(this.getCardId(c))).length;
+            stats[`${cat.id}Total`] = catCards.length;
+        });
+
+        return stats;
+    }
+
+    updateStats() {
+        const stats = this.computeStats();
+        StatsAnimator.animateStats({
+            owned: { el: document.getElementById('owned-count'), value: stats.owned },
+            total: { el: document.getElementById('total-count'), value: stats.total },
+            totalValue: { el: document.getElementById('total-value'), value: stats.ownedValue + stats.neededValue },
+            ownedValue: { el: document.getElementById('owned-value'), value: stats.ownedValue },
+            neededValue: { el: document.getElementById('needed-value'), value: stats.neededValue },
+        });
+    }
+
+    // ========================================
+    // Card Editor Setup
+    // ========================================
+
+    _initCardEditor() {
+        const categories = this.config.categories || [];
+        const customFields = this.config.customFields || {};
+
+        // Build categories list for dropdown
+        let editorCategories;
+        if (this._isFlat()) {
+            editorCategories = null; // No category dropdown for flat data
+        } else {
+            editorCategories = categories.map(c => ({
+                value: c.id,
+                label: c.label,
+            }));
+        }
+
+        this.cardEditor = new CardEditorModal({
+            customFields: customFields,
+            imageFolder: `images/${this.id}`,
+            categories: editorCategories,
+            priceInAttributes: this.config.cardDisplay?.priceInAttributes || false,
+            onSave: async (cardId, cardData, isNew) => {
+                if (isNew) {
+                    this._addCard(cardData);
+                } else {
+                    this._updateCard(cardId, cardData);
+                }
+                this.renderCards();
+                this.checklistManager.setSyncStatus('syncing', 'Saving...');
+                await this._saveCardData();
+            },
+            onDelete: async (cardId) => {
+                this._removeCard(cardId);
+                this.renderCards();
+                this.checklistManager.setSyncStatus('syncing', 'Saving...');
+                await this._saveCardData();
+            },
+        });
+    }
+
+    // ========================================
+    // Card CRUD
+    // ========================================
+
+    _findCardWithLocation(cardId) {
+        if (this._isFlat()) {
+            const idx = this.cards.findIndex(c => this.getCardId(c) === cardId);
+            if (idx === -1) return null;
+            return {
+                card: this.cards[idx],
+                index: idx,
+                editData: { ...this.cards[idx] },
+            };
+        }
+
+        // Category-based
+        for (const cat of (this.config.categories || [])) {
+            const catCards = this.cards[cat.id] || [];
+            const idx = catCards.findIndex(c => this.getCardId(c) === cardId);
+            if (idx !== -1) {
+                return {
+                    card: catCards[idx],
+                    category: cat.id,
+                    index: idx,
+                    editData: { ...catCards[idx], category: cat.id },
+                };
+            }
+        }
+        return null;
+    }
+
+    _addCard(cardData) {
+        const showPlayer = this.config.cardDisplay?.showPlayerName !== false;
+        const playerForSearch = showPlayer && cardData.player ? cardData.player.replace(/\s+/g, '+') + '+' : '';
+
+        // Generate search term
+        if (!cardData.ebay) {
+            cardData.search = `${playerForSearch}${(cardData.set || '').replace(/\s+/g, '+')}+${cardData.num || ''}`;
+        } else {
+            cardData.search = cardData.ebay;
+            delete cardData.ebay;
+        }
+
+        if (this._isFlat()) {
+            // Extract category-like fields that belong on the card directly
+            delete cardData.category;
+            this._insertCardSorted(this.cards, cardData);
+        } else {
+            const category = cardData.category || this._getDefaultCategory();
+            delete cardData.category;
+            if (!this.cards[category]) this.cards[category] = [];
+            this._insertCardSorted(this.cards[category], cardData);
+        }
+    }
+
+    _updateCard(cardId, cardData) {
+        const found = this._findCardWithLocation(cardId);
+        if (!found) return;
+
+        if (this._isFlat()) {
+            const card = found.card;
+            Object.assign(card, cardData);
+            if (cardData.ebay) { card.search = cardData.ebay; delete card.ebay; }
+            if (cardData.priceSearch) { card.priceSearch = cardData.priceSearch; } else { delete card.priceSearch; }
+            // Clean up falsy optional fields
+            ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant', 'achievement'].forEach(key => {
+                if (!(key in cardData) || !cardData[key]) delete card[key];
+            });
+            // Re-sort
+            this.cards.splice(found.index, 1);
+            this._insertCardSorted(this.cards, card);
+        } else {
+            const { card, category: oldCategory, index } = found;
+            const newCategory = cardData.category || oldCategory;
+            delete cardData.category;
+            Object.assign(card, cardData);
+            if (cardData.ebay) { card.search = cardData.ebay; delete card.ebay; }
+            if (cardData.priceSearch) { card.priceSearch = cardData.priceSearch; } else { delete card.priceSearch; }
+            // Clean up falsy optional fields
+            ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant', 'achievement'].forEach(key => {
+                if (!(key in cardData) || !cardData[key]) delete card[key];
+            });
+            // Remove from old category, insert into new
+            this.cards[oldCategory].splice(index, 1);
+            if (!this.cards[newCategory]) this.cards[newCategory] = [];
+            this._insertCardSorted(this.cards[newCategory], card);
+        }
+    }
+
+    _removeCard(cardId) {
+        if (this._isFlat()) {
+            const idx = this.cards.findIndex(c => this.getCardId(c) === cardId);
+            if (idx !== -1) this.cards.splice(idx, 1);
+            return;
+        }
+
+        for (const cat of (this.config.categories || [])) {
+            const catCards = this.cards[cat.id] || [];
+            const idx = catCards.findIndex(c => this.getCardId(c) === cardId);
+            if (idx !== -1) {
+                catCards.splice(idx, 1);
+                return;
+            }
+        }
+    }
+
+    _insertCardSorted(arr, card) {
+        const idx = arr.findIndex(c => {
+            if (c.set > card.set) return true;
+            if (c.set === card.set) {
+                const numA = parseInt((card.num || '').replace(/\D/g, '')) || 0;
+                const numB = parseInt((c.num || '').replace(/\D/g, '')) || 0;
+                return numB > numA;
+            }
+            return false;
+        });
+        if (idx === -1) arr.push(card);
+        else arr.splice(idx, 0, card);
+    }
+}
+
+// Export
+window.ChecklistEngine = ChecklistEngine;
