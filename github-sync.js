@@ -576,7 +576,25 @@ class GitHubSync {
             );
             if (!createBranch.ok) throw new Error('Failed to create branch');
 
-            // 3. Commit image to new branch
+            // 3. Check if file already exists (need SHA to update)
+            let existingSha = null;
+            const existingFile = await fetch(
+                `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branchName}`,
+                { headers: { 'Authorization': `Bearer ${this.token}` } }
+            );
+            if (existingFile.ok) {
+                const fileData = await existingFile.json();
+                existingSha = fileData.sha;
+            }
+
+            // 4. Commit image to new branch
+            const commitBody = {
+                message: message || `Add image ${path}`,
+                content: base64Content,
+                branch: branchName
+            };
+            if (existingSha) commitBody.sha = existingSha;
+
             const commitImage = await fetch(
                 `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
                 {
@@ -585,11 +603,7 @@ class GitHubSync {
                         'Authorization': `Bearer ${this.token}`,
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        message: message || `Add image ${path}`,
-                        content: base64Content,
-                        branch: branchName
-                    })
+                    body: JSON.stringify(commitBody)
                 }
             );
             if (!commitImage.ok) {
@@ -598,7 +612,7 @@ class GitHubSync {
                 throw new Error(`Failed to commit image: ${errorData.message || commitImage.status}`);
             }
 
-            // 4. Create PR (GitHub Action will auto-merge)
+            // 5. Create PR (GitHub Action will auto-merge)
             const createPR = await fetch(
                 `https://api.github.com/repos/${owner}/${repo}/pulls`,
                 {
