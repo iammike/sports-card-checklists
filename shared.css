@@ -2070,6 +2070,70 @@ select, input[type="text"] {
     transform: scale(0.95);
 }
 
+/* ============================================
+   Image Editor - Perspective Mode
+   ============================================ */
+
+.image-editor-canvas {
+    position: relative;
+}
+
+.image-editor-tool.active {
+    background: rgba(102, 126, 234, 0.3);
+    border-color: rgba(102, 126, 234, 0.6);
+    color: white;
+}
+
+.perspective-canvas {
+    max-width: 100%;
+    max-height: 100%;
+    display: block;
+}
+
+.perspective-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+}
+
+.perspective-handle {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(102, 126, 234, 0.9);
+    border: 2px solid white;
+    cursor: grab;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    touch-action: none;
+    transition: background 0.15s, transform 0.1s;
+}
+
+.perspective-handle:hover {
+    background: rgba(102, 126, 234, 1);
+    transform: translate(-50%, -50%) scale(1.15);
+}
+
+.perspective-handle:active,
+.perspective-handle.dragging {
+    cursor: grabbing;
+    background: #667eea;
+    transform: translate(-50%, -50%) scale(1.2);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
+}
+
+.perspective-controls {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 24px;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 13px;
+}
+
 @media (max-width: 600px) {
     .image-editor-modal {
         width: 100vw;
@@ -2095,5 +2159,10 @@ select, input[type="text"] {
 
     .image-editor-slider {
         width: 80px;
+    }
+
+    .perspective-handle {
+        width: 32px;
+        height: 32px;
     }
 }

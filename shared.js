@@ -1242,6 +1242,95 @@ class ImageProcessor {
 }
 
 /**
+ * Perspective transform math - 4-point homography with bilinear interpolation
+ */
+const PerspectiveTransform = {
+    // Solve 8x8 system via Gaussian elimination for homography coefficients
+    computeHomography(src, dst) {
+        // Build 8x9 augmented matrix (Ah = 0, with h8 = 1)
+        const A = [];
+        for (let i = 0; i < 4; i++) {
+            const sx = src[i].x, sy = src[i].y, dx = dst[i].x, dy = dst[i].y;
+            A.push([sx, sy, 1, 0, 0, 0, -dx * sx, -dx * sy, dx]);
+            A.push([0, 0, 0, sx, sy, 1, -dy * sx, -dy * sy, dy]);
+        }
+        // Gaussian elimination with partial pivoting
+        for (let col = 0; col < 8; col++) {
+            let maxRow = col, maxVal = Math.abs(A[col][col]);
+            for (let row = col + 1; row < 8; row++) {
+                if (Math.abs(A[row][col]) > maxVal) { maxVal = Math.abs(A[row][col]); maxRow = row; }
+            }
+            [A[col], A[maxRow]] = [A[maxRow], A[col]];
+            const pivot = A[col][col];
+            if (Math.abs(pivot) < 1e-10) return null;
+            for (let j = col; j < 9; j++) A[col][j] /= pivot;
+            for (let row = 0; row < 8; row++) {
+                if (row === col) continue;
+                const factor = A[row][col];
+                for (let j = col; j < 9; j++) A[row][j] -= factor * A[col][j];
+            }
+        }
+        return [A[0][8], A[1][8], A[2][8], A[3][8], A[4][8], A[5][8], A[6][8], A[7][8], 1];
+    },
+
+    applyHomography(H, x, y) {
+        const w = H[6] * x + H[7] * y + H[8];
+        return { x: (H[0] * x + H[1] * y + H[2]) / w, y: (H[3] * x + H[4] * y + H[5]) / w };
+    },
+
+    bilinearSample(data, w, h, x, y) {
+        const x0 = Math.floor(x), y0 = Math.floor(y);
+        if (x0 < 0 || y0 < 0 || x0 >= w || y0 >= h) return [0, 0, 0, 0];
+        const x1 = Math.min(x0 + 1, w - 1), y1 = Math.min(y0 + 1, h - 1);
+        const fx = x - x0, fy = y - y0;
+        const i00 = (y0 * w + x0) * 4, i10 = (y0 * w + x1) * 4;
+        const i01 = (y1 * w + x0) * 4, i11 = (y1 * w + x1) * 4;
+        const d = data;
+        return [0, 1, 2, 3].map(c =>
+            (1 - fx) * (1 - fy) * d[i00 + c] + fx * (1 - fy) * d[i10 + c] +
+            (1 - fx) * fy * d[i01 + c] + fx * fy * d[i11 + c]
+        );
+    },
+
+    // Apply perspective correction: srcCorners (4 points on source) -> rectangular output
+    transform(srcCanvas, srcCorners) {
+        const sw = srcCanvas.width, sh = srcCanvas.height;
+        const srcCtx = srcCanvas.getContext('2d');
+        const srcData = srcCtx.getImageData(0, 0, sw, sh).data;
+
+        // Compute output dimensions from corner distances
+        const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+        const outW = Math.round(Math.max(dist(srcCorners[0], srcCorners[1]), dist(srcCorners[3], srcCorners[2])));
+        const outH = Math.round(Math.max(dist(srcCorners[0], srcCorners[3]), dist(srcCorners[1], srcCorners[2])));
+
+        const dstCorners = [{ x: 0, y: 0 }, { x: outW, y: 0 }, { x: outW, y: outH }, { x: 0, y: outH }];
+        const H = this.computeHomography(dstCorners, srcCorners);
+        if (!H) return null;
+
+        const outCanvas = document.createElement('canvas');
+        outCanvas.width = outW;
+        outCanvas.height = outH;
+        const outCtx = outCanvas.getContext('2d');
+        const outImg = outCtx.createImageData(outW, outH);
+
+        for (let y = 0; y < outH; y++) {
+            for (let x = 0; x < outW; x++) {
+                const s = this.applyHomography(H, x, y);
+                const pixel = this.bilinearSample(srcData, sw, sh, s.x, s.y);
+                const idx = (y * outW + x) * 4;
+                outImg.data[idx] = pixel[0];
+                outImg.data[idx + 1] = pixel[1];
+                outImg.data[idx + 2] = pixel[2];
+                outImg.data[idx + 3] = pixel[3];
+            }
+        }
+
+        outCtx.putImageData(outImg, 0, 0);
+        return outCanvas;
+    }
+};
+
+/**
  * Image Editor Modal - crop and rotate images before processing
  * Uses Cropper.js for crop functionality
  */
@@ -1253,6 +1342,13 @@ class ImageEditorModal {
         this.resolvePromise = null;
         this.rejectPromise = null;
         this.rotation = 0;
+        // Perspective mode state
+        this.mode = 'crop'; // 'crop' | 'perspective'
+        this.perspectiveCanvas = null;
+        this.perspectiveOverlay = null;
+        this.cornerHandles = [];
+        this.cornerPositions = []; // normalized 0-1 coordinates
+        this.prePerspectiveSrc = null;
     }
 
     // Load Cropper.js from CDN if not already loaded
@@ -1314,10 +1410,16 @@ class ImageEditorModal {
                             <input type="text" class="image-editor-rotation-input" id="image-editor-rotate-value" value="0°" inputmode="decimal">
                         </div>
                     </div>
+                    <div class="perspective-controls">
+                        <div class="perspective-hint">Drag the corners to match the card edges</div>
+                    </div>
                 </div>
                 <div class="image-editor-footer">
                     <button class="image-editor-tool" data-action="reset" title="Reset All">
                         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+                    </button>
+                    <button class="image-editor-tool" data-action="perspective" title="Perspective Correction">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3L19 1L21 21L3 23Z"/><circle cx="5" cy="3" r="1.5" fill="currentColor" stroke="none"/><circle cx="19" cy="1" r="1.5" fill="currentColor" stroke="none"/><circle cx="21" cy="21" r="1.5" fill="currentColor" stroke="none"/><circle cx="3" cy="23" r="1.5" fill="currentColor" stroke="none"/></svg>
                     </button>
                     <div class="image-editor-footer-spacer"></div>
                     <button class="image-editor-btn cancel">Cancel</button>
@@ -1412,6 +1514,15 @@ class ImageEditorModal {
 
     // Handle toolbar actions
     handleToolAction(action) {
+        if (action === 'perspective') {
+            if (this.mode === 'crop') this.enterPerspectiveMode();
+            else this.exitPerspectiveMode();
+            return;
+        }
+        if (action === 'reset' && this.mode === 'perspective') {
+            this.resetCornerHandles();
+            return;
+        }
         if (!this.cropper) return;
 
         switch (action) {
@@ -1451,9 +1562,12 @@ class ImageEditorModal {
             this.cropper = null;
         }
 
-        // Reset rotation state
+        // Reset state
+        this.mode = 'crop';
+        this.originalImageSrc = imageSrc;
         this.baseRotation = 0;
         this.fineRotation = 0;
+        this.updateToolbarForMode();
         const slider = this.backdrop.querySelector('#image-editor-rotate');
         const input = this.backdrop.querySelector('#image-editor-rotate-value');
         if (slider) slider.value = 0;
@@ -1472,27 +1586,19 @@ class ImageEditorModal {
             this.rejectPromise = reject;
 
             img.onload = () => {
-                this.cropper = new Cropper(img, {
-                    viewMode: 1,
-                    dragMode: 'move',
-                    aspectRatio: NaN, // Free crop
-                    autoCropArea: 1,
-                    restore: false,
-                    guides: true,
-                    center: true,
-                    highlight: false,
-                    cropBoxMovable: true,
-                    cropBoxResizable: true,
-                    toggleDragModeOnDblclick: false,
-                    background: true,
-                });
+                this.cropper = new Cropper(img, this.cropperOptions);
             };
             img.onerror = () => reject(new Error('Failed to load image'));
         });
     }
 
-    // Confirm - return cropped/edited image
+    // Confirm - return cropped/edited image (or apply perspective)
     confirm() {
+        if (this.mode === 'perspective') {
+            this.applyPerspective();
+            return;
+        }
+
         console.log('ImageEditor: confirm() called, cropper:', !!this.cropper);
 
         if (!this.cropper) {
@@ -1547,11 +1653,237 @@ class ImageEditorModal {
 
     // Cancel - reject promise
     cancel() {
+        if (this.mode === 'perspective') {
+            this.exitPerspectiveMode();
+            return;
+        }
         const reject = this.rejectPromise;
         this.close();
         if (reject) {
             reject(new Error('Cancelled'));
         }
+    }
+
+    // Cropper.js config (shared between open() and exitPerspectiveMode())
+    get cropperOptions() {
+        return {
+            viewMode: 1, dragMode: 'move', aspectRatio: NaN, autoCropArea: 1,
+            restore: false, guides: true, center: true, highlight: false,
+            cropBoxMovable: true, cropBoxResizable: true, toggleDragModeOnDblclick: false, background: true,
+        };
+    }
+
+    // Enter perspective correction mode
+    enterPerspectiveMode() {
+        if (this.mode === 'perspective') return;
+
+        // Capture current Cropper state (bakes in any rotation/crop/flip)
+        const croppedCanvas = this.cropper.getCroppedCanvas({ maxWidth: 1200, maxHeight: 1200 });
+        this.prePerspectiveSrc = croppedCanvas.toDataURL('image/png');
+
+        // Destroy Cropper
+        this.cropper.destroy();
+        this.cropper = null;
+
+        // Hide the img element
+        const img = this.backdrop.querySelector('#image-editor-img');
+        img.style.display = 'none';
+
+        const container = this.backdrop.querySelector('.image-editor-canvas');
+
+        // Create perspective canvas
+        this.perspectiveCanvas = document.createElement('canvas');
+        this.perspectiveCanvas.className = 'perspective-canvas';
+        this.perspectiveCanvas.width = croppedCanvas.width;
+        this.perspectiveCanvas.height = croppedCanvas.height;
+        this.perspectiveCanvas.getContext('2d').drawImage(croppedCanvas, 0, 0);
+        container.appendChild(this.perspectiveCanvas);
+
+        // Create overlay canvas for guide lines
+        this.perspectiveOverlay = document.createElement('canvas');
+        this.perspectiveOverlay.className = 'perspective-overlay';
+        container.appendChild(this.perspectiveOverlay);
+
+        // Initialize corner positions and create handles
+        this.resetCornerHandles();
+        this.cornerHandles = [];
+        for (let i = 0; i < 4; i++) {
+            const handle = document.createElement('div');
+            handle.className = 'perspective-handle';
+            handle.dataset.index = i;
+            container.appendChild(handle);
+            this.cornerHandles.push(handle);
+            this.makeHandleDraggable(handle, i);
+        }
+
+        this.mode = 'perspective';
+        this.updateToolbarForMode();
+        this.updateHandlePositions();
+        this.drawGuideLines();
+    }
+
+    // Reset corner handles to default inset positions
+    resetCornerHandles() {
+        const inset = 0.05;
+        this.cornerPositions = [
+            { x: inset, y: inset },
+            { x: 1 - inset, y: inset },
+            { x: 1 - inset, y: 1 - inset },
+            { x: inset, y: 1 - inset },
+        ];
+        if (this.cornerHandles.length) {
+            this.updateHandlePositions();
+            this.drawGuideLines();
+        }
+    }
+
+    // Make a corner handle draggable with pointer events
+    makeHandleDraggable(handle, index) {
+        handle.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            handle.setPointerCapture(e.pointerId);
+            handle.classList.add('dragging');
+
+            const onMove = (e) => {
+                const canvasRect = this.perspectiveCanvas.getBoundingClientRect();
+                const x = Math.max(0, Math.min(1, (e.clientX - canvasRect.left) / canvasRect.width));
+                const y = Math.max(0, Math.min(1, (e.clientY - canvasRect.top) / canvasRect.height));
+                this.cornerPositions[index] = { x, y };
+                this.updateHandlePositions();
+                this.drawGuideLines();
+            };
+
+            const onUp = () => {
+                handle.classList.remove('dragging');
+                handle.removeEventListener('pointermove', onMove);
+                handle.removeEventListener('pointerup', onUp);
+            };
+
+            handle.addEventListener('pointermove', onMove);
+            handle.addEventListener('pointerup', onUp);
+        });
+    }
+
+    // Position handles on screen based on normalized coordinates
+    updateHandlePositions() {
+        if (!this.perspectiveCanvas) return;
+        const rect = this.perspectiveCanvas.getBoundingClientRect();
+        const containerRect = this.perspectiveCanvas.parentElement.getBoundingClientRect();
+
+        this.cornerHandles.forEach((handle, i) => {
+            const pos = this.cornerPositions[i];
+            handle.style.left = (rect.left - containerRect.left + pos.x * rect.width) + 'px';
+            handle.style.top = (rect.top - containerRect.top + pos.y * rect.height) + 'px';
+        });
+    }
+
+    // Draw guide lines connecting the 4 corners on the overlay
+    drawGuideLines() {
+        if (!this.perspectiveOverlay || !this.perspectiveCanvas) return;
+        const rect = this.perspectiveCanvas.getBoundingClientRect();
+        const containerRect = this.perspectiveCanvas.parentElement.getBoundingClientRect();
+
+        this.perspectiveOverlay.width = containerRect.width;
+        this.perspectiveOverlay.height = containerRect.height;
+        this.perspectiveOverlay.style.width = containerRect.width + 'px';
+        this.perspectiveOverlay.style.height = containerRect.height + 'px';
+
+        const ctx = this.perspectiveOverlay.getContext('2d');
+        ctx.clearRect(0, 0, this.perspectiveOverlay.width, this.perspectiveOverlay.height);
+
+        const offsetX = rect.left - containerRect.left;
+        const offsetY = rect.top - containerRect.top;
+        const points = this.cornerPositions.map(p => ({
+            x: offsetX + p.x * rect.width,
+            y: offsetY + p.y * rect.height,
+        }));
+
+        // Fill the quadrilateral
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < 4; i++) ctx.lineTo(points[i].x, points[i].y);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(102, 126, 234, 0.08)';
+        ctx.fill();
+
+        // Draw edges
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < 4; i++) ctx.lineTo(points[i].x, points[i].y);
+        ctx.closePath();
+        ctx.strokeStyle = 'rgba(102, 126, 234, 0.7)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+
+    // Apply the perspective transform and return to crop mode
+    applyPerspective() {
+        const srcCorners = this.cornerPositions.map(p => ({
+            x: p.x * this.perspectiveCanvas.width,
+            y: p.y * this.perspectiveCanvas.height,
+        }));
+
+        const resultCanvas = PerspectiveTransform.transform(this.perspectiveCanvas, srcCorners);
+        if (!resultCanvas) {
+            console.error('Perspective transform failed');
+            return;
+        }
+
+        const resultUrl = resultCanvas.toDataURL('image/png');
+        this.exitPerspectiveMode(resultUrl);
+    }
+
+    // Exit perspective mode and return to Cropper.js
+    exitPerspectiveMode(newImageSrc) {
+        this.cleanupPerspective();
+
+        const img = this.backdrop.querySelector('#image-editor-img');
+        img.style.display = '';
+        img.src = newImageSrc || this.prePerspectiveSrc;
+
+        this.mode = 'crop';
+        this.baseRotation = 0;
+        this.fineRotation = 0;
+        if (this.setFineRotation) this.setFineRotation(0);
+        this.updateToolbarForMode();
+
+        img.onload = () => {
+            this.cropper = new Cropper(img, this.cropperOptions);
+        };
+    }
+
+    // Clean up perspective mode DOM elements
+    cleanupPerspective() {
+        this.cornerHandles.forEach(h => h.remove());
+        this.cornerHandles = [];
+        if (this.perspectiveCanvas) { this.perspectiveCanvas.remove(); this.perspectiveCanvas = null; }
+        if (this.perspectiveOverlay) { this.perspectiveOverlay.remove(); this.perspectiveOverlay = null; }
+    }
+
+    // Toggle UI between crop and perspective modes
+    updateToolbarForMode() {
+        if (!this.backdrop) return;
+        const isPerspective = this.mode === 'perspective';
+
+        // Toggle controls visibility
+        const cropControls = this.backdrop.querySelector('.image-editor-controls');
+        const perspControls = this.backdrop.querySelector('.perspective-controls');
+        if (cropControls) cropControls.style.display = isPerspective ? 'none' : '';
+        if (perspControls) perspControls.style.display = isPerspective ? 'flex' : 'none';
+
+        // Update subtitle
+        const subtitle = this.backdrop.querySelector('.image-editor-subtitle');
+        if (subtitle) subtitle.textContent = isPerspective
+            ? 'Straighten card perspective'
+            : 'Crop and rotate before saving';
+
+        // Toggle active state on perspective button
+        const perspBtn = this.backdrop.querySelector('[data-action="perspective"]');
+        if (perspBtn) perspBtn.classList.toggle('active', isPerspective);
+
+        // Update confirm button text
+        const confirmBtn = this.backdrop.querySelector('.image-editor-btn.confirm');
+        if (confirmBtn) confirmBtn.textContent = isPerspective ? 'Apply Correction' : 'Apply & Continue';
     }
 
     // Close modal
@@ -1561,6 +1893,8 @@ class ImageEditorModal {
             this.cropper.destroy();
             this.cropper = null;
         }
+        this.cleanupPerspective();
+        this.mode = 'crop';
         this.resolvePromise = null;
         this.rejectPromise = null;
     }
