@@ -1747,10 +1747,19 @@ class ImageEditorModal {
             handle.setPointerCapture(e.pointerId);
             handle.classList.add('dragging');
 
+            // Record offset between handle position and corner position
+            const offset = this.getHandleOffset(index);
+            const corner = this.cornerPositions[index];
+            const diffX = offset.x - corner.x;
+            const diffY = offset.y - corner.y;
+
             const onMove = (e) => {
                 const canvasRect = this.perspectiveCanvas.getBoundingClientRect();
-                const x = Math.max(0, Math.min(1, (e.clientX - canvasRect.left) / canvasRect.width));
-                const y = Math.max(0, Math.min(1, (e.clientY - canvasRect.top) / canvasRect.height));
+                // Mouse is on the offset handle; subtract diff to get actual corner
+                const mx = (e.clientX - canvasRect.left) / canvasRect.width;
+                const my = (e.clientY - canvasRect.top) / canvasRect.height;
+                const x = Math.max(0, Math.min(1, mx - diffX));
+                const y = Math.max(0, Math.min(1, my - diffY));
                 this.cornerPositions[index] = { x, y };
                 this.updateHandlePositions();
                 this.drawGuideLines();
@@ -1767,16 +1776,35 @@ class ImageEditorModal {
         });
     }
 
-    // Position handles on screen based on normalized coordinates
+    // Compute the offset handle position (inward from corner toward quad center)
+    getHandleOffset(cornerIdx) {
+        const pos = this.cornerPositions[cornerIdx];
+        // Center of the quad
+        const cx = this.cornerPositions.reduce((s, p) => s + p.x, 0) / 4;
+        const cy = this.cornerPositions.reduce((s, p) => s + p.y, 0) / 4;
+        // Direction from corner toward center
+        const dx = cx - pos.x, dy = cy - pos.y;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        if (len < 0.001) return { x: pos.x, y: pos.y };
+        // Offset by a fixed pixel distance (30px), converted to normalized coords
+        const rect = this.perspectiveCanvas?.getBoundingClientRect();
+        if (!rect || !rect.width) return { x: pos.x, y: pos.y };
+        const offsetPx = 30;
+        const offsetX = (dx / len) * offsetPx / rect.width;
+        const offsetY = (dy / len) * offsetPx / rect.height;
+        return { x: pos.x + offsetX, y: pos.y + offsetY };
+    }
+
+    // Position handles on screen based on normalized coordinates (offset inward)
     updateHandlePositions() {
         if (!this.perspectiveCanvas) return;
         const rect = this.perspectiveCanvas.getBoundingClientRect();
         const containerRect = this.perspectiveCanvas.parentElement.getBoundingClientRect();
 
         this.cornerHandles.forEach((handle, i) => {
-            const pos = this.cornerPositions[i];
-            handle.style.left = (rect.left - containerRect.left + pos.x * rect.width) + 'px';
-            handle.style.top = (rect.top - containerRect.top + pos.y * rect.height) + 'px';
+            const offset = this.getHandleOffset(i);
+            handle.style.left = (rect.left - containerRect.left + offset.x * rect.width) + 'px';
+            handle.style.top = (rect.top - containerRect.top + offset.y * rect.height) + 'px';
         });
     }
 
@@ -1817,6 +1845,27 @@ class ImageEditorModal {
         ctx.strokeStyle = 'rgba(102, 126, 234, 0.7)';
         ctx.lineWidth = 2;
         ctx.stroke();
+
+        // Draw arm lines from offset handles to actual corner points + corner dots
+        for (let i = 0; i < 4; i++) {
+            const offset = this.getHandleOffset(i);
+            const hx = offsetX + offset.x * rect.width;
+            const hy = offsetY + offset.y * rect.height;
+
+            // Arm line
+            ctx.beginPath();
+            ctx.moveTo(hx, hy);
+            ctx.lineTo(points[i].x, points[i].y);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // Corner dot
+            ctx.beginPath();
+            ctx.arc(points[i].x, points[i].y, 3, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.fill();
+        }
     }
 
     // Apply the perspective transform and return to crop mode
