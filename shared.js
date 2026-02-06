@@ -3522,5 +3522,6 @@ window.AddCardButton = AddCardButton;
 window.ImageProcessor = ImageProcessor;
 window.ImageEditorModal = ImageEditorModal;
 window.imageEditor = imageEditor;
+window.AuthUI = AuthUI;
 window.DynamicNav = DynamicNav;
 window.ChecklistCreatorModal = ChecklistCreatorModal;
