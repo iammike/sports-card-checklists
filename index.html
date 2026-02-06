@@ -499,8 +499,6 @@
             </a>
         </div>
 
-        <!-- Dynamic checklists from registry will be appended here -->
-        <div class="checklist-grid" id="dynamic-checklist-grid" style="display:none"></div>
 
     </div>
 
@@ -781,33 +779,32 @@
             const dynamicEntries = registry.checklists.filter(e => e.type === 'dynamic');
             if (dynamicEntries.length === 0) return {};
 
-            const grid = document.getElementById('dynamic-checklist-grid');
-            grid.style.display = '';
+            const grid = document.querySelector('.checklist-grid');
 
             // Load stats for all dynamic checklists from gist
             const gistData = githubSync.isLoggedIn()
                 ? await githubSync.loadData()
                 : await githubSync.loadPublicData();
             const allGistStats = gistData?.stats || {};
-            const ownedCards = gistData?.checklists || {};
 
             const dynamicStats = {};
 
             dynamicEntries.forEach(entry => {
                 const stats = allGistStats[entry.id];
-                const owned = ownedCards[entry.id] || [];
                 const hasStats = stats && typeof stats.owned === 'number';
-
                 dynamicStats[entry.id] = hasStats ? stats : null;
 
                 const pct = hasStats && stats.total > 0 ? Math.round((stats.owned / stats.total) * 100) : 0;
                 const offset = PROGRESS_RING_CIRCUMFERENCE - (pct / 100) * PROGRESS_RING_CIRCUMFERENCE;
                 const description = entry.description || '';
+                const accent = entry.accentColor || '#667eea';
+                const borderColor = entry.borderColor || accent;
 
                 const card = document.createElement('a');
                 card.href = `checklist.html?id=${entry.id}`;
                 card.className = 'checklist-card';
                 card.dataset.checklist = entry.id;
+                card.style.cssText = `--card-accent: ${accent}; border-left: 3px solid ${borderColor}; background: linear-gradient(135deg, ${borderColor}18 0%, ${accent}0d 100%);`;
                 card.innerHTML = `
                     <h2>${sanitizeText(entry.title)}</h2>
                     ${description ? `<p>${sanitizeText(description)}</p>` : ''}
@@ -832,7 +829,7 @@
                                 </div>
                             </div>
                         </div>
-                    </div>` : '<div class="progress-section" style="display:block"><p style="font-size:12px;color:#999;">No cards yet</p></div>'}
+                    </div>` : '<div class="progress-section" style="display:block"><p style="font-size:12px;color:#666;">No cards yet</p></div>'}
                 `;
                 grid.appendChild(card);
             });

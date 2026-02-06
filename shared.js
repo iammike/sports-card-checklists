@@ -3171,7 +3171,7 @@ class ChecklistCreatorModal {
                                 <span class="creator-color-hex" id="creator-accent-hex">#f39c12</span>
                             </div>
                         </div>
-                        <label class="card-editor-checkbox creator-dark-toggle">
+                        <label class="card-editor-checkbox creator-dark-toggle" title="Uses a dark background with light text instead of the default light theme">
                             <input type="checkbox" id="creator-dark-theme">
                             <span>Dark theme</span>
                         </label>
@@ -3455,6 +3455,9 @@ class ChecklistCreatorModal {
                     if (entry) {
                         entry.title = config.title;
                         entry.navLabel = config.navLabel;
+                        entry.description = config.indexCard?.description || '';
+                        entry.accentColor = config.theme?.accentColor || config.theme?.primaryColor || '#667eea';
+                        entry.borderColor = config.theme?.primaryColor || '#667eea';
                         await githubSync.saveRegistry(registry);
                         // Clear nav cache
                         DynamicNav._registry = null;
@@ -3479,6 +3482,9 @@ class ChecklistCreatorModal {
                     id: config.id,
                     title: config.title,
                     navLabel: config.navLabel,
+                    description: config.indexCard?.description || '',
+                    accentColor: config.theme?.accentColor || config.theme?.primaryColor || '#667eea',
+                    borderColor: config.theme?.primaryColor || '#667eea',
                     type: 'dynamic',
                     order: registry.checklists.length,
                 });
