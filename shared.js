@@ -1646,6 +1646,7 @@ class CardEditorModal {
         // Types: 'text', 'select', 'checkbox'
         // For select: options is array of { value, label } or just strings
         this.customFields = options.customFields || {};
+        this.priceInAttributes = options.priceInAttributes || false;
     }
 
     // Generate eBay search term from card data
@@ -1697,14 +1698,16 @@ class CardEditorModal {
                     </div>`;
                 }
             }).join('');
+            const priceHtml = this.priceInAttributes ? `
+                    <div class="card-editor-attr-text card-editor-attr-price">
+                        <label for="editor-price">Price:</label>
+                        <input type="number" class="card-editor-input" id="editor-price" placeholder="Auto" step="1" min="0">
+                    </div>` : '';
             return `<div class="card-editor-field full-width card-editor-attributes">
                 <label class="card-editor-label">Card Attributes</label>
                 <div class="card-editor-attr-row">
                     ${innerHtml}
-                    <div class="card-editor-attr-text card-editor-attr-price">
-                        <label for="editor-price">Price:</label>
-                        <input type="number" class="card-editor-input" id="editor-price" placeholder="Auto" step="1" min="0">
-                    </div>
+                    ${priceHtml}
                 </div>
             </div>`;
         }
@@ -1846,6 +1849,10 @@ class CardEditorModal {
                                     return `<option value="${value}">${label}</option>`;
                                 }).join('')}
                             </select>
+                        </div>` : ''}
+                        ${!this.priceInAttributes ? `<div class="card-editor-field">
+                            <label class="card-editor-label">Price ($)</label>
+                            <input type="number" class="card-editor-input" id="editor-price" placeholder="Auto" step="1" min="0">
                         </div>` : ''}
                         ${this.generateCustomFieldsHtml('attributes')}
                         <div class="card-editor-field full-width card-editor-advanced-toggle">
