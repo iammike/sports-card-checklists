@@ -378,12 +378,7 @@
                 </svg>
                 <span class="nav-brand-text">MIKE'S CARDS</span>
             </a>
-            <div class="nav-divider"></div>
-            <div class="nav-links">
-                <a href="jayden-daniels-rookie-checklist.html" class="nav-link">JAYDEN DANIELS</a>
-                <a href="jmu-pro-players-checklist.html" class="nav-link">JMU PROS</a>
-                <a href="washington-qbs-rookie-checklist.html" class="nav-link">WASHINGTON QBS</a>
-            </div>
+            <div class="nav-links"></div>
             <div class="nav-auth">
                 <span class="sync-status" id="sync-status"></span>
                 <div id="auth-content"></div>
@@ -843,7 +838,6 @@
                 AuthUI.update();
                 githubSync.onAuthChange = () => AuthUI.update();
             }
-            DynamicNav.init(); // non-blocking nav update
             // Secret login: click "Mike's" to sign in
             document.getElementById('mike-link').addEventListener('click', () => {
                 if (!githubSync.isLoggedIn()) {
