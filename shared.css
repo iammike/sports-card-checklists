@@ -2086,7 +2086,7 @@ select, input[type="text"] {
 
 .perspective-canvas {
     max-width: 100%;
-    max-height: 100%;
+    max-height: 60vh;
     display: block;
 }
 
@@ -2159,6 +2159,10 @@ select, input[type="text"] {
 
     .image-editor-slider {
         width: 80px;
+    }
+
+    .perspective-canvas {
+        max-height: none;
     }
 
     .perspective-handle {
