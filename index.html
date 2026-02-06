@@ -502,12 +502,6 @@
         <!-- Dynamic checklists from registry will be appended here -->
         <div class="checklist-grid" id="dynamic-checklist-grid" style="display:none"></div>
 
-        <!-- Create New Checklist button (owner-only, shown by JS) -->
-        <div id="create-checklist-container" style="display:none; text-align:center; padding: 0 20px 20px;">
-            <button class="create-checklist-btn" id="create-checklist-btn">
-                <span class="plus-icon">+</span> Create New Checklist
-            </button>
-        </div>
     </div>
 
     <script src="github-sync.js"></script>
@@ -870,24 +864,32 @@
             const allStats = { ...stats, ...dynamicStats };
             updateAggregateStats(allStats);
 
-            // Show create button for owner
+            // Add "Create New Checklist" to dropdown menu (owner-only)
             if (githubSync.isLoggedIn()) {
                 const user = githubSync.getUser();
                 if (user && user.login === 'iammike') {
-                    document.getElementById('create-checklist-container').style.display = '';
+                    const checklistCreator = new ChecklistCreatorModal({
+                        onCreated: (config) => {
+                            window.location.href = `checklist.html?id=${config.id}`;
+                        }
+                    });
+                    const dropdown = document.getElementById('nav-dropdown');
+                    if (dropdown) {
+                        const logoutBtn = document.getElementById('auth-logout-btn');
+                        const divider = document.createElement('div');
+                        divider.className = 'nav-dropdown-divider';
+                        const createBtn = document.createElement('button');
+                        createBtn.className = 'nav-dropdown-item';
+                        createBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg> New Checklist';
+                        createBtn.onclick = () => {
+                            dropdown.classList.remove('open');
+                            checklistCreator.open();
+                        };
+                        dropdown.insertBefore(divider, logoutBtn);
+                        dropdown.insertBefore(createBtn, logoutBtn);
+                    }
                 }
             }
-
-            // Wire up create checklist button
-            const checklistCreator = new ChecklistCreatorModal({
-                onCreated: (config) => {
-                    // Navigate to the new checklist
-                    window.location.href = `checklist.html?id=${config.id}`;
-                }
-            });
-            document.getElementById('create-checklist-btn').addEventListener('click', () => {
-                checklistCreator.open();
-            });
         }
         init();
     </script>

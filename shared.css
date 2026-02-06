@@ -2211,31 +2211,6 @@ select, input[type="text"] {
     height: 16px;
 }
 
-/* Create Checklist Button (index page) */
-.create-checklist-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    padding: 10px 20px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.15s;
-    margin-top: 16px;
-}
-.create-checklist-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-.create-checklist-btn .plus-icon {
-    font-size: 18px;
-    font-weight: bold;
-}
-
 /* Settings Gear Button (dynamic checklist pages) */
 .checklist-settings-btn {
     position: absolute;
