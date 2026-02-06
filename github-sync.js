@@ -804,7 +804,7 @@ class GitHubSync {
         });
     }
 
-    // Delete a dynamic checklist: removes config, cards, stats, and registry entry
+    // Delete a dynamic checklist: saves backup, then removes config, cards, stats, and registry entry
     async deleteChecklist(checklistId) {
         if (!this.token) return false;
         const gistId = this.getActiveGistId();
@@ -821,28 +821,38 @@ class GitHubSync {
 
             const files = {};
 
-            // Only delete config/cards files if they actually exist in the gist
+            // Save a backup of all checklist data before deleting
             const configFile = `${checklistId}-config.json`;
             const cardsFile = `${checklistId}-cards.json`;
-            if (gistFiles[configFile]) files[configFile] = null;
-            if (gistFiles[cardsFile]) files[cardsFile] = null;
-
-            // Update registry to remove the entry
+            const backup = { deletedAt: new Date().toISOString(), id: checklistId };
+            if (gistFiles[configFile]?.content) {
+                backup.config = JSON.parse(gistFiles[configFile].content);
+                files[configFile] = null;
+            }
+            if (gistFiles[cardsFile]?.content) {
+                backup.cards = JSON.parse(gistFiles[cardsFile].content);
+                files[cardsFile] = null;
+            }
             const registryContent = gistFiles['checklists-registry.json']?.content;
             if (registryContent) {
                 const registry = JSON.parse(registryContent);
+                backup.registryEntry = registry.checklists.find(e => e.id === checklistId);
                 registry.checklists = registry.checklists.filter(e => e.id !== checklistId);
                 files['checklists-registry.json'] = { content: JSON.stringify(registry, null, 2) };
             }
-
-            // Remove stats entry if present
             const statsContent = gistFiles['sports-card-stats.json']?.content;
             if (statsContent) {
                 const stats = JSON.parse(statsContent);
                 if (stats[checklistId]) {
+                    backup.stats = stats[checklistId];
                     delete stats[checklistId];
                     files['sports-card-stats.json'] = { content: JSON.stringify(stats, null, 2) };
                 }
+            }
+
+            // Write backup file (overwrites any previous backup for this ID)
+            if (backup.config || backup.cards) {
+                files[`_backup-${checklistId}.json`] = { content: JSON.stringify(backup, null, 2) };
             }
 
             // If nothing to update, the checklist data is already gone
