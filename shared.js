@@ -3176,19 +3176,19 @@ class ChecklistCreatorModal {
                     <div class="card-editor-grid">
                         <div class="card-editor-field full-width">
                             <label class="card-editor-label">Checklist Title</label>
-                            <input type="text" class="card-editor-input" id="creator-title" placeholder="My Card Collection">
+                            <input type="text" class="card-editor-input" id="creator-title" placeholder="My Card Collection" title="The main heading displayed at the top of your checklist page">
                         </div>
                         <div class="card-editor-field">
                             <label class="card-editor-label">Subtitle</label>
-                            <input type="text" class="card-editor-input" id="creator-subtitle" placeholder="Optional subtitle">
+                            <input type="text" class="card-editor-input" id="creator-subtitle" placeholder="Optional subtitle" title="Smaller text shown below the title on the checklist page">
                         </div>
                         <div class="card-editor-field">
                             <label class="card-editor-label">Nav Label</label>
-                            <input type="text" class="card-editor-input" id="creator-nav-label" placeholder="e.g. MY CARDS" maxlength="20">
+                            <input type="text" class="card-editor-input" id="creator-nav-label" placeholder="e.g. MY CARDS" maxlength="20" title="Short label shown in the top navigation bar">
                         </div>
                         <div class="card-editor-field full-width">
                             <label class="card-editor-label">Description</label>
-                            <textarea class="card-editor-input creator-textarea" id="creator-description" rows="2" placeholder="Short description shown on the home page"></textarea>
+                            <textarea class="card-editor-input creator-textarea" id="creator-description" rows="2" placeholder="Short description shown on the home page" title="Brief text shown on the index page card for this checklist"></textarea>
                         </div>
                     </div>
 
@@ -3196,21 +3196,21 @@ class ChecklistCreatorModal {
                     <div class="creator-section-label">Theme</div>
 
                     <div class="creator-theme-row">
-                        <div class="creator-color-field">
+                        <div class="creator-color-field" title="Main color used for the page header gradient and accents">
                             <label class="card-editor-label">Primary</label>
                             <div class="creator-color-picker">
                                 <input type="color" id="creator-primary-color" value="#667eea">
                                 <span class="creator-color-hex" id="creator-primary-hex">#667eea</span>
                             </div>
                         </div>
-                        <div class="creator-color-field">
+                        <div class="creator-color-field" title="Secondary color used for buttons, links, and highlights">
                             <label class="card-editor-label">Accent</label>
                             <div class="creator-color-picker">
                                 <input type="color" id="creator-accent-color" value="#f39c12">
                                 <span class="creator-color-hex" id="creator-accent-hex">#f39c12</span>
                             </div>
                         </div>
-                        <label class="card-editor-checkbox creator-dark-toggle" title="Uses a dark background with light text instead of the default light theme">
+                        <label class="card-editor-checkbox creator-dark-toggle" title="Dark background with light text instead of the default light theme">
                             <input type="checkbox" id="creator-dark-theme">
                             <span>Dark theme</span>
                         </label>
@@ -3221,7 +3221,7 @@ class ChecklistCreatorModal {
 
                     <div class="card-editor-grid">
                         <div class="card-editor-field">
-                            <label class="creator-checkbox-label">
+                            <label class="creator-checkbox-label" title="Group cards into named sections with headers. Uncheck for a single flat list.">
                                 <input type="checkbox" id="creator-use-sections" checked>
                                 <span>Organize cards into sections</span>
                             </label>
@@ -3237,7 +3237,7 @@ class ChecklistCreatorModal {
                     <div class="creator-section-label">Display</div>
 
                     <div class="creator-options-row">
-                        <label class="card-editor-checkbox">
+                        <label class="card-editor-checkbox" title="Show a player name field on each card. Useful for checklists organized by player.">
                             <input type="checkbox" id="creator-show-player">
                             <span>Show player name on cards</span>
                         </label>
@@ -3245,37 +3245,37 @@ class ChecklistCreatorModal {
 
                     <div class="card-editor-grid" style="margin-top: 12px;">
                         <div class="card-editor-field">
-                            <label class="card-editor-label">Default Sort</label>
-                            <select class="card-editor-input card-editor-select" id="creator-default-sort"></select>
+                            <label class="card-editor-label" title="How cards are ordered within each section by default">Default Sort</label>
+                            <select class="card-editor-input card-editor-select" id="creator-default-sort" title="The sort applied when viewing the checklist normally"></select>
                         </div>
                         <div class="card-editor-field">
-                            <label class="card-editor-label">Additional Sorts</label>
-                            <div class="creator-sort-chips" id="creator-sort-chips"></div>
+                            <label class="card-editor-label" title="Extra sort options available in the sort dropdown on the checklist page">Additional Sorts</label>
+                            <div class="creator-sort-chips" id="creator-sort-chips" title="Click to toggle each sort option on or off"></div>
                         </div>
                     </div>
 
                     <div class="creator-section-divider"></div>
                     <div class="creator-section-label">Card Fields</div>
 
-                    <div class="creator-subsection-label">Subtitle Lines</div>
+                    <div class="creator-subsection-label" title="Custom text lines shown below the player name on each card">Subtitle Lines</div>
                     <div class="creator-hint" style="margin-bottom: 6px;">Text fields shown below the player name on each card</div>
                     <div class="creator-row-list" id="creator-subtitle-lines-list"></div>
                     <button type="button" class="creator-add-row" id="creator-add-subtitle-line">+ Add Subtitle Line</button>
 
                     <div class="creator-subsection-label" style="margin-top: 14px;">Badges</div>
-                    <label class="card-editor-checkbox">
+                    <label class="card-editor-checkbox" title="Add a text field for achievements like Pro Bowl, All-Pro. Renders as gold pill badges on the card.">
                         <input type="checkbox" id="creator-achievements">
                         <span>Enable achievement badges</span>
                     </label>
 
-                    <div class="creator-subsection-label" style="margin-top: 14px;">Standard Attributes</div>
+                    <div class="creator-subsection-label" style="margin-top: 14px;" title="These fields are included on every card automatically">Standard Attributes</div>
                     <div class="creator-preset-note">Variant, Auto, Patch, Serial are always included</div>
 
                     <div class="creator-subsection-label" style="margin-top: 14px;">Pricing</div>
                     <div class="card-editor-grid">
                         <div class="card-editor-field">
-                            <label class="card-editor-label">Price Mode</label>
-                            <select class="card-editor-input card-editor-select" id="creator-price-mode">
+                            <label class="card-editor-label" title="Estimated: auto-calculates prices based on card attributes. Explicit: you enter prices manually.">Price Mode</label>
+                            <select class="card-editor-input card-editor-select" id="creator-price-mode" title="Estimated auto-calculates based on card type, set, and attributes. Explicit requires manual price entry.">
                                 <option value="estimated">Estimated</option>
                                 <option value="explicit">Explicit</option>
                             </select>
