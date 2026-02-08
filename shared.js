@@ -3493,7 +3493,7 @@ class ChecklistCreatorModal {
                     <input type="checkbox" ${isExtra ? 'checked' : ''}>
                     <span>Extra</span>
                 </label>
-                <label class="creator-row-index" title="Show pill on index page card">
+                <label class="creator-row-index" title="Show pill on index page card" style="display:${isExtra ? 'flex' : 'none'}">
                     <input type="checkbox" ${data?.showOnIndex ? 'checked' : ''}>
                     <span>Index</span>
                 </label>` : ''}
@@ -3517,6 +3517,16 @@ class ChecklistCreatorModal {
             labelInput.addEventListener('input', () => {
                 idSpan.textContent = this._slugify(labelInput.value);
             });
+        }
+
+        // Extra checkbox toggles Index visibility
+        const extraCheckbox = row.querySelector('.creator-row-extra input');
+        const indexLabel = row.querySelector('.creator-row-index');
+        if (extraCheckbox && indexLabel) {
+            extraCheckbox.onchange = () => {
+                indexLabel.style.display = extraCheckbox.checked ? 'flex' : 'none';
+                if (!extraCheckbox.checked) indexLabel.querySelector('input').checked = false;
+            };
         }
 
         // Remove button
