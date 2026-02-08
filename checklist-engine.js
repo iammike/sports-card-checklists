@@ -588,6 +588,7 @@ class ChecklistEngine {
             'wins': 'Sort: Games Won',
             'games': 'Sort: Games Played',
             'superbowl': 'Sort: Super Bowl Winners',
+            'scarcity': 'Sort: Scarcity',
         };
         if (labels[key]) return labels[key];
         // Custom field sort (e.g. 'field:years-active')
@@ -634,6 +635,16 @@ class ChecklistEngine {
                 break;
             case 'price-high':
                 sorted.sort((a, b) => this.getPrice(b) - this.getPrice(a));
+                break;
+            case 'scarcity':
+                sorted.sort((a, b) => {
+                    const aRun = window.PriceUtils.parseSerial(a.serial);
+                    const bRun = window.PriceUtils.parseSerial(b.serial);
+                    if (aRun && bRun) return aRun - bRun;
+                    if (aRun) return -1;
+                    if (bRun) return 1;
+                    return 0;
+                });
                 break;
             case 'winpct':
                 sorted.sort((a, b) => this._getWinPct(b) - this._getWinPct(a));

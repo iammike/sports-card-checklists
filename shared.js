@@ -3145,6 +3145,7 @@ class ChecklistCreatorModal {
         'set': 'Set/Brand',
         'price-low': 'Price Low',
         'price-high': 'Price High',
+        'scarcity': 'Scarcity',
     };
 
     static DEFAULT_SORTS = ['year', 'set', 'price-low', 'price-high'];
