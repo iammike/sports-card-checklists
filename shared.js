@@ -2177,6 +2177,11 @@ class CardEditorModal {
                             <label class="card-editor-label">Section</label>
                             <select class="card-editor-select" id="editor-category">
                                 ${this.categories.map(c => {
+                                    if (c.group) {
+                                        return `<optgroup label="${c.group}">${c.children.map(child =>
+                                            `<option value="${child.value}">${child.label}</option>`
+                                        ).join('')}</optgroup>`;
+                                    }
                                     const label = typeof c === 'string' ? c.charAt(0).toUpperCase() + c.slice(1) : c.label;
                                     const value = typeof c === 'string' ? c : c.value;
                                     return `<option value="${value}">${label}</option>`;

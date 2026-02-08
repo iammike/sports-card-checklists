@@ -971,7 +971,7 @@ class ChecklistEngine {
         const categories = this.config.categories || [];
         const customFields = this.config.customFields || {};
 
-        // Build categories list for dropdown (flatten subcategories)
+        // Build categories list for dropdown (with optgroup for subcategories)
         let editorCategories;
         if (this._isFlat()) {
             editorCategories = null; // No category dropdown for flat data
@@ -979,11 +979,12 @@ class ChecklistEngine {
             editorCategories = [];
             categories.forEach(c => {
                 if (c.children && c.children.length > 0) {
-                    c.children.forEach(child => {
-                        editorCategories.push({
+                    editorCategories.push({
+                        group: c.label,
+                        children: c.children.map(child => ({
                             value: child.id,
-                            label: `${c.label} > ${child.label}`,
-                        });
+                            label: child.label,
+                        })),
                     });
                 } else {
                     editorCategories.push({ value: c.id, label: c.label });
