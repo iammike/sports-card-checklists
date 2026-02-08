@@ -3240,23 +3240,6 @@ class ChecklistCreatorModal {
                     </div>
 
                     <div class="card-editor-separator"></div>
-                    <div class="creator-section-label">Card Fields</div>
-
-                    <div class="creator-subsection-label">Subtitle Lines</div>
-                    <div class="creator-hint" style="margin-bottom: 6px;">Text fields shown below the player name on each card</div>
-                    <div class="creator-row-list" id="creator-subtitle-lines-list"></div>
-                    <button type="button" class="creator-add-row" id="creator-add-subtitle-line">+ Add Subtitle Line</button>
-
-                    <div class="creator-subsection-label" style="margin-top: 14px;">Badges</div>
-                    <label class="card-editor-checkbox">
-                        <input type="checkbox" id="creator-achievements">
-                        <span>Enable achievement badges</span>
-                    </label>
-
-                    <div class="creator-subsection-label" style="margin-top: 14px;">Standard Attributes</div>
-                    <div class="creator-preset-note">Variant, Auto, Patch, Serial are always included</div>
-
-                    <div class="card-editor-separator"></div>
                     <div class="creator-section-label">Display</div>
 
                     <div class="creator-options-row">
@@ -3276,6 +3259,23 @@ class ChecklistCreatorModal {
                             <div class="creator-sort-chips" id="creator-sort-chips"></div>
                         </div>
                     </div>
+
+                    <div class="card-editor-separator"></div>
+                    <div class="creator-section-label">Card Fields</div>
+
+                    <div class="creator-subsection-label">Subtitle Lines</div>
+                    <div class="creator-hint" style="margin-bottom: 6px;">Text fields shown below the player name on each card</div>
+                    <div class="creator-row-list" id="creator-subtitle-lines-list"></div>
+                    <button type="button" class="creator-add-row" id="creator-add-subtitle-line">+ Add Subtitle Line</button>
+
+                    <div class="creator-subsection-label" style="margin-top: 14px;">Badges</div>
+                    <label class="card-editor-checkbox">
+                        <input type="checkbox" id="creator-achievements">
+                        <span>Enable achievement badges</span>
+                    </label>
+
+                    <div class="creator-subsection-label" style="margin-top: 14px;">Standard Attributes</div>
+                    <div class="creator-preset-note">Variant, Auto, Patch, Serial are always included</div>
 
                 </div>
                 <div class="card-editor-footer">
