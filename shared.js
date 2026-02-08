@@ -591,7 +591,7 @@ const PriceUtils = {
         // If card has explicit price, use it
         if (card.price !== undefined) return card.price;
 
-        let base = this.priceGuide[card.type] || 2;
+        let base = this.priceGuide[card.type] || 1;
 
         // Check set modifiers (ordered longest-first to avoid partial matches)
         for (const [setKey, mod] of this.setMods) {
