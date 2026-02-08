@@ -2024,8 +2024,7 @@ class CardEditorModal {
             const fullWidthHtml = fullWidthFields.map(([fieldName, config]) => {
                 const id = `editor-${fieldName}`;
                 return `<div class="card-editor-attr-fullwidth">
-                    <label for="${id}">${config.label}</label>
-                    <input type="text" class="card-editor-input" id="${id}" placeholder="${config.placeholder || ''}">
+                    <input type="text" class="card-editor-input" id="${id}" placeholder="${config.placeholder || config.label || ''}">
                 </div>`;
             }).join('');
 
@@ -2050,7 +2049,6 @@ class CardEditorModal {
                         <input type="number" class="card-editor-input" id="editor-price" placeholder="Auto" step="1" min="0">
                     </div>` : '';
             return `<div class="card-editor-field full-width card-editor-attributes">
-                <label class="card-editor-label">Card Attributes</label>
                 ${fullWidthHtml}
                 <div class="card-editor-attr-row">
                     ${innerHtml}
@@ -2171,7 +2169,6 @@ class CardEditorModal {
                 <div class="card-editor-body">
                     <div class="card-editor-grid">
                         ${this.generateCustomFieldsHtml('top')}
-                        ${this.generateCustomFieldsHtml('top') ? '<div class="card-editor-separator full-width"></div>' : ''}
                         <div class="card-editor-field full-width">
                             <label class="card-editor-label">Set Name</label>
                             <input type="text" class="card-editor-input" id="editor-set" placeholder="2024 Panini Prizm">
@@ -2187,7 +2184,6 @@ class CardEditorModal {
                             </select>
                         </div>
                         ${this.generateCustomFieldsHtml('after-num')}
-                        <div class="card-editor-section-divider"></div>
                         ${this.categories ? `<div class="card-editor-field">
                             <label class="card-editor-label">Section</label>
                             <select class="card-editor-select" id="editor-category">
@@ -2207,7 +2203,6 @@ class CardEditorModal {
                             <label class="card-editor-label">Price ($)</label>
                             <input type="number" class="card-editor-input" id="editor-price" placeholder="Auto" step="1" min="0">
                         </div>` : ''}
-                        <div class="card-editor-section-divider"></div>
                         ${this.generateCustomFieldsHtml('attributes')}
                         <div class="card-editor-field full-width card-editor-advanced-toggle">
                             <button type="button" class="card-editor-toggle-btn" id="editor-toggle-advanced">Advanced</button>
@@ -2222,7 +2217,6 @@ class CardEditorModal {
                                 <input type="text" class="card-editor-input" id="editor-price-search" placeholder="Defaults to player + set + number">
                             </div>
                         </div>
-                        <div class="card-editor-section-divider"></div>
                         <div class="card-editor-field full-width card-editor-image-section">
                             <label class="card-editor-label">Image</label>
                             <div class="card-editor-image-input-row">

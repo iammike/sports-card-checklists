@@ -1378,36 +1378,17 @@ select, input[type="text"] {
     color: #e0e0e0;
 }
 
-/* Separator between player info and card info zones */
-.card-editor-separator {
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-    margin: 4px 0;
-}
-
-/* Section divider - subtle line between logical groups */
-.card-editor-section-divider {
-    grid-column: 1 / -1;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-    margin: 4px 0 0;
-}
+/* Legacy separator class - no longer used */
 
 /* Card Attributes Row (compact horizontal checkboxes + text fields) */
 .card-editor-attributes {
-    margin-top: -4px;
-    margin-bottom: -4px;
+    margin-top: 4px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .card-editor-attr-fullwidth {
-    margin-bottom: 8px;
-}
-
-.card-editor-attr-fullwidth label {
-    display: block;
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #999;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
 }
 
 .card-editor-attr-fullwidth .card-editor-input {
@@ -1506,9 +1487,9 @@ select, input[type="text"] {
 
 /* Image preview section */
 .card-editor-image-section {
-    margin-top: 8px;
-    padding-top: 16px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    margin-top: 4px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 /* Image input with process button */
