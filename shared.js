@@ -729,8 +729,9 @@ const CardRenderer = {
 
     // Render price badge HTML
     renderPriceBadge(price, thresholds = this.defaultThresholds) {
+        if (!price || price <= 0) return '';
         const priceClass = this.getPriceClass(price, thresholds);
-        const displayPrice = Math.max(1, Math.round(price));
+        const displayPrice = Math.round(price);
         return `<span class="price-badge ${priceClass}">$${displayPrice}</span>`;
     },
 
