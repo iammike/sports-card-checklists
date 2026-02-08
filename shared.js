@@ -3396,6 +3396,34 @@ class ChecklistCreatorModal {
         });
     }
 
+    _refreshDefaultSortDropdown() {
+        const select = this.backdrop.querySelector('#creator-default-sort');
+        if (!select) return;
+        const currentValue = select.value;
+
+        // Rebuild options: built-in modes + current subtitle lines
+        select.innerHTML = '';
+        Object.entries(ChecklistCreatorModal.DEFAULT_SORT_MODES).forEach(([key, label]) => {
+            const opt = document.createElement('option');
+            opt.value = key;
+            opt.textContent = label;
+            select.appendChild(opt);
+        });
+
+        const subtitleLines = this._getSubtitleLinesFromForm();
+        subtitleLines.forEach(line => {
+            const opt = document.createElement('option');
+            opt.value = `field:${line.key}`;
+            opt.textContent = `${line.label} (custom field)`;
+            select.appendChild(opt);
+        });
+
+        // Restore selection if it still exists
+        if ([...select.options].some(o => o.value === currentValue)) {
+            select.value = currentValue;
+        }
+    }
+
     _getSortOptionsFromForm() {
         const chips = this.backdrop.querySelectorAll('#creator-sort-chips .creator-sort-chip.active');
         // Always include 'default' as first option, then the selected additional sorts
@@ -3560,12 +3588,17 @@ class ChecklistCreatorModal {
         if (!isExisting) {
             labelInput.addEventListener('input', () => {
                 idSpan.textContent = this._slugify(labelInput.value);
+                this._refreshDefaultSortDropdown();
             });
         }
 
-        row.querySelector('.creator-row-remove').onclick = () => row.remove();
+        row.querySelector('.creator-row-remove').onclick = () => {
+            row.remove();
+            this._refreshDefaultSortDropdown();
+        };
         list.appendChild(row);
         if (!data) labelInput.focus();
+        this._refreshDefaultSortDropdown();
     }
 
     _getSubtitleLinesFromForm() {
