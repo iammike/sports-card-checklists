@@ -3218,8 +3218,8 @@ class ChecklistCreatorModal {
                         <div class="card-editor-field">
                             <label class="card-editor-label">Data Shape</label>
                             <select class="card-editor-input card-editor-select" id="creator-data-shape">
-                                <option value="categories">Categories</option>
-                                <option value="flat">Flat list</option>
+                                <option value="categories">Hierarchical</option>
+                                <option value="flat">Flat</option>
                             </select>
                         </div>
                         <div class="card-editor-field">
