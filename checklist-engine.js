@@ -339,11 +339,19 @@ class ChecklistEngine {
             `;
         }
 
-        // Category-specific header colors
+        // Category-specific header colors (including subcategories)
         if (this.config.categories) {
             this.config.categories.forEach(cat => {
                 if (cat.gradient) {
-                    css += `.section-header.cat-${cat.id} { background: ${cat.gradient}; }\n`;
+                    const selector = cat.children ? `.group-header.cat-${cat.id}` : `.section-header.cat-${cat.id}`;
+                    css += `${selector} { background: ${cat.gradient}; }\n`;
+                }
+                if (cat.children) {
+                    cat.children.forEach(child => {
+                        if (child.gradient) {
+                            css += `.section-header.cat-${child.id} { background: ${child.gradient}; }\n`;
+                        }
+                    });
                 }
             });
         }
@@ -390,8 +398,11 @@ class ChecklistEngine {
     _getDefaultCategory() {
         if (this._isFlat()) return null;
         const cats = this.config.categories || [];
-        const main = cats.find(c => c.isMain);
-        return main ? main.id : (cats[0]?.id || null);
+        const main = cats.find(c => c.isMain !== false) || cats[0];
+        if (!main) return null;
+        // If the category has children, default to first child
+        if (main.children && main.children.length > 0) return main.children[0].id;
+        return main.id;
     }
 
     // ========================================
@@ -788,26 +799,46 @@ class ChecklistEngine {
         // Default: render each category as a section
         let html = '';
         categories.forEach(cat => {
-            const catCards = this.cards[cat.id] || [];
-            let filtered = catCards.filter(card => this._filterCard(card, statusFilter, searchTerm, customFilterValues));
-
-            if (filtered.length === 0 && catCards.length === 0) return;
-
-            const sectionClass = cat.isMain ? 'default-section' : '';
-            const headerClass = `section-header cat-${cat.id}`;
-
-            // Sections with notes (like inserts, premium)
-            if (cat.note) {
-                html += `<div class="section ${sectionClass}" id="${cat.id}-section">`;
-                html += `<div class="${headerClass}">${sanitizeText(cat.label)}</div>`;
-                html += `<div class="inserts-note">${sanitizeText(cat.note)}</div>`;
-                html += `<div class="card-grid" id="${cat.id}-cards">${filtered.map(c => this.createCardElement(c)).join('')}</div>`;
+            if (cat.children && cat.children.length > 0) {
+                // Parent with subcategories - render as group-header + section-group
+                const sectionClass = cat.isMain === false ? '' : '';
+                html += `<div class="group-header cat-${cat.id}">${sanitizeText(cat.label)}</div>`;
+                if (cat.note) {
+                    html += `<div class="inserts-note">${sanitizeText(cat.note)}</div>`;
+                }
+                html += `<div class="section-group">`;
+                cat.children.forEach(child => {
+                    const childCards = this.cards[child.id] || [];
+                    const filtered = childCards.filter(card => this._filterCard(card, statusFilter, searchTerm, customFilterValues));
+                    if (filtered.length === 0 && childCards.length === 0) return;
+                    const childSectionClass = cat.isMain !== false ? 'default-section' : '';
+                    html += `<div class="section ${childSectionClass}">`;
+                    html += `<div class="section-header cat-${child.id}">${sanitizeText(child.label)}</div>`;
+                    html += `<div class="card-grid" id="${child.id}-cards">${filtered.map(c => this.createCardElement(c)).join('')}</div>`;
+                    html += `</div>`;
+                });
                 html += `</div>`;
             } else {
-                html += `<div class="section ${sectionClass}">`;
-                html += `<div class="${headerClass}">${sanitizeText(cat.label)}</div>`;
-                html += `<div class="card-grid" id="${cat.id}-cards">${filtered.map(c => this.createCardElement(c)).join('')}</div>`;
-                html += `</div>`;
+                // Simple category (no children)
+                const catCards = this.cards[cat.id] || [];
+                const filtered = catCards.filter(card => this._filterCard(card, statusFilter, searchTerm, customFilterValues));
+                if (filtered.length === 0 && catCards.length === 0) return;
+
+                const sectionClass = cat.isMain !== false ? 'default-section' : '';
+                const headerClass = `section-header cat-${cat.id}`;
+
+                if (cat.note) {
+                    html += `<div class="section ${sectionClass}" id="${cat.id}-section">`;
+                    html += `<div class="${headerClass}">${sanitizeText(cat.label)}</div>`;
+                    html += `<div class="inserts-note">${sanitizeText(cat.note)}</div>`;
+                    html += `<div class="card-grid" id="${cat.id}-cards">${filtered.map(c => this.createCardElement(c)).join('')}</div>`;
+                    html += `</div>`;
+                } else {
+                    html += `<div class="section ${sectionClass}">`;
+                    html += `<div class="${headerClass}">${sanitizeText(cat.label)}</div>`;
+                    html += `<div class="card-grid" id="${cat.id}-cards">${filtered.map(c => this.createCardElement(c)).join('')}</div>`;
+                    html += `</div>`;
+                }
             }
         });
 
@@ -827,10 +858,19 @@ class ChecklistEngine {
         const categories = this.config.categories || [];
         const allCards = [];
         categories.forEach((cat, idx) => {
-            const catCards = this.cards[cat.id] || [];
-            catCards.forEach(c => {
-                allCards.push({ ...c, _category: cat.id, _sortOrder: idx });
-            });
+            if (cat.children && cat.children.length > 0) {
+                cat.children.forEach(child => {
+                    const childCards = this.cards[child.id] || [];
+                    childCards.forEach(c => {
+                        allCards.push({ ...c, _category: child.id, _sortOrder: idx });
+                    });
+                });
+            } else {
+                const catCards = this.cards[cat.id] || [];
+                catCards.forEach(c => {
+                    allCards.push({ ...c, _category: cat.id, _sortOrder: idx });
+                });
+            }
         });
         return allCards;
     }
@@ -867,11 +907,20 @@ class ChecklistEngine {
             };
         }
 
+        // Helper to get all cards for a category (handles children)
+        const getCardsForCategory = (cat) => {
+            if (cat.children && cat.children.length > 0) {
+                const all = [];
+                cat.children.forEach(child => all.push(...(this.cards[child.id] || [])));
+                return all;
+            }
+            return this.cards[cat.id] || [];
+        };
+
         // Category-based: count only main categories
         let ownedCount = 0, totalCount = 0, totalValue = 0, ownedValue = 0, neededValue = 0;
         mainCats.forEach(cat => {
-            const catCards = this.cards[cat.id] || [];
-            catCards.forEach(card => {
+            getCardsForCategory(cat).forEach(card => {
                 const price = this.getPrice(card);
                 const owned = this.isOwned(this.getCardId(card));
                 totalCount++;
@@ -894,7 +943,7 @@ class ChecklistEngine {
 
         // Add extra category stats
         extraCats.forEach(cat => {
-            const catCards = this.cards[cat.id] || [];
+            const catCards = getCardsForCategory(cat);
             const label = cat.statLabel || `${cat.id}Owned`;
             stats[label] = catCards.filter(c => this.isOwned(this.getCardId(c))).length;
             stats[`${cat.id}Total`] = catCards.length;
@@ -922,15 +971,24 @@ class ChecklistEngine {
         const categories = this.config.categories || [];
         const customFields = this.config.customFields || {};
 
-        // Build categories list for dropdown
+        // Build categories list for dropdown (flatten subcategories)
         let editorCategories;
         if (this._isFlat()) {
             editorCategories = null; // No category dropdown for flat data
         } else {
-            editorCategories = categories.map(c => ({
-                value: c.id,
-                label: c.label,
-            }));
+            editorCategories = [];
+            categories.forEach(c => {
+                if (c.children && c.children.length > 0) {
+                    c.children.forEach(child => {
+                        editorCategories.push({
+                            value: child.id,
+                            label: `${c.label} > ${child.label}`,
+                        });
+                    });
+                } else {
+                    editorCategories.push({ value: c.id, label: c.label });
+                }
+            });
         }
 
         this.cardEditor = new CardEditorModal({
@@ -972,17 +1030,22 @@ class ChecklistEngine {
             };
         }
 
-        // Category-based
+        // Category-based (search children too)
         for (const cat of (this.config.categories || [])) {
-            const catCards = this.cards[cat.id] || [];
-            const idx = catCards.findIndex(c => this.getCardId(c) === cardId);
-            if (idx !== -1) {
-                return {
-                    card: catCards[idx],
-                    category: cat.id,
-                    index: idx,
-                    editData: { ...catCards[idx], category: cat.id },
-                };
+            const idsToSearch = (cat.children && cat.children.length > 0)
+                ? cat.children.map(c => c.id)
+                : [cat.id];
+            for (const searchId of idsToSearch) {
+                const catCards = this.cards[searchId] || [];
+                const idx = catCards.findIndex(c => this.getCardId(c) === cardId);
+                if (idx !== -1) {
+                    return {
+                        card: catCards[idx],
+                        category: searchId,
+                        index: idx,
+                        editData: { ...catCards[idx], category: searchId },
+                    };
+                }
             }
         }
         return null;
@@ -1054,11 +1117,16 @@ class ChecklistEngine {
         }
 
         for (const cat of (this.config.categories || [])) {
-            const catCards = this.cards[cat.id] || [];
-            const idx = catCards.findIndex(c => this.getCardId(c) === cardId);
-            if (idx !== -1) {
-                catCards.splice(idx, 1);
-                return;
+            const idsToSearch = (cat.children && cat.children.length > 0)
+                ? cat.children.map(c => c.id)
+                : [cat.id];
+            for (const searchId of idsToSearch) {
+                const catCards = this.cards[searchId] || [];
+                const idx = catCards.findIndex(c => this.getCardId(c) === cardId);
+                if (idx !== -1) {
+                    catCards.splice(idx, 1);
+                    return;
+                }
             }
         }
     }

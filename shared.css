@@ -2453,7 +2453,7 @@ select, input[type="text"] {
 /* Note field inside wrap row */
 .creator-row-note {
     margin-top: 6px;
-    padding-left: 32px;
+    padding-left: 48px;
 }
 
 .creator-row-note input[type="text"] {
@@ -2463,6 +2463,47 @@ select, input[type="text"] {
     color: #888 !important;
     background: rgba(20, 20, 40, 0.6) !important;
     border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Subcategory rows nested inside a parent */
+.creator-subcategory-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 6px;
+    padding-left: 48px;
+}
+
+.creator-subcategory-list .creator-row-wrap {
+    padding: 6px 10px;
+    background: rgba(10, 10, 30, 0.4);
+    border-color: rgba(255, 255, 255, 0.04);
+}
+
+.creator-subcategory-list .creator-row-wrap:hover {
+    border-color: rgba(102, 126, 234, 0.12);
+}
+
+/* Add subcategory button inside a category row */
+.creator-add-subcategory {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    color: rgba(102, 126, 234, 0.4);
+    font-family: 'Barlow', sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    padding: 3px 0;
+    margin-top: 4px;
+    margin-left: 48px;
+    cursor: pointer;
+    transition: color 0.15s;
+}
+
+.creator-add-subcategory:hover {
+    color: rgba(102, 126, 234, 0.7);
 }
 
 /* Add row button */

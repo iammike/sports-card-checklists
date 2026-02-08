@@ -3376,36 +3376,41 @@ class ChecklistCreatorModal {
             .substring(0, 30) || 'cat';
     }
 
-    _addCategoryRow(data) {
-        const list = this.backdrop.querySelector('#creator-categories-list');
+    _addCategoryRow(data, parentEl) {
+        const list = parentEl || this.backdrop.querySelector('#creator-categories-list');
         const row = document.createElement('div');
         row.className = 'creator-row-wrap';
+        if (parentEl) row.classList.add('creator-subcategory');
 
-        const color = data?.gradient
-            ? this._extractColorFromGradient(data.gradient)
-            : (data?.color || '#667eea');
+        const colors = this._extractGradientColors(data?.gradient);
+        const color1 = colors[0] || (parentEl ? '#2a2a4e' : '#667eea');
+        const color2 = colors[1] || (parentEl ? '#1a1a3e' : '#764ba2');
         const label = data?.label || '';
         const id = data?.id || '';
         const isExtra = data ? data.isMain === false : false;
         const note = data?.note || '';
         const isExisting = this.editMode && !!data?.id;
+        const isParent = !parentEl;
 
         row.innerHTML = `
             <div class="creator-row-main">
-                <input type="color" value="${color}" title="Section header color">
+                <input type="color" value="${color1}" title="Gradient start color">
+                <input type="color" value="${color2}" title="Gradient end color">
                 <div class="creator-row-label">
-                    <input type="text" placeholder="Category name" value="${this._escAttr(label)}">
+                    <input type="text" placeholder="${isParent ? 'Category name' : 'Subcategory name'}" value="${this._escAttr(label)}">
                 </div>
                 <span class="creator-row-id ${isExisting ? 'locked' : ''}" title="${isExisting ? 'ID locked (cards use this key)' : 'Auto-generated from label'}">${this._escHtml(id)}</span>
-                <label class="creator-row-extra" title="Exclude from main totals">
+                ${isParent ? `<label class="creator-row-extra" title="Exclude from main totals">
                     <input type="checkbox" ${isExtra ? 'checked' : ''}>
                     <span>Extra</span>
-                </label>
+                </label>` : ''}
                 <button type="button" class="creator-row-remove" title="Remove">&times;</button>
             </div>
-            <div class="creator-row-note">
+            ${isParent ? `<div class="creator-row-note">
                 <input type="text" placeholder="Note (shown under header)" value="${this._escAttr(note)}">
-            </div>
+            </div>` : ''}
+            ${isParent ? `<div class="creator-subcategory-list"></div>
+            <button type="button" class="creator-add-subcategory">+ Subcategory</button>` : ''}
         `;
 
         // Auto-generate ID from label (new categories only)
@@ -3420,45 +3425,77 @@ class ChecklistCreatorModal {
         // Remove button
         row.querySelector('.creator-row-remove').onclick = () => row.remove();
 
+        // Add subcategory button (parent rows only)
+        const addSubBtn = row.querySelector('.creator-add-subcategory');
+        if (addSubBtn) {
+            addSubBtn.onclick = () => {
+                const subList = row.querySelector('.creator-subcategory-list');
+                this._addCategoryRow(null, subList);
+            };
+        }
+
         list.appendChild(row);
         if (!data) labelInput.focus();
+
+        // Populate existing children
+        if (isParent && data?.children?.length > 0) {
+            const subList = row.querySelector('.creator-subcategory-list');
+            data.children.forEach(child => this._addCategoryRow(child, subList));
+        }
     }
 
-    _extractColorFromGradient(gradient) {
-        // Pull the first hex color from a gradient string
-        const match = gradient.match(/#[0-9a-fA-F]{6}/);
-        return match ? match[0] : '#667eea';
+    _extractGradientColors(gradient) {
+        if (!gradient) return [];
+        const matches = gradient.match(/#[0-9a-fA-F]{6}/g);
+        return matches || [];
     }
 
     _getCategoriesFromForm() {
-        const rows = this.backdrop.querySelectorAll('#creator-categories-list .creator-row-wrap');
+        // Only get top-level rows (not subcategories nested inside)
+        const rows = this.backdrop.querySelectorAll('#creator-categories-list > .creator-row-wrap');
         const categories = [];
         rows.forEach(row => {
-            const label = row.querySelector('.creator-row-label input').value.trim();
+            const label = row.querySelector(':scope > .creator-row-main .creator-row-label input').value.trim();
             if (!label) return;
-            const idText = row.querySelector('.creator-row-id').textContent.trim();
+            const idText = row.querySelector(':scope > .creator-row-main .creator-row-id').textContent.trim();
             const id = idText || this._slugify(label);
-            const color = row.querySelector('input[type="color"]').value;
-            const isExtra = row.querySelector('.creator-row-extra input').checked;
-            const note = row.querySelector('.creator-row-note input').value.trim();
+            const colors = row.querySelectorAll(':scope > .creator-row-main input[type="color"]');
+            const color1 = colors[0]?.value || '#667eea';
+            const color2 = colors[1]?.value || '#764ba2';
+            const extraInput = row.querySelector(':scope > .creator-row-main .creator-row-extra input');
+            const isExtra = extraInput ? extraInput.checked : false;
+            const noteInput = row.querySelector(':scope > .creator-row-note input');
+            const note = noteInput ? noteInput.value.trim() : '';
 
             const cat = { id, label, isMain: !isExtra };
-            if (color && color !== '#667eea') {
-                cat.gradient = `linear-gradient(135deg, ${color}, ${this._darken(color, 40)})`;
-            }
+            cat.gradient = `linear-gradient(135deg, ${color1}, ${color2})`;
             if (note) cat.note = note;
+
+            // Collect subcategories
+            const subRows = row.querySelectorAll(':scope > .creator-subcategory-list > .creator-row-wrap');
+            if (subRows.length > 0) {
+                cat.children = [];
+                subRows.forEach(subRow => {
+                    const subLabel = subRow.querySelector('.creator-row-label input').value.trim();
+                    if (!subLabel) return;
+                    const subIdText = subRow.querySelector('.creator-row-id').textContent.trim();
+                    const subId = subIdText || this._slugify(subLabel);
+                    const subColors = subRow.querySelectorAll('input[type="color"]');
+                    const sc1 = subColors[0]?.value || '#2a2a4e';
+                    const sc2 = subColors[1]?.value || '#1a1a3e';
+                    const child = { id: subId, label: subLabel };
+                    // Only store gradient if non-default
+                    if (sc1 !== '#2a2a4e' || sc2 !== '#1a1a3e') {
+                        child.gradient = `linear-gradient(135deg, ${sc1}, ${sc2})`;
+                    }
+                    cat.children.push(child);
+                });
+                if (cat.children.length === 0) delete cat.children;
+            }
+
             categories.push(cat);
         });
         return categories;
-    }
-
-    _darken(hex, amount) {
-        // Darken a hex color by a fixed amount
-        const num = parseInt(hex.slice(1), 16);
-        const r = Math.max(0, (num >> 16) - amount);
-        const g = Math.max(0, ((num >> 8) & 0xff) - amount);
-        const b = Math.max(0, (num & 0xff) - amount);
-        return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
     }
 
     // ---- Subtitle line rows ----
