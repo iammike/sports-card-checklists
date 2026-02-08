@@ -3138,22 +3138,27 @@ class ChecklistCreatorModal {
         this.existingConfig = null;
     }
 
-    // All available sort options with labels
+    // Available sort options (shown as toggleable chips)
     static SORT_OPTIONS = {
-        'default': 'Default',
         'year': 'Year',
         'set': 'Set/Brand',
         'price-low': 'Price Low',
         'price-high': 'Price High',
-        'owned': 'Owned',
-        'needed': 'Needed',
         'winpct': 'Win %',
         'wins': 'Wins',
         'games': 'Games',
         'superbowl': 'Super Bowl',
     };
 
-    static DEFAULT_SORTS = ['default', 'year', 'set', 'price-low', 'price-high', 'owned', 'needed'];
+    static DEFAULT_SORTS = ['year', 'set', 'price-low', 'price-high'];
+
+    // Options for what "Default" sort means
+    static DEFAULT_SORT_MODES = {
+        'as-entered': 'As Entered (manual order)',
+        'alphabetical': 'Alphabetical (player name)',
+        'year': 'Year',
+        'set': 'Set/Brand',
+    };
 
     init() {
         if (this.backdrop) return;
@@ -3266,9 +3271,15 @@ class ChecklistCreatorModal {
                         </label>
                     </div>
 
-                    <div class="card-editor-field" style="margin-top: 12px;">
-                        <label class="card-editor-label">Sort Options</label>
-                        <div class="creator-sort-chips" id="creator-sort-chips"></div>
+                    <div class="card-editor-grid" style="margin-top: 12px;">
+                        <div class="card-editor-field">
+                            <label class="card-editor-label">Default Sort</label>
+                            <select class="card-editor-input card-editor-select" id="creator-default-sort"></select>
+                        </div>
+                        <div class="card-editor-field">
+                            <label class="card-editor-label">Additional Sorts</label>
+                            <div class="creator-sort-chips" id="creator-sort-chips"></div>
+                        </div>
                     </div>
 
                     <div class="card-editor-field" style="margin-top: 12px;">
@@ -3309,8 +3320,8 @@ class ChecklistCreatorModal {
         backdrop.querySelector('#creator-add-category').onclick = () => this._addCategoryRow();
         backdrop.querySelector('#creator-add-subtitle-line').onclick = () => this._addSubtitleLineRow();
 
-        // Render sort chips
-        this._renderSortChips();
+        // Render sort controls (will be populated properly in _clearForm/_populateForm)
+        this._renderSortControls();
 
         document.body.appendChild(backdrop);
         this.backdrop = backdrop;
@@ -3346,12 +3357,34 @@ class ChecklistCreatorModal {
         }
     }
 
-    // ---- Sort chips ----
+    // ---- Sort options ----
 
-    _renderSortChips(activeSorts) {
-        const container = this.backdrop
-            ? this.backdrop.querySelector('#creator-sort-chips')
-            : document.querySelector('#creator-sort-chips');
+    _renderSortControls(activeSorts, defaultSortMode, subtitleLines) {
+        // Default sort dropdown
+        const select = this.backdrop.querySelector('#creator-default-sort');
+        if (select) {
+            select.innerHTML = '';
+            // Built-in modes
+            Object.entries(ChecklistCreatorModal.DEFAULT_SORT_MODES).forEach(([key, label]) => {
+                const opt = document.createElement('option');
+                opt.value = key;
+                opt.textContent = label;
+                select.appendChild(opt);
+            });
+            // Add subtitle line fields as sort options
+            if (subtitleLines && subtitleLines.length > 0) {
+                subtitleLines.forEach(line => {
+                    const opt = document.createElement('option');
+                    opt.value = `field:${line.key}`;
+                    opt.textContent = `${line.label} (custom field)`;
+                    select.appendChild(opt);
+                });
+            }
+            select.value = defaultSortMode || 'as-entered';
+        }
+
+        // Sort chips (additional sorts beyond default)
+        const container = this.backdrop.querySelector('#creator-sort-chips');
         if (!container) return;
 
         const active = activeSorts || ChecklistCreatorModal.DEFAULT_SORTS;
@@ -3368,7 +3401,8 @@ class ChecklistCreatorModal {
 
     _getSortOptionsFromForm() {
         const chips = this.backdrop.querySelectorAll('#creator-sort-chips .creator-sort-chip.active');
-        return Array.from(chips).map(c => c.dataset.sort);
+        // Always include 'default' as first option, then the selected additional sorts
+        return ['default', ...Array.from(chips).map(c => c.dataset.sort)];
     }
 
     // ---- Category rows ----
@@ -3591,8 +3625,8 @@ class ChecklistCreatorModal {
         // Clear subtitle lines
         this.backdrop.querySelector('#creator-subtitle-lines-list').innerHTML = '';
 
-        // Reset sort chips to defaults
-        this._renderSortChips(ChecklistCreatorModal.DEFAULT_SORTS);
+        // Reset sort controls to defaults
+        this._renderSortControls(ChecklistCreatorModal.DEFAULT_SORTS, 'as-entered');
     }
 
     _populateForm(config) {
@@ -3643,8 +3677,17 @@ class ChecklistCreatorModal {
         const hasAchievements = config.customFields && 'achievement' in config.customFields;
         this.backdrop.querySelector('#creator-achievements').checked = hasAchievements;
 
-        // Sort options
-        this._renderSortChips(config.sortOptions || ChecklistCreatorModal.DEFAULT_SORTS);
+        // Sort options - extract subtitle lines for the default sort dropdown
+        const subtitleLines = [];
+        if (config.customFields) {
+            Object.entries(config.customFields).forEach(([key, field]) => {
+                if (field.position === 'top' && field.type === 'text' && key !== 'player') {
+                    subtitleLines.push({ key, label: field.label });
+                }
+            });
+        }
+        const activeSorts = (config.sortOptions || ChecklistCreatorModal.DEFAULT_SORTS).filter(s => s !== 'default');
+        this._renderSortControls(activeSorts, config.defaultSortMode || 'as-entered', subtitleLines);
 
         // Toggle visibility
         const isFlat = config.dataShape === 'flat';
@@ -3728,9 +3771,12 @@ class ChecklistCreatorModal {
 
         config.customFields = customFields;
 
-        // Sort options from chips
-        const sortOptions = this._getSortOptionsFromForm();
-        config.sortOptions = sortOptions.length > 0 ? sortOptions : ['default'];
+        // Sort options from chips (always includes 'default' first)
+        config.sortOptions = this._getSortOptionsFromForm();
+
+        // Default sort mode
+        const defaultSortMode = this.backdrop.querySelector('#creator-default-sort').value;
+        config.defaultSortMode = defaultSortMode !== 'as-entered' ? defaultSortMode : undefined;
 
         config.indexCard = {
             ...(config.indexCard || {}),

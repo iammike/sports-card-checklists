@@ -613,6 +613,9 @@ class ChecklistEngine {
     sortCards(cardsToSort, sortBy) {
         const sorted = [...cardsToSort];
         switch (sortBy) {
+            case 'alphabetical':
+                sorted.sort((a, b) => (a.player || a.set || '').localeCompare(b.player || b.set || ''));
+                break;
             case 'year':
                 sorted.sort((a, b) => this._getYear(a) - this._getYear(b) || this._getSetName(a).localeCompare(this._getSetName(b)));
                 break;
@@ -625,20 +628,6 @@ class ChecklistEngine {
             case 'price-high':
                 sorted.sort((a, b) => this.getPrice(b) - this.getPrice(a));
                 break;
-            case 'owned':
-                sorted.sort((a, b) => {
-                    const ownedA = this.isOwned(this.getCardId(a)) ? 0 : 1;
-                    const ownedB = this.isOwned(this.getCardId(b)) ? 0 : 1;
-                    return ownedA - ownedB;
-                });
-                break;
-            case 'needed':
-                sorted.sort((a, b) => {
-                    const ownedA = this.isOwned(this.getCardId(a)) ? 1 : 0;
-                    const ownedB = this.isOwned(this.getCardId(b)) ? 1 : 0;
-                    return ownedA - ownedB;
-                });
-                break;
             case 'winpct':
                 sorted.sort((a, b) => this._getWinPct(b) - this._getWinPct(a));
                 break;
@@ -650,6 +639,13 @@ class ChecklistEngine {
                 break;
             case 'superbowl':
                 sorted.sort((a, b) => (b.superBowl ? 1 : 0) - (a.superBowl ? 1 : 0));
+                break;
+            default:
+                // Custom field sort (e.g. 'field:years-active')
+                if (sortBy.startsWith('field:')) {
+                    const fieldKey = sortBy.slice(6);
+                    sorted.sort((a, b) => (a[fieldKey] || '').localeCompare(b[fieldKey] || ''));
+                }
                 break;
         }
         return sorted;
@@ -754,7 +750,9 @@ class ChecklistEngine {
             return;
         }
 
-        // Default: group by groupField (e.g., "era")
+        // Default: group by groupField (e.g., "era"), apply default sort within groups
+        const defaultSort = this.config.defaultSortMode;
+        if (defaultSort) filtered = this.sortCards(filtered, defaultSort);
         const groupField = this.config.groupField || 'era';
         const groups = this.config.groups || [];
 
@@ -796,12 +794,12 @@ class ChecklistEngine {
             return;
         }
 
-        // Default: render each category as a section
+        // Default: render each category as a section (apply default sort within each)
+        const defaultSort = this.config.defaultSortMode;
         let html = '';
         categories.forEach(cat => {
             if (cat.children && cat.children.length > 0) {
                 // Parent with subcategories - render as group-header + section-group
-                const sectionClass = cat.isMain === false ? '' : '';
                 html += `<div class="group-header cat-${cat.id}">${sanitizeText(cat.label)}</div>`;
                 if (cat.note) {
                     html += `<div class="inserts-note">${sanitizeText(cat.note)}</div>`;
@@ -809,7 +807,8 @@ class ChecklistEngine {
                 html += `<div class="section-group">`;
                 cat.children.forEach(child => {
                     const childCards = this.cards[child.id] || [];
-                    const filtered = childCards.filter(card => this._filterCard(card, statusFilter, searchTerm, customFilterValues));
+                    let filtered = childCards.filter(card => this._filterCard(card, statusFilter, searchTerm, customFilterValues));
+                    if (defaultSort) filtered = this.sortCards(filtered, defaultSort);
                     if (filtered.length === 0 && childCards.length === 0) return;
                     const childSectionClass = cat.isMain !== false ? 'default-section' : '';
                     html += `<div class="section ${childSectionClass}">`;
@@ -821,7 +820,8 @@ class ChecklistEngine {
             } else {
                 // Simple category (no children)
                 const catCards = this.cards[cat.id] || [];
-                const filtered = catCards.filter(card => this._filterCard(card, statusFilter, searchTerm, customFilterValues));
+                let filtered = catCards.filter(card => this._filterCard(card, statusFilter, searchTerm, customFilterValues));
+                if (defaultSort) filtered = this.sortCards(filtered, defaultSort);
                 if (filtered.length === 0 && catCards.length === 0) return;
 
                 const sectionClass = cat.isMain !== false ? 'default-section' : '';
