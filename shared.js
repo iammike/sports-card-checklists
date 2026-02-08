@@ -3755,6 +3755,12 @@ class ChecklistCreatorModal {
         this.backdrop.querySelector('#creator-achievements').checked = false;
         this.backdrop.querySelector('#creator-description').value = '';
 
+        // Reset attribute checkboxes to checked
+        this.backdrop.querySelector('#creator-attr-variant').checked = true;
+        this.backdrop.querySelector('#creator-attr-auto').checked = true;
+        this.backdrop.querySelector('#creator-attr-patch').checked = true;
+        this.backdrop.querySelector('#creator-attr-serial').checked = true;
+
         // Show categories
         this.backdrop.querySelector('#creator-categories-field').style.display = '';
 
