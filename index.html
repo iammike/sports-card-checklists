@@ -824,6 +824,14 @@
                                 </div>
                             </div>
                         </div>
+                        ${entry.extraPills && hasStats ? `
+                        <div class="secondary-stats">
+                            ${entry.extraPills.map(pill => {
+                                const owned = stats[pill.id + 'Owned'] || stats[pill.id + 'Total'] ? (stats[pill.id + 'Owned'] || 0) : 0;
+                                const total = stats[pill.id + 'Total'] || 0;
+                                return `<span class="stat-pill">${sanitizeText(pill.label)} <span class="count">${owned}/${total}</span></span>`;
+                            }).join('')}
+                        </div>` : ''}
                     </div>` : '<div class="progress-section" style="display:block"><p style="font-size:12px;color:#666;">No cards yet</p></div>'}
                 `;
                 grid.appendChild(card);

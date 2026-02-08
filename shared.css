@@ -2389,7 +2389,8 @@ select, input[type="text"] {
     color: #5a5a7a;
 }
 
-.creator-row-extra {
+.creator-row-extra,
+.creator-row-index {
     display: flex;
     align-items: center;
     gap: 4px;
@@ -2399,7 +2400,8 @@ select, input[type="text"] {
     cursor: pointer;
 }
 
-.creator-row-extra input { cursor: pointer; }
+.creator-row-extra input,
+.creator-row-index input { cursor: pointer; }
 
 .creator-row-arrows {
     display: flex;

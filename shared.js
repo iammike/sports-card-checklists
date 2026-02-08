@@ -3492,6 +3492,10 @@ class ChecklistCreatorModal {
                 ${isParent ? `<label class="creator-row-extra" title="Exclude from main totals">
                     <input type="checkbox" ${isExtra ? 'checked' : ''}>
                     <span>Extra</span>
+                </label>
+                <label class="creator-row-index" title="Show pill on index page card">
+                    <input type="checkbox" ${data?.showOnIndex ? 'checked' : ''}>
+                    <span>Index</span>
                 </label>` : ''}
                 <div class="creator-row-arrows">
                     <button type="button" class="creator-row-up" title="Move up">&#9650;</button>
@@ -3567,12 +3571,15 @@ class ChecklistCreatorModal {
             const color2 = colors[1]?.value || '#764ba2';
             const extraInput = row.querySelector(':scope > .creator-row-main .creator-row-extra input');
             const isExtra = extraInput ? extraInput.checked : false;
+            const indexInput = row.querySelector(':scope > .creator-row-main .creator-row-index input');
+            const showOnIndex = indexInput ? indexInput.checked : false;
             const noteInput = row.querySelector(':scope > .creator-row-note input');
             const note = noteInput ? noteInput.value.trim() : '';
 
             const cat = { id, label, isMain: !isExtra };
             cat.gradient = `linear-gradient(135deg, ${color1}, ${color2})`;
             if (note) cat.note = note;
+            if (showOnIndex) cat.showOnIndex = true;
 
             // Collect subcategories
             const subRows = row.querySelectorAll(':scope > .creator-subcategory-list > .creator-row-wrap');
@@ -3899,6 +3906,12 @@ class ChecklistCreatorModal {
         saveBtn.disabled = true;
         saveBtn.textContent = this.editMode ? 'Saving...' : 'Creating...';
 
+        // Extract extra category pills for the registry (max 3)
+        const extraPills = (config.categories || [])
+            .filter(c => c.showOnIndex)
+            .slice(0, 3)
+            .map(c => ({ id: c.id, label: c.label }));
+
         try {
             if (this.editMode) {
                 // Save updated config
@@ -3915,6 +3928,7 @@ class ChecklistCreatorModal {
                         entry.description = config.indexCard?.description || '';
                         entry.accentColor = config.theme?.accentColor || config.theme?.primaryColor || '#667eea';
                         entry.borderColor = config.theme?.primaryColor || '#667eea';
+                        entry.extraPills = extraPills.length > 0 ? extraPills : undefined;
                         await githubSync.saveRegistry(registry);
                         // Clear nav cache
                         DynamicNav._registry = null;
@@ -3942,6 +3956,7 @@ class ChecklistCreatorModal {
                     description: config.indexCard?.description || '',
                     accentColor: config.theme?.accentColor || config.theme?.primaryColor || '#667eea',
                     borderColor: config.theme?.primaryColor || '#667eea',
+                    extraPills: extraPills.length > 0 ? extraPills : undefined,
                     type: 'dynamic',
                     order: registry.checklists.length,
                 });
