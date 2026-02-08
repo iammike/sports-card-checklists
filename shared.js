@@ -2187,8 +2187,8 @@ class CardEditorModal {
                             </select>
                         </div>
                         ${this.generateCustomFieldsHtml('after-num')}
-                        ${this.categories ? `<div class="card-editor-section-divider full-width"></div>
-                        <div class="card-editor-field">
+                        <div class="card-editor-section-divider"></div>
+                        ${this.categories ? `<div class="card-editor-field">
                             <label class="card-editor-label">Section</label>
                             <select class="card-editor-select" id="editor-category">
                                 ${this.categories.map(c => {
@@ -2207,7 +2207,7 @@ class CardEditorModal {
                             <label class="card-editor-label">Price ($)</label>
                             <input type="number" class="card-editor-input" id="editor-price" placeholder="Auto" step="1" min="0">
                         </div>` : ''}
-                        <div class="card-editor-section-divider full-width"></div>
+                        <div class="card-editor-section-divider"></div>
                         ${this.generateCustomFieldsHtml('attributes')}
                         <div class="card-editor-field full-width card-editor-advanced-toggle">
                             <button type="button" class="card-editor-toggle-btn" id="editor-toggle-advanced">Advanced</button>
@@ -2222,7 +2222,7 @@ class CardEditorModal {
                                 <input type="text" class="card-editor-input" id="editor-price-search" placeholder="Defaults to player + set + number">
                             </div>
                         </div>
-                        <div class="card-editor-section-divider full-width"></div>
+                        <div class="card-editor-section-divider"></div>
                         <div class="card-editor-field full-width card-editor-image-section">
                             <label class="card-editor-label">Image</label>
                             <div class="card-editor-image-input-row">
