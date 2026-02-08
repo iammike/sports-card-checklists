@@ -3216,28 +3216,22 @@ class ChecklistCreatorModal {
 
                     <div class="card-editor-grid">
                         <div class="card-editor-field">
-                            <label class="card-editor-label">Data Shape</label>
-                            <select class="card-editor-input card-editor-select" id="creator-data-shape">
-                                <option value="categories">Hierarchical</option>
-                                <option value="flat">Flat</option>
-                            </select>
-                        </div>
-                        <div class="card-editor-field">
                             <label class="card-editor-label">Price Mode</label>
                             <select class="card-editor-input card-editor-select" id="creator-price-mode">
                                 <option value="estimated">Estimated</option>
                                 <option value="explicit">Explicit</option>
                             </select>
                         </div>
-                        <div class="card-editor-field full-width" id="creator-categories-field">
-                            <label class="card-editor-label">Categories</label>
-                            <div class="creator-row-list" id="creator-categories-list"></div>
-                            <button type="button" class="creator-add-row" id="creator-add-category">+ Add Category</button>
+                        <div class="card-editor-field">
+                            <label class="creator-checkbox-label">
+                                <input type="checkbox" id="creator-use-sections" checked>
+                                <span>Organize cards into sections</span>
+                            </label>
                         </div>
-                        <div class="card-editor-field full-width" id="creator-groups-field" style="display:none">
-                            <label class="card-editor-label">Groups <span class="creator-hint-inline">one per line: id|Title</span></label>
-                            <textarea class="card-editor-input creator-textarea" id="creator-groups" rows="3" placeholder="era1|First Era&#10;era2|Second Era"></textarea>
-                            <div class="creator-hint">Group field: <input type="text" class="card-editor-input creator-inline-input" id="creator-group-field" value="era"></div>
+                        <div class="card-editor-field full-width" id="creator-categories-field">
+                            <label class="card-editor-label">Sections</label>
+                            <div class="creator-row-list" id="creator-categories-list"></div>
+                            <button type="button" class="creator-add-row" id="creator-add-category">+ Add Section</button>
                         </div>
                     </div>
 
@@ -3298,11 +3292,9 @@ class ChecklistCreatorModal {
             if (e.target === backdrop) this.close();
         });
 
-        // Toggle categories vs groups field based on data shape
-        backdrop.querySelector('#creator-data-shape').addEventListener('change', (e) => {
-            const isFlat = e.target.value === 'flat';
-            backdrop.querySelector('#creator-categories-field').style.display = isFlat ? 'none' : '';
-            backdrop.querySelector('#creator-groups-field').style.display = isFlat ? '' : 'none';
+        // Toggle sections visibility
+        backdrop.querySelector('#creator-use-sections').addEventListener('change', (e) => {
+            backdrop.querySelector('#creator-categories-field').style.display = e.target.checked ? '' : 'none';
         });
 
         // Sync color hex displays
@@ -3486,7 +3478,7 @@ class ChecklistCreatorModal {
                 <input type="color" value="${color1}" title="Gradient start color">
                 <input type="color" value="${color2}" title="Gradient end color">
                 <div class="creator-row-label">
-                    <input type="text" placeholder="${isParent ? 'Category name' : 'Subcategory name'}" value="${this._escAttr(label)}">
+                    <input type="text" placeholder="${isParent ? 'Section name' : 'Subsection name'}" value="${this._escAttr(label)}">
                 </div>
                 <span class="creator-row-id ${isExisting ? 'locked' : ''}" title="${isExisting ? 'ID locked (cards use this key)' : 'Auto-generated from label'}">${this._escHtml(id)}</span>
                 ${isParent ? `<label class="creator-row-extra" title="Exclude from main totals">
@@ -3507,7 +3499,7 @@ class ChecklistCreatorModal {
                 <input type="text" placeholder="Note (shown under header)" value="${this._escAttr(note)}">
             </div>` : ''}
             ${isParent ? `<div class="creator-subcategory-list"></div>
-            <button type="button" class="creator-add-subcategory">+ Subcategory</button>` : ''}
+            <button type="button" class="creator-add-subcategory">+ Subsection</button>` : ''}
         `;
 
         // Auto-generate ID from label (new categories only)
@@ -3724,17 +3716,14 @@ class ChecklistCreatorModal {
         this.backdrop.querySelector('#creator-accent-color').value = '#f39c12';
         this.backdrop.querySelector('#creator-accent-hex').textContent = '#f39c12';
         this.backdrop.querySelector('#creator-dark-theme').checked = false;
-        this.backdrop.querySelector('#creator-data-shape').value = 'categories';
-        this.backdrop.querySelector('#creator-groups').value = '';
-        this.backdrop.querySelector('#creator-group-field').value = 'era';
+        this.backdrop.querySelector('#creator-use-sections').checked = true;
         this.backdrop.querySelector('#creator-price-mode').value = 'estimated';
         this.backdrop.querySelector('#creator-show-player').checked = false;
         this.backdrop.querySelector('#creator-achievements').checked = false;
         this.backdrop.querySelector('#creator-description').value = '';
 
-        // Show categories, hide groups
+        // Show categories
         this.backdrop.querySelector('#creator-categories-field').style.display = '';
-        this.backdrop.querySelector('#creator-groups-field').style.display = 'none';
 
         // Reset category rows - add one default
         this.backdrop.querySelector('#creator-categories-list').innerHTML = '';
@@ -3758,7 +3747,7 @@ class ChecklistCreatorModal {
         this.backdrop.querySelector('#creator-accent-color').value = accentColor;
         this.backdrop.querySelector('#creator-accent-hex').textContent = accentColor;
         this.backdrop.querySelector('#creator-dark-theme').checked = config.theme?.darkTheme || false;
-        this.backdrop.querySelector('#creator-data-shape').value = config.dataShape || 'categories';
+        this.backdrop.querySelector('#creator-use-sections').checked = config.dataShape !== 'flat';
         this.backdrop.querySelector('#creator-price-mode').value = config.cardDisplay?.priceMode || 'estimated';
         this.backdrop.querySelector('#creator-show-player').checked = config.cardDisplay?.showPlayerName !== false;
         this.backdrop.querySelector('#creator-description').value = config.indexCard?.description || '';
@@ -3769,16 +3758,6 @@ class ChecklistCreatorModal {
             config.categories.forEach(c => this._addCategoryRow(c));
         } else {
             this._addCategoryRow({ id: 'base', label: 'Base Cards', isMain: true });
-        }
-
-        // Groups (flat mode)
-        if (config.groups && config.groups.length > 0) {
-            this.backdrop.querySelector('#creator-groups').value = config.groups.map(g =>
-                `${g.id}|${g.title}`
-            ).join('\n');
-        }
-        if (config.groupField) {
-            this.backdrop.querySelector('#creator-group-field').value = config.groupField;
         }
 
         // Subtitle lines: extract from customFields (position: 'top', type: 'text', key != 'player')
@@ -3808,9 +3787,8 @@ class ChecklistCreatorModal {
         this._renderSortControls(activeSorts, config.defaultSortMode || 'as-entered', subtitleLines);
 
         // Toggle visibility
-        const isFlat = config.dataShape === 'flat';
-        this.backdrop.querySelector('#creator-categories-field').style.display = isFlat ? 'none' : '';
-        this.backdrop.querySelector('#creator-groups-field').style.display = isFlat ? '' : 'none';
+        const useSections = config.dataShape !== 'flat';
+        this.backdrop.querySelector('#creator-categories-field').style.display = useSections ? '' : 'none';
     }
 
     _generateId(title) {
@@ -3829,7 +3807,8 @@ class ChecklistCreatorModal {
         }
 
         const id = this.editMode ? this.existingConfig.id : this._generateId(title);
-        const dataShape = this.backdrop.querySelector('#creator-data-shape').value;
+        const useSections = this.backdrop.querySelector('#creator-use-sections').checked;
+        const dataShape = useSections ? 'categories' : 'flat';
 
         // Start from existing config in edit mode to preserve unmanaged properties
         const config = this.editMode
@@ -3901,25 +3880,20 @@ class ChecklistCreatorModal {
             description: this.backdrop.querySelector('#creator-description').value.trim() || undefined,
         };
 
-        // Parse categories or groups
-        if (dataShape === 'categories') {
+        // Parse categories or flat
+        if (useSections) {
             const categories = this._getCategoriesFromForm();
             if (categories.length === 0) {
-                alert('At least one category is required');
+                alert('At least one section is required');
                 return null;
             }
             config.categories = categories;
+            delete config.groups;
+            delete config.groupField;
         } else {
-            // Flat data shape
             delete config.categories;
-            const groupsText = this.backdrop.querySelector('#creator-groups').value.trim();
-            if (groupsText) {
-                config.groupField = this.backdrop.querySelector('#creator-group-field').value.trim() || 'era';
-                config.groups = groupsText.split('\n').filter(Boolean).map(line => {
-                    const [gid, gtitle] = line.split('|').map(s => s.trim());
-                    return { id: gid, title: gtitle || gid };
-                });
-            }
+            delete config.groups;
+            delete config.groupField;
         }
 
         // Clean undefined values at top level

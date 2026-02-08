@@ -2179,6 +2179,18 @@ select, input[type="text"] {
 }
 
 /* Section labels between groups */
+.creator-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #aaa;
+    cursor: pointer;
+    padding-top: 18px;
+}
+
+.creator-checkbox-label input { cursor: pointer; }
+
 .creator-section-label {
     font-family: 'Barlow', sans-serif;
     font-size: 11px;
@@ -2250,7 +2262,7 @@ select, input[type="text"] {
     flex-shrink: 0;
 }
 
-/* Textarea for categories/groups */
+/* Textarea */
 .creator-textarea {
     width: 100%;
     min-height: 50px;
@@ -2259,30 +2271,6 @@ select, input[type="text"] {
     font-size: 13px;
     line-height: 1.6;
     box-sizing: border-box;
-}
-
-/* Hints */
-.creator-hint {
-    font-family: 'Barlow', sans-serif;
-    font-size: 11px;
-    color: #555;
-    margin-top: 2px;
-}
-
-.creator-hint-inline {
-    font-weight: 400;
-    letter-spacing: 0.02em;
-    text-transform: none;
-    color: #555;
-    font-size: 10px;
-    margin-left: 4px;
-}
-
-.creator-inline-input {
-    display: inline-block !important;
-    width: 80px !important;
-    padding: 2px 8px !important;
-    font-size: 12px !important;
 }
 
 /* Options row (checkboxes) */
