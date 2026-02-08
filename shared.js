@@ -2017,7 +2017,19 @@ class CardEditorModal {
 
         // Attributes position renders as a compact horizontal row (always includes Price)
         if (position === 'attributes') {
-            const innerHtml = fields.map(([fieldName, config]) => {
+            // Separate full-width fields (e.g. variant) from compact row fields
+            const fullWidthFields = fields.filter(([_, c]) => c.fullWidth);
+            const rowFields = fields.filter(([_, c]) => !c.fullWidth);
+
+            const fullWidthHtml = fullWidthFields.map(([fieldName, config]) => {
+                const id = `editor-${fieldName}`;
+                return `<div class="card-editor-attr-fullwidth">
+                    <label for="${id}">${config.label}</label>
+                    <input type="text" class="card-editor-input" id="${id}" placeholder="${config.placeholder || ''}">
+                </div>`;
+            }).join('');
+
+            const innerHtml = rowFields.map(([fieldName, config]) => {
                 const id = `editor-${fieldName}`;
                 if (config.type === 'checkbox') {
                     return `<label class="card-editor-attr-checkbox">
@@ -2039,6 +2051,7 @@ class CardEditorModal {
                     </div>` : '';
             return `<div class="card-editor-field full-width card-editor-attributes">
                 <label class="card-editor-label">Card Attributes</label>
+                ${fullWidthHtml}
                 <div class="card-editor-attr-row">
                     ${innerHtml}
                     ${priceHtml}
@@ -3905,7 +3918,7 @@ class ChecklistCreatorModal {
 
         // Standard attribute fields (toggleable)
         if (this.backdrop.querySelector('#creator-attr-variant').checked) {
-            customFields.variant = { label: 'Card Variant', type: 'text', placeholder: 'Silver Prizm', fullWidth: true, position: 'after-num' };
+            customFields.variant = { label: 'Card Variant', type: 'text', placeholder: 'Silver Prizm', fullWidth: true, position: 'attributes' };
         }
         if (this.backdrop.querySelector('#creator-attr-auto').checked) {
             customFields.auto = { label: 'Auto', type: 'checkbox', position: 'attributes' };
