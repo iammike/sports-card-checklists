@@ -3320,11 +3320,8 @@ class ChecklistCreatorModal {
         backdrop.querySelector('#creator-add-category').onclick = () => this._addCategoryRow();
         backdrop.querySelector('#creator-add-subtitle-line').onclick = () => this._addSubtitleLineRow();
 
-        // Render sort controls (will be populated properly in _clearForm/_populateForm)
-        this._renderSortControls();
-
-        document.body.appendChild(backdrop);
         this.backdrop = backdrop;
+        document.body.appendChild(backdrop);
     }
 
     open() {
