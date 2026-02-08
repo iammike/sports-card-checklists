@@ -3728,6 +3728,16 @@ class ChecklistCreatorModal {
         return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
+    _darkenColor(hex, amount) {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        const dr = Math.round(r * (1 - amount));
+        const dg = Math.round(g * (1 - amount));
+        const db = Math.round(b * (1 - amount));
+        return `#${dr.toString(16).padStart(2, '0')}${dg.toString(16).padStart(2, '0')}${db.toString(16).padStart(2, '0')}`;
+    }
+
     // ---- Form clear / populate ----
 
     _clearForm() {
@@ -3850,10 +3860,12 @@ class ChecklistCreatorModal {
         config.title = title;
         config.subtitle = this.backdrop.querySelector('#creator-subtitle').value.trim() || undefined;
         config.navLabel = this.backdrop.querySelector('#creator-nav-label').value.trim() || title.toUpperCase().substring(0, 20);
+        const primaryColor = this.backdrop.querySelector('#creator-primary-color').value;
         config.theme = {
             ...(config.theme || {}),
-            primaryColor: this.backdrop.querySelector('#creator-primary-color').value,
+            primaryColor,
             accentColor: this.backdrop.querySelector('#creator-accent-color').value,
+            darkColor: this._darkenColor(primaryColor, 0.45),
             darkTheme: this.backdrop.querySelector('#creator-dark-theme').checked,
         };
         config.dataShape = dataShape;
