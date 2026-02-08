@@ -3255,7 +3255,7 @@ class ChecklistCreatorModal {
                     </div>
 
                     <div class="creator-section-divider"></div>
-                    <div class="creator-section-label">Card Fields</div>
+                    <div class="creator-section-label">Card Details</div>
 
                     <div class="creator-subsection-label" title="Custom text lines shown below the player name on each card">Subtitle Lines</div>
                     <div class="creator-hint" style="margin-bottom: 6px;">Text fields shown below the player name on each card</div>
@@ -3268,8 +3268,25 @@ class ChecklistCreatorModal {
                         <span>Enable achievement badges</span>
                     </label>
 
-                    <div class="creator-subsection-label" style="margin-top: 14px;" title="These fields are included on every card automatically">Standard Attributes</div>
-                    <div class="creator-preset-note">Variant, Auto, Patch, Serial are always included</div>
+                    <div class="creator-subsection-label" style="margin-top: 14px;" title="Toggle which attribute fields appear in the card editor">Attributes</div>
+                    <div class="creator-options-row">
+                        <label class="card-editor-checkbox" title="Text field for card variant (e.g. Silver Prizm, Blue Shimmer)">
+                            <input type="checkbox" id="creator-attr-variant" checked>
+                            <span>Variant</span>
+                        </label>
+                        <label class="card-editor-checkbox" title="Checkbox to mark autographed cards. Shows a gold AUTO badge.">
+                            <input type="checkbox" id="creator-attr-auto" checked>
+                            <span>Auto</span>
+                        </label>
+                        <label class="card-editor-checkbox" title="Checkbox to mark patch/relic cards. Shows a purple PATCH badge.">
+                            <input type="checkbox" id="creator-attr-patch" checked>
+                            <span>Patch</span>
+                        </label>
+                        <label class="card-editor-checkbox" title="Text field for serial numbered cards (e.g. /99, /25). Shows a serial badge.">
+                            <input type="checkbox" id="creator-attr-serial" checked>
+                            <span>Serial</span>
+                        </label>
+                    </div>
 
                     <div class="creator-subsection-label" style="margin-top: 14px;">Pricing</div>
                     <div class="card-editor-grid">
@@ -3779,6 +3796,13 @@ class ChecklistCreatorModal {
         const hasAchievements = config.customFields && 'achievement' in config.customFields;
         this.backdrop.querySelector('#creator-achievements').checked = hasAchievements;
 
+        // Attribute toggles (default to checked if no customFields yet, otherwise check if present)
+        const cf = config.customFields || {};
+        this.backdrop.querySelector('#creator-attr-variant').checked = !config.customFields || 'variant' in cf;
+        this.backdrop.querySelector('#creator-attr-auto').checked = !config.customFields || 'auto' in cf;
+        this.backdrop.querySelector('#creator-attr-patch').checked = !config.customFields || 'patch' in cf;
+        this.backdrop.querySelector('#creator-attr-serial').checked = !config.customFields || 'serial' in cf;
+
         // Sort options - extract subtitle lines for the default sort dropdown
         const subtitleLines = [];
         if (config.customFields) {
@@ -3860,11 +3884,19 @@ class ChecklistCreatorModal {
             };
         });
 
-        // Standard fields (always present)
-        customFields.variant = { label: 'Card Variant', type: 'text', placeholder: 'Silver Prizm', fullWidth: true, position: 'after-num' };
-        customFields.auto = { label: 'Auto', type: 'checkbox', position: 'attributes' };
-        customFields.patch = { label: 'Patch', type: 'checkbox', position: 'attributes' };
-        customFields.serial = { label: 'Run', type: 'text', placeholder: '99', position: 'attributes' };
+        // Standard attribute fields (toggleable)
+        if (this.backdrop.querySelector('#creator-attr-variant').checked) {
+            customFields.variant = { label: 'Card Variant', type: 'text', placeholder: 'Silver Prizm', fullWidth: true, position: 'after-num' };
+        }
+        if (this.backdrop.querySelector('#creator-attr-auto').checked) {
+            customFields.auto = { label: 'Auto', type: 'checkbox', position: 'attributes' };
+        }
+        if (this.backdrop.querySelector('#creator-attr-patch').checked) {
+            customFields.patch = { label: 'Patch', type: 'checkbox', position: 'attributes' };
+        }
+        if (this.backdrop.querySelector('#creator-attr-serial').checked) {
+            customFields.serial = { label: 'Run', type: 'text', placeholder: '99', position: 'attributes' };
+        }
 
         // Achievement field
         if (this.backdrop.querySelector('#creator-achievements').checked) {
