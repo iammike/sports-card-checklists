@@ -3220,13 +3220,6 @@ class ChecklistCreatorModal {
 
                     <div class="card-editor-grid">
                         <div class="card-editor-field">
-                            <label class="card-editor-label">Price Mode</label>
-                            <select class="card-editor-input card-editor-select" id="creator-price-mode">
-                                <option value="estimated">Estimated</option>
-                                <option value="explicit">Explicit</option>
-                            </select>
-                        </div>
-                        <div class="card-editor-field">
                             <label class="creator-checkbox-label">
                                 <input type="checkbox" id="creator-use-sections" checked>
                                 <span>Organize cards into sections</span>
@@ -3276,6 +3269,17 @@ class ChecklistCreatorModal {
 
                     <div class="creator-subsection-label" style="margin-top: 14px;">Standard Attributes</div>
                     <div class="creator-preset-note">Variant, Auto, Patch, Serial are always included</div>
+
+                    <div class="creator-subsection-label" style="margin-top: 14px;">Pricing</div>
+                    <div class="card-editor-grid">
+                        <div class="card-editor-field">
+                            <label class="card-editor-label">Price Mode</label>
+                            <select class="card-editor-input card-editor-select" id="creator-price-mode">
+                                <option value="estimated">Estimated</option>
+                                <option value="explicit">Explicit</option>
+                            </select>
+                        </div>
+                    </div>
 
                 </div>
                 <div class="card-editor-footer">
