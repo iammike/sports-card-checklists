@@ -1403,6 +1403,10 @@ select, input[type="text"] {
     margin-bottom: 4px;
 }
 
+.card-editor-attr-fullwidth .card-editor-input {
+    width: 100%;
+}
+
 .card-editor-attr-row {
     display: flex;
     align-items: center;

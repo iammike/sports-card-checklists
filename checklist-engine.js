@@ -152,6 +152,7 @@ class ChecklistEngine {
                 this.config = updatedConfig;
                 this._applyTheme();
                 this._setPageMeta();
+                this._initCardEditor();
                 this.renderCards();
                 this.updateStats();
                 DynamicNav._registry = null;
