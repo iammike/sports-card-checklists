@@ -2427,6 +2427,15 @@ select, input[type="text"] {
     background: rgba(102, 126, 234, 0.1);
 }
 
+.creator-row-flash {
+    animation: row-flash 0.4s ease-out;
+}
+
+@keyframes row-flash {
+    0% { border-color: rgba(102, 126, 234, 0.5); }
+    100% { border-color: rgba(255, 255, 255, 0.06); }
+}
+
 .creator-row-remove {
     background: none;
     border: none;

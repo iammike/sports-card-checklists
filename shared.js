@@ -3535,11 +3535,21 @@ class ChecklistCreatorModal {
         // Reorder arrows
         row.querySelector('.creator-row-up').onclick = () => {
             const prev = row.previousElementSibling;
-            if (prev) row.parentNode.insertBefore(row, prev);
+            if (prev) {
+                row.parentNode.insertBefore(row, prev);
+                row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                row.classList.add('creator-row-flash');
+                row.addEventListener('animationend', () => row.classList.remove('creator-row-flash'), { once: true });
+            }
         };
         row.querySelector('.creator-row-down').onclick = () => {
             const next = row.nextElementSibling;
-            if (next) row.parentNode.insertBefore(next, row);
+            if (next) {
+                row.parentNode.insertBefore(next, row);
+                row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                row.classList.add('creator-row-flash');
+                row.addEventListener('animationend', () => row.classList.remove('creator-row-flash'), { once: true });
+            }
         };
 
         // Add subcategory button (parent rows only)
@@ -3654,11 +3664,21 @@ class ChecklistCreatorModal {
 
         row.querySelector('.creator-row-up').onclick = () => {
             const prev = row.previousElementSibling;
-            if (prev) row.parentNode.insertBefore(row, prev);
+            if (prev) {
+                row.parentNode.insertBefore(row, prev);
+                row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                row.classList.add('creator-row-flash');
+                row.addEventListener('animationend', () => row.classList.remove('creator-row-flash'), { once: true });
+            }
         };
         row.querySelector('.creator-row-down').onclick = () => {
             const next = row.nextElementSibling;
-            if (next) row.parentNode.insertBefore(next, row);
+            if (next) {
+                row.parentNode.insertBefore(next, row);
+                row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                row.classList.add('creator-row-flash');
+                row.addEventListener('animationend', () => row.classList.remove('creator-row-flash'), { once: true });
+            }
         };
         row.querySelector('.creator-row-remove').onclick = () => {
             row.remove();
