@@ -1384,6 +1384,12 @@ select, input[type="text"] {
     margin: 4px 0;
 }
 
+/* Section divider - subtle line between logical groups */
+.card-editor-section-divider {
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    margin: 6px 0 2px;
+}
+
 /* Card Attributes Row (compact horizontal checkboxes + text fields) */
 .card-editor-attributes {
     margin-top: -4px;
