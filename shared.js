@@ -3503,7 +3503,7 @@ class ChecklistCreatorModal {
                 <div class="creator-row-label">
                     <input type="text" placeholder="${isParent ? 'Section name' : 'Subsection name'}" value="${this._escAttr(label)}">
                 </div>
-                <span class="creator-row-id ${isExisting ? 'locked' : ''}" title="${isExisting ? 'ID locked (cards use this key)' : 'Auto-generated from label'}">${this._escHtml(id)}</span>
+                <span class="creator-row-id ${isExisting ? 'locked' : ''}">${this._escHtml(id)}</span>
                 ${isParent ? `<label class="creator-row-extra" title="Exclude from main totals">
                     <input type="checkbox" ${isExtra ? 'checked' : ''}>
                     <span>Extra</span>

@@ -2389,17 +2389,7 @@ select, input[type="text"] {
 
 .creator-row .creator-row-id,
 .creator-row-wrap .creator-row-id {
-    font-family: 'Barlow', monospace;
-    font-size: 10px;
-    color: #4a4a6a;
-    min-width: 30px;
-    flex-shrink: 0;
-    letter-spacing: 0.02em;
-}
-
-.creator-row .creator-row-id.locked,
-.creator-row-wrap .creator-row-id.locked {
-    color: #5a5a7a;
+    display: none;
 }
 
 .creator-row-extra,
