@@ -2175,7 +2175,11 @@ select, input[type="text"] {
    Creator Modal & Settings
    ======================================== */
 .checklist-creator-modal {
-    max-width: 520px;
+    max-width: 540px;
+}
+
+.checklist-creator-modal .card-editor-body {
+    padding: 24px 28px;
 }
 
 /* Section labels between groups */
@@ -2186,11 +2190,17 @@ select, input[type="text"] {
     font-size: 13px;
     color: #aaa;
     cursor: pointer;
-    padding-top: 18px;
 }
 
 .creator-checkbox-label input { cursor: pointer; }
 
+/* Section divider - generous breathing room between sections */
+.creator-section-divider {
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    margin: 20px 0 0;
+}
+
+/* Section headers with left accent bar */
 .creator-section-label {
     font-family: 'Barlow', sans-serif;
     font-size: 11px;
@@ -2198,7 +2208,15 @@ select, input[type="text"] {
     letter-spacing: 0.15em;
     text-transform: uppercase;
     color: rgba(102, 126, 234, 0.7);
-    margin-bottom: 12px;
+    margin-bottom: 14px;
+    margin-top: 18px;
+    padding-left: 10px;
+    border-left: 2px solid rgba(102, 126, 234, 0.35);
+}
+
+/* First section header at top of form */
+.card-editor-body > .creator-section-label:first-child {
+    margin-top: 0;
 }
 
 /* Theme row: colors + dark toggle inline */
@@ -2608,8 +2626,8 @@ select, input[type="text"] {
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: #4a4a6a;
-    margin-top: 14px;
-    margin-bottom: 6px;
+    margin-top: 18px;
+    margin-bottom: 8px;
 }
 
 .creator-subsection-label:first-child {

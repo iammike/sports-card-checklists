@@ -3172,6 +3172,7 @@ class ChecklistCreatorModal {
                     <button class="card-editor-close" title="Close">&times;</button>
                 </div>
                 <div class="card-editor-body">
+                    <div class="creator-section-label">Info</div>
                     <div class="card-editor-grid">
                         <div class="card-editor-field full-width">
                             <label class="card-editor-label">Checklist Title</label>
@@ -3191,7 +3192,7 @@ class ChecklistCreatorModal {
                         </div>
                     </div>
 
-                    <div class="card-editor-separator"></div>
+                    <div class="creator-section-divider"></div>
                     <div class="creator-section-label">Theme</div>
 
                     <div class="creator-theme-row">
@@ -3215,7 +3216,7 @@ class ChecklistCreatorModal {
                         </label>
                     </div>
 
-                    <div class="card-editor-separator"></div>
+                    <div class="creator-section-divider"></div>
                     <div class="creator-section-label">Structure</div>
 
                     <div class="card-editor-grid">
@@ -3232,7 +3233,7 @@ class ChecklistCreatorModal {
                         </div>
                     </div>
 
-                    <div class="card-editor-separator"></div>
+                    <div class="creator-section-divider"></div>
                     <div class="creator-section-label">Display</div>
 
                     <div class="creator-options-row">
@@ -3253,7 +3254,7 @@ class ChecklistCreatorModal {
                         </div>
                     </div>
 
-                    <div class="card-editor-separator"></div>
+                    <div class="creator-section-divider"></div>
                     <div class="creator-section-label">Card Fields</div>
 
                     <div class="creator-subsection-label">Subtitle Lines</div>
