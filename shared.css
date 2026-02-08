@@ -625,6 +625,15 @@ select, input[type="text"] {
     background: linear-gradient(90deg, var(--color-accent), transparent);
 }
 
+.inserts-note {
+    padding: 10px 15px;
+    font-size: 12px;
+    font-family: 'Barlow', sans-serif;
+    color: var(--color-accent, #b36b00);
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
 /* ============================================
    Card Grid
    ============================================ */
