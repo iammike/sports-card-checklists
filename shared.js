@@ -3185,6 +3185,10 @@ class ChecklistCreatorModal {
                             <label class="card-editor-label">Nav Label</label>
                             <input type="text" class="card-editor-input" id="creator-nav-label" placeholder="e.g. MY CARDS" maxlength="20">
                         </div>
+                        <div class="card-editor-field full-width">
+                            <label class="card-editor-label">Description</label>
+                            <textarea class="card-editor-input creator-textarea" id="creator-description" rows="2" placeholder="Short description shown on the home page"></textarea>
+                        </div>
                     </div>
 
                     <div class="card-editor-separator"></div>
@@ -3273,10 +3277,6 @@ class ChecklistCreatorModal {
                         </div>
                     </div>
 
-                    <div class="card-editor-field" style="margin-top: 12px;">
-                        <label class="card-editor-label">Index Page Description</label>
-                        <textarea class="card-editor-input creator-textarea" id="creator-description" rows="2" placeholder="Short description shown on the home page"></textarea>
-                    </div>
                 </div>
                 <div class="card-editor-footer">
                     <button class="card-editor-btn save" id="creator-save">Create Checklist</button>
