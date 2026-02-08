@@ -3186,7 +3186,8 @@ class ChecklistCreatorModal {
                         </div>
                         <div class="card-editor-field">
                             <label class="card-editor-label">Nav Label</label>
-                            <input type="text" class="card-editor-input" id="creator-nav-label" placeholder="MY CARDS" maxlength="20">
+                            <input type="text" class="card-editor-input" id="creator-nav-label" placeholder="e.g. MY CARDS" maxlength="20" title="Short label shown in the navigation bar">
+                            <div class="creator-hint">Shown in the top nav bar</div>
                         </div>
                     </div>
 
@@ -3381,19 +3382,47 @@ class ChecklistCreatorModal {
         }
 
         // Sort chips (additional sorts beyond default)
+        this._renderSortChips(activeSorts);
+    }
+
+    _renderSortChips(activeSorts) {
         const container = this.backdrop.querySelector('#creator-sort-chips');
         if (!container) return;
 
-        const active = activeSorts || ChecklistCreatorModal.DEFAULT_SORTS;
+        // Remember currently active chips before rebuild
+        const currentActive = activeSorts || this._getActiveChipKeys();
         container.innerHTML = '';
+
+        // Built-in sort options
         Object.entries(ChecklistCreatorModal.SORT_OPTIONS).forEach(([key, label]) => {
-            const chip = document.createElement('span');
-            chip.className = 'creator-sort-chip' + (active.includes(key) ? ' active' : '');
-            chip.textContent = label;
-            chip.dataset.sort = key;
-            chip.onclick = () => chip.classList.toggle('active');
-            container.appendChild(chip);
+            this._appendSortChip(container, key, label, currentActive.includes(key));
         });
+
+        // Dynamic chips from subtitle lines
+        const subtitleLines = this._getSubtitleLinesFromForm();
+        subtitleLines.forEach(line => {
+            const key = `field:${line.key}`;
+            this._appendSortChip(container, key, line.label, currentActive.includes(key));
+        });
+    }
+
+    _appendSortChip(container, key, label, isActive) {
+        const chip = document.createElement('span');
+        chip.className = 'creator-sort-chip' + (isActive ? ' active' : '');
+        chip.textContent = label;
+        chip.dataset.sort = key;
+        chip.onclick = () => chip.classList.toggle('active');
+        container.appendChild(chip);
+    }
+
+    _getActiveChipKeys() {
+        const chips = this.backdrop.querySelectorAll('#creator-sort-chips .creator-sort-chip.active');
+        return Array.from(chips).map(c => c.dataset.sort);
+    }
+
+    _refreshSortControls() {
+        this._renderSortChips();
+        this._refreshDefaultSortDropdown();
     }
 
     _refreshDefaultSortDropdown() {
@@ -3588,17 +3617,17 @@ class ChecklistCreatorModal {
         if (!isExisting) {
             labelInput.addEventListener('input', () => {
                 idSpan.textContent = this._slugify(labelInput.value);
-                this._refreshDefaultSortDropdown();
+                this._refreshSortControls();
             });
         }
 
         row.querySelector('.creator-row-remove').onclick = () => {
             row.remove();
-            this._refreshDefaultSortDropdown();
+            this._refreshSortControls();
         };
         list.appendChild(row);
         if (!data) labelInput.focus();
-        this._refreshDefaultSortDropdown();
+        this._refreshSortControls();
     }
 
     _getSubtitleLinesFromForm() {

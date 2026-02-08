@@ -589,7 +589,14 @@ class ChecklistEngine {
             'games': 'Sort: Games Played',
             'superbowl': 'Sort: Super Bowl Winners',
         };
-        return labels[key] || `Sort: ${key}`;
+        if (labels[key]) return labels[key];
+        // Custom field sort (e.g. 'field:years-active')
+        if (key.startsWith('field:')) {
+            const fieldKey = key.slice(6);
+            const field = (this.config.customFields || {})[fieldKey];
+            return field ? `Sort: ${field.label}` : `Sort: ${fieldKey}`;
+        }
+        return `Sort: ${key}`;
     }
 
     _onFilterChange() {
