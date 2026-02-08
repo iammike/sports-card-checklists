@@ -3493,6 +3493,10 @@ class ChecklistCreatorModal {
                     <input type="checkbox" ${isExtra ? 'checked' : ''}>
                     <span>Extra</span>
                 </label>` : ''}
+                <div class="creator-row-arrows">
+                    <button type="button" class="creator-row-up" title="Move up">&#9650;</button>
+                    <button type="button" class="creator-row-down" title="Move down">&#9660;</button>
+                </div>
                 <button type="button" class="creator-row-remove" title="Remove">&times;</button>
             </div>
             ${isParent ? `<div class="creator-row-note">
@@ -3513,6 +3517,16 @@ class ChecklistCreatorModal {
 
         // Remove button
         row.querySelector('.creator-row-remove').onclick = () => row.remove();
+
+        // Reorder arrows
+        row.querySelector('.creator-row-up').onclick = () => {
+            const prev = row.previousElementSibling;
+            if (prev) row.parentNode.insertBefore(row, prev);
+        };
+        row.querySelector('.creator-row-down').onclick = () => {
+            const next = row.nextElementSibling;
+            if (next) row.parentNode.insertBefore(next, row);
+        };
 
         // Add subcategory button (parent rows only)
         const addSubBtn = row.querySelector('.creator-add-subcategory');
@@ -3605,6 +3619,10 @@ class ChecklistCreatorModal {
                 <input type="text" placeholder="Field label (e.g. Years Active)" value="${this._escAttr(label)}">
             </div>
             <span class="creator-row-id ${isExisting ? 'locked' : ''}">${this._escHtml(key)}</span>
+            <div class="creator-row-arrows">
+                <button type="button" class="creator-row-up" title="Move up">&#9650;</button>
+                <button type="button" class="creator-row-down" title="Move down">&#9660;</button>
+            </div>
             <button type="button" class="creator-row-remove" title="Remove">&times;</button>
         `;
 
@@ -3617,6 +3635,14 @@ class ChecklistCreatorModal {
             });
         }
 
+        row.querySelector('.creator-row-up').onclick = () => {
+            const prev = row.previousElementSibling;
+            if (prev) row.parentNode.insertBefore(row, prev);
+        };
+        row.querySelector('.creator-row-down').onclick = () => {
+            const next = row.nextElementSibling;
+            if (next) row.parentNode.insertBefore(next, row);
+        };
         row.querySelector('.creator-row-remove').onclick = () => {
             row.remove();
             this._refreshSortControls();
