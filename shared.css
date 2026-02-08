@@ -2262,6 +2262,13 @@ select, input[type="text"] {
     flex-shrink: 0;
 }
 
+.creator-hint {
+    font-family: 'Barlow', sans-serif;
+    font-size: 11px;
+    color: #555;
+    margin-top: 2px;
+}
+
 /* Textarea */
 .creator-textarea {
     width: 100%;
