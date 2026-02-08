@@ -3133,6 +3133,23 @@ class ChecklistCreatorModal {
         this.existingConfig = null;
     }
 
+    // All available sort options with labels
+    static SORT_OPTIONS = {
+        'default': 'Default',
+        'year': 'Year',
+        'set': 'Set/Brand',
+        'price-low': 'Price Low',
+        'price-high': 'Price High',
+        'owned': 'Owned',
+        'needed': 'Needed',
+        'winpct': 'Win %',
+        'wins': 'Wins',
+        'games': 'Games',
+        'superbowl': 'Super Bowl',
+    };
+
+    static DEFAULT_SORTS = ['default', 'year', 'set', 'price-low', 'price-high', 'owned', 'needed'];
+
     init() {
         if (this.backdrop) return;
 
@@ -3206,9 +3223,9 @@ class ChecklistCreatorModal {
                             </select>
                         </div>
                         <div class="card-editor-field full-width" id="creator-categories-field">
-                            <label class="card-editor-label">Categories <span class="creator-hint-inline">one per line: id|Label</span></label>
-                            <textarea class="card-editor-input creator-textarea" id="creator-categories" rows="3" placeholder="base|Base Cards&#10;inserts*|Inserts&#10;premium*|Premium Cards"></textarea>
-                            <div class="creator-hint">Use * after id to exclude from totals (e.g. inserts*|Inserts)</div>
+                            <label class="card-editor-label">Categories</label>
+                            <div class="creator-row-list" id="creator-categories-list"></div>
+                            <button type="button" class="creator-add-row" id="creator-add-category">+ Add Category</button>
                         </div>
                         <div class="card-editor-field full-width" id="creator-groups-field" style="display:none">
                             <label class="card-editor-label">Groups <span class="creator-hint-inline">one per line: id|Title</span></label>
@@ -3218,6 +3235,23 @@ class ChecklistCreatorModal {
                     </div>
 
                     <div class="card-editor-separator"></div>
+                    <div class="creator-section-label">Card Fields</div>
+
+                    <div class="creator-subsection-label">Subtitle Lines</div>
+                    <div class="creator-hint" style="margin-bottom: 6px;">Text fields shown below the player name on each card</div>
+                    <div class="creator-row-list" id="creator-subtitle-lines-list"></div>
+                    <button type="button" class="creator-add-row" id="creator-add-subtitle-line">+ Add Subtitle Line</button>
+
+                    <div class="creator-subsection-label" style="margin-top: 14px;">Badges</div>
+                    <label class="card-editor-checkbox">
+                        <input type="checkbox" id="creator-achievements">
+                        <span>Enable achievement badges</span>
+                    </label>
+
+                    <div class="creator-subsection-label" style="margin-top: 14px;">Standard Attributes</div>
+                    <div class="creator-preset-note">Variant, Auto, Patch, Serial are always included</div>
+
+                    <div class="card-editor-separator"></div>
                     <div class="creator-section-label">Display</div>
 
                     <div class="creator-options-row">
@@ -3225,6 +3259,11 @@ class ChecklistCreatorModal {
                             <input type="checkbox" id="creator-show-player">
                             <span>Show player name on cards</span>
                         </label>
+                    </div>
+
+                    <div class="card-editor-field" style="margin-top: 12px;">
+                        <label class="card-editor-label">Sort Options</label>
+                        <div class="creator-sort-chips" id="creator-sort-chips"></div>
                     </div>
 
                     <div class="card-editor-field" style="margin-top: 12px;">
@@ -3261,6 +3300,13 @@ class ChecklistCreatorModal {
             backdrop.querySelector('#creator-accent-hex').textContent = e.target.value;
         });
 
+        // Add category / subtitle line buttons
+        backdrop.querySelector('#creator-add-category').onclick = () => this._addCategoryRow();
+        backdrop.querySelector('#creator-add-subtitle-line').onclick = () => this._addSubtitleLineRow();
+
+        // Render sort chips
+        this._renderSortChips();
+
         document.body.appendChild(backdrop);
         this.backdrop = backdrop;
     }
@@ -3295,6 +3341,186 @@ class ChecklistCreatorModal {
         }
     }
 
+    // ---- Sort chips ----
+
+    _renderSortChips(activeSorts) {
+        const container = this.backdrop
+            ? this.backdrop.querySelector('#creator-sort-chips')
+            : document.querySelector('#creator-sort-chips');
+        if (!container) return;
+
+        const active = activeSorts || ChecklistCreatorModal.DEFAULT_SORTS;
+        container.innerHTML = '';
+        Object.entries(ChecklistCreatorModal.SORT_OPTIONS).forEach(([key, label]) => {
+            const chip = document.createElement('span');
+            chip.className = 'creator-sort-chip' + (active.includes(key) ? ' active' : '');
+            chip.textContent = label;
+            chip.dataset.sort = key;
+            chip.onclick = () => chip.classList.toggle('active');
+            container.appendChild(chip);
+        });
+    }
+
+    _getSortOptionsFromForm() {
+        const chips = this.backdrop.querySelectorAll('#creator-sort-chips .creator-sort-chip.active');
+        return Array.from(chips).map(c => c.dataset.sort);
+    }
+
+    // ---- Category rows ----
+
+    _slugify(label) {
+        return label.toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, '')
+            .replace(/\s+/g, '-')
+            .replace(/-+/g, '-')
+            .substring(0, 30) || 'cat';
+    }
+
+    _addCategoryRow(data) {
+        const list = this.backdrop.querySelector('#creator-categories-list');
+        const row = document.createElement('div');
+        row.className = 'creator-row-wrap';
+
+        const color = data?.gradient
+            ? this._extractColorFromGradient(data.gradient)
+            : (data?.color || '#667eea');
+        const label = data?.label || '';
+        const id = data?.id || '';
+        const isExtra = data ? data.isMain === false : false;
+        const note = data?.note || '';
+        const isExisting = this.editMode && !!data?.id;
+
+        row.innerHTML = `
+            <div class="creator-row-main">
+                <input type="color" value="${color}" title="Section header color">
+                <div class="creator-row-label">
+                    <input type="text" placeholder="Category name" value="${this._escAttr(label)}">
+                </div>
+                <span class="creator-row-id ${isExisting ? 'locked' : ''}" title="${isExisting ? 'ID locked (cards use this key)' : 'Auto-generated from label'}">${this._escHtml(id)}</span>
+                <label class="creator-row-extra" title="Exclude from main totals">
+                    <input type="checkbox" ${isExtra ? 'checked' : ''}>
+                    <span>Extra</span>
+                </label>
+                <button type="button" class="creator-row-remove" title="Remove">&times;</button>
+            </div>
+            <div class="creator-row-note">
+                <input type="text" placeholder="Note (shown under header)" value="${this._escAttr(note)}">
+            </div>
+        `;
+
+        // Auto-generate ID from label (new categories only)
+        const labelInput = row.querySelector('.creator-row-label input');
+        const idSpan = row.querySelector('.creator-row-id');
+        if (!isExisting) {
+            labelInput.addEventListener('input', () => {
+                idSpan.textContent = this._slugify(labelInput.value);
+            });
+        }
+
+        // Remove button
+        row.querySelector('.creator-row-remove').onclick = () => row.remove();
+
+        list.appendChild(row);
+        if (!data) labelInput.focus();
+    }
+
+    _extractColorFromGradient(gradient) {
+        // Pull the first hex color from a gradient string
+        const match = gradient.match(/#[0-9a-fA-F]{6}/);
+        return match ? match[0] : '#667eea';
+    }
+
+    _getCategoriesFromForm() {
+        const rows = this.backdrop.querySelectorAll('#creator-categories-list .creator-row-wrap');
+        const categories = [];
+        rows.forEach(row => {
+            const label = row.querySelector('.creator-row-label input').value.trim();
+            if (!label) return;
+            const idText = row.querySelector('.creator-row-id').textContent.trim();
+            const id = idText || this._slugify(label);
+            const color = row.querySelector('input[type="color"]').value;
+            const isExtra = row.querySelector('.creator-row-extra input').checked;
+            const note = row.querySelector('.creator-row-note input').value.trim();
+
+            const cat = { id, label, isMain: !isExtra };
+            if (color && color !== '#667eea') {
+                cat.gradient = `linear-gradient(135deg, ${color}, ${this._darken(color, 40)})`;
+            }
+            if (note) cat.note = note;
+            categories.push(cat);
+        });
+        return categories;
+    }
+
+    _darken(hex, amount) {
+        // Darken a hex color by a fixed amount
+        const num = parseInt(hex.slice(1), 16);
+        const r = Math.max(0, (num >> 16) - amount);
+        const g = Math.max(0, ((num >> 8) & 0xff) - amount);
+        const b = Math.max(0, (num & 0xff) - amount);
+        return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+    }
+
+    // ---- Subtitle line rows ----
+
+    _addSubtitleLineRow(data) {
+        const list = this.backdrop.querySelector('#creator-subtitle-lines-list');
+        const row = document.createElement('div');
+        row.className = 'creator-row';
+
+        const color = data?.color || '#888888';
+        const label = data?.label || '';
+        const key = data?.key || '';
+        const isExisting = this.editMode && !!data?.key;
+
+        row.innerHTML = `
+            <input type="color" value="${color}" title="Text color for this line">
+            <div class="creator-row-label">
+                <input type="text" placeholder="Field label (e.g. Years Active)" value="${this._escAttr(label)}">
+            </div>
+            <span class="creator-row-id ${isExisting ? 'locked' : ''}">${this._escHtml(key)}</span>
+            <button type="button" class="creator-row-remove" title="Remove">&times;</button>
+        `;
+
+        const labelInput = row.querySelector('.creator-row-label input');
+        const idSpan = row.querySelector('.creator-row-id');
+        if (!isExisting) {
+            labelInput.addEventListener('input', () => {
+                idSpan.textContent = this._slugify(labelInput.value);
+            });
+        }
+
+        row.querySelector('.creator-row-remove').onclick = () => row.remove();
+        list.appendChild(row);
+        if (!data) labelInput.focus();
+    }
+
+    _getSubtitleLinesFromForm() {
+        const rows = this.backdrop.querySelectorAll('#creator-subtitle-lines-list .creator-row');
+        const lines = [];
+        rows.forEach(row => {
+            const label = row.querySelector('.creator-row-label input').value.trim();
+            if (!label) return;
+            const idText = row.querySelector('.creator-row-id').textContent.trim();
+            const key = idText || this._slugify(label);
+            const color = row.querySelector('input[type="color"]').value;
+            lines.push({ key, label, color });
+        });
+        return lines;
+    }
+
+    // ---- HTML helpers ----
+
+    _escAttr(str) {
+        return (str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    }
+
+    _escHtml(str) {
+        return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // ---- Form clear / populate ----
+
     _clearForm() {
         this.backdrop.querySelector('#creator-title').value = '';
         this.backdrop.querySelector('#creator-subtitle').value = '';
@@ -3305,15 +3531,26 @@ class ChecklistCreatorModal {
         this.backdrop.querySelector('#creator-accent-hex').textContent = '#f39c12';
         this.backdrop.querySelector('#creator-dark-theme').checked = false;
         this.backdrop.querySelector('#creator-data-shape').value = 'categories';
-        this.backdrop.querySelector('#creator-categories').value = 'base|Base Cards';
         this.backdrop.querySelector('#creator-groups').value = '';
         this.backdrop.querySelector('#creator-group-field').value = 'era';
         this.backdrop.querySelector('#creator-price-mode').value = 'estimated';
         this.backdrop.querySelector('#creator-show-player').checked = false;
+        this.backdrop.querySelector('#creator-achievements').checked = false;
         this.backdrop.querySelector('#creator-description').value = '';
+
         // Show categories, hide groups
         this.backdrop.querySelector('#creator-categories-field').style.display = '';
         this.backdrop.querySelector('#creator-groups-field').style.display = 'none';
+
+        // Reset category rows - add one default
+        this.backdrop.querySelector('#creator-categories-list').innerHTML = '';
+        this._addCategoryRow({ id: 'base', label: 'Base Cards', isMain: true });
+
+        // Clear subtitle lines
+        this.backdrop.querySelector('#creator-subtitle-lines-list').innerHTML = '';
+
+        // Reset sort chips to defaults
+        this._renderSortChips(ChecklistCreatorModal.DEFAULT_SORTS);
     }
 
     _populateForm(config) {
@@ -3332,14 +3569,15 @@ class ChecklistCreatorModal {
         this.backdrop.querySelector('#creator-show-player').checked = config.cardDisplay?.showPlayerName !== false;
         this.backdrop.querySelector('#creator-description').value = config.indexCard?.description || '';
 
-        // Categories
+        // Categories as rows
+        this.backdrop.querySelector('#creator-categories-list').innerHTML = '';
         if (config.categories && config.categories.length > 0) {
-            this.backdrop.querySelector('#creator-categories').value = config.categories.map(c =>
-                `${c.id}${c.isMain === false ? '*' : ''}|${c.label}`
-            ).join('\n');
+            config.categories.forEach(c => this._addCategoryRow(c));
+        } else {
+            this._addCategoryRow({ id: 'base', label: 'Base Cards', isMain: true });
         }
 
-        // Groups
+        // Groups (flat mode)
         if (config.groups && config.groups.length > 0) {
             this.backdrop.querySelector('#creator-groups').value = config.groups.map(g =>
                 `${g.id}|${g.title}`
@@ -3348,6 +3586,23 @@ class ChecklistCreatorModal {
         if (config.groupField) {
             this.backdrop.querySelector('#creator-group-field').value = config.groupField;
         }
+
+        // Subtitle lines: extract from customFields (position: 'top', type: 'text', key != 'player')
+        this.backdrop.querySelector('#creator-subtitle-lines-list').innerHTML = '';
+        if (config.customFields) {
+            Object.entries(config.customFields).forEach(([key, field]) => {
+                if (field.position === 'top' && field.type === 'text' && key !== 'player') {
+                    this._addSubtitleLineRow({ key, label: field.label, color: field.color || '#888888' });
+                }
+            });
+        }
+
+        // Achievements
+        const hasAchievements = config.customFields && 'achievement' in config.customFields;
+        this.backdrop.querySelector('#creator-achievements').checked = hasAchievements;
+
+        // Sort options
+        this._renderSortChips(config.sortOptions || ChecklistCreatorModal.DEFAULT_SORTS);
 
         // Toggle visibility
         const isFlat = config.dataShape === 'flat';
@@ -3373,72 +3628,95 @@ class ChecklistCreatorModal {
         const id = this.editMode ? this.existingConfig.id : this._generateId(title);
         const dataShape = this.backdrop.querySelector('#creator-data-shape').value;
 
-        const config = {
-            id,
-            title,
-            subtitle: this.backdrop.querySelector('#creator-subtitle').value.trim() || undefined,
-            navLabel: this.backdrop.querySelector('#creator-nav-label').value.trim() || title.toUpperCase().substring(0, 20),
-            theme: {
-                primaryColor: this.backdrop.querySelector('#creator-primary-color').value,
-                accentColor: this.backdrop.querySelector('#creator-accent-color').value,
-                darkTheme: this.backdrop.querySelector('#creator-dark-theme').checked,
-            },
-            dataShape,
-            cardDisplay: {
-                priceMode: this.backdrop.querySelector('#creator-price-mode').value,
-                showPlayerName: this.backdrop.querySelector('#creator-show-player').checked,
-            },
-            customFields: {
-                variant: { label: 'Card Variant', type: 'text', placeholder: 'Silver Prizm', fullWidth: true, position: 'after-num' },
-                auto: { label: 'Auto', type: 'checkbox', position: 'attributes' },
-                patch: { label: 'Patch', type: 'checkbox', position: 'attributes' },
-                serial: { label: 'Run', type: 'text', placeholder: '99', position: 'attributes' },
-            },
-            sortOptions: ['default', 'year', 'set', 'price-low', 'price-high', 'owned', 'needed'],
-            indexCard: {
-                description: this.backdrop.querySelector('#creator-description').value.trim() || undefined,
-            },
+        // Start from existing config in edit mode to preserve unmanaged properties
+        const config = this.editMode
+            ? JSON.parse(JSON.stringify(this.existingConfig))
+            : {};
+
+        // Overlay form values
+        config.id = id;
+        config.title = title;
+        config.subtitle = this.backdrop.querySelector('#creator-subtitle').value.trim() || undefined;
+        config.navLabel = this.backdrop.querySelector('#creator-nav-label').value.trim() || title.toUpperCase().substring(0, 20);
+        config.theme = {
+            ...(config.theme || {}),
+            primaryColor: this.backdrop.querySelector('#creator-primary-color').value,
+            accentColor: this.backdrop.querySelector('#creator-accent-color').value,
+            darkTheme: this.backdrop.querySelector('#creator-dark-theme').checked,
+        };
+        config.dataShape = dataShape;
+        config.cardDisplay = {
+            ...(config.cardDisplay || {}),
+            priceMode: this.backdrop.querySelector('#creator-price-mode').value,
+            showPlayerName: this.backdrop.querySelector('#creator-show-player').checked,
         };
 
-        // Add player field if showing player names
+        // Build customFields from form
+        const customFields = {};
+
+        // Player field (if showing player names)
         if (config.cardDisplay.showPlayerName) {
-            config.customFields = {
-                player: { label: 'Player Name', type: 'text', fullWidth: true },
-                ...config.customFields,
-            };
+            customFields.player = { label: 'Player Name', type: 'text', fullWidth: true };
             config.cardDisplay.includePlayerInCardId = true;
+        } else {
+            delete config.cardDisplay.includePlayerInCardId;
         }
+
+        // Subtitle lines
+        const subtitleLines = this._getSubtitleLinesFromForm();
+        subtitleLines.forEach(line => {
+            customFields[line.key] = {
+                label: line.label,
+                type: 'text',
+                position: 'top',
+                color: line.color !== '#888888' ? line.color : undefined,
+            };
+        });
+
+        // Standard fields (always present)
+        customFields.variant = { label: 'Card Variant', type: 'text', placeholder: 'Silver Prizm', fullWidth: true, position: 'after-num' };
+        customFields.auto = { label: 'Auto', type: 'checkbox', position: 'attributes' };
+        customFields.patch = { label: 'Patch', type: 'checkbox', position: 'attributes' };
+        customFields.serial = { label: 'Run', type: 'text', placeholder: '99', position: 'attributes' };
+
+        // Achievement field
+        if (this.backdrop.querySelector('#creator-achievements').checked) {
+            customFields.achievement = { label: 'Achievements', type: 'text', placeholder: 'Pro Bowl, All-Pro', parseArray: true };
+        }
+
+        config.customFields = customFields;
+
+        // Sort options from chips
+        const sortOptions = this._getSortOptionsFromForm();
+        config.sortOptions = sortOptions.length > 0 ? sortOptions : ['default'];
+
+        config.indexCard = {
+            ...(config.indexCard || {}),
+            description: this.backdrop.querySelector('#creator-description').value.trim() || undefined,
+        };
 
         // Parse categories or groups
         if (dataShape === 'categories') {
-            const catText = this.backdrop.querySelector('#creator-categories').value.trim();
-            if (!catText) {
+            const categories = this._getCategoriesFromForm();
+            if (categories.length === 0) {
                 alert('At least one category is required');
                 return null;
             }
-            config.categories = catText.split('\n').filter(Boolean).map(line => {
-                const [rawId, label] = line.split('|').map(s => s.trim());
-                const isExtra = rawId.endsWith('*');
-                const id = isExtra ? rawId.slice(0, -1) : rawId;
-                return {
-                    id,
-                    label: label || id,
-                    isMain: !isExtra,
-                };
-            });
+            config.categories = categories;
         } else {
             // Flat data shape
+            delete config.categories;
             const groupsText = this.backdrop.querySelector('#creator-groups').value.trim();
             if (groupsText) {
                 config.groupField = this.backdrop.querySelector('#creator-group-field').value.trim() || 'era';
                 config.groups = groupsText.split('\n').filter(Boolean).map(line => {
-                    const [id, title] = line.split('|').map(s => s.trim());
-                    return { id, title: title || id };
+                    const [gid, gtitle] = line.split('|').map(s => s.trim());
+                    return { id: gid, title: gtitle || gid };
                 });
             }
         }
 
-        // Clean undefined values
+        // Clean undefined values at top level
         Object.keys(config).forEach(k => { if (config[k] === undefined) delete config[k]; });
 
         return config;
