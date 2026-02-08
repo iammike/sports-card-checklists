@@ -3182,8 +3182,7 @@ class ChecklistCreatorModal {
                         </div>
                         <div class="card-editor-field">
                             <label class="card-editor-label">Nav Label</label>
-                            <input type="text" class="card-editor-input" id="creator-nav-label" placeholder="e.g. MY CARDS" maxlength="20" title="Short label shown in the navigation bar">
-                            <div class="creator-hint">Shown in the top nav bar</div>
+                            <input type="text" class="card-editor-input" id="creator-nav-label" placeholder="e.g. MY CARDS" maxlength="20">
                         </div>
                     </div>
 
