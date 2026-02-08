@@ -217,6 +217,9 @@ class ChecklistEngine {
         const success = await githubSync.saveCardData(this.id, this.cardData);
         if (success) {
             this.checklistManager.setSyncStatus('synced', 'Saved');
+            // Update stats in gist so index page reflects card count changes
+            const stats = this.computeStats();
+            await githubSync.saveChecklistStats(this.id, stats);
         } else {
             this.checklistManager.setSyncStatus('error', 'Save failed');
         }
@@ -1022,12 +1025,14 @@ class ChecklistEngine {
                     this._updateCard(cardId, cardData);
                 }
                 this.renderCards();
+                this.updateStats();
                 this.checklistManager.setSyncStatus('syncing', 'Saving...');
                 await this._saveCardData();
             },
             onDelete: async (cardId) => {
                 this._removeCard(cardId);
                 this.renderCards();
+                this.updateStats();
                 this.checklistManager.setSyncStatus('syncing', 'Saving...');
                 await this._saveCardData();
             },
