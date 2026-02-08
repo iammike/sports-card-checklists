@@ -3138,16 +3138,12 @@ class ChecklistCreatorModal {
         this.existingConfig = null;
     }
 
-    // Available sort options (shown as toggleable chips)
+    // Built-in sort options (always shown as chips). Subtitle fields add dynamic chips automatically.
     static SORT_OPTIONS = {
         'year': 'Year',
         'set': 'Set/Brand',
         'price-low': 'Price Low',
         'price-high': 'Price High',
-        'winpct': 'Win %',
-        'wins': 'Wins',
-        'games': 'Games',
-        'superbowl': 'Super Bowl',
     };
 
     static DEFAULT_SORTS = ['year', 'set', 'price-low', 'price-high'];
