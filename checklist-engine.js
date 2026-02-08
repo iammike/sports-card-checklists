@@ -325,6 +325,12 @@ class ChecklistEngine {
         } else {
             // Light theme overrides
             css += `
+            .page-header {
+                background: color-mix(in srgb, ${primary} 6%, white);
+                padding: 20px 20px 24px;
+                margin-bottom: 24px;
+                position: relative;
+            }
             .page-header::after {
                 content: '';
                 position: absolute;
@@ -333,12 +339,21 @@ class ChecklistEngine {
                 background: linear-gradient(90deg, transparent, ${accent}, transparent);
             }
             h1 {
-                background: linear-gradient(180deg, #d0d0d0 0%, ${accent} 100%);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                background-clip: text;
+                color: ${primary};
+            }
+            .subtitle { color: #666; }
+            .stat-value.highlight { color: ${accent}; }
+            .card.owned {
+                border-color: ${accent};
+                background: color-mix(in srgb, ${accent} 5%, white);
+            }
+            .card:hover {
+                border-color: color-mix(in srgb, ${primary} 30%, transparent);
             }
             .player-name { color: ${primary}; font-size: 14px; font-weight: bold; margin-bottom: 4px; }
+            .group-header {
+                border-bottom-color: ${accent};
+            }
             `;
         }
 
