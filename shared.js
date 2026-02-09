@@ -2765,10 +2765,11 @@ class CardEditorModal {
 
         // Show modal
         this.backdrop.classList.add('active');
-        // Focus first field (first custom field or set name)
-        const customFieldNames = Object.keys(this.customFields);
-        const firstField = customFieldNames.length > 0
-            ? this.backdrop.querySelector(`#editor-${customFieldNames[0]}`)
+        // Focus first top-position custom field, or set name
+        const topField = Object.entries(this.customFields)
+            .find(([_, c]) => (c.position || 'top') === 'top');
+        const firstField = topField
+            ? this.backdrop.querySelector(`#editor-${topField[0]}`)
             : this.backdrop.querySelector('#editor-set');
         if (firstField) firstField.focus();
     }
@@ -2816,10 +2817,11 @@ class CardEditorModal {
 
         // Show modal
         this.backdrop.classList.add('active');
-        // Focus first field (first custom field or set name)
-        const customFieldNames = Object.keys(this.customFields);
-        const firstField = customFieldNames.length > 0
-            ? this.backdrop.querySelector(`#editor-${customFieldNames[0]}`)
+        // Focus first top-position custom field, or set name
+        const topField = Object.entries(this.customFields)
+            .find(([_, c]) => (c.position || 'top') === 'top');
+        const firstField = topField
+            ? this.backdrop.querySelector(`#editor-${topField[0]}`)
             : this.backdrop.querySelector('#editor-set');
         if (firstField) firstField.focus();
     }
