@@ -3290,17 +3290,6 @@ class ChecklistCreatorModal {
                         </label>
                     </div>
 
-                    <div class="creator-subsection-label" style="margin-top: 14px;">Pricing</div>
-                    <div class="card-editor-grid">
-                        <div class="card-editor-field">
-                            <label class="card-editor-label" title="Estimated: auto-calculates prices based on card attributes. Explicit: you enter prices manually.">Price Mode</label>
-                            <select class="card-editor-input card-editor-select" id="creator-price-mode" title="Estimated auto-calculates based on card type, set, and attributes. Explicit requires manual price entry.">
-                                <option value="estimated">Estimated</option>
-                                <option value="explicit">Explicit</option>
-                            </select>
-                        </div>
-                    </div>
-
                 </div>
                 <div class="card-editor-footer">
                     <button class="card-editor-btn save" id="creator-save">Create Checklist</button>
@@ -3751,7 +3740,6 @@ class ChecklistCreatorModal {
         this.backdrop.querySelector('#creator-accent-hex').textContent = '#f39c12';
         this.backdrop.querySelector('#creator-dark-theme').checked = false;
         this.backdrop.querySelector('#creator-use-sections').checked = true;
-        this.backdrop.querySelector('#creator-price-mode').value = 'explicit';
         this.backdrop.querySelector('#creator-show-player').checked = false;
         this.backdrop.querySelector('#creator-achievements').checked = false;
         this.backdrop.querySelector('#creator-description').value = '';
@@ -3788,7 +3776,6 @@ class ChecklistCreatorModal {
         this.backdrop.querySelector('#creator-accent-hex').textContent = accentColor;
         this.backdrop.querySelector('#creator-dark-theme').checked = config.theme?.darkTheme || false;
         this.backdrop.querySelector('#creator-use-sections').checked = config.dataShape !== 'flat';
-        this.backdrop.querySelector('#creator-price-mode').value = config.cardDisplay?.priceMode || 'estimated';
         this.backdrop.querySelector('#creator-show-player').checked = config.cardDisplay?.showPlayerName !== false;
         this.backdrop.querySelector('#creator-description').value = config.indexCard?.description || '';
 
@@ -3878,7 +3865,7 @@ class ChecklistCreatorModal {
         config.dataShape = dataShape;
         config.cardDisplay = {
             ...(config.cardDisplay || {}),
-            priceMode: this.backdrop.querySelector('#creator-price-mode').value,
+            priceMode: 'explicit',
             showPlayerName: this.backdrop.querySelector('#creator-show-player').checked,
         };
 
