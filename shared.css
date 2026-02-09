@@ -750,7 +750,7 @@ select, input[type="text"] {
 
 .card-image.placeholder:hover {
     background: #f0f0f0;
-    color: var(--color-primary);
+    color: var(--color-link, var(--color-primary));
 }
 
 .card-title {
@@ -876,7 +876,7 @@ select, input[type="text"] {
 }
 
 .price-link:hover {
-    color: var(--color-primary);
+    color: var(--color-link, var(--color-primary));
     text-decoration: underline;
 }
 
