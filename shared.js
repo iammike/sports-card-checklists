@@ -2030,18 +2030,17 @@ class CardEditorModal {
                     </label>`;
                 } else {
                     // Text/number field (e.g., serial)
-                    const inputType = config.inputType || 'text';
-                    const extraAttrs = inputType === 'number' ? ' min="1" step="1"' : '';
+                    const extraAttrs = config.inputType === 'number' ? ' inputmode="numeric"' : '';
                     return `<div class="card-editor-attr-text">
                         <label for="${id}">${config.label}:</label>
-                        <input type="${inputType}" class="card-editor-input" id="${id}" placeholder="${config.placeholder || ''}"${extraAttrs}>
+                        <input type="text" class="card-editor-input" id="${id}" placeholder="${config.placeholder || ''}"${extraAttrs}>
                     </div>`;
                 }
             }).join('');
             const priceHtml = `
                     <div class="card-editor-attr-text card-editor-attr-price">
                         <label for="editor-price">Price:</label>
-                        <input type="number" class="card-editor-input" id="editor-price" placeholder="$" step="1" min="0">
+                        <input type="text" class="card-editor-input" id="editor-price" placeholder="$" inputmode="decimal">
                     </div>`;
             return `<div class="card-editor-field full-width card-editor-attributes">
                 <div class="card-editor-attr-row">
@@ -2301,16 +2300,6 @@ class CardEditorModal {
             advancedFields.style.display = isHidden ? 'flex' : 'none';
             advancedToggle.textContent = isHidden ? 'Hide advanced' : 'Advanced';
         };
-
-        // Dynamic price step: scale increments with value
-        const priceInput = this.backdrop.querySelector('#editor-price');
-        priceInput.addEventListener('input', () => {
-            const val = parseFloat(priceInput.value) || 0;
-            if (val >= 100) priceInput.step = 25;
-            else if (val >= 50) priceInput.step = 10;
-            else if (val >= 20) priceInput.step = 5;
-            else priceInput.step = 1;
-        });
 
         // Track manual edits to eBay search term
         this.backdrop.querySelector('#editor-ebay').oninput = () => {
