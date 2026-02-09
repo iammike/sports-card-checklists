@@ -3751,7 +3751,7 @@ class ChecklistCreatorModal {
         this.backdrop.querySelector('#creator-accent-hex').textContent = '#f39c12';
         this.backdrop.querySelector('#creator-dark-theme').checked = false;
         this.backdrop.querySelector('#creator-use-sections').checked = true;
-        this.backdrop.querySelector('#creator-price-mode').value = 'estimated';
+        this.backdrop.querySelector('#creator-price-mode').value = 'explicit';
         this.backdrop.querySelector('#creator-show-player').checked = false;
         this.backdrop.querySelector('#creator-achievements').checked = false;
         this.backdrop.querySelector('#creator-description').value = '';
