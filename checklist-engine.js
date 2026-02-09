@@ -1025,7 +1025,7 @@ class ChecklistEngine {
             customFields: customFields,
             imageFolder: `images/${this.id}`,
             categories: editorCategories,
-            priceInAttributes: this.config.cardDisplay?.priceInAttributes || false,
+            cardTypes: [],
             onSave: async (cardId, cardData, isNew) => {
                 if (isNew) {
                     this._addCard(cardData);

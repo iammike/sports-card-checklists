@@ -2169,12 +2169,12 @@ class CardEditorModal {
                             <label class="card-editor-label">Card Number</label>
                             <input type="text" class="card-editor-input" id="editor-num" placeholder="123">
                         </div>
-                        <div class="card-editor-field">
+                        ${this.cardTypes.length > 0 ? `<div class="card-editor-field">
                             <label class="card-editor-label">Card Type</label>
                             <select class="card-editor-select" id="editor-type">
                                 ${this.cardTypes.map(t => `<option value="${t}">${t}</option>`).join('')}
                             </select>
-                        </div>
+                        </div>` : ''}
                         ${this.generateCustomFieldsHtml('after-num')}
                         ${this.categories ? `<div class="card-editor-field">
                             <label class="card-editor-label">Section</label>
