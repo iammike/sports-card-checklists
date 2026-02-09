@@ -3489,7 +3489,7 @@ class ChecklistCreatorModal {
         const color2 = colors[1] || (parentEl ? '#1a1a3e' : '#764ba2');
         const label = data?.label || '';
         const id = data?.id || '';
-        const isExtra = data ? data.isMain === false : false;
+        const isMain = data ? data.isMain !== false : true;
         const note = data?.note || '';
         const isExisting = this.editMode && !!data?.id;
         const isParent = !parentEl;
@@ -3502,11 +3502,11 @@ class ChecklistCreatorModal {
                     <input type="text" placeholder="${isParent ? 'Section name' : 'Subsection name'}" value="${this._escAttr(label)}">
                 </div>
                 <span class="creator-row-id ${isExisting ? 'locked' : ''}">${this._escHtml(id)}</span>
-                ${isParent ? `<label class="creator-row-extra" title="Track this section separately from the main totals">
-                    <input type="checkbox" ${isExtra ? 'checked' : ''}>
-                    <span>Bonus</span>
+                ${isParent ? `<label class="creator-row-extra" title="Include this section in the main totals">
+                    <input type="checkbox" ${isMain ? 'checked' : ''}>
+                    <span>Counts</span>
                 </label>
-                <label class="creator-row-index ${isExtra ? '' : 'hidden'}" title="Feature this section's stats on the homepage card">
+                <label class="creator-row-index ${isMain ? 'hidden' : ''}" title="Feature this section's stats on the homepage card">
                     <input type="checkbox" ${data?.showOnIndex ? 'checked' : ''}>
                     <span>Feature</span>
                 </label>` : ''}
@@ -3532,13 +3532,13 @@ class ChecklistCreatorModal {
             });
         }
 
-        // Extra checkbox toggles Index visibility
-        const extraCheckbox = row.querySelector('.creator-row-extra input');
+        // Counts checkbox toggles Feature visibility (Feature only available for non-counted sections)
+        const countsCheckbox = row.querySelector('.creator-row-extra input');
         const indexLabel = row.querySelector('.creator-row-index');
-        if (extraCheckbox && indexLabel) {
-            extraCheckbox.onchange = () => {
-                indexLabel.classList.toggle('hidden', !extraCheckbox.checked);
-                if (!extraCheckbox.checked) indexLabel.querySelector('input').checked = false;
+        if (countsCheckbox && indexLabel) {
+            countsCheckbox.onchange = () => {
+                indexLabel.classList.toggle('hidden', countsCheckbox.checked);
+                if (countsCheckbox.checked) indexLabel.querySelector('input').checked = false;
                 this._updateIndexPillLimit();
             };
             // Index checkbox change updates limit state
@@ -3631,14 +3631,14 @@ class ChecklistCreatorModal {
             const colors = row.querySelectorAll(':scope > .creator-row-main input[type="color"]');
             const color1 = colors[0]?.value || '#667eea';
             const color2 = colors[1]?.value || '#764ba2';
-            const extraInput = row.querySelector(':scope > .creator-row-main .creator-row-extra input');
-            const isExtra = extraInput ? extraInput.checked : false;
+            const countsInput = row.querySelector(':scope > .creator-row-main .creator-row-extra input');
+            const isMain = countsInput ? countsInput.checked : true;
             const indexInput = row.querySelector(':scope > .creator-row-main .creator-row-index input');
             const showOnIndex = indexInput ? indexInput.checked : false;
             const noteInput = row.querySelector(':scope > .creator-row-note input');
             const note = noteInput ? noteInput.value.trim() : '';
 
-            const cat = { id, label, isMain: !isExtra };
+            const cat = { id, label, isMain };
             cat.gradient = `linear-gradient(135deg, ${color1}, ${color2})`;
             if (note) cat.note = note;
             if (showOnIndex) cat.showOnIndex = true;
