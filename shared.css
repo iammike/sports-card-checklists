@@ -1443,8 +1443,15 @@ select, input[type="text"] {
     font-size: 13px !important;
 }
 
+.card-editor-attr-price {
+    flex: 1;
+    min-width: 0;
+}
+
 .card-editor-attr-price .card-editor-input {
-    width: 80px;
+    width: auto;
+    flex: 1;
+    min-width: 0;
 }
 
 
