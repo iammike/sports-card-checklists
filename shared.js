@@ -3396,6 +3396,14 @@ class ChecklistCreatorModal {
                 });
             }
             select.value = defaultSortMode || 'as-entered';
+            // Auto-enable chip when a subtitle field is selected as default sort
+            select.onchange = () => {
+                const val = select.value;
+                if (val.startsWith('field:')) {
+                    const chip = this.backdrop.querySelector(`#creator-sort-chips .creator-sort-chip[data-sort="${val}"]`);
+                    if (chip && !chip.classList.contains('active')) chip.classList.add('active');
+                }
+            };
         }
 
         // Sort chips (additional sorts beyond default)
