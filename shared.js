@@ -2178,6 +2178,12 @@ class CardEditorModal {
                             </select>
                         </div>` : ''}
                         ${this.generateCustomFieldsHtml('after-num')}
+                        ${Object.entries(this.customFields)
+                            .filter(([_, c]) => (c.position || 'top') === 'attributes' && c.fullWidth)
+                            .map(([name, c]) => `<div class="card-editor-field">
+                            <label class="card-editor-label">${c.label}</label>
+                            <input type="text" class="card-editor-input" id="editor-${name}" placeholder="${c.placeholder || ''}">
+                        </div>`).join('')}
                         ${this.categories ? `<div class="card-editor-field">
                             <label class="card-editor-label">Section</label>
                             <select class="card-editor-select" id="editor-category">
@@ -2193,12 +2199,6 @@ class CardEditorModal {
                                 }).join('')}
                             </select>
                         </div>` : ''}
-                        ${Object.entries(this.customFields)
-                            .filter(([_, c]) => (c.position || 'top') === 'attributes' && c.fullWidth)
-                            .map(([name, c]) => `<div class="card-editor-field">
-                            <label class="card-editor-label">${c.label}</label>
-                            <input type="text" class="card-editor-input" id="editor-${name}" placeholder="${c.placeholder || ''}">
-                        </div>`).join('')}
                         ${this.generateCustomFieldsHtml('attributes')}
                         <div class="card-editor-field full-width card-editor-advanced-toggle">
                             <button type="button" class="card-editor-toggle-btn" id="editor-toggle-advanced">Advanced</button>
