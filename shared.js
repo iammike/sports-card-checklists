@@ -2053,7 +2053,7 @@ class CardEditorModal {
 
         return fields.map(([fieldName, config]) => {
             const id = `editor-${fieldName}`;
-            const fullWidth = (config.fullWidth || config.position === 'bottom') ? ' full-width' : '';
+            const fullWidth = config.fullWidth ? ' full-width' : '';
             const placeholder = config.placeholder || '';
 
             if (config.type === 'select') {
@@ -3923,7 +3923,6 @@ class ChecklistCreatorModal {
                 label: line.label,
                 type: 'text',
                 position: 'bottom',
-                fullWidth: true,
                 color: line.color !== '#888888' ? line.color : undefined,
             };
         });
