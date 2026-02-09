@@ -2149,8 +2149,9 @@ class CardEditorModal {
 
     // Initialize - create modal DOM
     init() {
-        // Remove existing backdrop so re-init works after settings changes
-        const existing = document.querySelector('.card-editor-backdrop');
+        // Remove existing card editor backdrop so re-init works after settings changes
+        // Use :not(.checklist-creator-backdrop) to avoid removing the creator modal
+        const existing = document.querySelector('.card-editor-backdrop:not(.checklist-creator-backdrop)');
         if (existing) existing.remove();
 
         const backdrop = document.createElement('div');
