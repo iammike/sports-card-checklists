@@ -1263,7 +1263,7 @@ select, input[type="text"] {
 /* Form grid */
 .card-editor-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 2fr 1fr;
     gap: 16px;
 }
 
