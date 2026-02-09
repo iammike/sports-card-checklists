@@ -3908,7 +3908,7 @@ class ChecklistCreatorModal {
 
         // Standard attribute fields (toggleable)
         if (this.backdrop.querySelector('#creator-attr-variant').checked) {
-            customFields.variant = { label: 'Card Variant', type: 'text', placeholder: 'Silver Prizm', fullWidth: true, position: 'attributes' };
+            customFields.variant = { label: 'Variant', type: 'text', placeholder: 'Silver Prizm', fullWidth: true, position: 'attributes' };
         }
         if (this.backdrop.querySelector('#creator-attr-auto').checked) {
             customFields.auto = { label: 'Auto', type: 'checkbox', position: 'attributes' };
