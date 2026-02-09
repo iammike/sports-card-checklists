@@ -3584,15 +3584,27 @@ class ChecklistCreatorModal {
         return matches || [];
     }
 
+    _dedupeId(id, usedIds) {
+        let unique = id;
+        let suffix = 2;
+        while (usedIds.has(unique)) {
+            unique = `${id}-${suffix}`;
+            suffix++;
+        }
+        usedIds.add(unique);
+        return unique;
+    }
+
     _getCategoriesFromForm() {
         // Only get top-level rows (not subcategories nested inside)
         const rows = this.backdrop.querySelectorAll('#creator-categories-list > .creator-row-wrap');
         const categories = [];
+        const usedIds = new Set();
         rows.forEach(row => {
             const label = row.querySelector(':scope > .creator-row-main .creator-row-label input').value.trim();
             if (!label) return;
             const idText = row.querySelector(':scope > .creator-row-main .creator-row-id').textContent.trim();
-            const id = idText || this._slugify(label);
+            const id = this._dedupeId(idText || this._slugify(label), usedIds);
             const colors = row.querySelectorAll(':scope > .creator-row-main input[type="color"]');
             const color1 = colors[0]?.value || '#667eea';
             const color2 = colors[1]?.value || '#764ba2';
@@ -3616,7 +3628,7 @@ class ChecklistCreatorModal {
                     const subLabel = subRow.querySelector('.creator-row-label input').value.trim();
                     if (!subLabel) return;
                     const subIdText = subRow.querySelector('.creator-row-id').textContent.trim();
-                    const subId = subIdText || this._slugify(subLabel);
+                    const subId = this._dedupeId(subIdText || this._slugify(subLabel), usedIds);
                     const subColors = subRow.querySelectorAll('input[type="color"]');
                     const sc1 = subColors[0]?.value || '#2a2a4e';
                     const sc2 = subColors[1]?.value || '#1a1a3e';
