@@ -583,7 +583,7 @@ class ChecklistEngine {
 
         let html = `<div class="${cardClass}" data-price="${price}"${card.sport ? ` data-sport="${card.sport}"` : ''}${card.era ? ` data-era="${card.era}"` : ''} data-type="${card.type || ''}">`;
         html += `<div class="card-image-wrapper">`;
-        html += CardRenderer.renderAttributeBadges(card);
+        html += CardRenderer.renderAttributeBadges(card, this.config.customFields);
         html += CardRenderer.renderPriceBadge(price, thresholds);
         html += CardRenderer.renderCardImage(card.img, card.set, searchUrl);
         html += `</div>`;

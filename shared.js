@@ -754,9 +754,13 @@ const CardRenderer = {
         return `<span class="serial-badge">${sanitizeText(display)}</span>`;
     },
 
-    // Render all attribute badges for a card
-    renderAttributeBadges(card) {
-        return this.renderAutoBadge(card) + this.renderPatchBadge(card) + this.renderSerialBadge(card);
+    // Render all attribute badges for a card (only those enabled in customFields)
+    renderAttributeBadges(card, customFields) {
+        let html = '';
+        if (!customFields || customFields.auto) html += this.renderAutoBadge(card);
+        if (!customFields || customFields.patch) html += this.renderPatchBadge(card);
+        if (!customFields || customFields.serial) html += this.renderSerialBadge(card);
+        return html;
     },
 
     // Render card image with fallback
