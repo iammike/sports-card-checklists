@@ -3923,6 +3923,7 @@ class ChecklistCreatorModal {
                 label: line.label,
                 type: 'text',
                 position: 'bottom',
+                fullWidth: true,
                 color: line.color !== '#888888' ? line.color : undefined,
             };
         });
