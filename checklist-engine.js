@@ -148,7 +148,8 @@ class ChecklistEngine {
         if (!this.checklistManager.isOwner()) return;
 
         const creator = new ChecklistCreatorModal({
-            onCreated: (updatedConfig) => {
+            onCreated: async (updatedConfig) => {
+                const shapeMigrated = this._migrateDataShape(updatedConfig);
                 this.config = updatedConfig;
                 this._applyTheme();
                 this._setPageMeta();
@@ -158,6 +159,10 @@ class ChecklistEngine {
                 DynamicNav._registry = null;
                 sessionStorage.removeItem(DynamicNav._sessionKey);
                 DynamicNav.init();
+                if (shapeMigrated) {
+                    this.checklistManager.setSyncStatus('syncing', 'Migrating cards...');
+                    await this._saveCardData();
+                }
             }
         });
 
@@ -414,6 +419,49 @@ class ChecklistEngine {
         // If the category has children, default to first child
         if (main.children && main.children.length > 0) return main.children[0].id;
         return main.id;
+    }
+
+    // Migrate card data when dataShape changes. Must be called BEFORE updating this.config.
+    _migrateDataShape(newConfig) {
+        const oldShape = this.config.dataShape || 'categories';
+        const newShape = newConfig.dataShape || 'categories';
+        if (oldShape === newShape) return false;
+
+        if (newShape === 'flat') {
+            // Categories → Flat: flatten all category arrays into a single array
+            const allCards = [];
+            const categories = this.config.categories || [];
+            categories.forEach(cat => {
+                if (cat.children && cat.children.length > 0) {
+                    cat.children.forEach(child => {
+                        (this.cards[child.id] || []).forEach(c => allCards.push(c));
+                    });
+                } else {
+                    (this.cards[cat.id] || []).forEach(c => allCards.push(c));
+                }
+            });
+            this.cards = allCards;
+            this.cardData = { cards: allCards };
+        } else {
+            // Flat → Categories: put all cards into the first category
+            const catMap = {};
+            (newConfig.categories || []).forEach(cat => {
+                if (cat.children && cat.children.length > 0) {
+                    cat.children.forEach(child => { catMap[child.id] = []; });
+                } else {
+                    catMap[cat.id] = [];
+                }
+            });
+            const cats = newConfig.categories || [];
+            const main = cats.find(c => c.isMain !== false) || cats[0];
+            const defaultCat = main?.children?.[0]?.id || main?.id;
+            if (defaultCat && this.cards.length > 0) {
+                catMap[defaultCat] = [...this.cards];
+            }
+            this.cards = catMap;
+            this.cardData = { categories: catMap };
+        }
+        return true;
     }
 
     // ========================================
