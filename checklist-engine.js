@@ -599,7 +599,8 @@ class ChecklistEngine {
         if (subtitleFields.length > 0) {
             subtitleFields.forEach(([key, config]) => {
                 const color = config.color || '#888';
-                html += `<div class="card-subtitle-line" style="color:${color}">${sanitizeText(card[key])}</div>`;
+                const r = parseInt(color.slice(1, 3), 16), g = parseInt(color.slice(3, 5), 16), b = parseInt(color.slice(5, 7), 16);
+                html += `<div class="card-subtitle-line" style="color:${color};background:rgba(${r},${g},${b},0.12)">${sanitizeText(card[key])}</div>`;
             });
         }
 
