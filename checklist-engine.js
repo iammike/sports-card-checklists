@@ -243,10 +243,16 @@ class ChecklistEngine {
         const accent = theme.accentColor || primary;
         const isDark = theme.darkTheme || false;
 
+        // Ensure text colors have sufficient contrast against card backgrounds
+        const linkColor = isDark ? primary : this._ensureContrast(primary, '#ffffff', 4.5);
+        const accentText = isDark ? accent : this._ensureContrast(accent, '#ffffff', 3);
+
         let css = `:root {
             --color-primary: ${primary};
             --color-primary-dark: ${dark};
             --color-accent: ${accent};
+            --color-link: ${linkColor};
+            --color-accent-text: ${accentText};
         }\n`;
 
         if (isDark) {
@@ -348,7 +354,7 @@ class ChecklistEngine {
             .card.owned {
                 border-color: ${accent};
             }
-            .player-name { color: ${primary}; font-size: 14px; font-weight: bold; margin-bottom: 4px; }
+            .player-name { color: ${linkColor}; font-size: 14px; font-weight: bold; margin-bottom: 4px; }
             .group-header {
                 border-bottom-color: ${accent};
             }
@@ -378,6 +384,35 @@ class ChecklistEngine {
         }
 
         document.getElementById('dynamic-theme').textContent = css;
+    }
+
+    // Returns a color darkened enough to meet the target contrast ratio against bg
+    _ensureContrast(fgHex, bgHex, targetRatio) {
+        const luminance = (hex) => {
+            const r = parseInt(hex.slice(1, 3), 16) / 255;
+            const g = parseInt(hex.slice(3, 5), 16) / 255;
+            const b = parseInt(hex.slice(5, 7), 16) / 255;
+            const toLinear = (c) => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+            return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+        };
+        const contrastRatio = (l1, l2) => {
+            const lighter = Math.max(l1, l2);
+            const darker = Math.min(l1, l2);
+            return (lighter + 0.05) / (darker + 0.05);
+        };
+        const bgL = luminance(bgHex);
+        let r = parseInt(fgHex.slice(1, 3), 16);
+        let g = parseInt(fgHex.slice(3, 5), 16);
+        let b = parseInt(fgHex.slice(5, 7), 16);
+        // Progressively darken until contrast is met (max 20 steps)
+        for (let i = 0; i < 20; i++) {
+            const hex = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+            if (contrastRatio(luminance(hex), bgL) >= targetRatio) return hex;
+            r = Math.round(r * 0.85);
+            g = Math.round(g * 0.85);
+            b = Math.round(b * 0.85);
+        }
+        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
     }
 
     _setPageMeta() {

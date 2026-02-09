@@ -935,7 +935,7 @@ select, input[type="text"] {
     display: inline-block;
     font-size: 11px;
     font-weight: 500;
-    color: var(--color-primary);
+    color: var(--color-link, var(--color-primary));
     text-decoration: none;
 }
 
@@ -2692,7 +2692,7 @@ select, input[type="text"] {
     margin: 6px 0;
 }
 .card-set {
-    color: var(--color-accent, #f39c12);
+    color: var(--color-accent-text, var(--color-accent, #f39c12));
 }
 
 /* Intro text block (used by dynamic checklists) */
