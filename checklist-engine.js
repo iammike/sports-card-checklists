@@ -626,9 +626,6 @@ class ChecklistEngine {
             }
         }
 
-        // Achievements
-        html += CardRenderer.renderAchievements(card.badges || card.achievement);
-
         // Card actions
         const isReadOnly = this.checklistManager.isReadOnly;
         html += `<div class="card-actions${isReadOnly && !owned ? ' links-only' : ''}">`;
@@ -648,7 +645,6 @@ class ChecklistEngine {
             </div>
             <div class="player-name">${sanitizeText(card.player)}</div>
             ${card.years ? `<div class="player-years">${sanitizeText(card.years)} &bull; ${sanitizeText(card.record || '')}</div>` : ''}
-            ${CardRenderer.renderAchievements(card.achievement)}
             <a href="${sanitizeUrl(card.collectionLink)}" class="collection-cta">View Full Collection</a>
         </div>`;
     }
@@ -1271,7 +1267,7 @@ class ChecklistEngine {
             if (cardData.ebay) { card.search = cardData.ebay; delete card.ebay; }
             if (cardData.priceSearch) { card.priceSearch = cardData.priceSearch; } else { delete card.priceSearch; }
             // Clean up falsy optional fields
-            ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant', 'achievement'].forEach(key => {
+            ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant'].forEach(key => {
                 if (!(key in cardData) || !cardData[key]) delete card[key];
             });
             // Re-sort
@@ -1285,7 +1281,7 @@ class ChecklistEngine {
             if (cardData.ebay) { card.search = cardData.ebay; delete card.ebay; }
             if (cardData.priceSearch) { card.priceSearch = cardData.priceSearch; } else { delete card.priceSearch; }
             // Clean up falsy optional fields
-            ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant', 'achievement'].forEach(key => {
+            ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant'].forEach(key => {
                 if (!(key in cardData) || !cardData[key]) delete card[key];
             });
             // Remove from old category, insert into new

@@ -3269,11 +3269,6 @@ class ChecklistCreatorModal {
                     <div class="creator-row-list" id="creator-subtitle-lines-list"></div>
                     <button type="button" class="creator-add-row" id="creator-add-subtitle-line">+ Add Subtitle Line</button>
 
-                    <div class="creator-subsection-label" style="margin-top: 14px;">Badges</div>
-                    <label class="card-editor-checkbox" title="Add a text field for achievements like Pro Bowl, All-Pro. Renders as gold pill badges on the card.">
-                        <input type="checkbox" id="creator-achievements">
-                        <span>Enable achievement badges</span>
-                    </label>
 
                     <div class="creator-subsection-label" style="margin-top: 14px;" title="Toggle which attribute fields appear in the card editor">Attributes</div>
                     <div class="creator-options-row">
@@ -3781,7 +3776,6 @@ class ChecklistCreatorModal {
         this.backdrop.querySelector('#creator-dark-theme').checked = false;
         this.backdrop.querySelector('#creator-use-sections').checked = true;
         this.backdrop.querySelector('#creator-show-player').checked = false;
-        this.backdrop.querySelector('#creator-achievements').checked = false;
         this.backdrop.querySelector('#creator-description').value = '';
 
         // Reset attribute checkboxes to checked
@@ -3837,10 +3831,6 @@ class ChecklistCreatorModal {
                 }
             });
         }
-
-        // Achievements
-        const hasAchievements = config.customFields && 'achievement' in config.customFields;
-        this.backdrop.querySelector('#creator-achievements').checked = hasAchievements;
 
         // Attribute toggles (default to checked if no customFields yet, otherwise check if present)
         const cf = config.customFields || {};
@@ -3946,10 +3936,6 @@ class ChecklistCreatorModal {
             customFields.serial = { label: 'Run', type: 'text', inputType: 'number', placeholder: '99', position: 'attributes' };
         }
 
-        // Achievement field
-        if (this.backdrop.querySelector('#creator-achievements').checked) {
-            customFields.achievement = { label: 'Achievements', type: 'text', placeholder: 'Pro Bowl, All-Pro', parseArray: true };
-        }
 
         config.customFields = customFields;
 
