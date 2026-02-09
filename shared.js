@@ -2162,7 +2162,7 @@ class CardEditorModal {
                     <div class="card-editor-grid">
                         ${this.generateCustomFieldsHtml('top')}
                         <div class="card-editor-set-row">
-                            <div class="card-editor-field" style="flex:2">
+                            <div class="card-editor-field" style="flex:3">
                                 <label class="card-editor-label">Set Name</label>
                                 <input type="text" class="card-editor-input" id="editor-set" placeholder="2024 Panini Prizm">
                             </div>
