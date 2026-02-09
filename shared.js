@@ -2897,11 +2897,6 @@ class CardEditorModal {
             this.backdrop.querySelector('#editor-set').focus();
             return false;
         }
-        if (!data.num) {
-            alert('Card number is required');
-            this.backdrop.querySelector('#editor-num').focus();
-            return false;
-        }
         return true;
     }
 
