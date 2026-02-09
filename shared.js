@@ -2733,7 +2733,8 @@ class CardEditorModal {
         }
         // Strip # from card number for editing
         this.backdrop.querySelector('#editor-num').value = (cardData.num || '').replace(/^#/, '');
-        this.backdrop.querySelector('#editor-type').value = cardData.type || 'Base';
+        const typeEl = this.backdrop.querySelector('#editor-type');
+        if (typeEl) typeEl.value = cardData.type || 'Base';
         this.backdrop.querySelector('#editor-price').value = cardData.price !== undefined ? cardData.price : '';
         const ebayValue = cardData.ebay || '';
         this.backdrop.querySelector('#editor-ebay').value = ebayValue;
@@ -2782,7 +2783,8 @@ class CardEditorModal {
         // Clear core form fields
         this.backdrop.querySelector('#editor-set').value = '';
         this.backdrop.querySelector('#editor-num').value = '';
-        this.backdrop.querySelector('#editor-type').value = 'Base';
+        const typeEl = this.backdrop.querySelector('#editor-type');
+        if (typeEl) typeEl.value = 'Base';
         this.backdrop.querySelector('#editor-price').value = '';
         this.backdrop.querySelector('#editor-ebay').value = '';
         this.backdrop.querySelector('#editor-img').value = '';
@@ -2839,7 +2841,7 @@ class CardEditorModal {
         const data = {
             set: this.backdrop.querySelector('#editor-set').value.trim(),
             num: num,
-            type: this.backdrop.querySelector('#editor-type').value
+            type: this.backdrop.querySelector('#editor-type')?.value || ''
         };
 
         // Image - only include if set (so clearing can delete it)
