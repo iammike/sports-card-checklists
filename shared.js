@@ -3367,32 +3367,7 @@ class ChecklistCreatorModal {
         // Default sort dropdown
         const select = this.backdrop.querySelector('#creator-default-sort');
         if (select) {
-            select.innerHTML = '';
-            // Built-in modes
-            Object.entries(ChecklistCreatorModal.DEFAULT_SORT_MODES).forEach(([key, label]) => {
-                const opt = document.createElement('option');
-                opt.value = key;
-                opt.textContent = label;
-                select.appendChild(opt);
-            });
-            // Add subtitle line fields as sort options
-            if (subtitleLines && subtitleLines.length > 0) {
-                subtitleLines.forEach(line => {
-                    const opt = document.createElement('option');
-                    opt.value = `field:${line.key}`;
-                    opt.textContent = `${line.label} (custom field)`;
-                    select.appendChild(opt);
-                });
-            }
-            select.value = defaultSortMode || 'as-entered';
-            // Auto-enable chip when a subtitle field is selected as default sort
-            select.onchange = () => {
-                const val = select.value;
-                if (val.startsWith('field:')) {
-                    const chip = this.backdrop.querySelector(`#creator-sort-chips .creator-sort-chip[data-sort="${val}"]`);
-                    if (chip && !chip.classList.contains('active')) chip.classList.add('active');
-                }
-            };
+            this._rebuildDefaultSortDropdown(defaultSortMode, subtitleLines);
         }
 
         // Sort chips (additional sorts beyond default)
@@ -3443,9 +3418,18 @@ class ChecklistCreatorModal {
         const select = this.backdrop.querySelector('#creator-default-sort');
         if (!select) return;
         const currentValue = select.value;
+        this._rebuildDefaultSortDropdown(currentValue);
+        if ([...select.options].some(o => o.value === currentValue)) {
+            select.value = currentValue;
+        }
+    }
 
-        // Rebuild options: built-in modes + current subtitle lines
+    _rebuildDefaultSortDropdown(selectedValue, subtitleLines) {
+        const select = this.backdrop.querySelector('#creator-default-sort');
+        if (!select) return;
         select.innerHTML = '';
+
+        // Base modes (As Entered, Alphabetical, Year, Set/Brand)
         Object.entries(ChecklistCreatorModal.DEFAULT_SORT_MODES).forEach(([key, label]) => {
             const opt = document.createElement('option');
             opt.value = key;
@@ -3453,18 +3437,32 @@ class ChecklistCreatorModal {
             select.appendChild(opt);
         });
 
-        const subtitleLines = this._getSubtitleLinesFromForm();
-        subtitleLines.forEach(line => {
+        // Chip-based sorts (Price Low, Price High, Scarcity)
+        Object.entries(ChecklistCreatorModal.SORT_OPTIONS).forEach(([key, label]) => {
+            if (ChecklistCreatorModal.DEFAULT_SORT_MODES[key]) return;
+            const opt = document.createElement('option');
+            opt.value = key;
+            opt.textContent = label;
+            select.appendChild(opt);
+        });
+
+        // Subtitle line fields
+        const lines = subtitleLines || this._getSubtitleLinesFromForm();
+        lines.forEach(line => {
             const opt = document.createElement('option');
             opt.value = `field:${line.key}`;
             opt.textContent = `${line.label} (custom field)`;
             select.appendChild(opt);
         });
 
-        // Restore selection if it still exists
-        if ([...select.options].some(o => o.value === currentValue)) {
-            select.value = currentValue;
-        }
+        select.value = selectedValue || 'as-entered';
+
+        // Auto-enable chip when a sort chip option is selected as default
+        select.onchange = () => {
+            const val = select.value;
+            const chip = this.backdrop.querySelector(`#creator-sort-chips .creator-sort-chip[data-sort="${val}"]`);
+            if (chip && !chip.classList.contains('active')) chip.classList.add('active');
+        };
     }
 
     _getSortOptionsFromForm() {
