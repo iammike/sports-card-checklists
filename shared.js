@@ -3246,17 +3246,14 @@ class ChecklistCreatorModal {
                     <div class="creator-section-divider"></div>
                     <div class="creator-section-label">Display</div>
 
-                    <div class="creator-options-row">
-                        <label class="card-editor-checkbox" title="Show a player name field on each card. Useful for checklists organized by player.">
-                            <input type="checkbox" id="creator-show-player">
-                            <span>Show player name on cards</span>
-                        </label>
-                    </div>
-
-                    <div class="card-editor-grid" style="margin-top: 12px;">
+                    <div class="creator-display-grid">
                         <div class="card-editor-field">
                             <label class="card-editor-label" title="How cards are ordered within each section by default">Default Sort</label>
                             <select class="card-editor-input card-editor-select" id="creator-default-sort" title="The sort applied when viewing the checklist normally"></select>
+                            <label class="card-editor-checkbox" style="margin-top: 8px;" title="Show a player name field on each card. Useful for checklists organized by player.">
+                                <input type="checkbox" id="creator-show-player">
+                                <span>Show player name on cards</span>
+                            </label>
                         </div>
                         <div class="card-editor-field">
                             <label class="card-editor-label" title="Extra sort options available in the sort dropdown on the checklist page">Additional Sorts</label>
