@@ -828,6 +828,7 @@
                             ${entry.extraPills.map(pill => {
                                 const owned = stats[pill.id + 'Owned'] || stats[pill.id + 'Total'] ? (stats[pill.id + 'Owned'] || 0) : 0;
                                 const total = stats[pill.id + 'Total'] || 0;
+                                if (total === 0) return '';
                                 return `<span class="stat-pill">${sanitizeText(pill.label)} <span class="count">${owned}/${total}</span></span>`;
                             }).join('')}
                         </div>` : ''}
