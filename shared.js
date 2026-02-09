@@ -2029,10 +2029,12 @@ class CardEditorModal {
                         <span>${config.label}</span>
                     </label>`;
                 } else {
-                    // Text field (e.g., serial)
+                    // Text/number field (e.g., serial)
+                    const inputType = config.inputType || 'text';
+                    const extraAttrs = inputType === 'number' ? ' min="1" step="1"' : '';
                     return `<div class="card-editor-attr-text">
                         <label for="${id}">${config.label}:</label>
-                        <input type="text" class="card-editor-input" id="${id}" placeholder="${config.placeholder || ''}">
+                        <input type="${inputType}" class="card-editor-input" id="${id}" placeholder="${config.placeholder || ''}"${extraAttrs}>
                     </div>`;
                 }
             }).join('');
@@ -3902,7 +3904,7 @@ class ChecklistCreatorModal {
             customFields.patch = { label: 'Patch', type: 'checkbox', position: 'attributes' };
         }
         if (this.backdrop.querySelector('#creator-attr-serial').checked) {
-            customFields.serial = { label: 'Run', type: 'text', placeholder: '99', position: 'attributes' };
+            customFields.serial = { label: 'Run', type: 'text', inputType: 'number', placeholder: '99', position: 'attributes' };
         }
 
         // Achievement field
