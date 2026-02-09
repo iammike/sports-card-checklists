@@ -4001,23 +4001,31 @@ class ChecklistCreatorModal {
                 const success = await githubSync.saveChecklistConfig(config.id, config);
                 if (!success) throw new Error('Failed to save config');
 
-                // Update registry nav label if changed
-                const registry = await githubSync.loadRegistry();
-                if (registry) {
-                    const entry = registry.checklists.find(c => c.id === config.id);
-                    if (entry) {
-                        entry.title = config.title;
-                        entry.navLabel = config.navLabel;
-                        entry.description = config.indexCard?.description || '';
-                        entry.accentColor = config.theme?.accentColor || config.theme?.primaryColor || '#667eea';
-                        entry.borderColor = config.theme?.primaryColor || '#667eea';
-                        entry.extraPills = extraPills.length > 0 ? extraPills : undefined;
-                        await githubSync.saveRegistry(registry);
-                        // Clear nav cache
-                        DynamicNav._registry = null;
-                        sessionStorage.removeItem(DynamicNav._sessionKey);
+                // Config saved - update local state immediately so the page reflects changes
+                this.close();
+                this.onCreated(config);
+
+                // Best-effort: update registry (nav label, pills, etc.)
+                try {
+                    const registry = await githubSync.loadRegistry();
+                    if (registry) {
+                        const entry = registry.checklists.find(c => c.id === config.id);
+                        if (entry) {
+                            entry.title = config.title;
+                            entry.navLabel = config.navLabel;
+                            entry.description = config.indexCard?.description || '';
+                            entry.accentColor = config.theme?.accentColor || config.theme?.primaryColor || '#667eea';
+                            entry.borderColor = config.theme?.primaryColor || '#667eea';
+                            entry.extraPills = extraPills.length > 0 ? extraPills : undefined;
+                            await githubSync.saveRegistry(registry);
+                        }
                     }
+                    DynamicNav._registry = null;
+                    sessionStorage.removeItem(DynamicNav._sessionKey);
+                } catch (regError) {
+                    console.warn('Config saved but registry update failed:', regError);
                 }
+                return;
             } else {
                 // Load or create registry
                 let registry = await githubSync.loadRegistry();
