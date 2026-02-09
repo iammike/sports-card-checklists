@@ -2008,42 +2008,6 @@ class CardEditorModal {
         return false;
     }
 
-    // Generate the Variant + Section row (flex 3:1 to match Set Name + Card Number)
-    _generateVariantSectionRow() {
-        const inlineFields = Object.entries(this.customFields)
-            .filter(([_, c]) => (c.position || 'top') === 'attributes' && c.fullWidth);
-        const hasSection = !!this.categories;
-        if (!inlineFields.length && !hasSection) return '';
-
-        const variantHtml = inlineFields.map(([name, c]) =>
-            '<div class="card-editor-field" style="flex:3">' +
-                '<label class="card-editor-label">' + (c.label || name) + '</label>' +
-                '<input type="text" class="card-editor-input" id="editor-' + name + '" placeholder="' + (c.placeholder || '') + '">' +
-            '</div>'
-        ).join('');
-
-        let sectionHtml = '';
-        if (hasSection) {
-            const options = this.categories.map(c => {
-                if (c.group) {
-                    const children = c.children.map(child =>
-                        '<option value="' + child.value + '">' + child.label + '</option>'
-                    ).join('');
-                    return '<optgroup label="' + c.group + '">' + children + '</optgroup>';
-                }
-                const label = typeof c === 'string' ? c.charAt(0).toUpperCase() + c.slice(1) : c.label;
-                const value = typeof c === 'string' ? c : c.value;
-                return '<option value="' + value + '">' + label + '</option>';
-            }).join('');
-            sectionHtml = '<div class="card-editor-field" style="flex:1">' +
-                '<label class="card-editor-label">Section</label>' +
-                '<select class="card-editor-select" id="editor-category">' + options + '</select>' +
-            '</div>';
-        }
-
-        return '<div class="card-editor-set-row">' + variantHtml + sectionHtml + '</div>';
-    }
-
     // Generate HTML for custom fields based on schema
     // position: 'top' (before set), 'after-num' (after card number), 'attributes' (horizontal row)
     generateCustomFieldsHtml(position = 'top') {
@@ -2197,15 +2161,13 @@ class CardEditorModal {
                 <div class="card-editor-body">
                     <div class="card-editor-grid">
                         ${this.generateCustomFieldsHtml('top')}
-                        <div class="card-editor-set-row">
-                            <div class="card-editor-field" style="flex:3">
-                                <label class="card-editor-label">Set Name</label>
-                                <input type="text" class="card-editor-input" id="editor-set" placeholder="2024 Panini Prizm">
-                            </div>
-                            <div class="card-editor-field" style="flex:1">
-                                <label class="card-editor-label">Card Number</label>
-                                <input type="text" class="card-editor-input" id="editor-num" placeholder="123">
-                            </div>
+                        <div class="card-editor-field">
+                            <label class="card-editor-label">Set Name</label>
+                            <input type="text" class="card-editor-input" id="editor-set" placeholder="2024 Panini Prizm">
+                        </div>
+                        <div class="card-editor-field">
+                            <label class="card-editor-label">Card Number</label>
+                            <input type="text" class="card-editor-input" id="editor-num" placeholder="123">
                         </div>
                         ${this.cardTypes.length > 0 ? `<div class="card-editor-field">
                             <label class="card-editor-label">Card Type</label>
@@ -2214,7 +2176,27 @@ class CardEditorModal {
                             </select>
                         </div>` : ''}
                         ${this.generateCustomFieldsHtml('after-num')}
-                        ${this._generateVariantSectionRow()}
+                        ${Object.entries(this.customFields)
+                            .filter(([_, c]) => (c.position || 'top') === 'attributes' && c.fullWidth)
+                            .map(([name, c]) => `<div class="card-editor-field">
+                            <label class="card-editor-label">${c.label}</label>
+                            <input type="text" class="card-editor-input" id="editor-${name}" placeholder="${c.placeholder || ''}">
+                        </div>`).join('')}
+                        ${this.categories ? `<div class="card-editor-field">
+                            <label class="card-editor-label">Section</label>
+                            <select class="card-editor-select" id="editor-category">
+                                ${this.categories.map(c => {
+                                    if (c.group) {
+                                        return `<optgroup label="${c.group}">${c.children.map(child =>
+                                            `<option value="${child.value}">${child.label}</option>`
+                                        ).join('')}</optgroup>`;
+                                    }
+                                    const label = typeof c === 'string' ? c.charAt(0).toUpperCase() + c.slice(1) : c.label;
+                                    const value = typeof c === 'string' ? c : c.value;
+                                    return `<option value="${value}">${label}</option>`;
+                                }).join('')}
+                            </select>
+                        </div>` : ''}
                         ${this.generateCustomFieldsHtml('attributes')}
                         <div class="card-editor-field full-width card-editor-advanced-toggle">
                             <button type="button" class="card-editor-toggle-btn" id="editor-toggle-advanced">Advanced</button>
