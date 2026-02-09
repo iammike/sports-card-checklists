@@ -3294,6 +3294,19 @@ class ChecklistCreatorModal {
                         </label>
                     </div>
 
+                    <div class="creator-subsection-label" style="margin-top: 14px;" title="Dollar thresholds for price badge colors: green (below mid), orange (mid to high), red (above high)">Price Badge Colors</div>
+                    <div class="creator-price-thresholds">
+                        <label title="Cards priced at or above this amount show an orange badge">
+                            <span class="creator-threshold-color" style="background: var(--color-warning, #ff9800)"></span>
+                            <span>$</span><input type="text" inputmode="numeric" id="creator-threshold-mid" value="3" class="creator-threshold-input">
+                        </label>
+                        <label title="Cards priced at or above this amount show a red badge">
+                            <span class="creator-threshold-color" style="background: var(--color-error, #f44336)"></span>
+                            <span>$</span><input type="text" inputmode="numeric" id="creator-threshold-high" value="10" class="creator-threshold-input">
+                        </label>
+                        <span class="creator-threshold-hint">Cards below $<span id="creator-threshold-mid-label">3</span> are green</span>
+                    </div>
+
                 </div>
                 <div class="card-editor-footer">
                     <button class="card-editor-btn save" id="creator-save">Create Checklist</button>
@@ -3320,6 +3333,11 @@ class ChecklistCreatorModal {
         });
         backdrop.querySelector('#creator-accent-color').addEventListener('input', (e) => {
             backdrop.querySelector('#creator-accent-hex').textContent = e.target.value;
+        });
+
+        // Update green hint when mid threshold changes
+        backdrop.querySelector('#creator-threshold-mid').addEventListener('input', (e) => {
+            backdrop.querySelector('#creator-threshold-mid-label').textContent = e.target.value || '0';
         });
 
         // Add category / subtitle line buttons
@@ -3795,6 +3813,11 @@ class ChecklistCreatorModal {
         this.backdrop.querySelector('#creator-attr-patch').checked = true;
         this.backdrop.querySelector('#creator-attr-serial').checked = true;
 
+        // Reset price thresholds
+        this.backdrop.querySelector('#creator-threshold-mid').value = '3';
+        this.backdrop.querySelector('#creator-threshold-high').value = '10';
+        this.backdrop.querySelector('#creator-threshold-mid-label').textContent = '3';
+
         // Show categories
         this.backdrop.querySelector('#creator-categories-field').style.display = '';
 
@@ -3849,6 +3872,12 @@ class ChecklistCreatorModal {
         this.backdrop.querySelector('#creator-attr-auto').checked = !config.customFields || 'auto' in cf;
         this.backdrop.querySelector('#creator-attr-patch').checked = !config.customFields || 'patch' in cf;
         this.backdrop.querySelector('#creator-attr-serial').checked = !config.customFields || 'serial' in cf;
+
+        // Price thresholds
+        const thresholds = config.cardDisplay?.priceThresholds || { mid: 3, high: 10 };
+        this.backdrop.querySelector('#creator-threshold-mid').value = thresholds.mid;
+        this.backdrop.querySelector('#creator-threshold-high').value = thresholds.high;
+        this.backdrop.querySelector('#creator-threshold-mid-label').textContent = thresholds.mid;
 
         // Sort options - extract subtitle lines for the default sort dropdown
         const subtitleLines = [];
@@ -3905,10 +3934,13 @@ class ChecklistCreatorModal {
             darkTheme: this.backdrop.querySelector('#creator-dark-theme').checked,
         };
         config.dataShape = dataShape;
+        const midThreshold = parseInt(this.backdrop.querySelector('#creator-threshold-mid').value) || 3;
+        const highThreshold = parseInt(this.backdrop.querySelector('#creator-threshold-high').value) || 10;
         config.cardDisplay = {
             ...(config.cardDisplay || {}),
             priceMode: 'explicit',
             showPlayerName: this.backdrop.querySelector('#creator-show-player').checked,
+            priceThresholds: { mid: midThreshold, high: highThreshold },
         };
 
         // Build customFields from form

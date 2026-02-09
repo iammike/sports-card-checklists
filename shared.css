@@ -2457,6 +2457,42 @@ select, input[type="text"] {
     color: #8b9cf7;
 }
 
+/* Price threshold inputs */
+.creator-price-thresholds {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.creator-price-thresholds label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    color: #ccc;
+}
+
+.creator-threshold-color {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+.creator-threshold-input {
+    width: 42px !important;
+    padding: 4px 6px !important;
+    font-size: 13px !important;
+    text-align: center;
+}
+
+.creator-threshold-hint {
+    font-size: 11px;
+    color: #666;
+}
+
 /* Simple row (subtitle lines) */
 .creator-row {
     display: flex;
