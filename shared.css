@@ -2349,6 +2349,11 @@ select, input[type="text"] {
     flex-wrap: wrap;
 }
 
+.creator-options-row .card-editor-checkbox {
+    flex: 1;
+    min-width: 0;
+}
+
 /* Category / subtitle row list */
 .creator-row-list {
     display: flex;
