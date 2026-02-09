@@ -1389,7 +1389,6 @@ select, input[type="text"] {
     display: flex;
     align-items: center;
     gap: 8px;
-    flex-wrap: wrap;
     padding: 4px 0;
 }
 
