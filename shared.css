@@ -662,6 +662,7 @@ select, input[type="text"] {
     align-items: center;
     justify-content: center;
     min-height: 180px;
+    max-width: 220px;
 }
 
 .empty-state-card:hover {
