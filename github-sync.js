@@ -790,12 +790,20 @@ class GitHubSync {
 
     // Create a new dynamic checklist: saves config, empty cards, and updates registry in one call
     async createChecklist(checklistId, config, registry) {
-        const emptyCards = { categories: {} };
-        // Initialize empty categories from config
-        if (config.categories) {
-            config.categories.forEach(cat => {
-                emptyCards.categories[cat.id] = [];
-            });
+        let emptyCards;
+        if (config.dataShape === 'flat') {
+            emptyCards = { cards: [] };
+        } else {
+            emptyCards = { categories: {} };
+            if (config.categories) {
+                config.categories.forEach(cat => {
+                    if (cat.children && cat.children.length > 0) {
+                        cat.children.forEach(child => { emptyCards.categories[child.id] = []; });
+                    } else {
+                        emptyCards.categories[cat.id] = [];
+                    }
+                });
+            }
         }
         return this._writeGistFiles({
             [`${checklistId}-config.json`]: config,

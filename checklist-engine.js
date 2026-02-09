@@ -199,7 +199,7 @@ class ChecklistEngine {
             const data = await githubSync.loadCardData(this.id);
             if (data) {
                 this.cardData = data;
-                this.cards = this._isFlat() ? data.cards : data.categories;
+                this.cards = this._isFlat() ? (data.cards || []) : (data.categories || {});
                 return;
             }
         }
@@ -207,7 +207,7 @@ class ChecklistEngine {
         const publicData = await githubSync.loadPublicCardData(this.id);
         if (publicData) {
             this.cardData = publicData;
-            this.cards = this._isFlat() ? publicData.cards : publicData.categories;
+            this.cards = this._isFlat() ? (publicData.cards || []) : (publicData.categories || {});
             return;
         }
 
