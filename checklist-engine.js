@@ -776,6 +776,7 @@ class ChecklistEngine {
             this._renderCategoryCards(container, sortBy, statusFilter, searchTerm, customFilterValues);
         }
 
+        CollapsibleSections.init({ persist: true, storageKey: `${this.id}-collapsed` });
         this.updateStats();
     }
 
@@ -875,7 +876,6 @@ class ChecklistEngine {
             </div>`;
         });
         container.innerHTML = html;
-        CollapsibleSections.init({ persist: true, storageKey: `${this.id}-collapsed` });
     }
 
     _renderCategoryCards(container, sortBy, statusFilter, searchTerm, customFilterValues) {
