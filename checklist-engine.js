@@ -261,6 +261,8 @@ class ChecklistEngine {
                 --color-background: linear-gradient(135deg, ${dark} 0%, #1a1a1a 100%);
                 --color-surface: rgba(255,255,255,0.05);
                 --color-text: #fff;
+                --color-text-muted: #aaa;
+                --color-text-light: #888;
                 --auth-bg: rgba(0,0,0,0.2);
                 --stat-bg: rgba(255,255,255,0.1);
                 --stat-value-color: ${accent};
