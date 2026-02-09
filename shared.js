@@ -2047,6 +2047,7 @@ class CardEditorModal {
                         <input type="text" class="card-editor-input" id="editor-price" placeholder="$" inputmode="decimal">
                     </div>`;
             return `<div class="card-editor-field full-width card-editor-attributes">
+                <label class="card-editor-label">Attributes</label>
                 <div class="card-editor-attr-row">
                     ${innerHtml}
                     ${priceHtml}
