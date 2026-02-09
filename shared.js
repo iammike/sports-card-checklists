@@ -2161,13 +2161,15 @@ class CardEditorModal {
                 <div class="card-editor-body">
                     <div class="card-editor-grid">
                         ${this.generateCustomFieldsHtml('top')}
-                        <div class="card-editor-field">
-                            <label class="card-editor-label">Set Name</label>
-                            <input type="text" class="card-editor-input" id="editor-set" placeholder="2024 Panini Prizm">
-                        </div>
-                        <div class="card-editor-field">
-                            <label class="card-editor-label">Card Number</label>
-                            <input type="text" class="card-editor-input" id="editor-num" placeholder="123">
+                        <div class="card-editor-set-row">
+                            <div class="card-editor-field" style="flex:2">
+                                <label class="card-editor-label">Set Name</label>
+                                <input type="text" class="card-editor-input" id="editor-set" placeholder="2024 Panini Prizm">
+                            </div>
+                            <div class="card-editor-field" style="flex:1">
+                                <label class="card-editor-label">Card Number</label>
+                                <input type="text" class="card-editor-input" id="editor-num" placeholder="123">
+                            </div>
                         </div>
                         ${this.cardTypes.length > 0 ? `<div class="card-editor-field">
                             <label class="card-editor-label">Card Type</label>
