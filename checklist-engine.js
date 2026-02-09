@@ -153,6 +153,7 @@ class ChecklistEngine {
                 this.config = updatedConfig;
                 this._applyTheme();
                 this._setPageMeta();
+                this._renderFilters();
                 this._initCardEditor();
                 this.renderCards();
                 this.updateStats();
@@ -758,10 +759,22 @@ class ChecklistEngine {
                 sorted.sort((a, b) => this._getSetName(a).localeCompare(this._getSetName(b)));
                 break;
             case 'price-low':
-                sorted.sort((a, b) => this.getPrice(a) - this.getPrice(b));
+                sorted.sort((a, b) => {
+                    const ap = this.getPrice(a), bp = this.getPrice(b);
+                    if (!ap && !bp) return 0;
+                    if (!ap) return 1;
+                    if (!bp) return -1;
+                    return ap - bp;
+                });
                 break;
             case 'price-high':
-                sorted.sort((a, b) => this.getPrice(b) - this.getPrice(a));
+                sorted.sort((a, b) => {
+                    const ap = this.getPrice(a), bp = this.getPrice(b);
+                    if (!ap && !bp) return 0;
+                    if (!ap) return 1;
+                    if (!bp) return -1;
+                    return bp - ap;
+                });
                 break;
             case 'scarcity':
                 sorted.sort((a, b) => {
