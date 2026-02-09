@@ -1117,6 +1117,7 @@ class ChecklistEngine {
                 await this._saveCardData();
             },
         });
+        this.cardEditor.init();
     }
 
     // ========================================

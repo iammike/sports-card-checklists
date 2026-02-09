@@ -2149,7 +2149,9 @@ class CardEditorModal {
 
     // Initialize - create modal DOM
     init() {
-        if (document.querySelector('.card-editor-backdrop')) return;
+        // Remove existing backdrop so re-init works after settings changes
+        const existing = document.querySelector('.card-editor-backdrop');
+        if (existing) existing.remove();
 
         const backdrop = document.createElement('div');
         backdrop.className = 'card-editor-backdrop';
