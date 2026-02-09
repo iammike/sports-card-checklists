@@ -3502,13 +3502,13 @@ class ChecklistCreatorModal {
                     <input type="text" placeholder="${isParent ? 'Section name' : 'Subsection name'}" value="${this._escAttr(label)}">
                 </div>
                 <span class="creator-row-id ${isExisting ? 'locked' : ''}">${this._escHtml(id)}</span>
-                ${isParent ? `<label class="creator-row-extra" title="Exclude from main totals">
+                ${isParent ? `<label class="creator-row-extra" title="Track this section separately from the main totals">
                     <input type="checkbox" ${isExtra ? 'checked' : ''}>
-                    <span>Extra</span>
+                    <span>Bonus</span>
                 </label>
-                <label class="creator-row-index ${isExtra ? '' : 'hidden'}" title="Show pill on index page card">
+                <label class="creator-row-index ${isExtra ? '' : 'hidden'}" title="Feature this section's stats on the homepage card">
                     <input type="checkbox" ${data?.showOnIndex ? 'checked' : ''}>
-                    <span>Index</span>
+                    <span>Feature</span>
                 </label>` : ''}
                 <div class="creator-row-arrows">
                     <button type="button" class="creator-row-up" title="Move up">&#9650;</button>
@@ -3612,8 +3612,8 @@ class ChecklistCreatorModal {
             if (!cb.checked) {
                 cb.disabled = atLimit;
                 cb.closest('.creator-row-index').title = atLimit
-                    ? 'Maximum of 3 index pills reached'
-                    : 'Show pill on index page card';
+                    ? 'Maximum of 3 featured sections reached'
+                    : 'Feature this section\'s stats on the homepage card';
             }
         });
     }
