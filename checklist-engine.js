@@ -599,9 +599,12 @@ class ChecklistEngine {
             .filter(([_, c]) => c.position === 'bottom' && card[_]);
         if (subtitleFields.length > 0) {
             subtitleFields.forEach(([key, config]) => {
+                const hasColor = config.color && config.color !== '#888888';
                 const color = this._ensureContrast(config.color || '#888888', this._cardBg || '#ffffff', 4.5);
                 const r = parseInt(color.slice(1, 3), 16), g = parseInt(color.slice(3, 5), 16), b = parseInt(color.slice(5, 7), 16);
-                html += `<div class="card-subtitle-line" style="color:${color};background:rgba(${r},${g},${b},0.12)">${sanitizeText(card[key])}</div>`;
+                const pillStyle = hasColor ? `;background:rgba(${r},${g},${b},0.12)` : '';
+                const pillClass = hasColor ? ' pill' : '';
+                html += `<div class="card-subtitle-line${pillClass}" style="color:${color}${pillStyle}">${sanitizeText(card[key])}</div>`;
             });
         }
 
