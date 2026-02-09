@@ -1498,6 +1498,8 @@ select, input[type="text"] {
     display: flex;
     align-items: center;
     gap: 6px;
+    flex: 1;
+    min-width: 0;
 }
 
 .card-editor-attr-text label {
@@ -1509,20 +1511,11 @@ select, input[type="text"] {
 }
 
 .card-editor-attr-text .card-editor-input {
-    width: 60px;
+    flex: 1;
+    min-width: 50px;
+    width: auto;
     padding: 8px 10px !important;
     font-size: 13px !important;
-}
-
-.card-editor-attr-price {
-    flex: 1;
-    min-width: 0;
-}
-
-.card-editor-attr-price .card-editor-input {
-    width: auto;
-    flex: 1;
-    min-width: 0;
 }
 
 
