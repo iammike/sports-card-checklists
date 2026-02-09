@@ -3539,11 +3539,14 @@ class ChecklistCreatorModal {
             extraCheckbox.onchange = () => {
                 indexLabel.classList.toggle('hidden', !extraCheckbox.checked);
                 if (!extraCheckbox.checked) indexLabel.querySelector('input').checked = false;
+                this._updateIndexPillLimit();
             };
+            // Index checkbox change updates limit state
+            indexLabel.querySelector('input').onchange = () => this._updateIndexPillLimit();
         }
 
         // Remove button
-        row.querySelector('.creator-row-remove').onclick = () => row.remove();
+        row.querySelector('.creator-row-remove').onclick = () => { row.remove(); this._updateIndexPillLimit(); };
 
         // Reorder arrows
         row.querySelector('.creator-row-up').onclick = () => {
@@ -3599,6 +3602,20 @@ class ChecklistCreatorModal {
         }
         usedIds.add(unique);
         return unique;
+    }
+
+    _updateIndexPillLimit() {
+        const indexCheckboxes = this.backdrop.querySelectorAll('.creator-row-index input[type="checkbox"]');
+        const checkedCount = [...indexCheckboxes].filter(cb => cb.checked).length;
+        const atLimit = checkedCount >= 3;
+        indexCheckboxes.forEach(cb => {
+            if (!cb.checked) {
+                cb.disabled = atLimit;
+                cb.closest('.creator-row-index').title = atLimit
+                    ? 'Maximum of 3 index pills reached'
+                    : 'Show pill on index page card';
+            }
+        });
     }
 
     _getCategoriesFromForm() {
@@ -3806,6 +3823,7 @@ class ChecklistCreatorModal {
         } else {
             this._addCategoryRow({ id: 'base', label: 'Base Cards', isMain: true });
         }
+        this._updateIndexPillLimit();
 
         // Subtitle lines: extract from customFields (position: 'top', type: 'text', key != 'player')
         this.backdrop.querySelector('#creator-subtitle-lines-list').innerHTML = '';

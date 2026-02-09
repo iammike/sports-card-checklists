@@ -2450,6 +2450,16 @@ select, input[type="text"] {
 .creator-row-extra input,
 .creator-row-index input { cursor: pointer; }
 
+.creator-row-index input:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+}
+
+.creator-row-index:has(input:disabled) {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
 .creator-row-index.hidden {
     visibility: hidden;
     pointer-events: none;
