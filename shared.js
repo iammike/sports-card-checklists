@@ -2051,7 +2051,7 @@ class CardEditorModal {
             </div>`;
         }
 
-        return fields.map(([fieldName, config]) => {
+        const fieldHtml = fields.map(([fieldName, config]) => {
             const id = `editor-${fieldName}`;
             const fullWidth = config.fullWidth ? ' full-width' : '';
             const placeholder = config.placeholder || '';
@@ -2083,6 +2083,16 @@ class CardEditorModal {
                 </div>`;
             }
         }).join('');
+
+        // Bottom fields get their own equal-column grid
+        if (position === 'bottom') {
+            const cols = fields.length === 1 ? '1fr' : 'repeat(2, 1fr)';
+            return `<div class="card-editor-field full-width" style="display:grid;grid-template-columns:${cols};gap:16px;">
+                ${fieldHtml}
+            </div>`;
+        }
+
+        return fieldHtml;
     }
 
     // Populate custom fields from card data
