@@ -1439,13 +1439,9 @@ select, input[type="text"] {
 }
 
 .card-editor-attr-text .card-editor-input {
-    width: 80px;
+    width: 60px;
     padding: 8px 10px !important;
     font-size: 13px !important;
-}
-
-.card-editor-attr-price {
-    margin-left: auto;
 }
 
 .card-editor-attr-price .card-editor-input {
