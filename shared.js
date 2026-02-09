@@ -2041,7 +2041,7 @@ class CardEditorModal {
             const priceHtml = `
                     <div class="card-editor-attr-text card-editor-attr-price">
                         <label for="editor-price">Price:</label>
-                        <input type="number" class="card-editor-input" id="editor-price" placeholder="Auto" step="1" min="0">
+                        <input type="number" class="card-editor-input" id="editor-price" placeholder="$" step="1" min="0">
                     </div>`;
             return `<div class="card-editor-field full-width card-editor-attributes">
                 <div class="card-editor-attr-row">
