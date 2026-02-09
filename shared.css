@@ -1355,6 +1355,16 @@ select, input[type="text"] {
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: #888;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.card-editor-color-hint {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
 }
 
 .card-editor-modal .card-editor-input,

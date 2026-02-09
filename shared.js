@@ -2076,8 +2076,9 @@ class CardEditorModal {
                 </div>`;
             } else {
                 // Default: text input
+                const colorHint = config.color ? `<span class="card-editor-color-hint" style="background:${config.color}"></span>` : '';
                 return `<div class="card-editor-field${fullWidth}">
-                    <label class="card-editor-label">${config.label}</label>
+                    <label class="card-editor-label">${config.label}${colorHint}</label>
                     <input type="text" class="card-editor-input" id="${id}" placeholder="${placeholder}">
                 </div>`;
             }
