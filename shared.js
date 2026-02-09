@@ -2009,7 +2009,7 @@ class CardEditorModal {
     }
 
     // Generate HTML for custom fields based on schema
-    // position: 'top' (before set), 'after-num' (after card number), 'attributes' (horizontal row)
+    // position: 'top' (before set), 'after-num' (after card number), 'attributes' (horizontal row), 'bottom' (after attributes)
     generateCustomFieldsHtml(position = 'top') {
         const fields = Object.entries(this.customFields)
             .filter(([_, config]) => (config.position || 'top') === position);
@@ -2203,6 +2203,7 @@ class CardEditorModal {
                             </select>
                         </div>` : ''}
                         ${this.generateCustomFieldsHtml('attributes')}
+                        ${this.generateCustomFieldsHtml('bottom')}
                         <div class="card-editor-field full-width card-editor-advanced-toggle">
                             <button type="button" class="card-editor-toggle-btn" id="editor-toggle-advanced">Advanced</button>
                         </div>
@@ -3903,7 +3904,7 @@ class ChecklistCreatorModal {
             customFields[line.key] = {
                 label: line.label,
                 type: 'text',
-                position: 'top',
+                position: 'bottom',
                 color: line.color !== '#888888' ? line.color : undefined,
             };
         });

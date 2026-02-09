@@ -534,7 +534,18 @@ class ChecklistEngine {
             html += `<div class="player-name">${sanitizeText(card.player)}</div>`;
         }
 
-        // Player years + record (Washington QBs style)
+        // Custom subtitle lines (config-driven)
+        const customFields = this.config.customFields || {};
+        const subtitleFields = Object.entries(customFields)
+            .filter(([_, c]) => c.position === 'bottom' && card[_]);
+        if (subtitleFields.length > 0) {
+            subtitleFields.forEach(([key, config]) => {
+                const color = config.color || '#888';
+                html += `<div class="card-subtitle-line" style="color:${color}">${sanitizeText(card[key])}</div>`;
+            });
+        }
+
+        // Player years + record (Washington QBs style - legacy)
         if (card.years) {
             html += `<div class="player-years">${sanitizeText(card.years)}`;
             if (card.record) html += ` &bull; ${sanitizeText(card.record)}`;
