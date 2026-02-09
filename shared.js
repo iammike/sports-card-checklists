@@ -3678,10 +3678,12 @@ class ChecklistCreatorModal {
         const color = data?.color || '#888888';
         const label = data?.label || '';
         const key = data?.key || '';
+        const pill = data?.pill || false;
         const isExisting = this.editMode && !!data?.key;
 
         row.innerHTML = `
             <input type="color" value="${color}" title="Text color for this line">
+            <button type="button" class="creator-pill-toggle ${pill ? 'active' : ''}" title="Toggle pill background">pill</button>
             <div class="creator-row-label">
                 <input type="text" placeholder="Field label (e.g. Years Active)" value="${this._escAttr(label)}">
             </div>
@@ -3692,6 +3694,10 @@ class ChecklistCreatorModal {
             </div>
             <button type="button" class="creator-row-remove" title="Remove">&times;</button>
         `;
+
+        row.querySelector('.creator-pill-toggle').onclick = (e) => {
+            e.currentTarget.classList.toggle('active');
+        };
 
         const labelInput = row.querySelector('.creator-row-label input');
         const idSpan = row.querySelector('.creator-row-id');
@@ -3738,7 +3744,8 @@ class ChecklistCreatorModal {
             const idText = row.querySelector('.creator-row-id').textContent.trim();
             const key = idText || this._slugify(label);
             const color = row.querySelector('input[type="color"]').value;
-            lines.push({ key, label, color });
+            const pill = row.querySelector('.creator-pill-toggle')?.classList.contains('active') || false;
+            lines.push({ key, label, color, pill });
         });
         return lines;
     }
@@ -3827,7 +3834,7 @@ class ChecklistCreatorModal {
         if (config.customFields) {
             Object.entries(config.customFields).forEach(([key, field]) => {
                 if (field.position === 'bottom' && field.type === 'text' && key !== 'player') {
-                    this._addSubtitleLineRow({ key, label: field.label, color: field.color || '#888888' });
+                    this._addSubtitleLineRow({ key, label: field.label, color: field.color || '#888888', pill: field.pill || false });
                 }
             });
         }
@@ -3919,6 +3926,7 @@ class ChecklistCreatorModal {
                 type: 'text',
                 position: 'bottom',
                 color: line.color !== '#888888' ? line.color : undefined,
+                pill: line.pill || undefined,
             };
         });
 

@@ -2431,6 +2431,32 @@ select, input[type="text"] {
     border-radius: 50%;
 }
 
+/* Pill toggle button in subtitle rows */
+.creator-pill-toggle {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    padding: 2px 8px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: transparent;
+    color: #666;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+}
+
+.creator-pill-toggle:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #999;
+}
+
+.creator-pill-toggle.active {
+    background: rgba(102, 126, 234, 0.2);
+    border-color: rgba(102, 126, 234, 0.4);
+    color: #8b9cf7;
+}
+
 /* Simple row (subtitle lines) */
 .creator-row {
     display: flex;

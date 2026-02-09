@@ -385,7 +385,7 @@ class ChecklistEngine {
                     const toLinear = (c) => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
                     return sum + 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
                 }, 0) / colors.length;
-                return avgL > 0.4 ? ' color: #1a1a1a;' : '';
+                return avgL > 0.4 ? ' color: #1a1a1a;' : ' color: #ffffff;';
             };
             this.config.categories.forEach(cat => {
                 if (cat.gradient) {
@@ -599,11 +599,10 @@ class ChecklistEngine {
             .filter(([_, c]) => c.position === 'bottom' && card[_]);
         if (subtitleFields.length > 0) {
             subtitleFields.forEach(([key, config]) => {
-                const hasColor = config.color && config.color !== '#888888';
                 const color = this._ensureContrast(config.color || '#888888', this._cardBg || '#ffffff', 4.5);
                 const r = parseInt(color.slice(1, 3), 16), g = parseInt(color.slice(3, 5), 16), b = parseInt(color.slice(5, 7), 16);
-                const pillStyle = hasColor ? `;background:rgba(${r},${g},${b},0.12)` : '';
-                const pillClass = hasColor ? ' pill' : '';
+                const pillStyle = config.pill ? `;background:rgba(${r},${g},${b},0.12)` : '';
+                const pillClass = config.pill ? ' pill' : '';
                 html += `<div class="card-subtitle-line${pillClass}" style="color:${color}${pillStyle}">${sanitizeText(card[key])}</div>`;
             });
         }
