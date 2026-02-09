@@ -250,6 +250,8 @@ class ChecklistEngine {
         const textColor = this._ensureContrast(isDark ? '#cccccc' : '#333333', cardBg, 7);
         const textMuted = this._ensureContrast(isDark ? '#999999' : '#666666', cardBg, 4.5);
         const textLight = this._ensureContrast(isDark ? '#777777' : '#999999', cardBg, 3);
+        // Header text: ensure contrast against the primary/dark gradient used for section headers
+        const headerText = this._ensureContrast('#ffffff', primary, 3);
 
         let css = `:root {
             --color-primary: ${primary};
@@ -260,6 +262,7 @@ class ChecklistEngine {
             --color-text: ${textColor};
             --color-text-muted: ${textMuted};
             --color-text-light: ${textLight};
+            --color-header-text: ${headerText};
         }\n`;
 
         if (isDark) {

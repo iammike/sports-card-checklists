@@ -606,7 +606,7 @@ select, input[type="text"] {
 .section-header {
     font-family: 'Bebas Neue', sans-serif;
     background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
-    color: white;
+    color: var(--color-header-text, white);
     padding: 14px 20px;
     border-radius: var(--radius-md) var(--radius-md) 0 0;
     font-size: 1.3em;
