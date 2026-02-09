@@ -767,7 +767,10 @@ class ChecklistEngine {
             if (el) customFilterValues[f.id] = el.value;
         });
 
-        if (this._isFlat()) {
+        const totalCards = this._getAllCardsFlat().length;
+        if (totalCards === 0) {
+            this._renderEmptyState(container);
+        } else if (this._isFlat()) {
             this._renderFlatCards(container, sortBy, statusFilter, searchTerm, customFilterValues);
         } else {
             this._renderCategoryCards(container, sortBy, statusFilter, searchTerm, customFilterValues);
@@ -809,6 +812,27 @@ class ChecklistEngine {
         }
 
         return true;
+    }
+
+    _renderEmptyState(container) {
+        const isOwner = this.checklistManager.isOwner();
+        if (isOwner) {
+            container.innerHTML = `<div class="card-grid">
+                <div class="empty-state-card">
+                    <div class="empty-state-icon">+</div>
+                    <div class="empty-state-text">Add your first card</div>
+                </div>
+            </div>`;
+            container.querySelector('.empty-state-card').addEventListener('click', () => {
+                this.cardEditor.openNew(this._getDefaultCategory());
+            });
+        } else {
+            container.innerHTML = `<div class="card-grid">
+                <div class="empty-state-card empty-state-readonly">
+                    <div class="empty-state-text">No cards yet</div>
+                </div>
+            </div>`;
+        }
     }
 
     _renderFlatCards(container, sortBy, statusFilter, searchTerm, customFilterValues) {
