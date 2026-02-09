@@ -246,6 +246,7 @@ class ChecklistEngine {
 
         // Derive text colors with sufficient contrast against the effective card background
         const cardBg = isDark ? '#1a1a1a' : '#ffffff';
+        this._cardBg = cardBg;
         const linkColor = this._ensureContrast(primary, cardBg, 4.5);
         const accentText = this._ensureContrast(accent, cardBg, 3);
         const textColor = this._ensureContrast(isDark ? '#cccccc' : '#333333', cardBg, 7);
@@ -598,7 +599,7 @@ class ChecklistEngine {
             .filter(([_, c]) => c.position === 'bottom' && card[_]);
         if (subtitleFields.length > 0) {
             subtitleFields.forEach(([key, config]) => {
-                const color = config.color || '#888';
+                const color = this._ensureContrast(config.color || '#888888', this._cardBg || '#ffffff', 4.5);
                 const r = parseInt(color.slice(1, 3), 16), g = parseInt(color.slice(3, 5), 16), b = parseInt(color.slice(5, 7), 16);
                 html += `<div class="card-subtitle-line" style="color:${color};background:rgba(${r},${g},${b},0.12)">${sanitizeText(card[key])}</div>`;
             });
