@@ -1980,7 +1980,8 @@ class CardEditorModal {
         // Types: 'text', 'select', 'checkbox'
         // For select: options is array of { value, label } or just strings
         this.customFields = options.customFields || {};
-        this.priceInAttributes = options.priceInAttributes || false;
+        // priceInAttributes is now always true - price renders in the compact attributes row
+        this.priceInAttributes = true;
     }
 
     // Generate eBay search term from card data
@@ -2015,18 +2016,10 @@ class CardEditorModal {
 
         if (fields.length === 0 && position !== 'attributes') return '';
 
-        // Attributes position renders as a compact horizontal row (always includes Price)
+        // Attributes position renders as a compact horizontal row with price
         if (position === 'attributes') {
-            // Separate full-width fields (e.g. variant) from compact row fields
-            const fullWidthFields = fields.filter(([_, c]) => c.fullWidth);
+            // fullWidth fields (e.g. variant) are rendered inline in the template grid, not here
             const rowFields = fields.filter(([_, c]) => !c.fullWidth);
-
-            const fullWidthHtml = fullWidthFields.map(([fieldName, config]) => {
-                const id = `editor-${fieldName}`;
-                return `<div class="card-editor-attr-fullwidth">
-                    <input type="text" class="card-editor-input" id="${id}" placeholder="${config.placeholder || config.label || ''}">
-                </div>`;
-            }).join('');
 
             const innerHtml = rowFields.map(([fieldName, config]) => {
                 const id = `editor-${fieldName}`;
@@ -2043,13 +2036,12 @@ class CardEditorModal {
                     </div>`;
                 }
             }).join('');
-            const priceHtml = this.priceInAttributes ? `
+            const priceHtml = `
                     <div class="card-editor-attr-text card-editor-attr-price">
                         <label for="editor-price">Price:</label>
                         <input type="number" class="card-editor-input" id="editor-price" placeholder="Auto" step="1" min="0">
-                    </div>` : '';
+                    </div>`;
             return `<div class="card-editor-field full-width card-editor-attributes">
-                ${fullWidthHtml}
                 <div class="card-editor-attr-row">
                     ${innerHtml}
                     ${priceHtml}
@@ -2199,10 +2191,12 @@ class CardEditorModal {
                                 }).join('')}
                             </select>
                         </div>` : ''}
-                        ${!this.priceInAttributes ? `<div class="card-editor-field">
-                            <label class="card-editor-label">Price ($)</label>
-                            <input type="number" class="card-editor-input" id="editor-price" placeholder="Auto" step="1" min="0">
-                        </div>` : ''}
+                        ${Object.entries(this.customFields)
+                            .filter(([_, c]) => (c.position || 'top') === 'attributes' && c.fullWidth)
+                            .map(([name, c]) => `<div class="card-editor-field">
+                            <label class="card-editor-label">${c.label}</label>
+                            <input type="text" class="card-editor-input" id="editor-${name}" placeholder="${c.placeholder || ''}">
+                        </div>`).join('')}
                         ${this.generateCustomFieldsHtml('attributes')}
                         <div class="card-editor-field full-width card-editor-advanced-toggle">
                             <button type="button" class="card-editor-toggle-btn" id="editor-toggle-advanced">Advanced</button>

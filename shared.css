@@ -1385,14 +1385,6 @@ select, input[type="text"] {
     margin-top: -4px;
 }
 
-.card-editor-attr-fullwidth {
-    margin-bottom: 6px;
-}
-
-.card-editor-attr-fullwidth .card-editor-input {
-    width: 100%;
-}
-
 .card-editor-attr-row {
     display: flex;
     align-items: center;
