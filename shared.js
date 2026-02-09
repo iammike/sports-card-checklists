@@ -3822,11 +3822,11 @@ class ChecklistCreatorModal {
         }
         this._updateIndexPillLimit();
 
-        // Subtitle lines: extract from customFields (position: 'top', type: 'text', key != 'player')
+        // Subtitle lines: extract from customFields (position: 'bottom', type: 'text', key != 'player')
         this.backdrop.querySelector('#creator-subtitle-lines-list').innerHTML = '';
         if (config.customFields) {
             Object.entries(config.customFields).forEach(([key, field]) => {
-                if (field.position === 'top' && field.type === 'text' && key !== 'player') {
+                if (field.position === 'bottom' && field.type === 'text' && key !== 'player') {
                     this._addSubtitleLineRow({ key, label: field.label, color: field.color || '#888888' });
                 }
             });
@@ -3847,7 +3847,7 @@ class ChecklistCreatorModal {
         const subtitleLines = [];
         if (config.customFields) {
             Object.entries(config.customFields).forEach(([key, field]) => {
-                if (field.position === 'top' && field.type === 'text' && key !== 'player') {
+                if (field.position === 'bottom' && field.type === 'text' && key !== 'player') {
                     subtitleLines.push({ key, label: field.label });
                 }
             });
