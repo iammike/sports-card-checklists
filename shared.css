@@ -2187,18 +2187,6 @@ select, input[type="text"] {
     padding: 24px 28px;
 }
 
-/* Section labels between groups */
-.creator-checkbox-label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    color: #aaa;
-    cursor: pointer;
-}
-
-.creator-checkbox-label input { cursor: pointer; }
-
 /* Section divider - generous breathing room between sections */
 .creator-section-divider {
     border-top: 1px solid rgba(255, 255, 255, 0.05);

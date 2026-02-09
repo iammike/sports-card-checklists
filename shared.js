@@ -3223,7 +3223,7 @@ class ChecklistCreatorModal {
 
                     <div class="card-editor-grid">
                         <div class="card-editor-field">
-                            <label class="creator-checkbox-label" title="Group cards into named sections with headers. Uncheck for a single flat list.">
+                            <label class="card-editor-checkbox" title="Group cards into named sections with headers. Uncheck for a single flat list.">
                                 <input type="checkbox" id="creator-use-sections" checked>
                                 <span>Organize cards into sections</span>
                             </label>
