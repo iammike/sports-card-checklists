@@ -1803,9 +1803,20 @@ select, input[type="text"] {
 
 /* Mobile responsive */
 @media (max-width: 500px) {
+    .card-editor-backdrop {
+        align-items: flex-start;
+    }
+
     .card-editor-modal {
-        width: 95%;
-        max-height: 95vh;
+        width: 100%;
+        max-width: 100%;
+        max-height: 100vh;
+        max-height: 100dvh;
+        border-radius: 0;
+    }
+
+    .card-editor-header {
+        padding: 16px 16px 12px;
     }
 
     .card-editor-grid {
@@ -1813,11 +1824,14 @@ select, input[type="text"] {
     }
 
     .card-editor-body {
-        max-height: 55vh;
+        max-height: calc(100vh - 130px);
+        max-height: calc(100dvh - 130px);
+        padding: 16px;
     }
 
     .card-editor-footer {
         flex-wrap: wrap;
+        padding: 12px 16px 16px;
     }
 
     .card-editor-btn {
