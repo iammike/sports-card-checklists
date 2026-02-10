@@ -2337,6 +2337,12 @@ select, input[type="text"] {
     flex-shrink: 0;
 }
 
+@media (max-width: 500px) {
+    .creator-dark-toggle {
+        margin-left: 0;
+    }
+}
+
 .creator-hint {
     font-family: 'Barlow', sans-serif;
     font-size: 11px;
