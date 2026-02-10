@@ -2369,8 +2369,14 @@ select, input[type="text"] {
 }
 
 .creator-options-row .card-editor-checkbox {
-    flex: 1 1 calc(50% - 4px);
+    flex: 1;
     min-width: 0;
+}
+
+@media (max-width: 500px) {
+    .creator-options-row .card-editor-checkbox {
+        flex-basis: calc(50% - 4px);
+    }
 }
 
 /* Category / subtitle row list */
