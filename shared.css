@@ -2369,8 +2369,8 @@ select, input[type="text"] {
 }
 
 .creator-options-row .card-editor-checkbox {
-    flex: 1;
-    min-width: 80px;
+    flex: 1 1 calc(50% - 4px);
+    min-width: 0;
 }
 
 /* Category / subtitle row list */
