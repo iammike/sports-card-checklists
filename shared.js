@@ -2044,7 +2044,7 @@ class CardEditorModal {
             const priceHtml = `
                     <div class="card-editor-attr-text card-editor-attr-price">
                         <label for="editor-price">Price:</label>
-                        <input type="text" class="card-editor-input" id="editor-price" placeholder="$" inputmode="decimal">
+                        <input type="text" class="card-editor-input" id="editor-price" placeholder="$" inputmode="numeric">
                     </div>`;
             return `<div class="card-editor-field full-width card-editor-attributes">
                 <label class="card-editor-label">Attributes</label>
@@ -2312,14 +2312,14 @@ class CardEditorModal {
             this.setDirty(true);
         };
 
-        // Price field validation - strip non-numeric, clean up on blur
+        // Price field validation - strip non-numeric, round to whole number on blur
         const priceInput = this.backdrop.querySelector('#editor-price');
         if (priceInput) {
             priceInput.addEventListener('blur', () => {
                 let val = priceInput.value.trim().replace(/[^0-9.]/g, '');
                 if (val === '' || val === '.') { priceInput.value = ''; return; }
-                const num = parseFloat(val);
-                priceInput.value = isNaN(num) || num < 0 ? '' : num;
+                const num = Math.round(parseFloat(val));
+                priceInput.value = isNaN(num) || num <= 0 ? '' : num;
             });
         }
 
@@ -2892,10 +2892,10 @@ class CardEditorModal {
             data.category = categoryField.value;
         }
 
-        // Price - only include if explicitly set
+        // Price - only include if explicitly set (stored as whole number)
         const priceVal = this.backdrop.querySelector('#editor-price').value.trim();
         if (priceVal !== '') {
-            data.price = parseFloat(priceVal);
+            data.price = Math.round(parseFloat(priceVal)) || 0;
         }
 
         // eBay search term - only include if explicitly set
