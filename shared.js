@@ -3305,7 +3305,7 @@ class ChecklistCreatorModal {
                             <span class="creator-threshold-color" style="background: var(--color-error, #f44336)"></span>
                             <span>$</span><input type="text" inputmode="numeric" id="creator-threshold-high" value="10" class="creator-threshold-input">
                         </label>
-                        <span class="creator-threshold-hint">Cards below $<span id="creator-threshold-mid-label">3</span> are <span class="creator-threshold-color" style="background: var(--color-success, #4caf50)"></span></span>
+                        <span class="creator-threshold-hint"><span>Cards below $<span id="creator-threshold-mid-label">3</span> are</span> <span class="creator-threshold-color" style="background: var(--color-success, #4caf50)"></span></span>
                     </div>
 
                 </div>
@@ -3337,8 +3337,29 @@ class ChecklistCreatorModal {
         });
 
         // Update green hint when mid threshold changes
-        backdrop.querySelector('#creator-threshold-mid').addEventListener('input', (e) => {
-            backdrop.querySelector('#creator-threshold-mid-label').textContent = e.target.value || '0';
+        // Price threshold validation
+        const validateThreshold = (input, fallback) => {
+            let val = parseInt(input.value);
+            if (isNaN(val) || val < 0) val = fallback;
+            input.value = val;
+            return val;
+        };
+        const midInput = backdrop.querySelector('#creator-threshold-mid');
+        const highInput = backdrop.querySelector('#creator-threshold-high');
+        const midLabel = backdrop.querySelector('#creator-threshold-mid-label');
+        midInput.addEventListener('input', () => {
+            midLabel.textContent = parseInt(midInput.value) || 0;
+        });
+        midInput.addEventListener('blur', () => {
+            const mid = validateThreshold(midInput, 3);
+            midLabel.textContent = mid;
+            const high = parseInt(highInput.value) || 10;
+            if (mid >= high) highInput.value = mid + 1;
+        });
+        highInput.addEventListener('blur', () => {
+            const high = validateThreshold(highInput, 10);
+            const mid = parseInt(midInput.value) || 3;
+            if (high <= mid) highInput.value = mid + 1;
         });
 
         // Add category / subtitle line buttons
