@@ -2593,6 +2593,25 @@ select, input[type="text"] {
     border-radius: 2px;
 }
 
+@media (max-width: 500px) {
+    .creator-row-arrows {
+        flex-direction: row;
+        gap: 4px;
+    }
+
+    .creator-row-arrows button {
+        font-size: 12px;
+        padding: 8px 10px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 4px;
+    }
+
+    .creator-row-remove {
+        font-size: 18px;
+        padding: 6px 8px;
+    }
+}
+
 .creator-row-arrows button:hover {
     color: #667eea;
     background: rgba(102, 126, 234, 0.1);
