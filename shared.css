@@ -477,8 +477,7 @@ h1 {
     padding: 16px 28px;
     border-radius: var(--radius-md);
     border: 1px solid rgba(255,255,255,0.08);
-    min-width: 120px;
-    flex-shrink: 0;
+    min-width: 100px;
 }
 
 .stat-value {
@@ -1086,8 +1085,9 @@ select, input[type="text"] {
     .stats { gap: 12px; }
 
     .stat {
-        padding: 12px 18px;
-        min-width: 90px;
+        padding: 12px 14px;
+        min-width: 0;
+        flex: 1;
     }
 
     .stat-value { font-size: 2em; }
@@ -2370,7 +2370,7 @@ select, input[type="text"] {
 
 .creator-options-row .card-editor-checkbox {
     flex: 1;
-    min-width: 0;
+    min-width: 80px;
 }
 
 /* Category / subtitle row list */
