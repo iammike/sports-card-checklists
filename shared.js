@@ -3305,7 +3305,7 @@ class ChecklistCreatorModal {
                             <span class="creator-threshold-color" style="background: var(--color-error, #f44336)"></span>
                             <span>$</span><input type="text" inputmode="numeric" id="creator-threshold-high" value="10" class="creator-threshold-input">
                         </label>
-                        <span class="creator-threshold-hint">Cards below $<span id="creator-threshold-mid-label">3</span> are green</span>
+                        <span class="creator-threshold-hint">Cards below $<span id="creator-threshold-mid-label">3</span> are <span class="creator-threshold-color" style="background: var(--color-success, #4caf50)"></span></span>
                     </div>
 
                 </div>
