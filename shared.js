@@ -2312,6 +2312,29 @@ class CardEditorModal {
             this.setDirty(true);
         };
 
+        // Price field validation - strip non-numeric, clean up on blur
+        const priceInput = this.backdrop.querySelector('#editor-price');
+        if (priceInput) {
+            priceInput.addEventListener('blur', () => {
+                let val = priceInput.value.trim().replace(/[^0-9.]/g, '');
+                if (val === '' || val === '.') { priceInput.value = ''; return; }
+                const num = parseFloat(val);
+                priceInput.value = isNaN(num) || num < 0 ? '' : num;
+            });
+        }
+
+        // Serial/Run field validation - clean up on blur
+        const serialInput = this.backdrop.querySelector('#editor-serial');
+        if (serialInput) {
+            serialInput.addEventListener('blur', () => {
+                let val = serialInput.value.trim();
+                if (!val) return;
+                // Strip leading zeros from numbers, normalize "/099" to "/99"
+                val = val.replace(/^\/0+(\d)/, '/$1').replace(/^0+(\d)/, '$1');
+                serialInput.value = val;
+            });
+        }
+
         // Image preview on URL change
         this.backdrop.querySelector('#editor-img').oninput = (e) => {
             this.updateImagePreview(e.target.value);
