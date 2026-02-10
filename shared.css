@@ -407,7 +407,7 @@ h1 {
     .nav-inner {
         height: auto;
         flex-wrap: wrap;
-        padding: 10px max(16px, env(safe-area-inset-left));
+        padding: 10px max(20px, env(safe-area-inset-right)) 10px max(20px, env(safe-area-inset-left));
         gap: 8px;
     }
 
