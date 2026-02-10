@@ -2484,6 +2484,9 @@ select, input[type="text"] {
 .creator-threshold-hint {
     font-size: 11px;
     color: #666;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
 }
 
 /* Simple row (subtitle lines) */
