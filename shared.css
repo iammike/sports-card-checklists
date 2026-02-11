@@ -1842,7 +1842,12 @@ select, input[type="text"] {
         flex: 1;
         max-height: none;
         overflow-y: auto;
+        overflow-x: hidden;
         padding: 16px 20px;
+    }
+
+    .card-editor-attr-row {
+        flex-wrap: wrap;
     }
 
     .checklist-creator-modal .card-editor-body {
@@ -1861,10 +1866,19 @@ select, input[type="text"] {
         white-space: nowrap;
     }
 
+    .card-editor-btn.cancel { order: 1; }
+    .card-editor-btn.save { order: 2; }
+
     .card-editor-btn.delete {
+        order: 3;
         flex: 0 0 100%;
         margin-right: 0;
-        margin-bottom: 8px;
+        margin-top: 8px;
+        margin-bottom: 0;
+        background: none;
+        color: #666;
+        font-size: 0.85em;
+        padding: 8px;
     }
 
     /* Prevent iOS Safari zoom on input focus (requires >= 16px) */

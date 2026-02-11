@@ -2994,13 +2994,10 @@ class CardEditorModal {
     delete() {
         if (!this.currentCardId) return;
 
-        const confirmText = prompt('Type "DELETE" to confirm removing this card:');
-        if (confirmText === 'DELETE') {
+        if (confirm('Delete this card? This cannot be undone.')) {
             this.onDelete(this.currentCardId);
             this.setDirty(false);
             this.backdrop.classList.remove('active');
-        } else if (confirmText !== null) {
-            alert('Type "DELETE" exactly to confirm.');
         }
     }
 }
