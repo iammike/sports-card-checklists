@@ -704,6 +704,8 @@ select, input[type="text"] {
     position: relative;
     display: flex;
     flex-direction: column;
+    -webkit-touch-callout: none;
+    user-select: none;
 }
 
 .card:hover {
