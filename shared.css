@@ -1847,7 +1847,7 @@ select, input[type="text"] {
 
     .card-editor-footer {
         flex-wrap: wrap;
-        padding: 12px 20px max(16px, env(safe-area-inset-bottom));
+        padding: 12px 20px 32px;
     }
 
     .card-editor-btn {
