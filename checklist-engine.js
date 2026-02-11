@@ -1204,6 +1204,13 @@ class ChecklistEngine {
                 }
                 this.renderCards();
                 this.updateStats();
+                // Scroll to the card
+                const newId = this.getCardId(cardData);
+                const cardEl = document.querySelector(`.card[data-id="${newId}"]`);
+                if (cardEl) {
+                    cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    if (isNew) cardEl.classList.add('card-highlight');
+                }
                 this.checklistManager.setSyncStatus('syncing', 'Saving...');
                 await this._saveCardData();
             },
