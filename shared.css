@@ -2725,6 +2725,15 @@ select, input[type="text"] {
     animation: row-flash 0.4s ease-out;
 }
 
+@keyframes card-highlight-pulse {
+    0% { box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.6); }
+    100% { box-shadow: none; }
+}
+
+.card-highlight {
+    animation: card-highlight-pulse 1.5s ease-out forwards;
+}
+
 @keyframes row-flash {
     0% { border-color: rgba(102, 126, 234, 0.5); }
     100% { border-color: rgba(255, 255, 255, 0.06); }
