@@ -3024,12 +3024,12 @@ class CardEditorModal {
             this.onSave(this.currentCardId, data, false);
         }
 
-        // Handle owned state change
+        // Handle owned state change - always pass data so handler can compute
+        // the post-save card ID (card ID changes when data changes)
         if (this.onOwnedChange) {
             const nowOwned = this.backdrop.querySelector('#editor-owned').checked;
             if (nowOwned !== this._initialOwned) {
-                const cardId = this.isNewCard ? null : this.currentCardId;
-                this.onOwnedChange(cardId, data, nowOwned);
+                this.onOwnedChange(data, nowOwned);
             }
         }
 

@@ -1186,9 +1186,8 @@ class ChecklistEngine {
             categories: editorCategories,
             cardTypes: [],
             isOwned: (cardId) => this.checklistManager.isOwned(cardId),
-            onOwnedChange: (cardId, cardData, nowOwned) => {
-                // For new cards, compute the cardId from the data
-                const id = cardId || this.getCardId(cardData);
+            onOwnedChange: (cardData, nowOwned) => {
+                const id = this.getCardId(cardData);
                 this.checklistManager.toggleOwned(id, nowOwned);
                 const cardEl = document.querySelector(`.card[data-id="${id}"]`);
                 if (cardEl) {

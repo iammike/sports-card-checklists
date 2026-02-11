@@ -760,8 +760,8 @@
             priceInAttributes: true,
             imageFolder: 'images/washington-qbs',
             isOwned: (cardId) => checklistManager.isOwned(cardId),
-            onOwnedChange: (cardId, cardData, nowOwned) => {
-                const id = cardId || getCardId(cardData);
+            onOwnedChange: (cardData, nowOwned) => {
+                const id = getCardId(cardData);
                 checklistManager.toggleOwned(id, nowOwned);
                 const cardEl = document.querySelector(`.card[data-id="${id}"]`);
                 if (cardEl) {
