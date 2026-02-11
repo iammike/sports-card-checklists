@@ -1860,6 +1860,13 @@ select, input[type="text"] {
         margin-right: 0;
         margin-bottom: 8px;
     }
+
+    /* Prevent iOS Safari zoom on input focus (requires >= 16px) */
+    .card-editor-modal .card-editor-input,
+    .card-editor-modal .card-editor-select,
+    .card-editor-modal select {
+        font-size: 16px;
+    }
 }
 
 /* ============================================
@@ -2625,6 +2632,14 @@ select, input[type="text"] {
     .creator-row-remove {
         font-size: 18px;
         padding: 6px 8px;
+    }
+
+    /* Prevent iOS Safari zoom on input focus */
+    .creator-row input[type="text"],
+    .creator-row-wrap input[type="text"],
+    .checklist-creator-modal select,
+    .checklist-creator-modal input[type="text"] {
+        font-size: 16px;
     }
 }
 

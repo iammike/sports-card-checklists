@@ -2793,13 +2793,6 @@ class CardEditorModal {
 
         // Show modal
         this.backdrop.classList.add('active');
-        // Focus first top-position custom field, or set name
-        const topField = Object.entries(this.customFields)
-            .find(([_, c]) => (c.position || 'top') === 'top');
-        const firstField = topField
-            ? this.backdrop.querySelector(`#editor-${topField[0]}`)
-            : this.backdrop.querySelector('#editor-set');
-        if (firstField) firstField.focus();
     }
 
     // Open modal for adding new card
@@ -3414,7 +3407,6 @@ class ChecklistCreatorModal {
         this.backdrop.querySelector('#creator-save').textContent = 'Save Settings';
         this._populateForm(config);
         this.backdrop.classList.add('active');
-        this.backdrop.querySelector('#creator-title').focus();
     }
 
     close() {
