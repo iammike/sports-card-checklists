@@ -4,14 +4,11 @@ on:
   pull_request:
     types: [opened]
     paths:
-      - 'images/jayden-daniels/**'
-      - 'images/washington-qbs/**'
-      - 'images/jmu-pro-players/**'
+      - 'images/**'
 
 permissions:
   contents: write
   pull-requests: write
-  actions: write
 
 jobs:
   auto-merge:
@@ -28,7 +25,7 @@ jobs:
 
           # Check all files are in image folders
           for FILE in $FILES; do
-            if [[ ! "$FILE" =~ ^images/(jayden-daniels|washington-qbs|jmu-pro-players)/.+\.(webp|png|jpg|jpeg)$ ]]; then
+            if [[ ! "$FILE" =~ ^images/.+\.(webp|png|jpg|jpeg)$ ]]; then
               echo "Non-image file found: $FILE"
               echo "should_merge=false" >> $GITHUB_OUTPUT
               exit 0
@@ -37,12 +34,6 @@ jobs:
 
           echo "All files are images in allowed folders"
           echo "should_merge=true" >> $GITHUB_OUTPUT
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Approve PR
-        if: steps.check.outputs.should_merge == 'true'
-        run: gh pr review ${{ github.event.pull_request.number }} --approve
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
