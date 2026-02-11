@@ -2641,6 +2641,14 @@ select, input[type="text"] {
 }
 
 @media (max-width: 500px) {
+    .creator-row {
+        flex-wrap: wrap;
+    }
+
+    .creator-row .creator-row-label {
+        flex: 0 0 50%;
+    }
+
     .creator-row-arrows {
         flex-direction: row;
         gap: 4px;
