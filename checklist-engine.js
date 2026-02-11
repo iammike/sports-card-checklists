@@ -377,15 +377,14 @@ class ChecklistEngine {
             const headerTextColor = (gradient) => {
                 const colors = gradient.match(/#[0-9a-fA-F]{6}/g) || [];
                 if (colors.length === 0) return '';
-                // Average luminance of gradient colors
-                const avgL = colors.reduce((sum, hex) => {
-                    const r = parseInt(hex.slice(1, 3), 16) / 255;
-                    const g = parseInt(hex.slice(3, 5), 16) / 255;
-                    const b = parseInt(hex.slice(5, 7), 16) / 255;
-                    const toLinear = (c) => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-                    return sum + 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
-                }, 0) / colors.length;
-                return avgL > 0.4 ? ' color: #1a1a1a;' : ' color: #ffffff;';
+                // Use the first gradient color (where text sits) for contrast check
+                const hex = colors[0];
+                const r = parseInt(hex.slice(1, 3), 16) / 255;
+                const g = parseInt(hex.slice(3, 5), 16) / 255;
+                const b = parseInt(hex.slice(5, 7), 16) / 255;
+                const toLinear = (c) => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+                const lum = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+                return lum > 0.4 ? ' color: #1a1a1a;' : ' color: #ffffff;';
             };
             this.config.categories.forEach(cat => {
                 if (cat.gradient) {
