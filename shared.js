@@ -1992,8 +1992,8 @@ class CardEditorModal {
     }
 
     // Generate eBay search term from card data
-    generateSearchTerm(set, num, variant) {
-        const parts = [this.playerName, set];
+    generateSearchTerm(set, num, variant, player) {
+        const parts = [player || this.playerName, set];
         // Add card number without # prefix
         if (num) {
             parts.push(num.replace(/^#/, ''));
@@ -3007,7 +3007,7 @@ class CardEditorModal {
             if (setChanged || numChanged) {
                 // Regenerate search term
                 const variant = data.variant || this.currentCard.variant;
-                data.search = this.generateSearchTerm(data.set, data.num, variant);
+                data.search = this.generateSearchTerm(data.set, data.num, variant, data.player);
                 // Clear any custom ebay field since we're regenerating
                 delete data.ebay;
             }
@@ -3015,7 +3015,7 @@ class CardEditorModal {
 
         // Auto-generate search term if ebay field is empty
         if (!data.ebay) {
-            data.search = this.generateSearchTerm(data.set, data.num, data.variant);
+            data.search = this.generateSearchTerm(data.set, data.num, data.variant, data.player);
         }
 
         if (this.isNewCard) {
@@ -3024,12 +3024,12 @@ class CardEditorModal {
             this.onSave(this.currentCardId, data, false);
         }
 
-        // Handle owned state change
+        // Handle owned state change - always pass data so handler can compute
+        // the post-save card ID (card ID changes when data changes)
         if (this.onOwnedChange) {
             const nowOwned = this.backdrop.querySelector('#editor-owned').checked;
             if (nowOwned !== this._initialOwned) {
-                const cardId = this.isNewCard ? null : this.currentCardId;
-                this.onOwnedChange(cardId, data, nowOwned);
+                this.onOwnedChange(data, nowOwned);
             }
         }
 
