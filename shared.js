@@ -1732,7 +1732,7 @@ class ImageEditorModal {
 
     // Reset corner handles to default inset positions
     resetCornerHandles() {
-        const inset = 0.05;
+        const inset = 0;
         this.cornerPositions = [
             { x: inset, y: inset },
             { x: 1 - inset, y: inset },
