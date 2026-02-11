@@ -1818,13 +1818,16 @@ select, input[type="text"] {
     .card-editor-modal {
         width: 100%;
         max-width: 100%;
-        max-height: 100vh;
-        max-height: 100dvh;
+        height: 100vh;
+        height: 100dvh;
         border-radius: 0;
+        display: flex;
+        flex-direction: column;
     }
 
     .card-editor-header {
         padding: 16px 20px 12px;
+        flex-shrink: 0;
     }
 
     .card-editor-title {
@@ -1836,8 +1839,9 @@ select, input[type="text"] {
     }
 
     .card-editor-body {
-        max-height: calc(100vh - 160px);
-        max-height: calc(100dvh - 160px);
+        flex: 1;
+        max-height: none;
+        overflow-y: auto;
         padding: 16px 20px;
     }
 
@@ -1847,7 +1851,8 @@ select, input[type="text"] {
 
     .card-editor-footer {
         flex-wrap: wrap;
-        padding: 16px 20px 40px;
+        flex-shrink: 0;
+        padding: 16px 20px 28px;
     }
 
     .card-editor-btn {
