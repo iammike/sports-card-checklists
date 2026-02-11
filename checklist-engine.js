@@ -750,7 +750,13 @@ class ChecklistEngine {
         const sorted = [...cardsToSort];
         switch (sortBy) {
             case 'alphabetical':
-                sorted.sort((a, b) => (a.player || a.set || '').localeCompare(b.player || b.set || ''));
+                sorted.sort((a, b) => {
+                    const aName = a.player || a.set || '';
+                    const bName = b.player || b.set || '';
+                    const aLast = aName.split(' ').slice(-1)[0];
+                    const bLast = bName.split(' ').slice(-1)[0];
+                    return aLast.localeCompare(bLast) || aName.localeCompare(bName);
+                });
                 break;
             case 'year':
                 sorted.sort((a, b) => this._getYear(a) - this._getYear(b) || this._getSetName(a).localeCompare(this._getSetName(b)));
