@@ -3338,6 +3338,12 @@ class ChecklistCreatorModal {
 
         // Toggle sections visibility
         backdrop.querySelector('#creator-use-sections').addEventListener('change', (e) => {
+            if (!e.target.checked && this.editMode && this.existingConfig?.dataShape !== 'flat') {
+                if (!confirm('Removing sections will move all cards into a single flat list. Card section assignments will be lost. Continue?')) {
+                    e.target.checked = true;
+                    return;
+                }
+            }
             backdrop.querySelector('#creator-categories-field').style.display = e.target.checked ? '' : 'none';
         });
 
