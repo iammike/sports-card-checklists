@@ -705,7 +705,13 @@ select, input[type="text"] {
     display: flex;
     flex-direction: column;
     -webkit-touch-callout: none;
+    -webkit-user-select: none;
     user-select: none;
+}
+
+.card * {
+    -webkit-user-drag: none;
+    -webkit-touch-callout: none;
 }
 
 .card:hover {
