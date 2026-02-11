@@ -2641,14 +2641,6 @@ select, input[type="text"] {
 }
 
 @media (max-width: 500px) {
-    .creator-row {
-        flex-wrap: wrap;
-    }
-
-    .creator-row .creator-row-label {
-        flex: 0 0 50%;
-    }
-
     .creator-row-arrows {
         flex-direction: row;
         gap: 4px;
@@ -2730,14 +2722,6 @@ select, input[type="text"] {
     flex-wrap: wrap;
 }
 
-@media (max-width: 500px) {
-    .creator-row-wrap .creator-row-main .creator-row-label {
-        order: -1;
-        flex-basis: 100%;
-        margin-bottom: 4px;
-    }
-}
-
 .creator-row-wrap .creator-row-main .creator-row-label {
     flex: 1;
     min-width: 0;
@@ -2745,6 +2729,14 @@ select, input[type="text"] {
 
 .creator-row-wrap .creator-row-main .creator-row-label input {
     width: 100%;
+}
+
+@media (max-width: 500px) {
+    .creator-row-wrap .creator-row-main .creator-row-label {
+        order: -1;
+        flex: 0 0 100%;
+        margin-bottom: 4px;
+    }
 }
 
 /* Note field inside wrap row */
