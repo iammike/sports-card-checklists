@@ -4083,9 +4083,9 @@ class ChecklistCreatorModal {
                 const success = await githubSync.saveChecklistConfig(config.id, config);
                 if (!success) throw new Error('Failed to save config');
 
-                // Config saved - update local state immediately so the page reflects changes
+                // Config saved - update local state (and migrate cards if shape changed)
                 this.close();
-                this.onCreated(config);
+                await this.onCreated(config);
 
                 // Best-effort: update registry (nav label, pills, etc.)
                 try {
