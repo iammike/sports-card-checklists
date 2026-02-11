@@ -1596,7 +1596,10 @@ class ImageEditorModal {
                     ready: () => this.enterPerspectiveMode(),
                 });
             };
-            img.onerror = () => reject(new Error('Failed to load image'));
+            img.onerror = () => {
+                this.close();
+                reject(new Error('Failed to load image'));
+            };
         });
     }
 
@@ -2882,6 +2885,8 @@ class CardEditorModal {
         this.currentCard = null;
         this.currentCardId = null;
         this.isNewCard = false;
+        // Close image editor if it was left open
+        imageEditor.close();
     }
 
     // Gather form data
