@@ -20,5 +20,8 @@
 .env
 .env.local
 
+# Node
+node_modules/
+
 # Local scripts (utilities, migrations)
 scripts/
