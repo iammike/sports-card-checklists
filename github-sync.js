@@ -36,11 +36,15 @@ class GitHubSync {
         this.onAuthChange = null;
         this._saveQueue = Promise.resolve(); // Queue to prevent concurrent saves
         this._cachedData = null; // Cache to avoid stale reads during saves
+        this._gistCache = null; // Raw gist cache for registry/config reads
+        this._publicGistCache = null; // Public gist cache
 
         // Clear cache when tab becomes visible (handles multi-tab edits)
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
                 this._cachedData = null;
+                this._gistCache = null;
+                this._publicGistCache = null;
             }
         });
     }
@@ -211,14 +215,27 @@ class GitHubSync {
         }
         const prodGist = await prodResponse.json();
 
-        // Copy all files to preview gist
+        // Copy all files from production to preview gist
         const files = {};
         for (const [filename, fileData] of Object.entries(prodGist.files)) {
             files[filename] = { content: fileData.content };
         }
 
+        // Delete files that exist in preview but not in production
+        const previewGistId = CONFIG.PUBLIC_GIST_ID;
+        const previewResponse = await fetch(`https://api.github.com/gists/${previewGistId}`, {
+            headers: { 'Authorization': `Bearer ${this.token}` },
+        });
+        if (previewResponse.ok) {
+            const previewGist = await previewResponse.json();
+            for (const filename of Object.keys(previewGist.files)) {
+                if (!prodGist.files[filename]) {
+                    files[filename] = null; // null deletes the file from the gist
+                }
+            }
+        }
+
         // Update preview gist with production data
-        const previewGistId = CONFIG.PUBLIC_GIST_ID; // On preview, this is the preview gist
         const updateResponse = await fetch(`https://api.github.com/gists/${previewGistId}`, {
             method: 'PATCH',
             headers: {
@@ -234,6 +251,8 @@ class GitHubSync {
 
         // Clear cache so next load gets fresh data
         this._cachedData = null;
+        this._gistCache = null;
+        this._publicGistCache = null;
 
         return true;
     }
@@ -640,6 +659,237 @@ class GitHubSync {
         } catch (error) {
             console.error('Failed to commit image via PR:', error);
             return null;
+        }
+    }
+
+    // ========================================
+    // Registry & Config Operations (stored in gist)
+    // ========================================
+
+    // Fetch raw gist data with caching (avoids duplicate API calls)
+    async _fetchGist(forcePublic = false) {
+        const cacheKey = forcePublic ? '_publicGistCache' : '_gistCache';
+        if (this[cacheKey]) return this[cacheKey];
+
+        try {
+            let response;
+            if (!forcePublic && this.token) {
+                const gistId = this.getActiveGistId();
+                if (!gistId) return null;
+                response = await fetch(`https://api.github.com/gists/${gistId}`, {
+                    headers: { 'Authorization': `Bearer ${this.token}` },
+                });
+            } else {
+                response = await fetch(`https://api.github.com/gists/${CONFIG.PUBLIC_GIST_ID}`);
+            }
+            if (!response.ok) return null;
+            const gist = await response.json();
+            this[cacheKey] = gist;
+            return gist;
+        } catch (error) {
+            console.error('Failed to fetch gist:', error);
+            return null;
+        }
+    }
+
+    // Read a JSON file from the gist
+    async _readGistFile(filename) {
+        const gist = this.token
+            ? await this._fetchGist()
+            : await this._fetchGist(true);
+        if (!gist) return null;
+        const content = gist.files[filename]?.content;
+        return content ? JSON.parse(content) : null;
+    }
+
+    // Write a JSON file to the gist
+    async _writeGistFile(filename, data) {
+        if (!this.token) return false;
+        const gistId = this.getActiveGistId();
+        if (!gistId) return false;
+
+        try {
+            const response = await fetch(`https://api.github.com/gists/${gistId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${this.token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    files: {
+                        [filename]: {
+                            content: JSON.stringify(data, null, 2),
+                        },
+                    },
+                }),
+            });
+            // Invalidate gist cache on write
+            if (response.ok) {
+                this._gistCache = null;
+                this._publicGistCache = null;
+            }
+            return response.ok;
+        } catch (error) {
+            console.error(`Failed to write ${filename}:`, error);
+            return false;
+        }
+    }
+
+    // Write multiple JSON files to the gist in one API call
+    async _writeGistFiles(filesMap) {
+        if (!this.token) return false;
+        const gistId = this.getActiveGistId();
+        if (!gistId) return false;
+
+        const files = {};
+        for (const [filename, data] of Object.entries(filesMap)) {
+            files[filename] = {
+                content: JSON.stringify(data, null, 2),
+            };
+        }
+
+        try {
+            const response = await fetch(`https://api.github.com/gists/${gistId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${this.token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ files }),
+            });
+            if (response.ok) {
+                this._gistCache = null;
+                this._publicGistCache = null;
+            }
+            return response.ok;
+        } catch (error) {
+            console.error('Failed to write gist files:', error);
+            return false;
+        }
+    }
+
+    // Load checklists registry from gist
+    async loadRegistry() {
+        return this._readGistFile('checklists-registry.json');
+    }
+
+    // Save checklists registry to gist
+    async saveRegistry(registry) {
+        return this._writeGistFile('checklists-registry.json', registry);
+    }
+
+    // Load per-checklist config from gist
+    async loadChecklistConfig(checklistId) {
+        return this._readGistFile(`${checklistId}-config.json`);
+    }
+
+    // Save per-checklist config to gist
+    async saveChecklistConfig(checklistId, config) {
+        return this._writeGistFile(`${checklistId}-config.json`, config);
+    }
+
+    // Create a new dynamic checklist: saves config, empty cards, and updates registry in one call
+    async createChecklist(checklistId, config, registry) {
+        let emptyCards;
+        if (config.dataShape === 'flat') {
+            emptyCards = { cards: [] };
+        } else {
+            emptyCards = { categories: {} };
+            if (config.categories) {
+                config.categories.forEach(cat => {
+                    if (cat.children && cat.children.length > 0) {
+                        cat.children.forEach(child => { emptyCards.categories[child.id] = []; });
+                    } else {
+                        emptyCards.categories[cat.id] = [];
+                    }
+                });
+            }
+        }
+        return this._writeGistFiles({
+            [`${checklistId}-config.json`]: config,
+            [`${checklistId}-cards.json`]: emptyCards,
+            'checklists-registry.json': registry,
+        });
+    }
+
+    // Delete a dynamic checklist: saves backup, then removes config, cards, stats, and registry entry
+    async deleteChecklist(checklistId) {
+        if (!this.token) return false;
+        const gistId = this.getActiveGistId();
+        if (!gistId) return false;
+
+        try {
+            // Fetch current gist to see what files exist
+            const gistResponse = await fetch(`https://api.github.com/gists/${gistId}`, {
+                headers: { 'Authorization': `Bearer ${this.token}` },
+            });
+            if (!gistResponse.ok) return false;
+            const gist = await gistResponse.json();
+            const gistFiles = gist.files;
+
+            const files = {};
+
+            // Save a backup of all checklist data before deleting
+            const configFile = `${checklistId}-config.json`;
+            const cardsFile = `${checklistId}-cards.json`;
+            const backup = { deletedAt: new Date().toISOString(), id: checklistId };
+            if (gistFiles[configFile]?.content) {
+                backup.config = JSON.parse(gistFiles[configFile].content);
+                files[configFile] = null;
+            }
+            if (gistFiles[cardsFile]?.content) {
+                backup.cards = JSON.parse(gistFiles[cardsFile].content);
+                files[cardsFile] = null;
+            }
+            const registryContent = gistFiles['checklists-registry.json']?.content;
+            if (registryContent) {
+                const registry = JSON.parse(registryContent);
+                backup.registryEntry = registry.checklists.find(e => e.id === checklistId);
+                registry.checklists = registry.checklists.filter(e => e.id !== checklistId);
+                files['checklists-registry.json'] = { content: JSON.stringify(registry, null, 2) };
+            }
+            const statsContent = gistFiles['sports-card-stats.json']?.content;
+            if (statsContent) {
+                const stats = JSON.parse(statsContent);
+                if (stats[checklistId]) {
+                    backup.stats = stats[checklistId];
+                    delete stats[checklistId];
+                    files['sports-card-stats.json'] = { content: JSON.stringify(stats, null, 2) };
+                }
+            }
+
+            // Write backup file (overwrites any previous backup for this ID)
+            if (backup.config || backup.cards) {
+                files[`_backup-${checklistId}.json`] = { content: JSON.stringify(backup, null, 2) };
+            }
+
+            // If nothing to update, the checklist data is already gone
+            if (Object.keys(files).length === 0) {
+                this._gistCache = null;
+                this._publicGistCache = null;
+                return true;
+            }
+
+            const response = await fetch(`https://api.github.com/gists/${gistId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${this.token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ files }),
+            });
+            if (response.ok) {
+                this._gistCache = null;
+                this._publicGistCache = null;
+                this._cachedData = null;
+            } else {
+                const err = await response.text();
+                console.error('Gist PATCH failed:', response.status, err);
+            }
+            return response.ok;
+        } catch (error) {
+            console.error('Failed to delete checklist:', error);
+            return false;
         }
     }
 

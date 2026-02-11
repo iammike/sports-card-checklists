@@ -591,7 +591,7 @@ const PriceUtils = {
         // If card has explicit price, use it
         if (card.price !== undefined) return card.price;
 
-        let base = this.priceGuide[card.type] || 2;
+        let base = this.priceGuide[card.type] || 1;
 
         // Check set modifiers (ordered longest-first to avoid partial matches)
         for (const [setKey, mod] of this.setMods) {
@@ -729,8 +729,9 @@ const CardRenderer = {
 
     // Render price badge HTML
     renderPriceBadge(price, thresholds = this.defaultThresholds) {
+        if (!price || price <= 0) return '';
         const priceClass = this.getPriceClass(price, thresholds);
-        const displayPrice = Math.max(1, Math.round(price));
+        const displayPrice = Math.round(price);
         return `<span class="price-badge ${priceClass}">$${displayPrice}</span>`;
     },
 
@@ -753,9 +754,13 @@ const CardRenderer = {
         return `<span class="serial-badge">${sanitizeText(display)}</span>`;
     },
 
-    // Render all attribute badges for a card
-    renderAttributeBadges(card) {
-        return this.renderAutoBadge(card) + this.renderPatchBadge(card) + this.renderSerialBadge(card);
+    // Render all attribute badges for a card (only those enabled in customFields)
+    renderAttributeBadges(card, customFields) {
+        let html = '';
+        if (!customFields || customFields.auto) html += this.renderAutoBadge(card);
+        if (!customFields || customFields.patch) html += this.renderPatchBadge(card);
+        if (!customFields || customFields.serial) html += this.renderSerialBadge(card);
+        return html;
     },
 
     // Render card image with fallback
@@ -1979,7 +1984,8 @@ class CardEditorModal {
         // Types: 'text', 'select', 'checkbox'
         // For select: options is array of { value, label } or just strings
         this.customFields = options.customFields || {};
-        this.priceInAttributes = options.priceInAttributes || false;
+        // priceInAttributes is now always true - price renders in the compact attributes row
+        this.priceInAttributes = true;
     }
 
     // Generate eBay search term from card data
@@ -2007,16 +2013,19 @@ class CardEditorModal {
     }
 
     // Generate HTML for custom fields based on schema
-    // position: 'top' (before set), 'after-num' (after card number), 'attributes' (horizontal row)
+    // position: 'top' (before set), 'after-num' (after card number), 'attributes' (horizontal row), 'bottom' (after attributes)
     generateCustomFieldsHtml(position = 'top') {
         const fields = Object.entries(this.customFields)
             .filter(([_, config]) => (config.position || 'top') === position);
 
         if (fields.length === 0 && position !== 'attributes') return '';
 
-        // Attributes position renders as a compact horizontal row (always includes Price)
+        // Attributes position renders as a compact horizontal row with price
         if (position === 'attributes') {
-            const innerHtml = fields.map(([fieldName, config]) => {
+            // fullWidth fields (e.g. variant) are rendered inline in the template grid, not here
+            const rowFields = fields.filter(([_, c]) => !c.fullWidth);
+
+            const innerHtml = rowFields.map(([fieldName, config]) => {
                 const id = `editor-${fieldName}`;
                 if (config.type === 'checkbox') {
                     return `<label class="card-editor-attr-checkbox">
@@ -2024,20 +2033,21 @@ class CardEditorModal {
                         <span>${config.label}</span>
                     </label>`;
                 } else {
-                    // Text field (e.g., serial)
+                    // Text/number field (e.g., serial)
+                    const extraAttrs = config.inputType === 'number' ? ' inputmode="numeric"' : '';
                     return `<div class="card-editor-attr-text">
                         <label for="${id}">${config.label}:</label>
-                        <input type="text" class="card-editor-input" id="${id}" placeholder="${config.placeholder || ''}">
+                        <input type="text" class="card-editor-input" id="${id}" placeholder="${config.placeholder || ''}"${extraAttrs}>
                     </div>`;
                 }
             }).join('');
-            const priceHtml = this.priceInAttributes ? `
+            const priceHtml = `
                     <div class="card-editor-attr-text card-editor-attr-price">
                         <label for="editor-price">Price:</label>
-                        <input type="number" class="card-editor-input" id="editor-price" placeholder="Auto" step="1" min="0">
-                    </div>` : '';
+                        <input type="text" class="card-editor-input" id="editor-price" placeholder="$" inputmode="numeric">
+                    </div>`;
             return `<div class="card-editor-field full-width card-editor-attributes">
-                <label class="card-editor-label">Card Attributes</label>
+                <label class="card-editor-label">Attributes</label>
                 <div class="card-editor-attr-row">
                     ${innerHtml}
                     ${priceHtml}
@@ -2045,7 +2055,7 @@ class CardEditorModal {
             </div>`;
         }
 
-        return fields.map(([fieldName, config]) => {
+        const fieldHtml = fields.map(([fieldName, config]) => {
             const id = `editor-${fieldName}`;
             const fullWidth = config.fullWidth ? ' full-width' : '';
             const placeholder = config.placeholder || '';
@@ -2070,12 +2080,23 @@ class CardEditorModal {
                 </div>`;
             } else {
                 // Default: text input
+                const colorHint = config.color ? `<span class="card-editor-color-hint" style="background:${config.color}"></span>` : '';
                 return `<div class="card-editor-field${fullWidth}">
-                    <label class="card-editor-label">${config.label}</label>
+                    <label class="card-editor-label">${config.label}${colorHint}</label>
                     <input type="text" class="card-editor-input" id="${id}" placeholder="${placeholder}">
                 </div>`;
             }
         }).join('');
+
+        // Bottom fields get their own equal-column grid
+        if (position === 'bottom') {
+            const cols = fields.length === 1 ? '1fr' : 'repeat(2, 1fr)';
+            return `<div class="card-editor-field full-width" style="display:grid;grid-template-columns:${cols};gap:16px;">
+                ${fieldHtml}
+            </div>`;
+        }
+
+        return fieldHtml;
     }
 
     // Populate custom fields from card data
@@ -2143,7 +2164,10 @@ class CardEditorModal {
 
     // Initialize - create modal DOM
     init() {
-        if (document.querySelector('.card-editor-backdrop')) return;
+        // Remove existing card editor backdrop so re-init works after settings changes
+        // Use :not(.checklist-creator-backdrop) to avoid removing the creator modal
+        const existing = document.querySelector('.card-editor-backdrop:not(.checklist-creator-backdrop)');
+        if (existing) existing.remove();
 
         const backdrop = document.createElement('div');
         backdrop.className = 'card-editor-backdrop';
@@ -2157,8 +2181,7 @@ class CardEditorModal {
                 <div class="card-editor-body">
                     <div class="card-editor-grid">
                         ${this.generateCustomFieldsHtml('top')}
-                        ${this.generateCustomFieldsHtml('top') ? '<div class="card-editor-separator full-width"></div>' : ''}
-                        <div class="card-editor-field full-width">
+                        <div class="card-editor-field">
                             <label class="card-editor-label">Set Name</label>
                             <input type="text" class="card-editor-input" id="editor-set" placeholder="2024 Panini Prizm">
                         </div>
@@ -2166,28 +2189,36 @@ class CardEditorModal {
                             <label class="card-editor-label">Card Number</label>
                             <input type="text" class="card-editor-input" id="editor-num" placeholder="123">
                         </div>
-                        <div class="card-editor-field">
+                        ${this.cardTypes.length > 0 ? `<div class="card-editor-field">
                             <label class="card-editor-label">Card Type</label>
                             <select class="card-editor-select" id="editor-type">
                                 ${this.cardTypes.map(t => `<option value="${t}">${t}</option>`).join('')}
                             </select>
-                        </div>
+                        </div>` : ''}
                         ${this.generateCustomFieldsHtml('after-num')}
+                        ${Object.entries(this.customFields)
+                            .filter(([_, c]) => (c.position || 'top') === 'attributes' && c.fullWidth)
+                            .map(([name, c]) => `<div class="card-editor-field">
+                            <label class="card-editor-label">${c.label}</label>
+                            <input type="text" class="card-editor-input" id="editor-${name}" placeholder="${c.placeholder || ''}">
+                        </div>`).join('')}
                         ${this.categories ? `<div class="card-editor-field">
                             <label class="card-editor-label">Section</label>
                             <select class="card-editor-select" id="editor-category">
                                 ${this.categories.map(c => {
+                                    if (c.group) {
+                                        return `<optgroup label="${c.group}">${c.children.map(child =>
+                                            `<option value="${child.value}">${child.label}</option>`
+                                        ).join('')}</optgroup>`;
+                                    }
                                     const label = typeof c === 'string' ? c.charAt(0).toUpperCase() + c.slice(1) : c.label;
                                     const value = typeof c === 'string' ? c : c.value;
                                     return `<option value="${value}">${label}</option>`;
                                 }).join('')}
                             </select>
                         </div>` : ''}
-                        ${!this.priceInAttributes ? `<div class="card-editor-field">
-                            <label class="card-editor-label">Price ($)</label>
-                            <input type="number" class="card-editor-input" id="editor-price" placeholder="Auto" step="1" min="0">
-                        </div>` : ''}
                         ${this.generateCustomFieldsHtml('attributes')}
+                        ${this.generateCustomFieldsHtml('bottom')}
                         <div class="card-editor-field full-width card-editor-advanced-toggle">
                             <button type="button" class="card-editor-toggle-btn" id="editor-toggle-advanced">Advanced</button>
                         </div>
@@ -2275,21 +2306,34 @@ class CardEditorModal {
             advancedToggle.textContent = isHidden ? 'Hide advanced' : 'Advanced';
         };
 
-        // Dynamic price step: scale increments with value
-        const priceInput = this.backdrop.querySelector('#editor-price');
-        priceInput.addEventListener('input', () => {
-            const val = parseFloat(priceInput.value) || 0;
-            if (val >= 100) priceInput.step = 25;
-            else if (val >= 50) priceInput.step = 10;
-            else if (val >= 20) priceInput.step = 5;
-            else priceInput.step = 1;
-        });
-
         // Track manual edits to eBay search term
         this.backdrop.querySelector('#editor-ebay').oninput = () => {
             this.ebayManuallyEdited = true;
             this.setDirty(true);
         };
+
+        // Price field validation - strip non-numeric, round to whole number on blur
+        const priceInput = this.backdrop.querySelector('#editor-price');
+        if (priceInput) {
+            priceInput.addEventListener('blur', () => {
+                let val = priceInput.value.trim().replace(/[^0-9.]/g, '');
+                if (val === '' || val === '.') { priceInput.value = ''; return; }
+                const num = Math.round(parseFloat(val));
+                priceInput.value = isNaN(num) || num <= 0 ? '' : num;
+            });
+        }
+
+        // Serial/Run field validation - clean up on blur
+        const serialInput = this.backdrop.querySelector('#editor-serial');
+        if (serialInput) {
+            serialInput.addEventListener('blur', () => {
+                let val = serialInput.value.trim();
+                if (!val) return;
+                // Strip leading zeros from numbers, normalize "/099" to "/99"
+                val = val.replace(/^\/0+(\d)/, '/$1').replace(/^0+(\d)/, '$1');
+                serialInput.value = val;
+            });
+        }
 
         // Image preview on URL change
         this.backdrop.querySelector('#editor-img').oninput = (e) => {
@@ -2723,7 +2767,8 @@ class CardEditorModal {
         }
         // Strip # from card number for editing
         this.backdrop.querySelector('#editor-num').value = (cardData.num || '').replace(/^#/, '');
-        this.backdrop.querySelector('#editor-type').value = cardData.type || 'Base';
+        const typeEl = this.backdrop.querySelector('#editor-type');
+        if (typeEl) typeEl.value = cardData.type || 'Base';
         this.backdrop.querySelector('#editor-price').value = cardData.price !== undefined ? cardData.price : '';
         const ebayValue = cardData.ebay || '';
         this.backdrop.querySelector('#editor-ebay').value = ebayValue;
@@ -2748,12 +2793,6 @@ class CardEditorModal {
 
         // Show modal
         this.backdrop.classList.add('active');
-        // Focus first field (first custom field or set name)
-        const customFieldNames = Object.keys(this.customFields);
-        const firstField = customFieldNames.length > 0
-            ? this.backdrop.querySelector(`#editor-${customFieldNames[0]}`)
-            : this.backdrop.querySelector('#editor-set');
-        if (firstField) firstField.focus();
     }
 
     // Open modal for adding new card
@@ -2772,7 +2811,8 @@ class CardEditorModal {
         // Clear core form fields
         this.backdrop.querySelector('#editor-set').value = '';
         this.backdrop.querySelector('#editor-num').value = '';
-        this.backdrop.querySelector('#editor-type').value = 'Base';
+        const typeEl = this.backdrop.querySelector('#editor-type');
+        if (typeEl) typeEl.value = 'Base';
         this.backdrop.querySelector('#editor-price').value = '';
         this.backdrop.querySelector('#editor-ebay').value = '';
         this.backdrop.querySelector('#editor-img').value = '';
@@ -2798,10 +2838,11 @@ class CardEditorModal {
 
         // Show modal
         this.backdrop.classList.add('active');
-        // Focus first field (first custom field or set name)
-        const customFieldNames = Object.keys(this.customFields);
-        const firstField = customFieldNames.length > 0
-            ? this.backdrop.querySelector(`#editor-${customFieldNames[0]}`)
+        // Focus first top-position custom field, or set name
+        const topField = Object.entries(this.customFields)
+            .find(([_, c]) => (c.position || 'top') === 'top');
+        const firstField = topField
+            ? this.backdrop.querySelector(`#editor-${topField[0]}`)
             : this.backdrop.querySelector('#editor-set');
         if (firstField) firstField.focus();
     }
@@ -2829,7 +2870,7 @@ class CardEditorModal {
         const data = {
             set: this.backdrop.querySelector('#editor-set').value.trim(),
             num: num,
-            type: this.backdrop.querySelector('#editor-type').value
+            type: this.backdrop.querySelector('#editor-type')?.value || ''
         };
 
         // Image - only include if set (so clearing can delete it)
@@ -2844,10 +2885,10 @@ class CardEditorModal {
             data.category = categoryField.value;
         }
 
-        // Price - only include if explicitly set
+        // Price - only include if explicitly set (stored as whole number)
         const priceVal = this.backdrop.querySelector('#editor-price').value.trim();
         if (priceVal !== '') {
-            data.price = parseFloat(priceVal);
+            data.price = Math.round(parseFloat(priceVal)) || 0;
         }
 
         // eBay search term - only include if explicitly set
@@ -2879,11 +2920,6 @@ class CardEditorModal {
         if (!data.set) {
             alert('Set name is required');
             this.backdrop.querySelector('#editor-set').focus();
-            return false;
-        }
-        if (!data.num) {
-            alert('Card number is required');
-            this.backdrop.querySelector('#editor-num').focus();
             return false;
         }
         return true;
@@ -2958,13 +2994,10 @@ class CardEditorModal {
     delete() {
         if (!this.currentCardId) return;
 
-        const confirmText = prompt('Type "DELETE" to confirm removing this card:');
-        if (confirmText === 'DELETE') {
+        if (confirm('Delete this card? This cannot be undone.')) {
             this.onDelete(this.currentCardId);
             this.setDirty(false);
             this.backdrop.classList.remove('active');
-        } else if (confirmText !== null) {
-            alert('Type "DELETE" exactly to confirm.');
         }
     }
 }
@@ -3020,6 +3053,1108 @@ class AddCardButton {
     }
 }
 
+/**
+ * DynamicNav - Loads registry from gist and renders nav links dynamically
+ * Falls back to hardcoded links if registry isn't available
+ */
+const DynamicNav = {
+    _registry: null,
+    _sessionKey: 'checklists-registry',
+
+    // Get cached registry from sessionStorage
+    _getCached() {
+        try {
+            const cached = sessionStorage.getItem(this._sessionKey);
+            if (cached) return JSON.parse(cached);
+        } catch (e) { /* ignore */ }
+        return null;
+    },
+
+    _setCache(registry) {
+        try {
+            sessionStorage.setItem(this._sessionKey, JSON.stringify(registry));
+        } catch (e) { /* ignore */ }
+    },
+
+    // Load registry (from cache or gist)
+    async loadRegistry() {
+        if (this._registry) return this._registry;
+
+        // Try sessionStorage cache first
+        const cached = this._getCached();
+        if (cached) {
+            this._registry = cached;
+            return cached;
+        }
+
+        // Load from gist
+        if (typeof githubSync !== 'undefined') {
+            const registry = await githubSync.loadRegistry();
+            if (registry) {
+                this._registry = registry;
+                this._setCache(registry);
+                return registry;
+            }
+        }
+        return null;
+    },
+
+    // Get the URL for a checklist entry
+    getUrl(entry) {
+        if (entry.type === 'legacy') {
+            return entry.href;
+        }
+        return `checklist.html?id=${entry.id}`;
+    },
+
+    // Determine if a nav link is active based on current page
+    isActive(entry) {
+        const path = window.location.pathname;
+        const search = window.location.search;
+
+        if (entry.type === 'legacy') {
+            return path.endsWith(entry.href);
+        }
+        // Dynamic checklist: check ?id= param
+        return path.endsWith('checklist.html') && search.includes(`id=${entry.id}`);
+    },
+
+    // Add dynamic checklist links to the nav (preserves hardcoded legacy links)
+    renderNav(registry) {
+        const navLinks = document.querySelector('.nav-links');
+        if (!navLinks) return;
+
+        // Only add dynamic entries - legacy links are already hardcoded in HTML
+        const dynamicEntries = registry.checklists
+            .filter(e => e.type === 'dynamic')
+            .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+        // Remove any previously added dynamic links
+        navLinks.querySelectorAll('.nav-link[data-dynamic]').forEach(el => el.remove());
+
+        dynamicEntries.forEach(entry => {
+            const url = this.getUrl(entry);
+            const active = this.isActive(entry) ? ' active' : '';
+            const link = document.createElement('a');
+            link.href = url;
+            link.className = `nav-link${active}`;
+            link.dataset.dynamic = 'true';
+            link.textContent = entry.navLabel || entry.title;
+            navLinks.appendChild(link);
+        });
+    },
+
+    // Initialize: load registry and update nav
+    async init() {
+        const registry = await this.loadRegistry();
+        if (registry && registry.checklists && registry.checklists.length > 0) {
+            this.renderNav(registry);
+        }
+        // If no registry, hardcoded nav links stay as fallback
+    }
+};
+
+/**
+ * ChecklistCreatorModal - Form for creating new dynamic checklists
+ * Also used for editing settings of existing checklists.
+ */
+class ChecklistCreatorModal {
+    constructor(options = {}) {
+        this.onCreated = options.onCreated || (() => {});
+        this.backdrop = null;
+        this.editMode = false;
+        this.existingConfig = null;
+    }
+
+    // Built-in sort options (always shown as chips). Subtitle fields add dynamic chips automatically.
+    static SORT_OPTIONS = {
+        'year': 'Year',
+        'set': 'Set/Brand',
+        'price-low': 'Price Low',
+        'price-high': 'Price High',
+        'scarcity': 'Scarcity',
+    };
+
+    static DEFAULT_SORTS = ['year', 'set', 'price-low', 'price-high'];
+
+    // Options for what "Default" sort means
+    static DEFAULT_SORT_MODES = {
+        'as-entered': 'As Entered (manual order)',
+        'alphabetical': 'Alphabetical (player name)',
+        'year': 'Year',
+        'set': 'Set/Brand',
+    };
+
+    init() {
+        if (this.backdrop) return;
+
+        const backdrop = document.createElement('div');
+        backdrop.className = 'card-editor-backdrop checklist-creator-backdrop';
+        backdrop.innerHTML = `
+            <div class="card-editor-modal checklist-creator-modal">
+                <div class="card-editor-header">
+                    <div>
+                        <div class="card-editor-title">CREATE NEW CHECKLIST</div>
+                        <div class="card-editor-subtitle">Set up your card collection</div>
+                    </div>
+                    <button class="card-editor-close" title="Close">&times;</button>
+                </div>
+                <div class="card-editor-body">
+                    <div class="creator-section-label">Info</div>
+                    <div class="card-editor-grid">
+                        <div class="card-editor-field full-width">
+                            <label class="card-editor-label">Checklist Title</label>
+                            <input type="text" class="card-editor-input" id="creator-title" placeholder="My Card Collection" title="The main heading displayed at the top of your checklist page">
+                        </div>
+                        <div class="card-editor-field">
+                            <label class="card-editor-label">Subtitle</label>
+                            <input type="text" class="card-editor-input" id="creator-subtitle" placeholder="Optional subtitle" title="Smaller text shown below the title on the checklist page">
+                        </div>
+                        <div class="card-editor-field">
+                            <label class="card-editor-label">Nav Label</label>
+                            <input type="text" class="card-editor-input" id="creator-nav-label" placeholder="e.g. MY CARDS" maxlength="20" title="Short label shown in the top navigation bar">
+                        </div>
+                        <div class="card-editor-field full-width">
+                            <label class="card-editor-label">Description</label>
+                            <textarea class="card-editor-input creator-textarea" id="creator-description" rows="2" placeholder="Short description shown on the home page" title="Brief text shown on the index page card for this checklist"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="creator-section-divider"></div>
+                    <div class="creator-section-label">Theme</div>
+
+                    <div class="creator-theme-row">
+                        <div class="creator-color-field" title="Main color used for the page header gradient and accents">
+                            <label class="card-editor-label">Primary</label>
+                            <div class="creator-color-picker">
+                                <input type="color" id="creator-primary-color" value="#667eea">
+                                <span class="creator-color-hex" id="creator-primary-hex">#667eea</span>
+                            </div>
+                        </div>
+                        <div class="creator-color-field" title="Secondary color used for buttons, links, and highlights">
+                            <label class="card-editor-label">Accent</label>
+                            <div class="creator-color-picker">
+                                <input type="color" id="creator-accent-color" value="#f39c12">
+                                <span class="creator-color-hex" id="creator-accent-hex">#f39c12</span>
+                            </div>
+                        </div>
+                        <label class="card-editor-checkbox creator-dark-toggle" title="Dark background with light text instead of the default light theme">
+                            <input type="checkbox" id="creator-dark-theme">
+                            <span>Dark theme</span>
+                        </label>
+                    </div>
+
+                    <div class="creator-section-divider"></div>
+                    <div class="creator-section-label">Structure</div>
+
+                    <div class="card-editor-grid">
+                        <div class="card-editor-field">
+                            <label class="card-editor-checkbox" title="Group cards into named sections with headers. Uncheck for a single flat list.">
+                                <input type="checkbox" id="creator-use-sections" checked>
+                                <span>Organize cards into sections</span>
+                            </label>
+                        </div>
+                        <div class="card-editor-field full-width" id="creator-categories-field">
+                            <label class="card-editor-label">Sections</label>
+                            <div class="creator-row-list" id="creator-categories-list"></div>
+                            <button type="button" class="creator-add-row" id="creator-add-category">+ Add Section</button>
+                        </div>
+                    </div>
+
+                    <div class="creator-section-divider"></div>
+                    <div class="creator-section-label">Display</div>
+
+                    <div class="creator-display-grid">
+                        <div class="card-editor-field">
+                            <label class="card-editor-label" title="How cards are ordered within each section by default">Default Sort</label>
+                            <select class="card-editor-input card-editor-select" id="creator-default-sort" title="The sort applied when viewing the checklist normally"></select>
+                            <label class="card-editor-checkbox" style="margin-top: 8px;" title="Show a player name field on each card. Useful for checklists organized by player.">
+                                <input type="checkbox" id="creator-show-player">
+                                <span>Show player name on cards</span>
+                            </label>
+                        </div>
+                        <div class="card-editor-field">
+                            <label class="card-editor-label" title="Extra sort options available in the sort dropdown on the checklist page">Additional Sorts</label>
+                            <div class="creator-sort-chips" id="creator-sort-chips" title="Click to toggle each sort option on or off"></div>
+                        </div>
+                    </div>
+
+                    <div class="creator-section-divider"></div>
+                    <div class="creator-section-label">Card Details</div>
+
+                    <div class="creator-subsection-label" title="Custom text lines shown below the player name on each card">Subtitle Lines</div>
+                    <div class="creator-hint" style="margin-bottom: 6px;">Text fields shown below the player name on each card</div>
+                    <div class="creator-row-list" id="creator-subtitle-lines-list"></div>
+                    <button type="button" class="creator-add-row" id="creator-add-subtitle-line">+ Add Subtitle Line</button>
+
+
+                    <div class="creator-subsection-label" style="margin-top: 14px;" title="Toggle which attribute fields appear in the card editor">Attributes</div>
+                    <div class="creator-options-row">
+                        <label class="card-editor-checkbox" title="Text field for card variant (e.g. Silver Prizm, Blue Shimmer)">
+                            <input type="checkbox" id="creator-attr-variant" checked>
+                            <span>Variant</span>
+                        </label>
+                        <label class="card-editor-checkbox" title="Checkbox to mark autographed cards. Shows a gold AUTO badge.">
+                            <input type="checkbox" id="creator-attr-auto" checked>
+                            <span>Auto</span>
+                        </label>
+                        <label class="card-editor-checkbox" title="Checkbox to mark patch/relic cards. Shows a purple PATCH badge.">
+                            <input type="checkbox" id="creator-attr-patch" checked>
+                            <span>Patch</span>
+                        </label>
+                        <label class="card-editor-checkbox" title="Text field for serial numbered cards (e.g. /99, /25). Shows a serial badge.">
+                            <input type="checkbox" id="creator-attr-serial" checked>
+                            <span>Serial</span>
+                        </label>
+                    </div>
+
+                    <div class="creator-subsection-label" style="margin-top: 14px;" title="Dollar thresholds for price badge colors: green (below mid), orange (mid to high), red (above high)">Price Badge Colors</div>
+                    <div class="creator-price-thresholds">
+                        <label title="Cards priced at or above this amount show an orange badge">
+                            <span class="creator-threshold-color" style="background: var(--color-warning, #ff9800)"></span>
+                            <span>$</span><input type="text" inputmode="numeric" id="creator-threshold-mid" value="3" class="creator-threshold-input">
+                        </label>
+                        <label title="Cards priced at or above this amount show a red badge">
+                            <span class="creator-threshold-color" style="background: var(--color-error, #f44336)"></span>
+                            <span>$</span><input type="text" inputmode="numeric" id="creator-threshold-high" value="10" class="creator-threshold-input">
+                        </label>
+                        <span class="creator-threshold-hint"><span>Cards below $<span id="creator-threshold-mid-label">3</span> are</span> <span class="creator-threshold-color" style="background: var(--color-success, #4caf50)"></span></span>
+                    </div>
+
+                </div>
+                <div class="card-editor-footer">
+                    <button class="card-editor-btn save" id="creator-save">Create Checklist</button>
+                    <button class="card-editor-btn cancel" id="creator-cancel">Cancel</button>
+                </div>
+            </div>
+        `;
+
+        backdrop.querySelector('.card-editor-close').onclick = () => this.close();
+        backdrop.querySelector('#creator-cancel').onclick = () => this.close();
+        backdrop.querySelector('#creator-save').onclick = () => this.save();
+        backdrop.addEventListener('click', (e) => {
+            if (e.target === backdrop) this.close();
+        });
+
+        // Toggle sections visibility
+        backdrop.querySelector('#creator-use-sections').addEventListener('change', (e) => {
+            if (!e.target.checked && this.editMode && this.existingConfig?.dataShape !== 'flat') {
+                if (!confirm('Removing sections will move all cards into a single flat list. Card section assignments will be lost. Continue?')) {
+                    e.target.checked = true;
+                    return;
+                }
+            }
+            backdrop.querySelector('#creator-categories-field').style.display = e.target.checked ? '' : 'none';
+        });
+
+        // Sync color hex displays
+        backdrop.querySelector('#creator-primary-color').addEventListener('input', (e) => {
+            backdrop.querySelector('#creator-primary-hex').textContent = e.target.value;
+        });
+        backdrop.querySelector('#creator-accent-color').addEventListener('input', (e) => {
+            backdrop.querySelector('#creator-accent-hex').textContent = e.target.value;
+        });
+
+        // Update green hint when mid threshold changes
+        // Price threshold validation
+        const validateThreshold = (input, fallback) => {
+            let val = parseInt(input.value);
+            if (isNaN(val) || val < 0) val = fallback;
+            input.value = val;
+            return val;
+        };
+        const midInput = backdrop.querySelector('#creator-threshold-mid');
+        const highInput = backdrop.querySelector('#creator-threshold-high');
+        const midLabel = backdrop.querySelector('#creator-threshold-mid-label');
+        midInput.addEventListener('input', () => {
+            midLabel.textContent = parseInt(midInput.value) || 0;
+        });
+        midInput.addEventListener('blur', () => {
+            const mid = validateThreshold(midInput, 3);
+            midLabel.textContent = mid;
+            const high = parseInt(highInput.value) || 10;
+            if (mid >= high) highInput.value = mid + 1;
+        });
+        highInput.addEventListener('blur', () => {
+            const high = validateThreshold(highInput, 10);
+            const mid = parseInt(midInput.value) || 3;
+            if (high <= mid) highInput.value = mid + 1;
+        });
+
+        // Add category / subtitle line buttons
+        backdrop.querySelector('#creator-add-category').onclick = () => this._addCategoryRow();
+        backdrop.querySelector('#creator-add-subtitle-line').onclick = () => this._addSubtitleLineRow();
+
+        this.backdrop = backdrop;
+        document.body.appendChild(backdrop);
+    }
+
+    open() {
+        this.init();
+        this.editMode = false;
+        this.existingConfig = null;
+        this.backdrop.querySelector('.card-editor-title').textContent = 'CREATE NEW CHECKLIST';
+        this.backdrop.querySelector('.card-editor-subtitle').textContent = 'Set up your card collection';
+        this.backdrop.querySelector('#creator-save').textContent = 'Create Checklist';
+        this._clearForm();
+        this.backdrop.classList.add('active');
+        this.backdrop.querySelector('#creator-title').focus();
+    }
+
+    openEdit(config) {
+        this.init();
+        this.editMode = true;
+        this.existingConfig = config;
+        this.backdrop.querySelector('.card-editor-title').textContent = 'CHECKLIST SETTINGS';
+        this.backdrop.querySelector('.card-editor-subtitle').textContent = 'Edit checklist configuration';
+        this.backdrop.querySelector('#creator-save').textContent = 'Save Settings';
+        this._populateForm(config);
+        this.backdrop.classList.add('active');
+    }
+
+    close() {
+        if (this.backdrop) {
+            this.backdrop.classList.remove('active');
+        }
+    }
+
+    // ---- Sort options ----
+
+    _renderSortControls(activeSorts, defaultSortMode, subtitleLines) {
+        // Default sort dropdown
+        const select = this.backdrop.querySelector('#creator-default-sort');
+        if (select) {
+            this._rebuildDefaultSortDropdown(defaultSortMode, subtitleLines);
+        }
+
+        // Sort chips (additional sorts beyond default)
+        this._renderSortChips(activeSorts);
+    }
+
+    _renderSortChips(activeSorts) {
+        const container = this.backdrop.querySelector('#creator-sort-chips');
+        if (!container) return;
+
+        // Remember currently active chips before rebuild
+        const currentActive = activeSorts || this._getActiveChipKeys();
+        container.innerHTML = '';
+
+        // Built-in sort options
+        Object.entries(ChecklistCreatorModal.SORT_OPTIONS).forEach(([key, label]) => {
+            this._appendSortChip(container, key, label, currentActive.includes(key));
+        });
+
+        // Dynamic chips from subtitle lines
+        const subtitleLines = this._getSubtitleLinesFromForm();
+        subtitleLines.forEach(line => {
+            const key = `field:${line.key}`;
+            this._appendSortChip(container, key, line.label, currentActive.includes(key));
+        });
+    }
+
+    _appendSortChip(container, key, label, isActive) {
+        const chip = document.createElement('span');
+        chip.className = 'creator-sort-chip' + (isActive ? ' active' : '');
+        chip.textContent = label;
+        chip.dataset.sort = key;
+        chip.onclick = () => chip.classList.toggle('active');
+        container.appendChild(chip);
+    }
+
+    _getActiveChipKeys() {
+        const chips = this.backdrop.querySelectorAll('#creator-sort-chips .creator-sort-chip.active');
+        return Array.from(chips).map(c => c.dataset.sort);
+    }
+
+    _refreshSortControls() {
+        this._renderSortChips();
+        this._refreshDefaultSortDropdown();
+    }
+
+    _refreshDefaultSortDropdown() {
+        const select = this.backdrop.querySelector('#creator-default-sort');
+        if (!select) return;
+        const currentValue = select.value;
+        this._rebuildDefaultSortDropdown(currentValue);
+        if ([...select.options].some(o => o.value === currentValue)) {
+            select.value = currentValue;
+        }
+    }
+
+    _rebuildDefaultSortDropdown(selectedValue, subtitleLines) {
+        const select = this.backdrop.querySelector('#creator-default-sort');
+        if (!select) return;
+        select.innerHTML = '';
+
+        // Base modes (As Entered, Alphabetical, Year, Set/Brand)
+        Object.entries(ChecklistCreatorModal.DEFAULT_SORT_MODES).forEach(([key, label]) => {
+            const opt = document.createElement('option');
+            opt.value = key;
+            opt.textContent = label;
+            select.appendChild(opt);
+        });
+
+        // Chip-based sorts (Price Low, Price High, Scarcity)
+        Object.entries(ChecklistCreatorModal.SORT_OPTIONS).forEach(([key, label]) => {
+            if (ChecklistCreatorModal.DEFAULT_SORT_MODES[key]) return;
+            const opt = document.createElement('option');
+            opt.value = key;
+            opt.textContent = label;
+            select.appendChild(opt);
+        });
+
+        // Subtitle line fields
+        const lines = subtitleLines || this._getSubtitleLinesFromForm();
+        lines.forEach(line => {
+            const opt = document.createElement('option');
+            opt.value = `field:${line.key}`;
+            opt.textContent = `${line.label} (custom field)`;
+            select.appendChild(opt);
+        });
+
+        select.value = selectedValue || 'as-entered';
+
+        // Auto-enable chip when a sort chip option is selected as default
+        select.onchange = () => {
+            const val = select.value;
+            const chip = this.backdrop.querySelector(`#creator-sort-chips .creator-sort-chip[data-sort="${val}"]`);
+            if (chip && !chip.classList.contains('active')) chip.classList.add('active');
+        };
+    }
+
+    _getSortOptionsFromForm() {
+        const chips = this.backdrop.querySelectorAll('#creator-sort-chips .creator-sort-chip.active');
+        // Always include 'default' as first option, then the selected additional sorts
+        return ['default', ...Array.from(chips).map(c => c.dataset.sort)];
+    }
+
+    // ---- Category rows ----
+
+    _slugify(label) {
+        return label.toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, '')
+            .replace(/\s+/g, '-')
+            .replace(/-+/g, '-')
+            .substring(0, 30) || 'cat';
+    }
+
+    _addCategoryRow(data, parentEl) {
+        const list = parentEl || this.backdrop.querySelector('#creator-categories-list');
+        const row = document.createElement('div');
+        row.className = 'creator-row-wrap';
+        if (parentEl) row.classList.add('creator-subcategory');
+
+        const colors = this._extractGradientColors(data?.gradient);
+        const color1 = colors[0] || (parentEl ? '#2a2a4e' : '#667eea');
+        const color2 = colors[1] || (parentEl ? '#1a1a3e' : '#764ba2');
+        const label = data?.label || '';
+        const id = data?.id || '';
+        const isMain = data ? data.isMain !== false : true;
+        const note = data?.note || '';
+        const isExisting = this.editMode && !!data?.id;
+        const isParent = !parentEl;
+
+        row.innerHTML = `
+            <div class="creator-row-main">
+                <input type="color" value="${color1}" title="Gradient start color">
+                <input type="color" value="${color2}" title="Gradient end color">
+                <div class="creator-row-label">
+                    <input type="text" placeholder="${isParent ? 'Section name' : 'Subsection name'}" value="${this._escAttr(label)}">
+                </div>
+                <span class="creator-row-id ${isExisting ? 'locked' : ''}">${this._escHtml(id)}</span>
+                ${isParent ? `<label class="creator-row-extra" title="Include this section in the main totals">
+                    <input type="checkbox" ${isMain ? 'checked' : ''}>
+                    <span>Counts</span>
+                </label>
+                <label class="creator-row-index ${isMain ? 'hidden' : ''}" title="Feature this section's stats on the homepage card">
+                    <input type="checkbox" ${data?.showOnIndex ? 'checked' : ''}>
+                    <span>Feature</span>
+                </label>` : ''}
+                <div class="creator-row-arrows">
+                    <button type="button" class="creator-row-up" title="Move up">&#9650;</button>
+                    <button type="button" class="creator-row-down" title="Move down">&#9660;</button>
+                </div>
+                <button type="button" class="creator-row-remove" title="Remove">&times;</button>
+            </div>
+            ${isParent ? `<div class="creator-row-note">
+                <input type="text" placeholder="Note (shown under header)" value="${this._escAttr(note)}">
+            </div>` : ''}
+            ${isParent ? `<div class="creator-subcategory-list"></div>
+            <button type="button" class="creator-add-subcategory">+ Subsection</button>` : ''}
+        `;
+
+        // Auto-generate ID from label (new categories only)
+        const labelInput = row.querySelector('.creator-row-label input');
+        const idSpan = row.querySelector('.creator-row-id');
+        if (!isExisting) {
+            labelInput.addEventListener('input', () => {
+                idSpan.textContent = this._slugify(labelInput.value);
+            });
+        }
+
+        // Counts checkbox toggles Feature visibility (Feature only available for non-counted sections)
+        const countsCheckbox = row.querySelector('.creator-row-extra input');
+        const indexLabel = row.querySelector('.creator-row-index');
+        if (countsCheckbox && indexLabel) {
+            countsCheckbox.onchange = () => {
+                indexLabel.classList.toggle('hidden', countsCheckbox.checked);
+                if (countsCheckbox.checked) indexLabel.querySelector('input').checked = false;
+                this._updateIndexPillLimit();
+            };
+            // Index checkbox change updates limit state
+            indexLabel.querySelector('input').onchange = () => this._updateIndexPillLimit();
+        }
+
+        // Remove button
+        row.querySelector('.creator-row-remove').onclick = () => { row.remove(); this._updateIndexPillLimit(); };
+
+        // Reorder arrows
+        row.querySelector('.creator-row-up').onclick = () => {
+            const prev = row.previousElementSibling;
+            if (prev) {
+                row.parentNode.insertBefore(row, prev);
+                row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                row.classList.add('creator-row-flash');
+                row.addEventListener('animationend', () => row.classList.remove('creator-row-flash'), { once: true });
+            }
+        };
+        row.querySelector('.creator-row-down').onclick = () => {
+            const next = row.nextElementSibling;
+            if (next) {
+                row.parentNode.insertBefore(next, row);
+                row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                row.classList.add('creator-row-flash');
+                row.addEventListener('animationend', () => row.classList.remove('creator-row-flash'), { once: true });
+            }
+        };
+
+        // Add subcategory button (parent rows only)
+        const addSubBtn = row.querySelector('.creator-add-subcategory');
+        if (addSubBtn) {
+            addSubBtn.onclick = () => {
+                const subList = row.querySelector('.creator-subcategory-list');
+                this._addCategoryRow(null, subList);
+            };
+        }
+
+        list.appendChild(row);
+        if (!data) labelInput.focus();
+
+        // Populate existing children
+        if (isParent && data?.children?.length > 0) {
+            const subList = row.querySelector('.creator-subcategory-list');
+            data.children.forEach(child => this._addCategoryRow(child, subList));
+        }
+    }
+
+    _extractGradientColors(gradient) {
+        if (!gradient) return [];
+        const matches = gradient.match(/#[0-9a-fA-F]{6}/g);
+        return matches || [];
+    }
+
+    _dedupeId(id, usedIds) {
+        let unique = id;
+        let suffix = 2;
+        while (usedIds.has(unique)) {
+            unique = `${id}-${suffix}`;
+            suffix++;
+        }
+        usedIds.add(unique);
+        return unique;
+    }
+
+    _updateIndexPillLimit() {
+        const indexCheckboxes = this.backdrop.querySelectorAll('.creator-row-index input[type="checkbox"]');
+        const checkedCount = [...indexCheckboxes].filter(cb => cb.checked).length;
+        const atLimit = checkedCount >= 3;
+        indexCheckboxes.forEach(cb => {
+            if (!cb.checked) {
+                cb.disabled = atLimit;
+                cb.closest('.creator-row-index').title = atLimit
+                    ? 'Maximum of 3 featured sections reached'
+                    : 'Feature this section\'s stats on the homepage card';
+            }
+        });
+    }
+
+    _getCategoriesFromForm() {
+        // Only get top-level rows (not subcategories nested inside)
+        const rows = this.backdrop.querySelectorAll('#creator-categories-list > .creator-row-wrap');
+        const categories = [];
+        const usedIds = new Set();
+        rows.forEach(row => {
+            const label = row.querySelector(':scope > .creator-row-main .creator-row-label input').value.trim();
+            if (!label) return;
+            const idText = row.querySelector(':scope > .creator-row-main .creator-row-id').textContent.trim();
+            const id = this._dedupeId(idText || this._slugify(label), usedIds);
+            const colors = row.querySelectorAll(':scope > .creator-row-main input[type="color"]');
+            const color1 = colors[0]?.value || '#667eea';
+            const color2 = colors[1]?.value || '#764ba2';
+            const countsInput = row.querySelector(':scope > .creator-row-main .creator-row-extra input');
+            const isMain = countsInput ? countsInput.checked : true;
+            const indexInput = row.querySelector(':scope > .creator-row-main .creator-row-index input');
+            const showOnIndex = indexInput ? indexInput.checked : false;
+            const noteInput = row.querySelector(':scope > .creator-row-note input');
+            const note = noteInput ? noteInput.value.trim() : '';
+
+            const cat = { id, label, isMain };
+            cat.gradient = `linear-gradient(135deg, ${color1}, ${color2})`;
+            if (note) cat.note = note;
+            if (showOnIndex) cat.showOnIndex = true;
+
+            // Collect subcategories
+            const subRows = row.querySelectorAll(':scope > .creator-subcategory-list > .creator-row-wrap');
+            if (subRows.length > 0) {
+                cat.children = [];
+                subRows.forEach(subRow => {
+                    const subLabel = subRow.querySelector('.creator-row-label input').value.trim();
+                    if (!subLabel) return;
+                    const subIdText = subRow.querySelector('.creator-row-id').textContent.trim();
+                    const subId = this._dedupeId(subIdText || this._slugify(subLabel), usedIds);
+                    const subColors = subRow.querySelectorAll('input[type="color"]');
+                    const sc1 = subColors[0]?.value || '#2a2a4e';
+                    const sc2 = subColors[1]?.value || '#1a1a3e';
+                    const child = { id: subId, label: subLabel };
+                    // Only store gradient if non-default
+                    if (sc1 !== '#2a2a4e' || sc2 !== '#1a1a3e') {
+                        child.gradient = `linear-gradient(135deg, ${sc1}, ${sc2})`;
+                    }
+                    cat.children.push(child);
+                });
+                if (cat.children.length === 0) delete cat.children;
+            }
+
+            categories.push(cat);
+        });
+        return categories;
+    }
+
+    // ---- Subtitle line rows ----
+
+    _addSubtitleLineRow(data) {
+        const list = this.backdrop.querySelector('#creator-subtitle-lines-list');
+        const row = document.createElement('div');
+        row.className = 'creator-row';
+
+        const color = data?.color || '#888888';
+        const label = data?.label || '';
+        const key = data?.key || '';
+        const pill = data?.pill || false;
+        const isExisting = this.editMode && !!data?.key;
+
+        row.innerHTML = `
+            <input type="color" value="${color}" title="Text color for this line">
+            <button type="button" class="creator-pill-toggle ${pill ? 'active' : ''}" title="Toggle pill background">pill</button>
+            <div class="creator-row-label">
+                <input type="text" placeholder="Field label (e.g. Years Active)" value="${this._escAttr(label)}">
+            </div>
+            <span class="creator-row-id ${isExisting ? 'locked' : ''}">${this._escHtml(key)}</span>
+            <div class="creator-row-arrows">
+                <button type="button" class="creator-row-up" title="Move up">&#9650;</button>
+                <button type="button" class="creator-row-down" title="Move down">&#9660;</button>
+            </div>
+            <button type="button" class="creator-row-remove" title="Remove">&times;</button>
+        `;
+
+        row.querySelector('.creator-pill-toggle').onclick = (e) => {
+            e.currentTarget.classList.toggle('active');
+        };
+
+        const labelInput = row.querySelector('.creator-row-label input');
+        const idSpan = row.querySelector('.creator-row-id');
+        if (!isExisting) {
+            labelInput.addEventListener('input', () => {
+                idSpan.textContent = this._slugify(labelInput.value);
+                this._refreshSortControls();
+            });
+        }
+
+        row.querySelector('.creator-row-up').onclick = () => {
+            const prev = row.previousElementSibling;
+            if (prev) {
+                row.parentNode.insertBefore(row, prev);
+                row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                row.classList.add('creator-row-flash');
+                row.addEventListener('animationend', () => row.classList.remove('creator-row-flash'), { once: true });
+            }
+        };
+        row.querySelector('.creator-row-down').onclick = () => {
+            const next = row.nextElementSibling;
+            if (next) {
+                row.parentNode.insertBefore(next, row);
+                row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                row.classList.add('creator-row-flash');
+                row.addEventListener('animationend', () => row.classList.remove('creator-row-flash'), { once: true });
+            }
+        };
+        row.querySelector('.creator-row-remove').onclick = () => {
+            row.remove();
+            this._refreshSortControls();
+        };
+        list.appendChild(row);
+        if (!data) labelInput.focus();
+        this._refreshSortControls();
+    }
+
+    _getSubtitleLinesFromForm() {
+        const rows = this.backdrop.querySelectorAll('#creator-subtitle-lines-list .creator-row');
+        const lines = [];
+        rows.forEach(row => {
+            const label = row.querySelector('.creator-row-label input').value.trim();
+            if (!label) return;
+            const idText = row.querySelector('.creator-row-id').textContent.trim();
+            const key = idText || this._slugify(label);
+            const color = row.querySelector('input[type="color"]').value;
+            const pill = row.querySelector('.creator-pill-toggle')?.classList.contains('active') || false;
+            lines.push({ key, label, color, pill });
+        });
+        return lines;
+    }
+
+    // ---- HTML helpers ----
+
+    _escAttr(str) {
+        return (str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    }
+
+    _escHtml(str) {
+        return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    _darkenColor(hex, amount) {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        const dr = Math.round(r * (1 - amount));
+        const dg = Math.round(g * (1 - amount));
+        const db = Math.round(b * (1 - amount));
+        return `#${dr.toString(16).padStart(2, '0')}${dg.toString(16).padStart(2, '0')}${db.toString(16).padStart(2, '0')}`;
+    }
+
+    // ---- Form clear / populate ----
+
+    _clearForm() {
+        this.backdrop.querySelector('#creator-title').value = '';
+        this.backdrop.querySelector('#creator-subtitle').value = '';
+        this.backdrop.querySelector('#creator-nav-label').value = '';
+        this.backdrop.querySelector('#creator-primary-color').value = '#667eea';
+        this.backdrop.querySelector('#creator-primary-hex').textContent = '#667eea';
+        this.backdrop.querySelector('#creator-accent-color').value = '#f39c12';
+        this.backdrop.querySelector('#creator-accent-hex').textContent = '#f39c12';
+        this.backdrop.querySelector('#creator-dark-theme').checked = false;
+        this.backdrop.querySelector('#creator-use-sections').checked = true;
+        this.backdrop.querySelector('#creator-show-player').checked = false;
+        this.backdrop.querySelector('#creator-description').value = '';
+
+        // Reset attribute checkboxes to checked
+        this.backdrop.querySelector('#creator-attr-variant').checked = true;
+        this.backdrop.querySelector('#creator-attr-auto').checked = true;
+        this.backdrop.querySelector('#creator-attr-patch').checked = true;
+        this.backdrop.querySelector('#creator-attr-serial').checked = true;
+
+        // Reset price thresholds
+        this.backdrop.querySelector('#creator-threshold-mid').value = '3';
+        this.backdrop.querySelector('#creator-threshold-high').value = '10';
+        this.backdrop.querySelector('#creator-threshold-mid-label').textContent = '3';
+
+        // Show categories
+        this.backdrop.querySelector('#creator-categories-field').style.display = '';
+
+        // Reset category rows - add one default
+        this.backdrop.querySelector('#creator-categories-list').innerHTML = '';
+        this._addCategoryRow({ id: 'base', label: 'Base Cards', isMain: true });
+
+        // Clear subtitle lines
+        this.backdrop.querySelector('#creator-subtitle-lines-list').innerHTML = '';
+
+        // Reset sort controls to defaults
+        this._renderSortControls(ChecklistCreatorModal.DEFAULT_SORTS, 'as-entered');
+    }
+
+    _populateForm(config) {
+        const primaryColor = config.theme?.primaryColor || '#667eea';
+        const accentColor = config.theme?.accentColor || '#f39c12';
+        this.backdrop.querySelector('#creator-title').value = config.title || '';
+        this.backdrop.querySelector('#creator-subtitle').value = config.subtitle || '';
+        this.backdrop.querySelector('#creator-nav-label').value = config.navLabel || '';
+        this.backdrop.querySelector('#creator-primary-color').value = primaryColor;
+        this.backdrop.querySelector('#creator-primary-hex').textContent = primaryColor;
+        this.backdrop.querySelector('#creator-accent-color').value = accentColor;
+        this.backdrop.querySelector('#creator-accent-hex').textContent = accentColor;
+        this.backdrop.querySelector('#creator-dark-theme').checked = config.theme?.darkTheme || false;
+        this.backdrop.querySelector('#creator-use-sections').checked = config.dataShape !== 'flat';
+        this.backdrop.querySelector('#creator-show-player').checked = config.cardDisplay?.showPlayerName !== false;
+        this.backdrop.querySelector('#creator-description').value = config.indexCard?.description || '';
+
+        // Categories as rows
+        this.backdrop.querySelector('#creator-categories-list').innerHTML = '';
+        if (config.categories && config.categories.length > 0) {
+            config.categories.forEach(c => this._addCategoryRow(c));
+        } else {
+            this._addCategoryRow({ id: 'base', label: 'Base Cards', isMain: true });
+        }
+        this._updateIndexPillLimit();
+
+        // Subtitle lines: extract from customFields (position: 'bottom', type: 'text', key != 'player')
+        this.backdrop.querySelector('#creator-subtitle-lines-list').innerHTML = '';
+        if (config.customFields) {
+            Object.entries(config.customFields).forEach(([key, field]) => {
+                if (field.position === 'bottom' && field.type === 'text' && key !== 'player') {
+                    this._addSubtitleLineRow({ key, label: field.label, color: field.color || '#888888', pill: field.pill || false });
+                }
+            });
+        }
+
+        // Attribute toggles (default to checked if no customFields yet, otherwise check if present)
+        const cf = config.customFields || {};
+        this.backdrop.querySelector('#creator-attr-variant').checked = !config.customFields || 'variant' in cf;
+        this.backdrop.querySelector('#creator-attr-auto').checked = !config.customFields || 'auto' in cf;
+        this.backdrop.querySelector('#creator-attr-patch').checked = !config.customFields || 'patch' in cf;
+        this.backdrop.querySelector('#creator-attr-serial').checked = !config.customFields || 'serial' in cf;
+
+        // Price thresholds
+        const thresholds = config.cardDisplay?.priceThresholds || { mid: 3, high: 10 };
+        this.backdrop.querySelector('#creator-threshold-mid').value = thresholds.mid;
+        this.backdrop.querySelector('#creator-threshold-high').value = thresholds.high;
+        this.backdrop.querySelector('#creator-threshold-mid-label').textContent = thresholds.mid;
+
+        // Sort options - extract subtitle lines for the default sort dropdown
+        const subtitleLines = [];
+        if (config.customFields) {
+            Object.entries(config.customFields).forEach(([key, field]) => {
+                if (field.position === 'bottom' && field.type === 'text' && key !== 'player') {
+                    subtitleLines.push({ key, label: field.label });
+                }
+            });
+        }
+        const activeSorts = (config.sortOptions || ChecklistCreatorModal.DEFAULT_SORTS).filter(s => s !== 'default');
+        this._renderSortControls(activeSorts, config.defaultSortMode || 'as-entered', subtitleLines);
+
+        // Toggle visibility
+        const useSections = config.dataShape !== 'flat';
+        this.backdrop.querySelector('#creator-categories-field').style.display = useSections ? '' : 'none';
+    }
+
+    _generateId(title) {
+        return title.toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, '')
+            .replace(/\s+/g, '-')
+            .replace(/-+/g, '-')
+            .substring(0, 40);
+    }
+
+    _buildConfig() {
+        const title = this.backdrop.querySelector('#creator-title').value.trim();
+        if (!title) {
+            alert('Title is required');
+            return null;
+        }
+
+        const navLabel = this.backdrop.querySelector('#creator-nav-label').value.trim();
+        if (!navLabel) {
+            alert('Nav label is required');
+            return null;
+        }
+
+        const id = this.editMode ? this.existingConfig.id : this._generateId(title);
+        const useSections = this.backdrop.querySelector('#creator-use-sections').checked;
+        const dataShape = useSections ? 'categories' : 'flat';
+
+        // Start from existing config in edit mode to preserve unmanaged properties
+        const config = this.editMode
+            ? JSON.parse(JSON.stringify(this.existingConfig))
+            : {};
+
+        // Overlay form values
+        config.id = id;
+        config.title = title;
+        config.subtitle = this.backdrop.querySelector('#creator-subtitle').value.trim() || undefined;
+        config.navLabel = navLabel;
+        const primaryColor = this.backdrop.querySelector('#creator-primary-color').value;
+        config.theme = {
+            ...(config.theme || {}),
+            primaryColor,
+            accentColor: this.backdrop.querySelector('#creator-accent-color').value,
+            darkColor: this._darkenColor(primaryColor, 0.45),
+            darkTheme: this.backdrop.querySelector('#creator-dark-theme').checked,
+        };
+        config.dataShape = dataShape;
+        const midThreshold = parseInt(this.backdrop.querySelector('#creator-threshold-mid').value) || 3;
+        const highThreshold = parseInt(this.backdrop.querySelector('#creator-threshold-high').value) || 10;
+        config.cardDisplay = {
+            ...(config.cardDisplay || {}),
+            priceMode: 'explicit',
+            showPlayerName: this.backdrop.querySelector('#creator-show-player').checked,
+            priceThresholds: { mid: midThreshold, high: highThreshold },
+        };
+
+        // Build customFields from form
+        const customFields = {};
+
+        // Player field (if showing player names)
+        if (config.cardDisplay.showPlayerName) {
+            customFields.player = { label: 'Player Name', type: 'text', fullWidth: true };
+            config.cardDisplay.includePlayerInCardId = true;
+        } else {
+            delete config.cardDisplay.includePlayerInCardId;
+        }
+
+        // Subtitle lines
+        const subtitleLines = this._getSubtitleLinesFromForm();
+        subtitleLines.forEach(line => {
+            customFields[line.key] = {
+                label: line.label,
+                type: 'text',
+                position: 'bottom',
+                color: line.color !== '#888888' ? line.color : undefined,
+                pill: line.pill || undefined,
+            };
+        });
+
+        // Standard attribute fields (toggleable)
+        if (this.backdrop.querySelector('#creator-attr-variant').checked) {
+            customFields.variant = { label: 'Variant', type: 'text', placeholder: 'Silver Prizm', fullWidth: true, position: 'attributes' };
+        }
+        if (this.backdrop.querySelector('#creator-attr-auto').checked) {
+            customFields.auto = { label: 'Auto', type: 'checkbox', position: 'attributes' };
+        }
+        if (this.backdrop.querySelector('#creator-attr-patch').checked) {
+            customFields.patch = { label: 'Patch', type: 'checkbox', position: 'attributes' };
+        }
+        if (this.backdrop.querySelector('#creator-attr-serial').checked) {
+            customFields.serial = { label: 'Run', type: 'text', inputType: 'number', placeholder: '99', position: 'attributes' };
+        }
+
+
+        config.customFields = customFields;
+
+        // Sort options from chips (always includes 'default' first)
+        config.sortOptions = this._getSortOptionsFromForm();
+
+        // Default sort mode
+        const defaultSortMode = this.backdrop.querySelector('#creator-default-sort').value;
+        config.defaultSortMode = defaultSortMode !== 'as-entered' ? defaultSortMode : undefined;
+
+        config.indexCard = {
+            ...(config.indexCard || {}),
+            description: this.backdrop.querySelector('#creator-description').value.trim() || undefined,
+        };
+
+        // Parse categories or flat
+        if (useSections) {
+            const categories = this._getCategoriesFromForm();
+            if (categories.length === 0) {
+                alert('At least one section is required');
+                return null;
+            }
+            config.categories = categories;
+            delete config.groups;
+            delete config.groupField;
+        } else {
+            delete config.categories;
+            delete config.groups;
+            delete config.groupField;
+        }
+
+        // Clean undefined values at top level
+        Object.keys(config).forEach(k => { if (config[k] === undefined) delete config[k]; });
+
+        return config;
+    }
+
+    async save() {
+        const config = this._buildConfig();
+        if (!config) return;
+
+        const saveBtn = this.backdrop.querySelector('#creator-save');
+        saveBtn.disabled = true;
+        saveBtn.textContent = this.editMode ? 'Saving...' : 'Creating...';
+
+        // Extract extra category pills for the registry (max 3)
+        const extraPills = (config.categories || [])
+            .filter(c => c.showOnIndex)
+            .slice(0, 3)
+            .map(c => ({ id: c.id, label: c.label }));
+
+        try {
+            if (this.editMode) {
+                // Save updated config
+                const success = await githubSync.saveChecklistConfig(config.id, config);
+                if (!success) throw new Error('Failed to save config');
+
+                // Config saved - update local state (and migrate cards if shape changed)
+                this.close();
+                await this.onCreated(config);
+
+                // Best-effort: update registry (nav label, pills, etc.)
+                try {
+                    const registry = await githubSync.loadRegistry();
+                    if (registry) {
+                        const entry = registry.checklists.find(c => c.id === config.id);
+                        if (entry) {
+                            entry.title = config.title;
+                            entry.navLabel = config.navLabel;
+                            entry.description = config.indexCard?.description || '';
+                            entry.accentColor = config.theme?.accentColor || config.theme?.primaryColor || '#667eea';
+                            entry.borderColor = config.theme?.primaryColor || '#667eea';
+                            entry.extraPills = extraPills.length > 0 ? extraPills : undefined;
+                            await githubSync.saveRegistry(registry);
+                        }
+                    }
+                    DynamicNav._registry = null;
+                    sessionStorage.removeItem(DynamicNav._sessionKey);
+                } catch (regError) {
+                    console.warn('Config saved but registry update failed:', regError);
+                }
+                return;
+            } else {
+                // Load or create registry
+                let registry = await githubSync.loadRegistry();
+                if (!registry) {
+                    registry = { checklists: [] };
+                }
+
+                // Check for ID conflict
+                if (registry.checklists.find(c => c.id === config.id)) {
+                    alert('A checklist with this ID already exists. Try a different title.');
+                    return;
+                }
+
+                // Add to registry
+                registry.checklists.push({
+                    id: config.id,
+                    title: config.title,
+                    navLabel: config.navLabel,
+                    description: config.indexCard?.description || '',
+                    accentColor: config.theme?.accentColor || config.theme?.primaryColor || '#667eea',
+                    borderColor: config.theme?.primaryColor || '#667eea',
+                    extraPills: extraPills.length > 0 ? extraPills : undefined,
+                    type: 'dynamic',
+                    order: registry.checklists.length,
+                });
+
+                // Create checklist (config + empty cards + updated registry)
+                const success = await githubSync.createChecklist(config.id, config, registry);
+                if (!success) throw new Error('Failed to create checklist');
+
+                // Clear nav cache
+                DynamicNav._registry = null;
+                sessionStorage.removeItem(DynamicNav._sessionKey);
+            }
+
+            this.close();
+            this.onCreated(config);
+        } catch (error) {
+            console.error('Failed to save checklist:', error);
+            alert('Failed to save: ' + error.message);
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.textContent = this.editMode ? 'Save Settings' : 'Create Checklist';
+        }
+    }
+}
+
 // Export for use in pages
 window.CARD_TYPES = CARD_TYPES;
 window.ChecklistManager = ChecklistManager;
@@ -3032,3 +4167,6 @@ window.AddCardButton = AddCardButton;
 window.ImageProcessor = ImageProcessor;
 window.ImageEditorModal = ImageEditorModal;
 window.imageEditor = imageEditor;
+window.AuthUI = AuthUI;
+window.DynamicNav = DynamicNav;
+window.ChecklistCreatorModal = ChecklistCreatorModal;

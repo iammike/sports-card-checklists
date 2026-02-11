@@ -755,7 +755,7 @@
                 achievement: { label: 'Achievements', type: 'text', placeholder: 'Pro Bowl, Super Bowl Champion', fullWidth: true, parseArray: true },
                 auto: { label: 'Auto', type: 'checkbox', position: 'attributes' },
                 patch: { label: 'Patch', type: 'checkbox', position: 'attributes' },
-                serial: { label: 'Run', type: 'text', placeholder: '99', position: 'attributes' }
+                serial: { label: 'Run', type: 'text', inputType: 'number', placeholder: '99', position: 'attributes' }
             },
             priceInAttributes: true,
             imageFolder: 'images/washington-qbs',
@@ -912,6 +912,7 @@
         // Initialize
         async function init() {
             try {
+                DynamicNav.init(); // non-blocking nav update
                 await loadCardData();
                 await checklistManager.init();
                 cardContextMenu.init();
