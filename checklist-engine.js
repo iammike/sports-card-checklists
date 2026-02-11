@@ -1185,6 +1185,19 @@ class ChecklistEngine {
             imageFolder: `images/${this.id}`,
             categories: editorCategories,
             cardTypes: [],
+            isOwned: (cardId) => this.checklistManager.isOwned(cardId),
+            onOwnedChange: (cardId, cardData, nowOwned) => {
+                // For new cards, compute the cardId from the data
+                const id = cardId || this.getCardId(cardData);
+                this.checklistManager.toggleOwned(id, nowOwned);
+                const cardEl = document.querySelector(`.card[data-id="${id}"]`);
+                if (cardEl) {
+                    cardEl.classList.toggle('owned', nowOwned);
+                    const checkbox = cardEl.querySelector(`input[type="checkbox"]`);
+                    if (checkbox) checkbox.checked = nowOwned;
+                }
+                this.updateStats();
+            },
             onSave: async (cardId, cardData, isNew) => {
                 if (isNew) {
                     this._addCard(cardData);

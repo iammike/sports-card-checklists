@@ -1270,6 +1270,47 @@ select, input[type="text"] {
     padding: 20px 24px 16px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.card-editor-header-left {
+    flex: 1;
+    min-width: 0;
+}
+
+.card-editor-owned-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    padding: 6px 0;
+    margin-right: 28px;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.card-editor-owned-toggle input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #27ae60;
+    cursor: pointer;
+    margin: 0;
+}
+
+.card-editor-owned-toggle .owned-toggle-label {
+    font-family: 'Barlow', sans-serif;
+    font-size: 0.8em;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #888;
+    transition: color 0.15s;
+}
+
+.card-editor-owned-toggle input:checked + .owned-toggle-label {
+    color: #27ae60;
 }
 
 .card-editor-title {

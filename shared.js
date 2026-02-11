@@ -1971,6 +1971,8 @@ class CardEditorModal {
         this.categories = options.categories || null; // e.g., ['panini', 'topps', 'inserts', 'premium']
         this.imageFolder = options.imageFolder || 'images'; // folder for processed images
         this.playerName = options.playerName || ''; // player name for search term generation
+        this.isOwned = options.isOwned || (() => false); // callback to check if card is owned
+        this.onOwnedChange = options.onOwnedChange || null; // callback when owned state changes
         this.currentCard = null;
         this.currentCardId = null;
         this.isDirty = false;
@@ -1978,6 +1980,7 @@ class CardEditorModal {
         this.isNewCard = false;
         this.imageProcessor = new ImageProcessor();
         this.ebayManuallyEdited = false; // Track if user manually edited eBay search term
+        this._initialOwned = false; // Track initial owned state to detect changes
 
         // Schema-driven custom fields
         // Format: { fieldName: { label, type, options?, placeholder?, fullWidth? } }
@@ -2174,8 +2177,14 @@ class CardEditorModal {
         backdrop.innerHTML = `
             <div class="card-editor-modal">
                 <div class="card-editor-header">
-                    <h2 class="card-editor-title">EDIT CARD</h2>
-                    <div class="card-editor-subtitle">Update card details</div>
+                    <div class="card-editor-header-left">
+                        <h2 class="card-editor-title">EDIT CARD</h2>
+                        <div class="card-editor-subtitle">Update card details</div>
+                    </div>
+                    <label class="card-editor-owned-toggle" id="editor-owned-toggle">
+                        <input type="checkbox" id="editor-owned">
+                        <span class="owned-toggle-label">Owned</span>
+                    </label>
                     <button class="card-editor-close" title="Close">×</button>
                 </div>
                 <div class="card-editor-body">
@@ -2791,6 +2800,12 @@ class CardEditorModal {
         this.setDirty(false);
         this.ebayManuallyEdited = false;
 
+        // Set owned toggle
+        const owned = this.isOwned(cardId);
+        this._initialOwned = owned;
+        this.backdrop.querySelector('#editor-owned').checked = owned;
+        this._updateOwnedToggleVisibility();
+
         // Show modal
         this.backdrop.classList.add('active');
     }
@@ -2836,6 +2851,11 @@ class CardEditorModal {
         this.setDirty(false);
         this.ebayManuallyEdited = false;
 
+        // Default owned to unchecked for new cards
+        this._initialOwned = false;
+        this.backdrop.querySelector('#editor-owned').checked = false;
+        this._updateOwnedToggleVisibility();
+
         // Show modal
         this.backdrop.classList.add('active');
         // Focus first top-position custom field, or set name
@@ -2845,6 +2865,12 @@ class CardEditorModal {
             ? this.backdrop.querySelector(`#editor-${topField[0]}`)
             : this.backdrop.querySelector('#editor-set');
         if (firstField) firstField.focus();
+    }
+
+    // Show/hide owned toggle based on whether callbacks are configured
+    _updateOwnedToggleVisibility() {
+        const toggle = this.backdrop.querySelector('#editor-owned-toggle');
+        if (toggle) toggle.style.display = this.onOwnedChange ? '' : 'none';
     }
 
     // Close modal
@@ -2996,6 +3022,15 @@ class CardEditorModal {
             this.onSave(null, data, true);
         } else {
             this.onSave(this.currentCardId, data, false);
+        }
+
+        // Handle owned state change
+        if (this.onOwnedChange) {
+            const nowOwned = this.backdrop.querySelector('#editor-owned').checked;
+            if (nowOwned !== this._initialOwned) {
+                const cardId = this.isNewCard ? null : this.currentCardId;
+                this.onOwnedChange(cardId, data, nowOwned);
+            }
         }
 
         this.setDirty(false);
