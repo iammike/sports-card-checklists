@@ -356,7 +356,7 @@ class ChecklistEngine {
                 background: linear-gradient(90deg, transparent, ${accent}, transparent);
             }
             h1 {
-                background: linear-gradient(180deg, #333 0%, ${primary} 100%);
+                background: linear-gradient(180deg, #e0e0e0 0%, ${accent} 100%);
                 -webkit-background-clip: text;
                 -webkit-text-fill-color: transparent;
                 background-clip: text;
