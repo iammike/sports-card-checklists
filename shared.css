@@ -1858,7 +1858,7 @@ select, input[type="text"] {
     }
 
     .card-editor-btn.delete {
-        width: 100%;
+        flex: 0 0 100%;
         margin-right: 0;
         margin-bottom: 8px;
     }
