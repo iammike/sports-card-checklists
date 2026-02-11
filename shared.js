@@ -2914,15 +2914,27 @@ class CardEditorModal {
         return data;
     }
 
-    // Validate form
+    // Validate form - require set name OR a top-position custom field (e.g. player name)
     validate() {
         const data = this.getFormData();
-        if (!data.set) {
+        if (data.set) return true;
+
+        // Check if any top-position custom field has a value
+        const hasTopField = Object.entries(this.customFields)
+            .some(([name, config]) => (config.position || 'top') === 'top' && data[name]);
+        if (hasTopField) return true;
+
+        // Nothing filled in - focus the first visible field
+        const topField = Object.entries(this.customFields)
+            .find(([_, c]) => (c.position || 'top') === 'top');
+        if (topField) {
+            alert(`${topField[1].label} or Set Name is required`);
+            this.backdrop.querySelector(`#editor-${topField[0]}`)?.focus();
+        } else {
             alert('Set name is required');
             this.backdrop.querySelector('#editor-set').focus();
-            return false;
         }
-        return true;
+        return false;
     }
 
     // Check if image URL needs processing (external URL from supported domain)
