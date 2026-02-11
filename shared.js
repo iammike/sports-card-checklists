@@ -3951,6 +3951,12 @@ class ChecklistCreatorModal {
             return null;
         }
 
+        const navLabel = this.backdrop.querySelector('#creator-nav-label').value.trim();
+        if (!navLabel) {
+            alert('Nav label is required');
+            return null;
+        }
+
         const id = this.editMode ? this.existingConfig.id : this._generateId(title);
         const useSections = this.backdrop.querySelector('#creator-use-sections').checked;
         const dataShape = useSections ? 'categories' : 'flat';
@@ -3964,7 +3970,7 @@ class ChecklistCreatorModal {
         config.id = id;
         config.title = title;
         config.subtitle = this.backdrop.querySelector('#creator-subtitle').value.trim() || undefined;
-        config.navLabel = this.backdrop.querySelector('#creator-nav-label').value.trim() || title.toUpperCase().substring(0, 20);
+        config.navLabel = navLabel;
         const primaryColor = this.backdrop.querySelector('#creator-primary-color').value;
         config.theme = {
             ...(config.theme || {}),
