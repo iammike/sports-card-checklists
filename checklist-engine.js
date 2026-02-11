@@ -529,7 +529,7 @@ class ChecklistEngine {
 
     getCardId(card) {
         if (this.config.cardDisplay?.includePlayerInCardId) {
-            return btoa((card.player || '') + card.set + card.num + (card.variant || '')).replace(/[^a-zA-Z0-9]/g, '');
+            return btoa((card.player || '') + (card.set || '') + (card.num || '') + (card.variant || '')).replace(/[^a-zA-Z0-9]/g, '');
         }
         return this.checklistManager.getCardId(card);
     }
@@ -623,8 +623,8 @@ class ChecklistEngine {
             html += `<div class="card-info"><span class="card-set">${sanitizeText(card.set)}</span> ${sanitizeText(card.num)}</div>`;
         } else {
             // Standard style: set title, number + variant, type
-            html += `<div class="card-title">${sanitizeText(card.set)}</div>`;
-            html += `<div class="card-number">${sanitizeText(card.num)} ${sanitizeText(displayVariant)}</div>`;
+            if (card.set) html += `<div class="card-title">${sanitizeText(card.set)}</div>`;
+            if (card.num || displayVariant) html += `<div class="card-number">${sanitizeText(card.num)} ${sanitizeText(displayVariant)}</div>`;
             if (displayType) {
                 html += `<div class="card-type">${sanitizeText(displayType)}</div>`;
             }
