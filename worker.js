@@ -26,6 +26,130 @@ const ALLOWED_IMAGE_DOMAINS = [
   'img.beckett.com',
 ];
 
+const WORKER_URL = 'https://cards-oauth.iammikec.workers.dev';
+const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
+
+// Serve images from R2 (public, cached)
+async function handleServeImage(request, env, key) {
+  const object = await env.IMAGES_BUCKET.get(key);
+  if (!object) {
+    return new Response('Not found', { status: 404 });
+  }
+
+  const headers = new Headers();
+  headers.set('Content-Type', object.httpMetadata?.contentType || 'image/webp');
+  headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+  headers.set('ETag', object.httpEtag);
+
+  // Support conditional requests
+  const ifNoneMatch = request.headers.get('If-None-Match');
+  if (ifNoneMatch && ifNoneMatch === object.httpEtag) {
+    return new Response(null, { status: 304, headers });
+  }
+
+  return new Response(object.body, { headers });
+}
+
+// Upload image to R2 (authenticated)
+async function handleUploadImage(request, env, corsOrigin) {
+  const corsHeaders = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': corsOrigin,
+  };
+
+  // Validate auth token
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return new Response(JSON.stringify({ error: 'Missing authorization' }), {
+      status: 401, headers: corsHeaders,
+    });
+  }
+
+  const token = authHeader.slice(7);
+  try {
+    const userResponse = await fetch('https://api.github.com/user', {
+      headers: { 'Authorization': `Bearer ${token}`, 'User-Agent': 'cards-oauth-worker' },
+    });
+    if (!userResponse.ok) {
+      return new Response(JSON.stringify({ error: 'Invalid token' }), {
+        status: 401, headers: corsHeaders,
+      });
+    }
+    const user = await userResponse.json();
+    if (user.login !== 'iammike') {
+      return new Response(JSON.stringify({ error: 'Unauthorized user' }), {
+        status: 403, headers: corsHeaders,
+      });
+    }
+  } catch {
+    return new Response(JSON.stringify({ error: 'Auth verification failed' }), {
+      status: 500, headers: corsHeaders,
+    });
+  }
+
+  // Parse and validate request body
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
+      status: 400, headers: corsHeaders,
+    });
+  }
+
+  const { key, base64, contentType } = body;
+
+  if (!key || !base64) {
+    return new Response(JSON.stringify({ error: 'Missing key or base64' }), {
+      status: 400, headers: corsHeaders,
+    });
+  }
+
+  // Validate key format: images/{folder}/{file}.webp
+  if (!/^images\/[a-z0-9-]+\/[a-z0-9_.-]+\.webp$/i.test(key)) {
+    return new Response(JSON.stringify({ error: 'Invalid key format. Expected: images/{folder}/{file}.webp' }), {
+      status: 400, headers: corsHeaders,
+    });
+  }
+
+  // Decode base64 and check size
+  let bytes;
+  try {
+    const binaryString = atob(base64);
+    bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid base64 data' }), {
+      status: 400, headers: corsHeaders,
+    });
+  }
+
+  if (bytes.length > MAX_IMAGE_SIZE) {
+    return new Response(JSON.stringify({ error: `Image too large (${(bytes.length / 1024 / 1024).toFixed(1)}MB). Max 2MB.` }), {
+      status: 413, headers: corsHeaders,
+    });
+  }
+
+  // Upload to R2
+  try {
+    await env.IMAGES_BUCKET.put(key, bytes, {
+      httpMetadata: { contentType: contentType || 'image/webp' },
+    });
+  } catch (error) {
+    console.error('R2 upload error:', error);
+    return new Response(JSON.stringify({ error: 'Upload failed' }), {
+      status: 500, headers: corsHeaders,
+    });
+  }
+
+  const url = `${WORKER_URL}/${key}`;
+  return new Response(JSON.stringify({ url, key }), {
+    headers: corsHeaders,
+  });
+}
+
 // Proxy image endpoint - fetches external images to bypass CORS
 async function handleProxyImage(request, corsOrigin) {
   try {
@@ -103,15 +227,25 @@ export default {
       return new Response(null, {
         headers: {
           'Access-Control-Allow-Origin': corsOrigin,
-          'Access-Control-Allow-Methods': 'POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         },
       });
+    }
+
+    // Serve images from R2 (public, no CORS needed)
+    if (request.method === 'GET' && url.pathname.startsWith('/images/')) {
+      const key = url.pathname.slice(1); // Remove leading slash
+      return handleServeImage(request, env, key);
     }
 
     // Route requests
     if (request.method === 'POST' && url.pathname === '/proxy-image') {
       return handleProxyImage(request, corsOrigin);
+    }
+
+    if (request.method === 'POST' && url.pathname === '/upload-image') {
+      return handleUploadImage(request, env, corsOrigin);
     }
 
     // Only handle POST to /token

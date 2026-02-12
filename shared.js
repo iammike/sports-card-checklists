@@ -1,5 +1,8 @@
 // Sports Card Checklists - Shared JavaScript Utilities
 
+// R2 image storage base URL
+const R2_IMAGE_BASE = 'https://cards-oauth.iammikec.workers.dev/images/';
+
 // Standard card types used across all checklists
 const CARD_TYPES = ['Base', 'Insert', 'Chase'];
 
@@ -2437,14 +2440,13 @@ class CardEditorModal {
         btn.style.display = isEbay ? 'flex' : 'none';
     }
 
-    // Update edit button visibility based on URL (show for local images)
+    // Update edit button visibility based on URL (show for local or R2 images)
     updateEditButton(url) {
         const btn = this.backdrop.querySelector('#editor-edit-img');
         if (!btn) return;
 
-        // Show edit button for local images (in the imageFolder)
-        const isLocal = url && url.startsWith(this.imageFolder);
-        btn.style.display = isLocal ? 'flex' : 'none';
+        const isEditable = url && (url.startsWith(this.imageFolder) || url.startsWith(R2_IMAGE_BASE));
+        btn.style.display = isEditable ? 'flex' : 'none';
     }
 
     // Set image processing state - disables Save button while processing
@@ -2467,7 +2469,7 @@ class CardEditorModal {
         const url = imgInput.value.trim();
         const btn = this.backdrop.querySelector('#editor-edit-img');
 
-        if (!url || !url.startsWith(this.imageFolder)) return;
+        if (!url || !(url.startsWith(this.imageFolder) || url.startsWith(R2_IMAGE_BASE))) return;
 
         // Check if githubSync is available and logged in
         if (typeof githubSync === 'undefined' || !githubSync.isLoggedIn()) {
@@ -2491,40 +2493,30 @@ class CardEditorModal {
 
             // Generate new filename (add timestamp suffix)
             const timestamp = Date.now();
-            const baseName = url.replace(/\.webp$/, '');
-            const newPath = `${baseName}_${timestamp}.webp`;
-            const filename = newPath.split('/').pop();
+            // For R2 URLs, extract the key path; for local paths, use as-is
+            const pathForKey = url.startsWith(R2_IMAGE_BASE)
+                ? url.slice(R2_IMAGE_BASE.length - 'images/'.length) // keep "images/..." prefix
+                : url;
+            const baseName = pathForKey.replace(/\.webp$/, '');
+            const newKey = `${baseName}_${timestamp}.webp`;
+            const filename = newKey.split('/').pop();
 
-            // On preview sites, show the result but don't commit
-            if (this.isPreviewSite()) {
-                imgInput.value = newPath;
-                this.updateImagePreview(`data:image/webp;base64,${base64Data}`);
-                this.updateProcessButton(newPath);
-                this.updateEditButton(newPath);
-                alert('Preview site: Image edited but not saved. Commits are disabled on preview deployments.');
-                return;
+            // Upload to R2
+            btn.title = 'Uploading...';
+            const r2Url = await githubSync.uploadImage(newKey, base64Data);
+
+            if (!r2Url) {
+                throw new Error('Failed to upload image - check console for details');
             }
 
-            // Commit via PR
-            btn.title = 'Creating PR...';
-            const committedPath = await githubSync.commitImageViaPR(
-                newPath,
-                base64Data,
-                `Update image: ${filename}`
-            );
-
-            if (!committedPath) {
-                throw new Error('Failed to create PR - check console for details');
-            }
-
-            // Update the input field
-            imgInput.value = committedPath;
+            // Update the input field with the R2 URL
+            imgInput.value = r2Url;
             this.updateImagePreview(`data:image/webp;base64,${base64Data}`);
-            this.updateProcessButton(committedPath);
-            this.updateEditButton(committedPath);
+            this.updateProcessButton(r2Url);
+            this.updateEditButton(r2Url);
             this.setDirty(true);
 
-            btn.title = 'Done! Edited image committed via PR';
+            btn.title = 'Done! Image uploaded';
 
         } catch (error) {
             if (error.message !== 'Cancelled') {
@@ -2538,7 +2530,7 @@ class CardEditorModal {
         }
     }
 
-    // Process image: fetch, show editor, resize, commit via PR, update field with path
+    // Process image: fetch, show editor, resize, upload to R2, update field with URL
     async processImage() {
         const imgInput = this.backdrop.querySelector('#editor-img');
         const url = imgInput.value.trim();
@@ -2585,45 +2577,29 @@ class CardEditorModal {
                 num: this.backdrop.querySelector('#editor-num')?.value || ''
             };
 
-            // Generate filename and path
+            // Generate filename and key
             const filename = this.imageProcessor.generateFilename(cardData);
-            const path = `${this.imageFolder}/${filename}`;
+            const key = `${this.imageFolder}/${filename}`;
 
             // Resize and convert to WebP
             const { base64: base64Content } = await this.imageProcessor.processImage(img);
 
-            // On preview sites, show the result but don't commit
-            if (this.isPreviewSite()) {
-                imgInput.value = path;
-                this.updateImagePreview(`data:image/webp;base64,${base64Content}`);
-                this.updateProcessButton(path);
-                this.updateEditButton(path);
-                alert('Preview site: Image processed but not saved. Commits are disabled on preview deployments.');
-                return;
+            // Upload to R2
+            btn.title = 'Uploading...';
+            const r2Url = await githubSync.uploadImage(key, base64Content);
+
+            if (!r2Url) {
+                throw new Error('Failed to upload image');
             }
 
-            // Commit via PR (will auto-merge)
-            btn.title = 'Creating PR...';
-            const committedPath = await githubSync.commitImageViaPR(
-                path,
-                base64Content,
-                `Add image: ${filename}`
-            );
-
-            if (!committedPath) {
-                throw new Error('Failed to commit image');
-            }
-
-            // Update the input field with the file path
-            imgInput.value = committedPath;
-            // Show the processed image as preview (path won't work until PR merges)
+            // Update the input field with the R2 URL
+            imgInput.value = r2Url;
             this.updateImagePreview(`data:image/webp;base64,${base64Content}`);
-            this.updateProcessButton(committedPath);
-            this.updateEditButton(committedPath);
+            this.updateProcessButton(r2Url);
+            this.updateEditButton(r2Url);
             this.setDirty(true);
 
-            // Show success message
-            btn.title = 'Done! Image committed via PR';
+            btn.title = 'Done! Image uploaded';
 
         } catch (error) {
             // Don't show error if user just cancelled
@@ -2638,7 +2614,7 @@ class CardEditorModal {
         }
     }
 
-    // Process a local file: read, show editor, resize, commit via PR, update field with path
+    // Process a local file: read, show editor, resize, upload to R2, update field with URL
     async processLocalFile(file) {
         const imgInput = this.backdrop.querySelector('#editor-img');
         const btn = this.backdrop.querySelector('#editor-upload-img');
@@ -2692,45 +2668,29 @@ class CardEditorModal {
                 num: this.backdrop.querySelector('#editor-num')?.value || ''
             };
 
-            // Generate filename and path
+            // Generate filename and key
             const filename = this.imageProcessor.generateFilename(cardData);
-            const path = `${this.imageFolder}/${filename}`;
+            const key = `${this.imageFolder}/${filename}`;
 
             // Process the image (resize, convert to webp)
             const { base64: base64Content } = await this.imageProcessor.processImage(img);
 
-            // On preview sites, show the result but don't commit
-            if (this.isPreviewSite()) {
-                imgInput.value = path;
-                this.updateImagePreview(`data:image/webp;base64,${base64Content}`);
-                this.updateProcessButton(path);
-                this.updateEditButton(path);
-                alert('Preview site: Image uploaded but not saved. Commits are disabled on preview deployments.');
-                return;
+            // Upload to R2
+            btn.title = 'Uploading...';
+            const r2Url = await githubSync.uploadImage(key, base64Content);
+
+            if (!r2Url) {
+                throw new Error('Failed to upload image');
             }
 
-            // Commit via PR (will auto-merge)
-            btn.title = 'Creating PR...';
-            const committedPath = await githubSync.commitImageViaPR(
-                path,
-                base64Content,
-                `Add image: ${filename}`
-            );
-
-            if (!committedPath) {
-                throw new Error('Failed to commit image');
-            }
-
-            // Update the input field with the file path
-            imgInput.value = committedPath;
-            // Show the processed image as preview
+            // Update the input field with the R2 URL
+            imgInput.value = r2Url;
             this.updateImagePreview(`data:image/webp;base64,${base64Content}`);
-            this.updateProcessButton(committedPath);
-            this.updateEditButton(committedPath);
+            this.updateProcessButton(r2Url);
+            this.updateEditButton(r2Url);
             this.setDirty(true);
 
-            // Show success message
-            btn.title = 'Done! Image committed via PR';
+            btn.title = 'Done! Image uploaded';
 
             // Clear file input for future uploads
             this.backdrop.querySelector('#editor-img-file').value = '';
@@ -2971,8 +2931,8 @@ class CardEditorModal {
     // Check if image URL needs processing (external URL from supported domain)
     needsImageProcessing(url) {
         if (!url) return false;
-        // Already a local path or data URL
-        if (url.startsWith(this.imageFolder) || url.startsWith('data:') || !url.startsWith('http')) {
+        // Already a local path, data URL, or R2 URL
+        if (url.startsWith(this.imageFolder) || url.startsWith('data:') || url.startsWith(R2_IMAGE_BASE) || !url.startsWith('http')) {
             return false;
         }
         return this.imageProcessor.isProcessableUrl(url);

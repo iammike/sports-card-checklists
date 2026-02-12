@@ -560,7 +560,41 @@ class GitHubSync {
         }
     }
 
-    // Commit an image to the repo via PR (auto-merges via GitHub Action)
+    // Upload an image to Cloudflare R2 via the Worker
+    // Returns the full R2 URL on success, null on failure
+    async uploadImage(key, base64Content) {
+        if (!this.token) return null;
+
+        try {
+            const response = await fetch(CONFIG.OAUTH_PROXY_URL + '/upload-image', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.token}`,
+                },
+                body: JSON.stringify({
+                    key,
+                    base64: base64Content,
+                    contentType: 'image/webp',
+                }),
+            });
+
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                console.error('Image upload failed:', response.status, error);
+                return null;
+            }
+
+            const data = await response.json();
+            return data.url;
+        } catch (error) {
+            console.error('Failed to upload image:', error);
+            return null;
+        }
+    }
+
+    // Deprecated: Commit an image to the repo via PR (auto-merges via GitHub Action)
+    // Use uploadImage() instead for R2-based storage
     // Returns the path where the image will be available after merge
     async commitImageViaPR(path, base64Content, message) {
         if (!this.token) return null;
