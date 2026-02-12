@@ -38,7 +38,7 @@ A modern web app for tracking sports card collections with cloud sync, real-time
 - **Local file upload** - Upload images from your computer via button or drag & drop
 - **Multiple sources** - Fetch images from eBay or Beckett listings
 - **Auto-processing** - Images automatically resized and converted to WebP on save
-- **GitHub integration** - Processed images committed via PR with one click
+- **Cloudflare R2 storage** - Images uploaded instantly, no git involvement
 
 ### UI/UX
 - **Animated stats** - Numbers count up on first load
@@ -67,10 +67,10 @@ A modern web app for tracking sports card collections with cloud sync, real-time
                         │                                 │                                 │
                         ▼                                 ▼                                 ▼
               ┌─────────────────┐              ┌─────────────────┐              ┌─────────────────┐
-              │ Cloudflare      │              │ GitHub API      │              │ GitHub Gist     │
-              │ Workers (OAuth) │              │ (Image commits) │              │ (Collection     │
-              └─────────────────┘              └─────────────────┘              │  storage)       │
-                                                                                └─────────────────┘
+              │ Cloudflare      │              │ Cloudflare R2   │              │ GitHub Gist     │
+              │ Workers (OAuth  │              │ (Image storage) │              │ (Collection     │
+              │  + image proxy) │              └─────────────────┘              │  storage)       │
+              └─────────────────┘                                               └─────────────────┘
 ```
 
 ### Key Components
@@ -79,7 +79,7 @@ A modern web app for tracking sports card collections with cloud sync, real-time
 |------|---------|
 | `github-sync.js` | OAuth flow, Gist CRUD, GitHub API integration |
 | `shared.js` | Reusable utilities (ChecklistManager, CardRenderer, PriceUtils, etc.) |
-| `worker.js` | Cloudflare Worker for OAuth token exchange and image proxy |
+| `worker.js` | Cloudflare Worker for OAuth, image proxy, and R2 image upload/serve |
 | `*-checklist.html` | Individual checklist pages with card data |
 
 ### Security Features
@@ -106,17 +106,18 @@ Then open http://localhost:8000
 Cloudflare Pages preview deployments allow testing changes without affecting production:
 - Branch previews at `<branch>.sports-card-checklists.pages.dev`
 - Isolated data storage (changes don't affect production)
-- Image uploads disabled (to prevent accidental production commits)
+- Image uploads work on preview sites (stored in R2, shared with production)
 
 ### Project Structure
 ```
 ├── index.html                    # Landing page with all checklists
 ├── *-checklist.html              # Individual checklist pages
-├── *-cards/                      # Card images (WebP format)
+├── images/                       # Legacy card images (migrated to R2)
 ├── github-sync.js                # OAuth + Gist storage
 ├── shared.js                     # Shared utilities and components
 ├── shared.css                    # Shared styles
 ├── worker.js                     # Cloudflare Worker (deploy separately)
+├── wrangler.toml                 # Cloudflare Worker config (R2 binding)
 └── serve.sh                      # Local server script
 ```
 
@@ -134,8 +135,8 @@ Cloudflare Pages preview deployments allow testing changes without affecting pro
 - **Hosting**: GitHub Pages (production), Cloudflare Pages (preview)
 - **Auth**: GitHub OAuth via Cloudflare Workers
 - **Storage**: GitHub Gists (JSON)
-- **Images**: WebP format, processed client-side
-- **CI/CD**: GitHub Actions for version.json updates
+- **Images**: Cloudflare R2, WebP format, processed client-side
+- **CI/CD**: GitHub Actions for Worker deploys
 
 ## License
 
