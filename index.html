@@ -125,13 +125,6 @@
             border-left: 3px solid #773141;
             background: linear-gradient(135deg, rgba(119, 49, 65, 0.12) 0%, rgba(255, 182, 18, 0.05) 100%);
         }
-        /* JMU Pro Players - Purple/Gold */
-        #card-jmu-pro-players {
-            --card-accent: #C9A227;
-            --card-accent-rgb: 201, 162, 39;
-            border-left: 3px solid #450084;
-            background: linear-gradient(135deg, rgba(69, 0, 132, 0.12) 0%, rgba(201, 162, 39, 0.08) 100%);
-        }
         .checklist-card p {
             font-family: 'Barlow', sans-serif;
             color: #999;
@@ -444,32 +437,6 @@
                 </div>
             </a>
 
-            <a href="jmu-pro-players-checklist.html" class="checklist-card" data-checklist="jmu-pro-players" id="card-jmu-pro-players">
-                <h2>JMU Pro Players</h2>
-                <p>Rookie cards of James Madison University alumni in pro sports. Includes HOFer Charles Haley, Gary Clark, and more.</p>
-                <div class="progress-section" id="progress-section-jmu-pro-players" style="display: none;">
-                    <div class="main-progress">
-                        <div class="progress-ring">
-                            <svg viewBox="0 0 48 48">
-                                <circle class="bg" cx="24" cy="24" r="20"/>
-                                <circle class="fill" id="progress-ring-jmu-pro-players" cx="24" cy="24" r="20"
-                                    stroke-dasharray="125.6" stroke-dashoffset="125.6"/>
-                            </svg>
-                            <span class="percentage" id="progress-pct-jmu-pro-players">0%</span>
-                        </div>
-                        <div class="progress-details">
-                            <div class="progress-main-text">
-                                <span id="progress-owned-jmu-pro-players">0</span> of <span id="progress-total-jmu-pro-players">0</span> cards
-                            </div>
-                            <div class="value-line" id="value-stats-jmu-pro-players"></div>
-                        </div>
-                        <div class="secondary-stats">
-                            <span class="stat-pill">Extras <span class="count" id="stat-alternates-jmu">0/0</span></span>
-                        </div>
-                    </div>
-                </div>
-            </a>
-
             <a href="washington-qbs-rookie-checklist.html" class="checklist-card" data-checklist="washington-qbs" id="card-washington-qbs">
                 <h2>Washington QBs Collection</h2>
                 <p>Curated rookie cards for Washington starting quarterbacks since 1985.</p>
@@ -516,18 +483,17 @@
                 return publicData || null;
             }
 
-            const [jdData, qbData, jmuData] = await Promise.all([
+            const [jdData, qbData] = await Promise.all([
                 loadOne('jayden-daniels'),
-                loadOne('washington-qbs'),
-                loadOne('jmu-pro-players')
+                loadOne('washington-qbs')
             ]);
-            return { 'jayden-daniels': jdData, 'washington-qbs': qbData, 'jmu-pro-players': jmuData };
+            return { 'jayden-daniels': jdData, 'washington-qbs': qbData };
         }
 
         // Generate card ID (must match the checklist pages)
         function getCardId(card) {
             if (card.id) return card.id;
-            // JMU cards include player in the ID
+            // Cards with player field include it in the ID
             if (card.player) {
                 const str = (card.player || '') + (card.set || '') + (card.num || '') + (card.variant || '');
                 return btoa(str).replace(/[^a-zA-Z0-9]/g, '');
@@ -593,36 +559,6 @@
                 };
             }
 
-            if (checklistId === 'jmu-pro-players') {
-                const cats = cardData.categories;
-                const allCards = [...(cats.NFL || []), ...(cats.USFL || []), ...(cats.MLB || []), ...(cats.NBA || []), ...(cats.MLS || [])];
-                // Separate main cards from alternates
-                const mainCards = allCards.filter(c => !c.alternate);
-                const alternates = allCards.filter(c => c.alternate);
-
-                let ownedCount = 0, totalValue = 0, ownedValue = 0;
-                mainCards.forEach(c => {
-                    const price = PriceUtils.estimate(c);
-                    totalValue += price;
-                    if (owned.has(getCardId(c))) {
-                        ownedCount++;
-                        ownedValue += price;
-                    }
-                });
-
-                let alternatesOwned = 0;
-                alternates.forEach(c => { if (owned.has(getCardId(c))) alternatesOwned++; });
-
-                return {
-                    owned: ownedCount,
-                    total: mainCards.length,
-                    ownedValue: Math.round(ownedValue),
-                    neededValue: Math.round(totalValue - ownedValue),
-                    alternatesOwned,
-                    alternatesTotal: alternates.length
-                };
-            }
-
             return null;
         }
 
@@ -683,19 +619,10 @@
             const qbStats = computeChecklistStats('washington-qbs', cardData['washington-qbs'], ownedCards['washington-qbs']);
             updateCardProgress('washington-qbs', qbStats);
 
-            // JMU Pro Players
-            const jmuStats = computeChecklistStats('jmu-pro-players', cardData['jmu-pro-players'], ownedCards['jmu-pro-players']);
-            updateCardProgress('jmu-pro-players', jmuStats);
-            if (jmuStats) {
-                const alternatesEl = document.getElementById('stat-alternates-jmu');
-                if (alternatesEl) alternatesEl.textContent = `${jmuStats.alternatesOwned || 0}/${jmuStats.alternatesTotal || 0}`;
-            }
-
             // Return computed stats for aggregate
             return {
                 'jayden-daniels': jdStats,
-                'washington-qbs': qbStats,
-                'jmu-pro-players': jmuStats
+                'washington-qbs': qbStats
             };
         }
 
