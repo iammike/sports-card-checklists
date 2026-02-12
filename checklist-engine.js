@@ -317,6 +317,9 @@ class ChecklistEngine {
                 background: linear-gradient(135deg, ${dark} 0%, #1a1a1a 100%);
                 border-bottom-color: ${accent};
             }
+            .section-group {
+                background: rgba(255,255,255,0.03);
+            }
             select, input[type="text"] {
                 border: 1px solid rgba(255,255,255,0.2);
                 background: rgba(0,0,0,0.3);
