@@ -344,11 +344,7 @@ class ChecklistEngine {
             }
             .player-name { color: ${textColor}; }
             .card-image-wrapper {
-                background: transparent;
                 border-radius: 8px;
-            }
-            .card-image {
-                background: transparent;
             }
             .card-image.placeholder {
                 border-color: rgba(255,255,255,0.15);
