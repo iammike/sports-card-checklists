@@ -40,6 +40,7 @@ async function handleServeImage(request, env, key) {
   headers.set('Content-Type', object.httpMetadata?.contentType || 'image/webp');
   headers.set('Cache-Control', 'public, max-age=31536000, immutable');
   headers.set('ETag', object.httpEtag);
+  headers.set('Access-Control-Allow-Origin', '*');
 
   // Support conditional requests
   const ifNoneMatch = request.headers.get('If-None-Match');

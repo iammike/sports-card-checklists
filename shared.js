@@ -1581,8 +1581,9 @@ class ImageEditorModal {
         if (slider) slider.value = 0;
         if (input) input.value = '0°';
 
-        // Set image source
+        // Set image source (crossOrigin needed for R2 images so canvas isn't tainted)
         const img = this.backdrop.querySelector('#image-editor-img');
+        img.crossOrigin = 'anonymous';
         img.src = imageSrc;
 
         // Show modal
