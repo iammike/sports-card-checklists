@@ -105,7 +105,6 @@ class ChecklistEngine {
         this.cardContextMenu.init();
         this.cardEditor.init();
         this.renderCards();
-        CollapsibleSections.init({ persist: true, storageKey: `${this.id}-collapsed` });
     }
 
     // ========================================
