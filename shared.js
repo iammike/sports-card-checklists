@@ -3562,8 +3562,10 @@ class ChecklistCreatorModal {
         if (parentEl) row.classList.add('creator-subcategory');
 
         const colors = this._extractGradientColors(data?.gradient);
-        const color1 = colors[0] || (parentEl ? '#2a2a4e' : '#667eea');
-        const color2 = colors[1] || (parentEl ? '#1a1a3e' : '#764ba2');
+        const themePrimary = this.backdrop.querySelector('#creator-primary-color').value || '#667eea';
+        const themeDark = this._darkenColor(themePrimary, 0.45);
+        const color1 = colors[0] || (parentEl ? themeDark : themePrimary);
+        const color2 = colors[1] || (parentEl ? this._darkenColor(themeDark, 0.3) : themeDark);
         const label = data?.label || '';
         const id = data?.id || '';
         const isMain = data ? data.isMain !== false : true;
@@ -3706,8 +3708,10 @@ class ChecklistCreatorModal {
             const idText = row.querySelector(':scope > .creator-row-main .creator-row-id').textContent.trim();
             const id = this._dedupeId(idText || this._slugify(label), usedIds);
             const colors = row.querySelectorAll(':scope > .creator-row-main input[type="color"]');
-            const color1 = colors[0]?.value || '#667eea';
-            const color2 = colors[1]?.value || '#764ba2';
+            const themePrimary = this.backdrop.querySelector('#creator-primary-color').value || '#667eea';
+            const themeDark = this._darkenColor(themePrimary, 0.45);
+            const color1 = colors[0]?.value || themePrimary;
+            const color2 = colors[1]?.value || themeDark;
             const countsInput = row.querySelector(':scope > .creator-row-main .creator-row-extra input');
             const isMain = countsInput ? countsInput.checked : true;
             const indexInput = row.querySelector(':scope > .creator-row-main .creator-row-index input');
@@ -3716,7 +3720,10 @@ class ChecklistCreatorModal {
             const note = noteInput ? noteInput.value.trim() : '';
 
             const cat = { id, label, isMain };
-            cat.gradient = `linear-gradient(135deg, ${color1}, ${color2})`;
+            // Only store gradient if it differs from the theme default
+            if (color1 !== themePrimary || color2 !== themeDark) {
+                cat.gradient = `linear-gradient(135deg, ${color1}, ${color2})`;
+            }
             if (note) cat.note = note;
             if (showOnIndex) cat.showOnIndex = true;
 
@@ -3730,11 +3737,13 @@ class ChecklistCreatorModal {
                     const subIdText = subRow.querySelector('.creator-row-id').textContent.trim();
                     const subId = this._dedupeId(subIdText || this._slugify(subLabel), usedIds);
                     const subColors = subRow.querySelectorAll('input[type="color"]');
-                    const sc1 = subColors[0]?.value || '#2a2a4e';
-                    const sc2 = subColors[1]?.value || '#1a1a3e';
+                    const subDefault1 = this._darkenColor(themePrimary, 0.45);
+                    const subDefault2 = this._darkenColor(subDefault1, 0.3);
+                    const sc1 = subColors[0]?.value || subDefault1;
+                    const sc2 = subColors[1]?.value || subDefault2;
                     const child = { id: subId, label: subLabel };
                     // Only store gradient if non-default
-                    if (sc1 !== '#2a2a4e' || sc2 !== '#1a1a3e') {
+                    if (sc1 !== subDefault1 || sc2 !== subDefault2) {
                         child.gradient = `linear-gradient(135deg, ${sc1}, ${sc2})`;
                     }
                     cat.children.push(child);
