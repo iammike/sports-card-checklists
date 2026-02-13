@@ -50,6 +50,9 @@ class ChecklistEngine {
         // Load card data
         await this._loadCardData();
 
+        // Load stats for any linked checklists (e.g., collection link cards)
+        await this._loadLinkedStats();
+
         // Set up ChecklistManager (re-renders auth UI with add/clear buttons)
         this.checklistManager = new ChecklistManager({
             checklistId: this.id,
@@ -213,6 +216,32 @@ class ChecklistEngine {
         }
 
         throw new Error('Failed to load card data');
+    }
+
+    async _loadLinkedStats() {
+        // Find collection link cards that reference other checklists
+        const allCards = this._isFlat() ? this.cards : this._getAllCardsFlat();
+        const linkedIds = allCards
+            .filter(c => c.collectionLink)
+            .map(c => {
+                const match = c.collectionLink.match(/[?&]id=([^&]+)/);
+                return match ? match[1] : null;
+            })
+            .filter(Boolean);
+
+        if (linkedIds.length === 0) {
+            this._linkedStats = {};
+            return;
+        }
+
+        const allStats = window.githubSync?.isLoggedIn()
+            ? await githubSync.loadAllStats()
+            : await githubSync.loadPublicStats();
+
+        this._linkedStats = {};
+        linkedIds.forEach(id => {
+            if (allStats[id]) this._linkedStats[id] = allStats[id];
+        });
     }
 
     async _saveCardData() {
@@ -650,14 +679,38 @@ class ChecklistEngine {
     }
 
     _renderCollectionLinkCard(card) {
-        return `<div class="card collection-link" onclick="window.location.href='${sanitizeUrl(card.collectionLink)}'">
+        const link = sanitizeText(card.collectionLink);
+
+        // Badge: show linked checklist stats if available, else cardCount
+        let badgeHtml = '';
+        const linkedMatch = card.collectionLink.match(/[?&]id=([^&]+)/);
+        const linkedId = linkedMatch ? linkedMatch[1] : null;
+        const linkedStats = linkedId ? (this._linkedStats || {})[linkedId] : null;
+        if (linkedStats && typeof linkedStats.owned === 'number') {
+            badgeHtml = `<span class="collection-badge">${linkedStats.owned} / ${linkedStats.total} CARDS</span>`;
+        } else if (card.cardCount) {
+            badgeHtml = `<span class="collection-badge">${card.cardCount} CARDS</span>`;
+        }
+
+        // Image: card stack (multiple images) or single image
+        let imageHtml;
+        if (card.stackImages && card.stackImages.length > 0) {
+            const imgs = card.stackImages.map(src =>
+                `<img src="${sanitizeText(src)}" alt="" loading="lazy">`
+            ).join('');
+            imageHtml = `<div class="card-stack">${imgs}</div>`;
+        } else {
+            imageHtml = CardRenderer.renderCardImage(card.img, card.player, link);
+        }
+
+        return `<div class="card collection-link" onclick="window.location.href='${link}'">
             <div class="card-image-wrapper">
-                ${card.cardCount ? `<span class="collection-badge">${card.cardCount} CARDS</span>` : ''}
-                ${CardRenderer.renderCardImage(card.img, card.player, card.collectionLink)}
+                ${badgeHtml}
+                ${imageHtml}
             </div>
             <div class="player-name">${sanitizeText(card.player)}</div>
             ${card.years ? `<div class="player-years">${sanitizeText(card.years)} &bull; ${sanitizeText(card.record || '')}</div>` : ''}
-            <a href="${sanitizeUrl(card.collectionLink)}" class="collection-cta">View Full Collection</a>
+            <a href="${link}" class="collection-cta">View Full Collection</a>
         </div>`;
     }
 
