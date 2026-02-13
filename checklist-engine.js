@@ -861,6 +861,20 @@ class ChecklistEngine {
             case 'games':
                 sorted.sort((a, b) => this._getGamesPlayed(b) - this._getGamesPlayed(a));
                 break;
+            case 'owned':
+                sorted.sort((a, b) => {
+                    const aOwned = this.isOwned(this.getCardId(a)) ? 1 : 0;
+                    const bOwned = this.isOwned(this.getCardId(b)) ? 1 : 0;
+                    return bOwned - aOwned;
+                });
+                break;
+            case 'needed':
+                sorted.sort((a, b) => {
+                    const aOwned = this.isOwned(this.getCardId(a)) ? 1 : 0;
+                    const bOwned = this.isOwned(this.getCardId(b)) ? 1 : 0;
+                    return aOwned - bOwned;
+                });
+                break;
             case 'superbowl':
                 sorted.sort((a, b) => (b.superBowl ? 1 : 0) - (a.superBowl ? 1 : 0));
                 break;
