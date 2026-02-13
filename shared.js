@@ -1952,6 +1952,7 @@ class ImageEditorModal {
 
     // Close modal
     close() {
+        if (!this.backdrop) return;
         this.backdrop.classList.remove('active');
         if (this.cropper) {
             this.cropper.destroy();
