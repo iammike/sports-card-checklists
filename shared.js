@@ -3404,12 +3404,14 @@ class ChecklistCreatorModal {
 
         this.backdrop = backdrop;
         document.body.appendChild(backdrop);
+        this._trackDirty();
     }
 
     open() {
         this.init();
         this.editMode = false;
         this.existingConfig = null;
+        this.isDirty = false;
         this.backdrop.querySelector('.card-editor-title').textContent = 'CREATE NEW CHECKLIST';
         this.backdrop.querySelector('.card-editor-subtitle').textContent = 'Set up your card collection';
         this.backdrop.querySelector('#creator-save').textContent = 'Create Checklist';
@@ -3422,6 +3424,7 @@ class ChecklistCreatorModal {
         this.init();
         this.editMode = true;
         this.existingConfig = config;
+        this.isDirty = false;
         this.backdrop.querySelector('.card-editor-title').textContent = 'CHECKLIST SETTINGS';
         this.backdrop.querySelector('.card-editor-subtitle').textContent = 'Edit checklist configuration';
         this.backdrop.querySelector('#creator-save').textContent = 'Save Settings';
@@ -3430,9 +3433,18 @@ class ChecklistCreatorModal {
     }
 
     close() {
+        if (this.isDirty) {
+            if (!confirm('You have unsaved changes. Close anyway?')) return;
+        }
         if (this.backdrop) {
             this.backdrop.classList.remove('active');
         }
+    }
+
+    _trackDirty() {
+        const modal = this.backdrop.querySelector('.card-editor-modal');
+        modal.addEventListener('input', () => { this.isDirty = true; });
+        modal.addEventListener('change', () => { this.isDirty = true; });
     }
 
     // ---- Sort options ----
@@ -4110,6 +4122,7 @@ class ChecklistCreatorModal {
                 if (!success) throw new Error('Failed to save config');
 
                 // Config saved - update local state (and migrate cards if shape changed)
+                this.isDirty = false;
                 this.close();
                 await this.onCreated(config);
 
@@ -4169,6 +4182,7 @@ class ChecklistCreatorModal {
                 sessionStorage.removeItem(DynamicNav._sessionKey);
             }
 
+            this.isDirty = false;
             this.close();
             this.onCreated(config);
         } catch (error) {
