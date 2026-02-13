@@ -1646,7 +1646,7 @@ class ImageEditorModal {
 
             // Convert to data URL
             console.log('ImageEditor: Converting to data URL...');
-            const dataUrl = canvas.toDataURL('image/png');
+            const dataUrl = canvas.toDataURL('image/webp', 0.85);
             console.log('ImageEditor: Data URL length:', dataUrl?.length);
 
             // Save resolve function before close() clears it
