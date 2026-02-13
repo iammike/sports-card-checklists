@@ -578,9 +578,9 @@ class ChecklistEngine {
         const scpUrl = CardRenderer.getScpUrl(priceSearchTerm);
         const thresholds = this.getPriceThresholds();
 
-        // Clean up type/variant display
+        // Clean up type display
         const displayType = (card.type || '').replace(/\s*RC\b/gi, '').replace(/\bBase\b/gi, '').trim();
-        const displayVariant = (card.variant && card.variant !== 'Base') ? card.variant : '';
+        const displayVariant = card.variant || '';
 
         // Collection link cards (special type)
         if (card.collectionLink) {
