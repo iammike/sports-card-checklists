@@ -1,5 +1,5 @@
 /* Sports Card Checklists - Shared Styles */
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap');
+/* Fonts loaded via <link> tags in HTML for parallel loading */
 
 /* Smooth page load - fade in after fonts/styles settle */
 @keyframes pageFadeIn {

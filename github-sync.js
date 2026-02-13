@@ -967,49 +967,18 @@ class GitHubSync {
 
     // Load card data from gist (for logged-in user editing)
     async loadCardData(checklistId) {
-        const gistId = this.getActiveGistId();
-        if (!this.token || !gistId) return null;
-
-        const filename = `${checklistId}-cards.json`;
-
-        try {
-            const response = await fetch(`https://api.github.com/gists/${gistId}`, {
-                headers: { 'Authorization': `Bearer ${this.token}` },
-            });
-
-            if (!response.ok) return null;
-
-            const gist = await response.json();
-            const content = gist.files[filename]?.content;
-
-            if (!content) return null;
-
-            return JSON.parse(content);
-        } catch (error) {
-            console.error('Failed to load card data from gist:', error);
-            return null;
-        }
+        return this._readGistFile(`${checklistId}-cards.json`);
     }
 
     // Load card data from public gist (fallback, or for non-logged-in users)
     async loadPublicCardData(checklistId) {
         const filename = `${checklistId}-cards.json`;
-
-        try {
-            const response = await fetch(`https://api.github.com/gists/${CONFIG.PUBLIC_GIST_ID}`);
-            if (!response.ok) return null;
-
-            const gist = await response.json();
-            const content = gist.files[filename]?.content;
-
-            if (!content) return null;
-
-            return JSON.parse(content);
-        } catch (error) {
-            console.error('Failed to load public card data:', error);
-            return null;
-        }
+        const gist = await this._fetchGist(true);
+        if (!gist) return null;
+        const content = gist.files[filename]?.content;
+        return content ? JSON.parse(content) : null;
     }
+
 }
 
 // Export singleton

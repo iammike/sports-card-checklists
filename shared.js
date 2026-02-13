@@ -35,8 +35,8 @@ const CollapsibleSections = {
         const headers = document.querySelectorAll('.section-header, .group-header');
 
         headers.forEach(header => {
-            // Skip if already has onclick handler or explicitly marked non-collapsible
-            if (header.onclick || header.dataset.noCollapse) return;
+            // Skip if already initialized or explicitly marked non-collapsible
+            if (header.dataset.collapsible || header.dataset.noCollapse) return;
 
             // Add collapsible class for styling
             header.classList.add('collapsible');
@@ -62,6 +62,9 @@ const CollapsibleSections = {
                     }
                 }
             }
+
+            // Mark as initialized to prevent duplicate listeners on re-init
+            header.dataset.collapsible = 'true';
 
             // Add click handler
             header.addEventListener('click', () => {
