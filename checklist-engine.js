@@ -615,7 +615,7 @@ class ChecklistEngine {
             return this._renderCollectionLinkCard(card);
         }
 
-        const cardClass = `card ${owned ? 'owned' : ''} ${card.superBowl ? 'super-bowl' : ''}`.trim();
+        const cardClass = `card ${owned ? 'owned' : ''}`.trim();
 
         let html = `<div class="${cardClass}" data-price="${price}"${card.sport ? ` data-sport="${card.sport}"` : ''}${card.era ? ` data-era="${card.era}"` : ''} data-type="${card.type || ''}">`;
         html += `<div class="card-image-wrapper">`;
