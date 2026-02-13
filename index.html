@@ -110,14 +110,6 @@
             margin-bottom: 8px;
             color: var(--card-accent);
         }
-        /* Jayden Daniels - Commanders burgundy/gold with LSU purple accent */
-        #card-jayden-daniels {
-            --card-accent: #FFB612;
-            --card-accent-rgb: 255, 182, 18;
-            --card-secondary: #461D7C;
-            border-left: 3px solid #773141;
-            background: linear-gradient(135deg, rgba(70, 29, 124, 0.08) 0%, rgba(119, 49, 65, 0.08) 100%);
-        }
         /* Washington QBs - Commanders burgundy/gold */
         #card-washington-qbs {
             --card-accent: #FFB612;
@@ -410,33 +402,6 @@
         </div>
 
         <div class="checklist-grid">
-            <a href="jayden-daniels-rookie-checklist.html" class="checklist-card" data-checklist="jayden-daniels" id="card-jayden-daniels">
-                <h2>Jayden Daniels Rookie Cards</h2>
-                <p>2023 college cards and 2024 NFL rookie cards for the Commanders QB and 2024 Offensive Rookie of the Year.</p>
-                <div class="progress-section" id="progress-section-jayden-daniels" style="display: none;">
-                    <div class="main-progress">
-                        <div class="progress-ring">
-                            <svg viewBox="0 0 48 48">
-                                <circle class="bg" cx="24" cy="24" r="20"/>
-                                <circle class="fill" id="progress-ring-jayden-daniels" cx="24" cy="24" r="20"
-                                    stroke-dasharray="125.6" stroke-dashoffset="125.6"/>
-                            </svg>
-                            <span class="percentage" id="progress-pct-jayden-daniels">0%</span>
-                        </div>
-                        <div class="progress-details">
-                            <div class="progress-main-text">
-                                <span id="progress-owned-jayden-daniels">0</span> of <span id="progress-total-jayden-daniels">0</span> base cards
-                            </div>
-                            <div class="value-line" id="value-stats-jayden-daniels"></div>
-                        </div>
-                        <div class="secondary-stats">
-                            <span class="stat-pill">Inserts <span class="count" id="stat-inserts-jayden-daniels">0/0</span></span>
-                            <span class="stat-pill">Premium <span class="count" id="stat-premium-jayden-daniels">0/0</span></span>
-                        </div>
-                    </div>
-                </div>
-            </a>
-
             <a href="washington-qbs-rookie-checklist.html" class="checklist-card" data-checklist="washington-qbs" id="card-washington-qbs">
                 <h2>Washington QBs Collection</h2>
                 <p>Curated rookie cards for Washington starting quarterbacks since 1985.</p>
@@ -483,11 +448,8 @@
                 return publicData || null;
             }
 
-            const [jdData, qbData] = await Promise.all([
-                loadOne('jayden-daniels'),
-                loadOne('washington-qbs')
-            ]);
-            return { 'jayden-daniels': jdData, 'washington-qbs': qbData };
+            const qbData = await loadOne('washington-qbs');
+            return { 'washington-qbs': qbData };
         }
 
         // Generate card ID (must match the checklist pages)
@@ -506,38 +468,6 @@
         function computeChecklistStats(checklistId, cardData, ownedList) {
             if (!cardData) return null;
             const owned = new Set(ownedList || []);
-
-            if (checklistId === 'jayden-daniels') {
-                const cats = cardData.categories;
-                const baseCards = [...(cats.college || []), ...(cats.panini || []), ...(cats.topps || []), ...(cats.other || [])];
-                const inserts = cats.inserts || [];
-                const premium = cats.premium || [];
-
-                let baseOwned = 0, baseValue = 0, baseOwnedValue = 0;
-                baseCards.forEach(c => {
-                    const price = PriceUtils.estimate(c);
-                    baseValue += price;
-                    if (owned.has(getCardId(c))) {
-                        baseOwned++;
-                        baseOwnedValue += price;
-                    }
-                });
-
-                let insertsOwned = 0;
-                inserts.forEach(c => { if (owned.has(getCardId(c))) insertsOwned++; });
-
-                let premiumOwned = 0;
-                premium.forEach(c => { if (owned.has(getCardId(c))) premiumOwned++; });
-
-                return {
-                    owned: baseOwned,
-                    total: baseCards.length,
-                    ownedValue: Math.round(baseOwnedValue),
-                    neededValue: Math.round(baseValue - baseOwnedValue),
-                    insertsOwned, insertsTotal: inserts.length,
-                    premiumOwned, premiumTotal: premium.length
-                };
-            }
 
             if (checklistId === 'washington-qbs') {
                 const cards = (cardData.cards || cardData.qbs).filter(card => !card.collectionLink);
@@ -605,23 +535,12 @@
                 }
             }
 
-            // Jayden Daniels
-            const jdStats = computeChecklistStats('jayden-daniels', cardData['jayden-daniels'], ownedCards['jayden-daniels']);
-            updateCardProgress('jayden-daniels', jdStats);
-            if (jdStats) {
-                const insertsEl = document.getElementById('stat-inserts-jayden-daniels');
-                if (insertsEl) insertsEl.textContent = `${jdStats.insertsOwned || 0}/${jdStats.insertsTotal || 0}`;
-                const premiumEl = document.getElementById('stat-premium-jayden-daniels');
-                if (premiumEl) premiumEl.textContent = `${jdStats.premiumOwned || 0}/${jdStats.premiumTotal || 0}`;
-            }
-
             // Washington QBs
             const qbStats = computeChecklistStats('washington-qbs', cardData['washington-qbs'], ownedCards['washington-qbs']);
             updateCardProgress('washington-qbs', qbStats);
 
             // Return computed stats for aggregate
             return {
-                'jayden-daniels': jdStats,
                 'washington-qbs': qbStats
             };
         }
