@@ -984,45 +984,15 @@ class ChecklistEngine {
     }
 
     _renderFlatCards(container, sortBy, statusFilter, searchTerm, customFilterValues) {
-        // Flat data shape (like Washington QBs)
+        // Flat data shape - simple card list with no sections
         let filtered = this.cards.filter(card => this._filterCard(card, statusFilter, searchTerm, customFilterValues));
-
-        if (sortBy !== 'default') {
-            const sorted = this.sortCards(filtered, sortBy);
-            container.innerHTML = `
-                <div class="section">
-                    <div class="group-header" data-no-collapse>All Cards</div>
-                    <div class="section-group"><div class="card-grid">
-                        ${sorted.map(c => this.createCardElement(c)).join('')}
-                    </div></div>
-                </div>`;
-            return;
-        }
-
-        // Default: group by groupField (e.g., "era"), apply default sort within groups
         const defaultSort = this.config.defaultSortMode;
-        if (defaultSort) filtered = this.sortCards(filtered, defaultSort);
-        const groupField = this.config.groupField || 'era';
-        const groups = this.config.groups || [];
-
-        if (groups.length === 0) {
-            // No grouping defined - render as flat list
-            container.innerHTML = `<div class="card-grid">${filtered.map(c => this.createCardElement(c)).join('')}</div>`;
-            return;
+        if (sortBy !== 'default') {
+            filtered = this.sortCards(filtered, sortBy);
+        } else if (defaultSort) {
+            filtered = this.sortCards(filtered, defaultSort);
         }
-
-        let html = '';
-        groups.forEach(group => {
-            const groupCards = filtered.filter(c => c[groupField] === group.id);
-            if (groupCards.length === 0) return;
-            html += `<div class="section">
-                <div class="section-header">${sanitizeText(group.title)}</div>
-                <div class="card-grid">
-                    ${groupCards.map(c => this.createCardElement(c)).join('')}
-                </div>
-            </div>`;
-        });
-        container.innerHTML = html;
+        container.innerHTML = `<div class="card-grid">${filtered.map(c => this.createCardElement(c)).join('')}</div>`;
     }
 
     _renderCategoryCards(container, sortBy, statusFilter, searchTerm, customFilterValues) {
