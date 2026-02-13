@@ -2257,25 +2257,34 @@ class CardEditorModal {
                         </div>
                         <div class="card-editor-field full-width card-editor-image-section">
                             <label class="card-editor-label">Image</label>
-                            <div class="card-editor-image-input-row">
-                                <input type="text" class="card-editor-input" id="editor-img" placeholder="URL or upload file...">
+                            <div class="card-editor-image-tabs">
+                                <button type="button" class="card-editor-image-tab active" data-tab="url">Paste URL</button>
+                                <button type="button" class="card-editor-image-tab" data-tab="upload">Upload</button>
+                            </div>
+                            <div class="card-editor-tab-content" data-tab-content="url">
+                                <div class="card-editor-image-url-row">
+                                    <input type="text" class="card-editor-input" id="editor-img" placeholder="Paste eBay or image URL...">
+                                    <button type="button" class="card-editor-process-btn" id="editor-process-img" title="Process image">
+                                        <span class="process-text">Process</span>
+                                        <span class="process-spinner"></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-editor-tab-content" data-tab-content="upload" style="display: none;">
                                 <input type="file" id="editor-img-file" accept="image/*" style="display: none;">
-                                <button type="button" class="card-editor-upload-btn" id="editor-upload-img" title="Upload local image">
-                                    <span class="upload-text">Upload</span>
-                                    <span class="upload-spinner"></span>
-                                </button>
-                                <button type="button" class="card-editor-process-btn" id="editor-process-img" title="Process image">
-                                    <span class="process-text">Process</span>
-                                    <span class="process-spinner"></span>
-                                </button>
-                                <button type="button" class="card-editor-edit-btn" id="editor-edit-img" title="Edit existing image" style="display: none;">
-                                    <span class="edit-text">Edit</span>
-                                    <span class="edit-spinner"></span>
-                                </button>
+                                <div class="card-editor-upload-zone" id="editor-upload-zone">
+                                    <span class="upload-zone-icon">&#8682;</span>
+                                    <span class="upload-zone-text">Click to upload or drag & drop</span>
+                                    <span class="upload-zone-spinner"></span>
+                                </div>
                             </div>
                             <div class="card-editor-image-preview" id="editor-img-dropzone">
-                                <span class="placeholder">No image (or drag & drop here)</span>
+                                <span class="placeholder">No image</span>
                             </div>
+                            <button type="button" class="card-editor-edit-btn" id="editor-edit-img" title="Edit existing image" style="display: none;">
+                                <span class="edit-text">Edit</span>
+                                <span class="edit-spinner"></span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -2358,6 +2367,22 @@ class CardEditorModal {
             });
         }
 
+        // Image tab switching
+        this.backdrop.querySelectorAll('.card-editor-image-tab').forEach(tab => {
+            tab.onclick = () => {
+                // Block switching while processing
+                const saveBtn = this.backdrop.querySelector('.card-editor-btn.save');
+                if (saveBtn && saveBtn.disabled) return;
+
+                this.backdrop.querySelectorAll('.card-editor-image-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const tabName = tab.dataset.tab;
+                this.backdrop.querySelectorAll('.card-editor-tab-content').forEach(c => {
+                    c.style.display = c.dataset.tabContent === tabName ? '' : 'none';
+                });
+            };
+        });
+
         // Image preview on URL change
         this.backdrop.querySelector('#editor-img').oninput = (e) => {
             this.updateImagePreview(e.target.value);
@@ -2371,8 +2396,8 @@ class CardEditorModal {
         // Edit existing image button
         this.backdrop.querySelector('#editor-edit-img').onclick = () => this.editExistingImage();
 
-        // Upload image button
-        this.backdrop.querySelector('#editor-upload-img').onclick = () => {
+        // Upload zone click
+        this.backdrop.querySelector('#editor-upload-zone').onclick = () => {
             this.backdrop.querySelector('#editor-img-file').click();
         };
 
@@ -2383,7 +2408,24 @@ class CardEditorModal {
             }
         };
 
-        // Drag and drop on preview area
+        // Drag and drop on upload zone
+        const uploadZone = this.backdrop.querySelector('#editor-upload-zone');
+        uploadZone.ondragover = (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        };
+        uploadZone.ondragleave = () => {
+            uploadZone.classList.remove('dragover');
+        };
+        uploadZone.ondrop = (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                this.processLocalFile(e.dataTransfer.files[0]);
+            }
+        };
+
+        // Drag and drop on preview area (fallback)
         const dropzone = this.backdrop.querySelector('#editor-img-dropzone');
         dropzone.ondragover = (e) => {
             e.preventDefault();
@@ -2455,6 +2497,16 @@ class CardEditorModal {
 
         const isEditable = url && (url.startsWith(this.imageFolder) || url.startsWith(R2_IMAGE_BASE));
         btn.style.display = isEditable ? 'flex' : 'none';
+    }
+
+    // Reset image tabs to "Paste URL"
+    resetImageTabs() {
+        this.backdrop.querySelectorAll('.card-editor-image-tab').forEach(t => {
+            t.classList.toggle('active', t.dataset.tab === 'url');
+        });
+        this.backdrop.querySelectorAll('.card-editor-tab-content').forEach(c => {
+            c.style.display = c.dataset.tabContent === 'url' ? '' : 'none';
+        });
     }
 
     // Set image processing state - disables Save button while processing
@@ -2625,7 +2677,7 @@ class CardEditorModal {
     // Process a local file: read, show editor, resize, upload to R2, update field with URL
     async processLocalFile(file) {
         const imgInput = this.backdrop.querySelector('#editor-img');
-        const btn = this.backdrop.querySelector('#editor-upload-img');
+        const zone = this.backdrop.querySelector('#editor-upload-zone');
 
         // Check if githubSync is available and logged in
         if (typeof githubSync === 'undefined' || !githubSync.isLoggedIn()) {
@@ -2640,9 +2692,7 @@ class CardEditorModal {
         }
 
         // Show loading state
-        btn.classList.add('processing');
-        btn.disabled = true;
-        btn.title = 'Loading...';
+        zone.classList.add('processing');
         this.setImageProcessing(true);
 
         try {
@@ -2655,11 +2705,9 @@ class CardEditorModal {
             });
 
             // Show image editor for crop/rotate
-            btn.title = 'Edit image...';
             const editedDataUrl = await imageEditor.open(dataUrl);
 
             // User confirmed - now process the edited image
-            btn.title = 'Processing...';
 
             // Load edited image into Image element
             const img = await new Promise((resolve, reject) => {
@@ -2684,7 +2732,6 @@ class CardEditorModal {
             const { base64: base64Content } = await this.imageProcessor.processImage(img);
 
             // Upload to R2
-            btn.title = 'Uploading...';
             const r2Url = await githubSync.uploadImage(key, base64Content);
 
             if (!r2Url) {
@@ -2698,8 +2745,6 @@ class CardEditorModal {
             this.updateEditButton(r2Url);
             this.setDirty(true);
 
-            btn.title = 'Done! Image uploaded';
-
             // Clear file input for future uploads
             this.backdrop.querySelector('#editor-img-file').value = '';
 
@@ -2710,8 +2755,7 @@ class CardEditorModal {
                 alert('Failed to upload image: ' + error.message);
             }
         } finally {
-            btn.classList.remove('processing');
-            btn.disabled = false;
+            zone.classList.remove('processing');
             this.setImageProcessing(false);
         }
     }
@@ -2734,6 +2778,9 @@ class CardEditorModal {
         this.backdrop.querySelector('.card-editor-subtitle').textContent = 'Update card details';
         this.backdrop.querySelector('.card-editor-btn.save').textContent = 'Save Changes';
         this.backdrop.querySelector('.card-editor-btn.delete').style.display = '';
+
+        // Reset image tabs to "Paste URL"
+        this.resetImageTabs();
 
         // Populate custom fields
         this.populateCustomFields(cardData);
@@ -2793,6 +2840,9 @@ class CardEditorModal {
         this.backdrop.querySelector('.card-editor-subtitle').textContent = 'Enter card details';
         this.backdrop.querySelector('.card-editor-btn.save').textContent = 'Add Card';
         this.backdrop.querySelector('.card-editor-btn.delete').style.display = 'none';
+
+        // Reset image tabs to "Paste URL"
+        this.resetImageTabs();
 
         // Clear core form fields
         this.backdrop.querySelector('#editor-set').value = '';
