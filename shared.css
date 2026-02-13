@@ -2142,12 +2142,6 @@ select, input[type="text"] {
     color: white;
 }
 
-.image-editor-subtitle {
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.5);
-    margin-top: 4px;
-}
-
 .image-editor-close {
     position: absolute;
     top: 16px;
@@ -2171,6 +2165,40 @@ select, input[type="text"] {
     display: flex;
     flex-direction: column;
     padding: 16px;
+}
+
+.image-editor-tabs {
+    display: flex;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
+    padding: 3px;
+    gap: 2px;
+    margin-bottom: 12px;
+}
+
+.image-editor-tab {
+    flex: 1;
+    padding: 6px 0;
+    background: none;
+    border: none;
+    border-radius: 4px;
+    color: rgba(255, 255, 255, 0.4);
+    font-family: 'Barlow', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.image-editor-tab:hover {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.image-editor-tab.active {
+    background: rgba(102, 126, 234, 0.25);
+    color: #a8b4f0;
 }
 
 .image-editor-canvas {
@@ -2366,12 +2394,6 @@ select, input[type="text"] {
     position: relative;
 }
 
-.image-editor-tool.active {
-    background: rgba(102, 126, 234, 0.3);
-    border-color: rgba(102, 126, 234, 0.6);
-    color: white;
-}
-
 .perspective-canvas {
     max-width: 100%;
     max-height: 60vh;
@@ -2414,7 +2436,7 @@ select, input[type="text"] {
 }
 
 .perspective-controls {
-    display: none;
+    display: flex;
     align-items: center;
     justify-content: center;
     padding: 12px 24px;
@@ -2456,6 +2478,10 @@ select, input[type="text"] {
     .perspective-handle {
         width: 24px;
         height: 24px;
+    }
+
+    .image-editor-tab {
+        font-size: 16px;
     }
 }
 

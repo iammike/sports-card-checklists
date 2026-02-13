@@ -1353,13 +1353,16 @@ class ImageEditorModal {
         this.resolvePromise = null;
         this.rejectPromise = null;
         this.rotation = 0;
-        // Perspective mode state
-        this.mode = 'crop'; // 'crop' | 'perspective'
+        // Tab-based UI state
+        this.activeTab = 'corners'; // 'corners' | 'crop'
+        this.switching = false;
         this.perspectiveCanvas = null;
         this.perspectiveOverlay = null;
         this.cornerHandles = [];
         this.cornerPositions = []; // normalized 0-1 coordinates
-        this.prePerspectiveSrc = null;
+        this.savedCornerPositions = null;
+        this.originalImageSrc = null;
+        this.cacheBustedSrc = null;
     }
 
     // Load Cropper.js from CDN if not already loaded
@@ -1392,49 +1395,53 @@ class ImageEditorModal {
             <div class="image-editor-modal">
                 <div class="image-editor-header">
                     <h2 class="image-editor-title">EDIT IMAGE</h2>
-                    <div class="image-editor-subtitle">Crop and rotate before saving</div>
                     <button class="image-editor-close" title="Cancel">×</button>
                 </div>
                 <div class="image-editor-body">
+                    <div class="image-editor-tabs">
+                        <button type="button" class="image-editor-tab active" data-tab="corners">Corners</button>
+                        <button type="button" class="image-editor-tab" data-tab="crop">Crop & Rotate</button>
+                    </div>
                     <div class="image-editor-canvas">
                         <img id="image-editor-img" src="" alt="Edit">
                     </div>
-                    <div class="image-editor-controls">
-                        <div class="image-editor-controls-row">
-                            <button class="image-editor-tool" data-action="rotate-left" title="Rotate 90° Left">
-                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7.11 8.53L5.7 7.11C4.8 8.27 4.24 9.61 4.07 11h2.02c.14-.87.49-1.72 1.02-2.47zM6.09 13H4.07c.17 1.39.72 2.73 1.62 3.89l1.41-1.42c-.52-.75-.87-1.59-1.01-2.47zm1.01 5.32c1.16.9 2.51 1.44 3.9 1.61V17.9c-.87-.15-1.71-.49-2.46-1.03L7.1 18.32zM13 4.07V1L8.45 5.55 13 10V6.09c2.84.48 5 2.94 5 5.91s-2.16 5.43-5 5.91v2.02c3.95-.49 7-3.85 7-7.93s-3.05-7.44-7-7.93z"/></svg>
-                            </button>
-                            <button class="image-editor-tool" data-action="rotate-right" title="Rotate 90° Right">
-                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.55 5.55L11 1v3.07C7.06 4.56 4 7.92 4 12s3.05 7.44 7 7.93v-2.02c-2.84-.48-5-2.94-5-5.91s2.16-5.43 5-5.91V10l4.55-4.45zM19.93 11c-.17-1.39-.72-2.73-1.62-3.89l-1.42 1.42c.54.75.88 1.6 1.02 2.47h2.02zM13 17.9v2.02c1.39-.17 2.74-.71 3.9-1.61l-1.44-1.44c-.75.54-1.59.89-2.46 1.03zm3.89-2.42l1.42 1.41c.9-1.16 1.45-2.5 1.62-3.89h-2.02c-.14.87-.48 1.72-1.02 2.48z"/></svg>
-                            </button>
-                            <button class="image-editor-step-btn" id="rotate-minus" title="Decrease 0.1°">−</button>
-                            <input type="range" class="image-editor-slider" id="image-editor-rotate" min="-45" max="45" value="0" step="0.1">
-                            <button class="image-editor-step-btn" id="rotate-plus" title="Increase 0.1°">+</button>
-                            <button class="image-editor-tool" data-action="flip-h" title="Flip Horizontal">
-                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15 21h2v-2h-2v2zm4-12h2V7h-2v2zM3 5v14c0 1.1.9 2 2 2h4v-2H5V5h4V3H5c-1.1 0-2 .9-2 2zm16-2v2h2c0-1.1-.9-2-2-2zm-8 20h2V1h-2v22zm8-6h2v-2h-2v2zM15 5h2V3h-2v2zm4 8h2v-2h-2v2zm0 8c1.1 0 2-.9 2-2h-2v2z"/></svg>
-                            </button>
-                            <button class="image-editor-tool" data-action="flip-v" title="Flip Vertical">
-                                <svg viewBox="0 0 24 24" fill="currentColor" style="transform: rotate(90deg)"><path d="M15 21h2v-2h-2v2zm4-12h2V7h-2v2zM3 5v14c0 1.1.9 2 2 2h4v-2H5V5h4V3H5c-1.1 0-2 .9-2 2zm16-2v2h2c0-1.1-.9-2-2-2zm-8 20h2V1h-2v22zm8-6h2v-2h-2v2zM15 5h2V3h-2v2zm4 8h2v-2h-2v2zm0 8c1.1 0 2-.9 2-2h-2v2z"/></svg>
-                            </button>
-                        </div>
-                        <div class="image-editor-controls-row">
-                            <input type="text" class="image-editor-rotation-input" id="image-editor-rotate-value" value="0°" inputmode="decimal">
+                    <div data-tab-content="corners" class="image-editor-tab-panel">
+                        <div class="perspective-controls">
+                            <div class="perspective-hint">Drag the corners to match the card edges</div>
                         </div>
                     </div>
-                    <div class="perspective-controls">
-                        <div class="perspective-hint">Drag the corners to match the card edges</div>
+                    <div data-tab-content="crop" class="image-editor-tab-panel" style="display:none">
+                        <div class="image-editor-controls">
+                            <div class="image-editor-controls-row">
+                                <button class="image-editor-tool" data-action="rotate-left" title="Rotate 90° Left">
+                                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7.11 8.53L5.7 7.11C4.8 8.27 4.24 9.61 4.07 11h2.02c.14-.87.49-1.72 1.02-2.47zM6.09 13H4.07c.17 1.39.72 2.73 1.62 3.89l1.41-1.42c-.52-.75-.87-1.59-1.01-2.47zm1.01 5.32c1.16.9 2.51 1.44 3.9 1.61V17.9c-.87-.15-1.71-.49-2.46-1.03L7.1 18.32zM13 4.07V1L8.45 5.55 13 10V6.09c2.84.48 5 2.94 5 5.91s-2.16 5.43-5 5.91v2.02c3.95-.49 7-3.85 7-7.93s-3.05-7.44-7-7.93z"/></svg>
+                                </button>
+                                <button class="image-editor-tool" data-action="rotate-right" title="Rotate 90° Right">
+                                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.55 5.55L11 1v3.07C7.06 4.56 4 7.92 4 12s3.05 7.44 7 7.93v-2.02c-2.84-.48-5-2.94-5-5.91s2.16-5.43 5-5.91V10l4.55-4.45zM19.93 11c-.17-1.39-.72-2.73-1.62-3.89l-1.42 1.42c.54.75.88 1.6 1.02 2.47h2.02zM13 17.9v2.02c1.39-.17 2.74-.71 3.9-1.61l-1.44-1.44c-.75.54-1.59.89-2.46 1.03zm3.89-2.42l1.42 1.41c.9-1.16 1.45-2.5 1.62-3.89h-2.02c-.14.87-.48 1.72-1.02 2.48z"/></svg>
+                                </button>
+                                <button class="image-editor-step-btn" id="rotate-minus" title="Decrease 0.1°">−</button>
+                                <input type="range" class="image-editor-slider" id="image-editor-rotate" min="-45" max="45" value="0" step="0.1">
+                                <button class="image-editor-step-btn" id="rotate-plus" title="Increase 0.1°">+</button>
+                                <button class="image-editor-tool" data-action="flip-h" title="Flip Horizontal">
+                                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15 21h2v-2h-2v2zm4-12h2V7h-2v2zM3 5v14c0 1.1.9 2 2 2h4v-2H5V5h4V3H5c-1.1 0-2 .9-2 2zm16-2v2h2c0-1.1-.9-2-2-2zm-8 20h2V1h-2v22zm8-6h2v-2h-2v2zM15 5h2V3h-2v2zm4 8h2v-2h-2v2zm0 8c1.1 0 2-.9 2-2h-2v2z"/></svg>
+                                </button>
+                                <button class="image-editor-tool" data-action="flip-v" title="Flip Vertical">
+                                    <svg viewBox="0 0 24 24" fill="currentColor" style="transform: rotate(90deg)"><path d="M15 21h2v-2h-2v2zm4-12h2V7h-2v2zM3 5v14c0 1.1.9 2 2 2h4v-2H5V5h4V3H5c-1.1 0-2 .9-2 2zm16-2v2h2c0-1.1-.9-2-2-2zm-8 20h2V1h-2v22zm8-6h2v-2h-2v2zM15 5h2V3h-2v2zm4 8h2v-2h-2v2zm0 8c1.1 0 2-.9 2-2h-2v2z"/></svg>
+                                </button>
+                            </div>
+                            <div class="image-editor-controls-row">
+                                <input type="text" class="image-editor-rotation-input" id="image-editor-rotate-value" value="0°" inputmode="decimal">
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="image-editor-footer">
-                    <button class="image-editor-tool" data-action="reset" title="Reset All">
+                    <button class="image-editor-tool" data-action="reset" title="Reset">
                         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
-                    </button>
-                    <button class="image-editor-tool" data-action="perspective" title="Perspective Correction">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3L19 1L21 21L3 23Z"/><circle cx="5" cy="3" r="1.5" fill="currentColor" stroke="none"/><circle cx="19" cy="1" r="1.5" fill="currentColor" stroke="none"/><circle cx="21" cy="21" r="1.5" fill="currentColor" stroke="none"/><circle cx="3" cy="23" r="1.5" fill="currentColor" stroke="none"/></svg>
                     </button>
                     <div class="image-editor-footer-spacer"></div>
                     <button class="image-editor-btn cancel">Cancel</button>
-                    <button class="image-editor-btn confirm">Apply & Continue</button>
+                    <button class="image-editor-btn confirm">Done</button>
                 </div>
             </div>
         `;
@@ -1460,6 +1467,15 @@ class ImageEditorModal {
 
         // Confirm button
         this.backdrop.querySelector('.image-editor-btn.confirm').onclick = () => this.confirm();
+
+        // Tab switching
+        this.backdrop.querySelectorAll('.image-editor-tab').forEach(tab => {
+            tab.onclick = () => {
+                if (this.switching) return;
+                const tabName = tab.dataset.tab;
+                if (tabName !== this.activeTab) this.switchTab(tabName);
+            };
+        });
 
         // Toolbar buttons
         this.backdrop.querySelectorAll('.image-editor-tool').forEach(btn => {
@@ -1525,13 +1541,15 @@ class ImageEditorModal {
 
     // Handle toolbar actions
     handleToolAction(action) {
-        if (action === 'perspective') {
-            if (this.mode === 'crop') this.enterPerspectiveMode();
-            else this.exitPerspectiveMode();
-            return;
-        }
-        if (action === 'reset' && this.mode === 'perspective') {
-            this.resetCornerHandles();
+        if (action === 'reset') {
+            if (this.activeTab === 'corners') {
+                this.resetCornerHandles();
+            } else if (this.cropper) {
+                this.baseRotation = 0;
+                this.fineRotation = 0;
+                this.cropper.reset();
+                if (this.setFineRotation) this.setFineRotation(0);
+            }
             return;
         }
         if (!this.cropper) return;
@@ -1553,12 +1571,6 @@ class ImageEditorModal {
             case 'flip-v':
                 this.cropper.scaleY(-this.cropper.getData().scaleY || -1);
                 break;
-            case 'reset':
-                this.baseRotation = 0;
-                this.fineRotation = 0;
-                this.cropper.reset();
-                if (this.setFineRotation) this.setFineRotation(0);
-                break;
         }
     }
 
@@ -1574,110 +1586,130 @@ class ImageEditorModal {
         }
 
         // Reset state
-        this.mode = 'crop';
+        this.activeTab = 'corners';
+        this.switching = false;
+        this.savedCornerPositions = null;
         this.originalImageSrc = imageSrc;
         this.baseRotation = 0;
         this.fineRotation = 0;
-        this.updateToolbarForMode();
         const slider = this.backdrop.querySelector('#image-editor-rotate');
-        const input = this.backdrop.querySelector('#image-editor-rotate-value');
+        const rotateInput = this.backdrop.querySelector('#image-editor-rotate-value');
         if (slider) slider.value = 0;
-        if (input) input.value = '0°';
+        if (rotateInput) rotateInput.value = '0°';
 
-        // Set image source (crossOrigin needed for R2 images so canvas isn't tainted)
         // Cache-bust http(s) URLs to avoid browser serving a cached non-CORS response
-        // from the regular <img> tag that loaded the same URL without crossOrigin
-        const img = this.backdrop.querySelector('#image-editor-img');
-        img.crossOrigin = 'anonymous';
         const isHttpUrl = imageSrc.startsWith('http');
-        img.src = isHttpUrl ? imageSrc + (imageSrc.includes('?') ? '&' : '?') + '_cb=1' : imageSrc;
+        this.cacheBustedSrc = isHttpUrl ? imageSrc + (imageSrc.includes('?') ? '&' : '?') + '_cb=1' : imageSrc;
+
+        // Show the Corners tab by default
+        this.updateTabUI('corners');
+
+        // Hide the <img> (perspective uses its own canvas)
+        const img = this.backdrop.querySelector('#image-editor-img');
+        img.style.display = 'none';
+        img.crossOrigin = 'anonymous';
 
         // Show modal
         this.backdrop.classList.add('active');
 
-        // Wait for image to load, then initialize cropper
+        // Load the image, then set up perspective canvas
         return new Promise((resolve, reject) => {
             this.resolvePromise = resolve;
             this.rejectPromise = reject;
 
-            img.onload = () => {
-                this.cropper = new Cropper(img, {
-                    ...this.cropperOptions,
-                    ready: () => this.enterPerspectiveMode(),
-                });
+            const tempImg = new Image();
+            tempImg.crossOrigin = 'anonymous';
+            tempImg.onload = () => {
+                this.setupPerspectiveCanvas(tempImg);
             };
-            img.onerror = () => {
+            tempImg.onerror = () => {
                 this.close();
                 reject(new Error('Failed to load image'));
             };
+            tempImg.src = this.cacheBustedSrc;
         });
     }
 
-    // Confirm - return cropped/edited image (or apply perspective)
+    // Confirm (Done) - output result from whichever tab is active
     confirm() {
-        if (this.mode === 'perspective') {
-            this.applyPerspective();
-            return;
-        }
-
-        console.log('ImageEditor: confirm() called, cropper:', !!this.cropper);
-
-        if (!this.cropper) {
-            // Cropper not initialized - reject with error
-            console.error('ImageEditor: No cropper instance');
-            const reject = this.rejectPromise;
-            this.close();
-            if (reject) {
-                reject(new Error('Image editor not ready'));
+        if (this.activeTab === 'corners') {
+            // If corners moved, apply perspective transform then output
+            if (!this.cornersAreDefault()) {
+                const srcCorners = this.cornerPositions.map(p => ({
+                    x: p.x * this.perspectiveCanvas.width,
+                    y: p.y * this.perspectiveCanvas.height,
+                }));
+                const resultCanvas = PerspectiveTransform.transform(this.perspectiveCanvas, srcCorners);
+                if (!resultCanvas) {
+                    console.error('Perspective transform failed');
+                    return;
+                }
+                const dataUrl = resultCanvas.toDataURL('image/webp', 0.85);
+                const resolve = this.resolvePromise;
+                this.close();
+                if (resolve) resolve(dataUrl);
+            } else {
+                // Corners not moved - output original image as-is
+                this.outputOriginalImage();
             }
             return;
         }
 
+        // Crop & Rotate tab
+        if (!this.cropper) {
+            const reject = this.rejectPromise;
+            this.close();
+            if (reject) reject(new Error('Image editor not ready'));
+            return;
+        }
+
         try {
-            console.log('ImageEditor: Getting cropped canvas...');
-            // Get cropped canvas
             const canvas = this.cropper.getCroppedCanvas({
                 maxWidth: 1200,
                 maxHeight: 1200,
             });
 
-            console.log('ImageEditor: Canvas result:', !!canvas, canvas?.width, canvas?.height);
-
             if (!canvas) {
                 throw new Error('Failed to get cropped image');
             }
 
-            // Convert to data URL
-            console.log('ImageEditor: Converting to data URL...');
             const dataUrl = canvas.toDataURL('image/webp', 0.85);
-            console.log('ImageEditor: Data URL length:', dataUrl?.length);
-
-            // Save resolve function before close() clears it
             const resolve = this.resolvePromise;
             this.close();
-            console.log('ImageEditor: Resolving promise...');
-            if (resolve) {
-                resolve(dataUrl);
-                console.log('ImageEditor: Promise resolved');
-            } else {
-                console.error('ImageEditor: No resolvePromise!');
-            }
+            if (resolve) resolve(dataUrl);
         } catch (error) {
             console.error('ImageEditor: Error in confirm():', error);
             const reject = this.rejectPromise;
             this.close();
-            if (reject) {
-                reject(error);
-            }
+            if (reject) reject(error);
         }
     }
 
-    // Cancel - reject promise
+    // Output the original image without any edits
+    outputOriginalImage() {
+        // Draw original onto a canvas to get a webp data URL
+        const tempImg = new Image();
+        tempImg.crossOrigin = 'anonymous';
+        tempImg.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = tempImg.naturalWidth;
+            canvas.height = tempImg.naturalHeight;
+            canvas.getContext('2d').drawImage(tempImg, 0, 0);
+            const dataUrl = canvas.toDataURL('image/webp', 0.85);
+            const resolve = this.resolvePromise;
+            this.close();
+            if (resolve) resolve(dataUrl);
+        };
+        tempImg.onerror = () => {
+            const reject = this.rejectPromise;
+            this.close();
+            if (reject) reject(new Error('Failed to load original image'));
+        };
+        tempImg.src = this.cacheBustedSrc;
+    }
+
+    // Cancel - always exit (no "go back" behavior)
     cancel() {
-        if (this.mode === 'perspective') {
-            this.exitPerspectiveMode();
-            return;
-        }
         const reject = this.rejectPromise;
         this.close();
         if (reject) {
@@ -1685,7 +1717,7 @@ class ImageEditorModal {
         }
     }
 
-    // Cropper.js config (shared between open() and exitPerspectiveMode())
+    // Cropper.js config
     get cropperOptions() {
         return {
             viewMode: 1, dragMode: 'move', aspectRatio: NaN, autoCropArea: 1,
@@ -1694,30 +1726,117 @@ class ImageEditorModal {
         };
     }
 
-    // Enter perspective correction mode
-    enterPerspectiveMode() {
-        if (this.mode === 'perspective') return;
+    // Check if corners are at default (unmoved) positions
+    cornersAreDefault() {
+        if (!this.cornerPositions.length) return true;
+        const defaults = [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }];
+        return this.cornerPositions.every((p, i) =>
+            Math.abs(p.x - defaults[i].x) < 0.001 && Math.abs(p.y - defaults[i].y) < 0.001
+        );
+    }
 
-        // Capture current Cropper state (bakes in any rotation/crop/flip)
-        const croppedCanvas = this.cropper.getCroppedCanvas({ maxWidth: 1200, maxHeight: 1200 });
-        this.prePerspectiveSrc = croppedCanvas.toDataURL('image/png');
+    // Switch between Corners and Crop & Rotate tabs
+    switchTab(tabName) {
+        if (this.switching) return;
+        this.switching = true;
 
-        // Destroy Cropper
-        this.cropper.destroy();
-        this.cropper = null;
+        if (tabName === 'crop') {
+            // Corners -> Crop & Rotate
+            this.savedCornerPositions = this.cornerPositions.map(p => ({ ...p }));
 
-        // Hide the img element
-        const img = this.backdrop.querySelector('#image-editor-img');
-        img.style.display = 'none';
+            // Get the image to feed into Cropper
+            let imageSrc;
+            if (!this.cornersAreDefault()) {
+                // Apply perspective transform
+                const srcCorners = this.cornerPositions.map(p => ({
+                    x: p.x * this.perspectiveCanvas.width,
+                    y: p.y * this.perspectiveCanvas.height,
+                }));
+                const resultCanvas = PerspectiveTransform.transform(this.perspectiveCanvas, srcCorners);
+                imageSrc = resultCanvas ? resultCanvas.toDataURL('image/png') : this.cacheBustedSrc;
+            } else {
+                imageSrc = this.cacheBustedSrc;
+            }
 
+            // Clean up perspective DOM
+            this.cleanupPerspective();
+
+            // Show <img> and init Cropper
+            const img = this.backdrop.querySelector('#image-editor-img');
+            img.style.display = '';
+            img.crossOrigin = 'anonymous';
+
+            // Reset crop rotation state
+            this.baseRotation = 0;
+            this.fineRotation = 0;
+            if (this.setFineRotation) this.setFineRotation(0);
+
+            img.onload = () => {
+                this.cropper = new Cropper(img, {
+                    ...this.cropperOptions,
+                    ready: () => {
+                        this.activeTab = 'crop';
+                        this.updateTabUI('crop');
+                        this.switching = false;
+                    },
+                });
+            };
+            img.src = imageSrc;
+        } else {
+            // Crop & Rotate -> Corners
+            // Destroy Cropper
+            if (this.cropper) {
+                this.cropper.destroy();
+                this.cropper = null;
+            }
+
+            // Hide <img>
+            const img = this.backdrop.querySelector('#image-editor-img');
+            img.style.display = 'none';
+
+            // Load original image into perspective canvas
+            const tempImg = new Image();
+            tempImg.crossOrigin = 'anonymous';
+            tempImg.onload = () => {
+                this.setupPerspectiveCanvas(tempImg);
+                // Restore saved corner positions if available
+                if (this.savedCornerPositions) {
+                    this.cornerPositions = this.savedCornerPositions.map(p => ({ ...p }));
+                    this.updateHandlePositions();
+                    this.drawGuideLines();
+                }
+                this.activeTab = 'corners';
+                this.updateTabUI('corners');
+                this.switching = false;
+            };
+            tempImg.onerror = () => {
+                this.switching = false;
+            };
+            tempImg.src = this.cacheBustedSrc;
+        }
+    }
+
+    // Update tab button active states and panel visibility
+    updateTabUI(tabName) {
+        if (!this.backdrop) return;
+        this.backdrop.querySelectorAll('.image-editor-tab').forEach(t => {
+            t.classList.toggle('active', t.dataset.tab === tabName);
+        });
+        this.backdrop.querySelectorAll('.image-editor-tab-panel').forEach(p => {
+            p.style.display = p.dataset.tabContent === tabName ? '' : 'none';
+        });
+    }
+
+    // Create perspective canvas, overlay, and corner handles from an image
+    setupPerspectiveCanvas(img) {
         const container = this.backdrop.querySelector('.image-editor-canvas');
 
         // Create perspective canvas
         this.perspectiveCanvas = document.createElement('canvas');
         this.perspectiveCanvas.className = 'perspective-canvas';
-        this.perspectiveCanvas.width = croppedCanvas.width;
-        this.perspectiveCanvas.height = croppedCanvas.height;
-        this.perspectiveCanvas.getContext('2d').drawImage(croppedCanvas, 0, 0);
+        this.perspectiveCanvas.width = img.naturalWidth;
+        this.perspectiveCanvas.height = img.naturalHeight;
+        this.perspectiveCanvas.getContext('2d').drawImage(img, 0, 0);
         container.appendChild(this.perspectiveCanvas);
 
         // Create overlay canvas for guide lines
@@ -1737,8 +1856,6 @@ class ImageEditorModal {
             this.makeHandleDraggable(handle, i);
         }
 
-        this.mode = 'perspective';
-        this.updateToolbarForMode();
         this.updateHandlePositions();
         this.drawGuideLines();
     }
@@ -1886,74 +2003,12 @@ class ImageEditorModal {
         }
     }
 
-    // Apply the perspective transform and return to crop mode
-    applyPerspective() {
-        const srcCorners = this.cornerPositions.map(p => ({
-            x: p.x * this.perspectiveCanvas.width,
-            y: p.y * this.perspectiveCanvas.height,
-        }));
-
-        const resultCanvas = PerspectiveTransform.transform(this.perspectiveCanvas, srcCorners);
-        if (!resultCanvas) {
-            console.error('Perspective transform failed');
-            return;
-        }
-
-        const resultUrl = resultCanvas.toDataURL('image/png');
-        this.exitPerspectiveMode(resultUrl);
-    }
-
-    // Exit perspective mode and return to Cropper.js
-    exitPerspectiveMode(newImageSrc) {
-        this.cleanupPerspective();
-
-        const img = this.backdrop.querySelector('#image-editor-img');
-        img.style.display = '';
-        img.src = newImageSrc || this.prePerspectiveSrc;
-
-        this.mode = 'crop';
-        this.baseRotation = 0;
-        this.fineRotation = 0;
-        if (this.setFineRotation) this.setFineRotation(0);
-        this.updateToolbarForMode();
-
-        img.onload = () => {
-            this.cropper = new Cropper(img, this.cropperOptions);
-        };
-    }
-
     // Clean up perspective mode DOM elements
     cleanupPerspective() {
         this.cornerHandles.forEach(h => h.remove());
         this.cornerHandles = [];
         if (this.perspectiveCanvas) { this.perspectiveCanvas.remove(); this.perspectiveCanvas = null; }
         if (this.perspectiveOverlay) { this.perspectiveOverlay.remove(); this.perspectiveOverlay = null; }
-    }
-
-    // Toggle UI between crop and perspective modes
-    updateToolbarForMode() {
-        if (!this.backdrop) return;
-        const isPerspective = this.mode === 'perspective';
-
-        // Toggle controls visibility
-        const cropControls = this.backdrop.querySelector('.image-editor-controls');
-        const perspControls = this.backdrop.querySelector('.perspective-controls');
-        if (cropControls) cropControls.style.display = isPerspective ? 'none' : '';
-        if (perspControls) perspControls.style.display = isPerspective ? 'flex' : 'none';
-
-        // Update subtitle
-        const subtitle = this.backdrop.querySelector('.image-editor-subtitle');
-        if (subtitle) subtitle.textContent = isPerspective
-            ? 'Straighten card perspective'
-            : 'Crop and rotate before saving';
-
-        // Toggle active state on perspective button
-        const perspBtn = this.backdrop.querySelector('[data-action="perspective"]');
-        if (perspBtn) perspBtn.classList.toggle('active', isPerspective);
-
-        // Update confirm button text
-        const confirmBtn = this.backdrop.querySelector('.image-editor-btn.confirm');
-        if (confirmBtn) confirmBtn.textContent = isPerspective ? 'Apply Correction' : 'Apply & Continue';
     }
 
     // Close modal
@@ -1965,7 +2020,9 @@ class ImageEditorModal {
             this.cropper = null;
         }
         this.cleanupPerspective();
-        this.mode = 'crop';
+        this.activeTab = 'corners';
+        this.switching = false;
+        this.savedCornerPositions = null;
         this.resolvePromise = null;
         this.rejectPromise = null;
     }
