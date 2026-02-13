@@ -110,13 +110,6 @@
             margin-bottom: 8px;
             color: var(--card-accent);
         }
-        /* Washington QBs - Commanders burgundy/gold */
-        #card-washington-qbs {
-            --card-accent: #FFB612;
-            --card-accent-rgb: 255, 182, 18;
-            border-left: 3px solid #773141;
-            background: linear-gradient(135deg, rgba(119, 49, 65, 0.12) 0%, rgba(255, 182, 18, 0.05) 100%);
-        }
         .checklist-card p {
             font-family: 'Barlow', sans-serif;
             color: #999;
@@ -401,32 +394,7 @@
             </div>
         </div>
 
-        <div class="checklist-grid">
-            <a href="washington-qbs-rookie-checklist.html" class="checklist-card" data-checklist="washington-qbs" id="card-washington-qbs">
-                <h2>Washington QBs Collection</h2>
-                <p>Curated rookie cards for Washington starting quarterbacks since 1985.</p>
-                <div class="progress-section" id="progress-section-washington-qbs" style="display: none;">
-                    <div class="main-progress">
-                        <div class="progress-ring">
-                            <svg viewBox="0 0 48 48">
-                                <circle class="bg" cx="24" cy="24" r="20"/>
-                                <circle class="fill" id="progress-ring-washington-qbs" cx="24" cy="24" r="20"
-                                    stroke-dasharray="125.6" stroke-dashoffset="125.6"/>
-                            </svg>
-                            <span class="percentage" id="progress-pct-washington-qbs">0%</span>
-                        </div>
-                        <div class="progress-details">
-                            <div class="progress-main-text">
-                                <span id="progress-owned-washington-qbs">0</span> of <span id="progress-total-washington-qbs">0</span> cards
-                            </div>
-                            <div class="value-line" id="value-stats-washington-qbs"></div>
-                        </div>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-
+        <div class="checklist-grid"></div>
     </div>
 
     <script src="github-sync.js"></script>
@@ -435,115 +403,6 @@
         // Progress ring constants (must match SVG circle r="20" and stroke-dasharray="125.6")
         const PROGRESS_RING_RADIUS = 20;
         const PROGRESS_RING_CIRCUMFERENCE = 2 * Math.PI * PROGRESS_RING_RADIUS;
-
-        // Load card data from gist (single source of truth)
-        async function loadCardData() {
-            async function loadOne(checklistId) {
-                if (window.githubSync?.isLoggedIn()) {
-                    const gistData = await githubSync.loadCardData(checklistId);
-                    if (gistData) return gistData;
-                }
-                // Not logged in or no private data - use public gist
-                const publicData = await githubSync.loadPublicCardData(checklistId);
-                return publicData || null;
-            }
-
-            const qbData = await loadOne('washington-qbs');
-            return { 'washington-qbs': qbData };
-        }
-
-        // Generate card ID (must match the checklist pages)
-        function getCardId(card) {
-            if (card.id) return card.id;
-            // Cards with player field include it in the ID
-            if (card.player) {
-                const str = (card.player || '') + (card.set || '') + (card.num || '') + (card.variant || '');
-                return btoa(str).replace(/[^a-zA-Z0-9]/g, '');
-            }
-            const str = (card.set || '') + (card.num || '') + (card.variant || '');
-            return btoa(str).replace(/[^a-zA-Z0-9]/g, '');
-        }
-
-        // Compute stats for a checklist from JSON data and owned list
-        function computeChecklistStats(checklistId, cardData, ownedList) {
-            if (!cardData) return null;
-            const owned = new Set(ownedList || []);
-
-            if (checklistId === 'washington-qbs') {
-                const cards = (cardData.cards || cardData.qbs).filter(card => !card.collectionLink);
-                let ownedCount = 0, totalValue = 0, ownedValue = 0;
-                cards.forEach(card => {
-                    const price = card.price || 0;
-                    totalValue += price;
-                    const id = btoa(card.player + card.set + card.num).replace(/[^a-zA-Z0-9]/g, '');
-                    if (owned.has(id)) {
-                        ownedCount++;
-                        ownedValue += price;
-                    }
-                });
-                return {
-                    owned: ownedCount,
-                    total: cards.length,
-                    ownedValue: Math.round(ownedValue),
-                    neededValue: Math.round(totalValue - ownedValue)
-                };
-            }
-
-            return null;
-        }
-
-        async function loadProgress() {
-            // Load card data from JSON files (source of truth for counts)
-            const cardData = await loadCardData();
-
-            // Load owned cards from gist
-            let ownedCards = {};
-            if (window.githubSync) {
-                const gistData = githubSync.isLoggedIn()
-                    ? await githubSync.loadData()
-                    : await githubSync.loadPublicData();
-                ownedCards = gistData?.checklists || {};
-            }
-
-            // Helper to update a card's progress display
-            function updateCardProgress(id, stats) {
-                if (!stats || typeof stats.owned !== 'number' || typeof stats.total !== 'number') return;
-
-                const progressSection = document.getElementById(`progress-section-${id}`);
-                if (!progressSection) return;
-
-                progressSection.style.display = 'block';
-
-                const pct = stats.total > 0 ? Math.round((stats.owned / stats.total) * 100) : 0;
-                const offset = PROGRESS_RING_CIRCUMFERENCE - (pct / 100) * PROGRESS_RING_CIRCUMFERENCE;
-
-                const ring = document.getElementById(`progress-ring-${id}`);
-                if (ring) ring.style.strokeDashoffset = offset;
-
-                const pctEl = document.getElementById(`progress-pct-${id}`);
-                if (pctEl) pctEl.textContent = `${pct}%`;
-
-                const ownedEl = document.getElementById(`progress-owned-${id}`);
-                if (ownedEl) ownedEl.textContent = stats.owned;
-
-                const totalEl = document.getElementById(`progress-total-${id}`);
-                if (totalEl) totalEl.textContent = stats.total;
-
-                const valueEl = document.getElementById(`value-stats-${id}`);
-                if (valueEl) {
-                    valueEl.innerHTML = `<span class="value-owned">$${stats.ownedValue} owned</span> · <span class="value-needed">$${stats.neededValue} to complete</span>`;
-                }
-            }
-
-            // Washington QBs
-            const qbStats = computeChecklistStats('washington-qbs', cardData['washington-qbs'], ownedCards['washington-qbs']);
-            updateCardProgress('washington-qbs', qbStats);
-
-            // Return computed stats for aggregate
-            return {
-                'washington-qbs': qbStats
-            };
-        }
 
         // Animate a number counting up
         function animateValue(element, start, end, duration, prefix = '', suffix = '') {
@@ -700,14 +559,8 @@
                 }
             });
 
-            // Load progress data for individual cards and aggregate stats
-            const stats = await loadProgress();
-
-            // Render dynamic checklist cards from registry
-            const dynamicStats = await renderDynamicChecklists();
-
-            // Merge dynamic stats into aggregate
-            const allStats = { ...stats, ...dynamicStats };
+            // Render dynamic checklist cards from registry and aggregate stats
+            const allStats = await renderDynamicChecklists();
             updateAggregateStats(allStats);
 
             // Add "Create New Checklist" to dropdown menu (owner-only)

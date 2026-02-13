@@ -52,7 +52,7 @@ A modern web app for tracking sports card collections with cloud sync, real-time
 ## Checklists
 
 - **[Jayden Daniels Rookie Cards](https://iammike.github.io/sports-card-checklists/checklist.html?id=jayden-daniels)** - College and NFL rookie cards
-- **[Washington Commanders QBs](https://iammike.github.io/sports-card-checklists/washington-qbs-rookie-checklist.html)** - Rookie cards of Washington starting QBs (1970-present)
+- **[Washington Commanders QBs](https://iammike.github.io/sports-card-checklists/checklist.html?id=washington-qbs)** - Rookie cards of Washington starting QBs (1970-present)
 - **[JMU Pro Players](https://iammike.github.io/sports-card-checklists/checklist.html?id=jmu-pro-players)** - Cards of JMU alumni who played professionally
 
 ## Architecture
@@ -80,7 +80,7 @@ A modern web app for tracking sports card collections with cloud sync, real-time
 | `github-sync.js` | OAuth flow, Gist CRUD, GitHub API integration |
 | `shared.js` | Reusable utilities (ChecklistManager, CardRenderer, PriceUtils, etc.) |
 | `worker.js` | Cloudflare Worker for OAuth, image proxy, and R2 image upload/serve |
-| `*-checklist.html` | Individual checklist pages with card data |
+| `checklist.html` + `checklist-engine.js` | Config-driven checklist page (loads via `?id=xxx`) |
 
 ### Security Features
 
@@ -111,7 +111,8 @@ Cloudflare Pages preview deployments allow testing changes without affecting pro
 ### Project Structure
 ```
 ├── index.html                    # Landing page with all checklists
-├── *-checklist.html              # Individual checklist pages
+├── checklist.html                    # Config-driven checklist page (?id=xxx)
+├── checklist-engine.js               # Checklist engine (loads config from gist)
 ├── images/                       # Legacy card images (migrated to R2)
 ├── github-sync.js                # OAuth + Gist storage
 ├── shared.js                     # Shared utilities and components
