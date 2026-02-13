@@ -1413,6 +1413,7 @@ select, input[type="text"] {
     padding: 20px 24px;
     max-height: 60vh;
     overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .card-editor-body::-webkit-scrollbar {
@@ -1439,6 +1440,7 @@ select, input[type="text"] {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    min-width: 0;
 }
 
 .card-editor-field.full-width {
