@@ -1016,10 +1016,10 @@ class ChecklistEngine {
             const groupCards = filtered.filter(c => c[groupField] === group.id);
             if (groupCards.length === 0) return;
             html += `<div class="section">
-                <div class="group-header">${sanitizeText(group.title)}</div>
-                <div class="section-group"><div class="card-grid">
+                <div class="section-header">${sanitizeText(group.title)}</div>
+                <div class="card-grid">
                     ${groupCards.map(c => this.createCardElement(c)).join('')}
-                </div></div>
+                </div>
             </div>`;
         });
         container.innerHTML = html;
