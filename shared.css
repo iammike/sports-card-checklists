@@ -1712,6 +1712,8 @@ select, input[type="text"] {
     background: rgba(0, 0, 0, 0.15);
     cursor: pointer;
     transition: all 0.2s;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .card-editor-upload-zone:hover {
