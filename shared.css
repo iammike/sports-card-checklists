@@ -1654,62 +1654,109 @@ select, input[type="text"] {
     border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* Image input with process button */
-.card-editor-image-input-row {
+/* Image tabs */
+.card-editor-image-tabs {
+    display: flex;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
+    padding: 3px;
+    gap: 2px;
+    margin-bottom: 8px;
+}
+
+.card-editor-image-tab {
+    flex: 1;
+    padding: 6px 0;
+    background: none;
+    border: none;
+    border-radius: 4px;
+    color: rgba(255, 255, 255, 0.5);
+    font-family: 'Barlow', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.card-editor-image-tab:hover {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.card-editor-image-tab.active {
+    background: rgba(102, 126, 234, 0.25);
+    color: #a8b4f0;
+}
+
+/* URL tab row */
+.card-editor-image-url-row {
     display: flex;
     gap: 8px;
 }
 
-.card-editor-image-input-row .card-editor-input {
+.card-editor-image-url-row .card-editor-input {
     flex: 1;
 }
 
-/* Upload button - always visible */
-.card-editor-upload-btn {
+/* Upload zone */
+.card-editor-upload-zone {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 0 16px;
-    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-    border: none;
-    border-radius: 4px;
-    color: #1a1a2e;
-    font-family: 'Barlow', sans-serif;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
+    gap: 6px;
+    padding: 20px 16px;
+    border: 2px dashed rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.15);
     cursor: pointer;
     transition: all 0.2s;
-    white-space: nowrap;
-    min-width: 80px;
 }
 
-.card-editor-upload-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(67, 233, 123, 0.4);
+.card-editor-upload-zone:hover {
+    border-color: rgba(255, 255, 255, 0.25);
+    background: rgba(0, 0, 0, 0.25);
 }
 
-.card-editor-upload-btn:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-    transform: none;
+.card-editor-upload-zone.dragover {
+    border-color: #43e97b;
+    background: rgba(67, 233, 123, 0.08);
 }
 
-.card-editor-upload-btn .upload-spinner {
+.card-editor-upload-zone .upload-zone-icon {
+    font-size: 24px;
+    color: rgba(255, 255, 255, 0.4);
+    line-height: 1;
+}
+
+.card-editor-upload-zone .upload-zone-text {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.4);
+    font-weight: 500;
+}
+
+.card-editor-upload-zone .upload-zone-spinner {
     display: none;
-    width: 14px;
-    height: 14px;
-    border: 2px solid rgba(26, 26, 46, 0.3);
-    border-top-color: #1a1a2e;
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    border-top-color: #a8b4f0;
     border-radius: 50%;
     animation: processSpinner 0.8s linear infinite;
 }
 
-.card-editor-upload-btn.processing .upload-text {
+.card-editor-upload-zone.processing {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.card-editor-upload-zone.processing .upload-zone-icon,
+.card-editor-upload-zone.processing .upload-zone-text {
     display: none;
 }
 
-.card-editor-upload-btn.processing .upload-spinner {
+.card-editor-upload-zone.processing .upload-zone-spinner {
     display: block;
 }
 
@@ -1766,12 +1813,14 @@ select, input[type="text"] {
     to { transform: rotate(360deg); }
 }
 
-/* Edit button - for editing existing local images */
+/* Edit button - below preview, full width */
 .card-editor-edit-btn {
     display: none;
     align-items: center;
     justify-content: center;
-    padding: 0 16px;
+    width: 100%;
+    padding: 8px 16px;
+    margin-top: 8px;
     background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
     border: none;
     border-radius: 4px;
@@ -1783,7 +1832,6 @@ select, input[type="text"] {
     cursor: pointer;
     transition: all 0.2s;
     white-space: nowrap;
-    min-width: 60px;
 }
 
 .card-editor-edit-btn:hover {
@@ -1988,6 +2036,10 @@ select, input[type="text"] {
     .card-editor-modal .card-editor-input,
     .card-editor-modal .card-editor-select,
     .card-editor-modal select {
+        font-size: 16px;
+    }
+
+    .card-editor-image-tab {
         font-size: 16px;
     }
 }
