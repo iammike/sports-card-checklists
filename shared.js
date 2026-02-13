@@ -1582,9 +1582,11 @@ class ImageEditorModal {
         if (input) input.value = '0°';
 
         // Set image source (crossOrigin needed for R2 images so canvas isn't tainted)
+        // Cache-bust to avoid browser serving a cached non-CORS response from the
+        // regular <img> tag that loaded the same URL without crossOrigin
         const img = this.backdrop.querySelector('#image-editor-img');
         img.crossOrigin = 'anonymous';
-        img.src = imageSrc;
+        img.src = imageSrc + (imageSrc.includes('?') ? '&' : '?') + '_cb=1';
 
         // Show modal
         this.backdrop.classList.add('active');
