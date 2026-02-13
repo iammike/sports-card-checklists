@@ -1697,6 +1697,7 @@ select, input[type="text"] {
 
 .card-editor-image-url-row .card-editor-input {
     flex: 1;
+    min-width: 0;
 }
 
 /* Upload zone */
