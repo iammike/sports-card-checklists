@@ -1325,6 +1325,7 @@ class ChecklistEngine {
             ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant'].forEach(key => {
                 if (!(key in cardData) || !cardData[key]) delete card[key];
             });
+            this._cleanupCustomFields(card, cardData);
             // Re-sort
             this.cards.splice(found.index, 1);
             this._insertCardSorted(this.cards, card);
@@ -1339,10 +1340,20 @@ class ChecklistEngine {
             ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant'].forEach(key => {
                 if (!(key in cardData) || !cardData[key]) delete card[key];
             });
+            this._cleanupCustomFields(card, cardData);
             // Remove from old category, insert into new
             this.cards[oldCategory].splice(index, 1);
             if (!this.cards[newCategory]) this.cards[newCategory] = [];
             this._insertCardSorted(this.cards[newCategory], card);
+        }
+    }
+
+    // Remove empty-string custom text fields from saved card data
+    _cleanupCustomFields(card, cardData) {
+        const customFields = this.config.customFields || {};
+        for (const [key, config] of Object.entries(customFields)) {
+            if (config.type === 'checkbox') continue;
+            if (key in cardData && !cardData[key]) delete card[key];
         }
     }
 
