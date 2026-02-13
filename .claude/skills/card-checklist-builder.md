@@ -1,10 +1,18 @@
 # Card Checklist Builder
 
-Create interactive HTML checklists for tracking sports card collections.
+Create config-driven card checklists for tracking sports card collections.
 
 ## When to Use
 
 Use this skill when the user wants to create a new card checklist for a player, team, or set.
+
+## Architecture
+
+All checklists use the config-driven engine:
+- **`checklist.html?id={checklist-id}`** - Generic page that loads any checklist
+- **`checklist-engine.js`** - Renders cards, handles sorting/filtering/ownership
+- **Config stored in GitHub Gist:** `{id}-config.json` (settings) + `{id}-cards.json` (card data)
+- **Registry:** `checklists-registry.json` lists all checklists for the index page and nav
 
 ## Workflow
 
@@ -18,118 +26,94 @@ Use SportsCardsPro to find cards that actually exist for a player:
 https://www.sportscardspro.com/search-products?q=[PLAYER]+[YEAR]&type=prices
 ```
 
-For specific sets:
-```
-https://www.sportscardspro.com/game/football-cards-[YEAR]-[SET]/[player-slug]-[number]
-```
-
 **Common mistakes to avoid:**
 - Assuming a player is in Bowman University (they may not be)
-- Confusing similar player names (e.g., "Jayden Daniels" vs "Jayden De Laura" vs "Jalon Daniels")
+- Confusing similar player names
 - Assuming Leaf Draft exists when it's actually Leaf Trinity
 - Listing "college" versions of NFL sets (Contenders Draft college vs NFL)
 
-### 2. Categorize Cards by Era/Type
+### 2. Create the Checklist
 
-Organize cards into logical sections:
-- **College/Pre-Draft** - Cards from before the player was drafted (actual college sets)
-- **NFL Rookie Year** - First-year NFL cards (the official "rookie cards")
-- **By Manufacturer** - Panini, Topps, Leaf, etc.
+Use the ChecklistCreatorModal in the UI (login, click "+" button on the index page) or create the config JSON directly in the gist.
+
+**Config structure (`{id}-config.json`):**
+```json
+{
+    "id": "checklist-id",
+    "title": "Display Title",
+    "navLabel": "Short Nav Label",
+    "categories": [
+        { "id": "category-1", "label": "Category One" },
+        { "id": "category-2", "label": "Category Two" }
+    ],
+    "showPlayerName": true,
+    "cardDisplay": { "priceMode": "explicit" },
+    "theme": {
+        "primaryColor": "#hex",
+        "darkColor": "#hex",
+        "accentColor": "#hex"
+    },
+    "sortOptions": ["default", "year", "set", "owned", "needed"]
+}
+```
+
+**Card data structure (`{id}-cards.json`):**
+```json
+{
+    "categories": {
+        "category-1": [
+            { "set": "2024 Prizm", "num": "#123", "player": "Player Name", "variant": "Base" }
+        ],
+        "category-2": [...]
+    }
+}
+```
+
+**Card object fields:**
+- `set` - Full set name with year (e.g., "2024 Prizm")
+- `num` - Card number with # prefix (e.g., "#8") or empty string
+- `player` - Player name (when `showPlayerName: true`)
+- `variant` - Card variant (e.g., "Base", "Silver Prizm")
+- `price` - Explicit price value (when `priceMode: 'explicit'`)
+- `auto` - Boolean, autographed card
+- `patch` - Boolean, patch/relic card
+- `serial` - Print run (e.g., "/99", "/25")
+- `rc` - Boolean, rookie card
+- `img` - R2 image URL or empty string
 
 ### 3. Source Card Images
 
 **Preferred method: eBay via Chrome DevTools**
 
-1. Navigate to eBay search:
-   ```
-   https://www.ebay.com/sch/i.html?_nkw=[YEAR]+[SET]+[PLAYER]+[NUMBER]&LH_BIN=1&_sop=15
-   ```
+1. Search eBay for the card
+2. Use snapshot to find `i.ebayimg.com` URLs
+3. Paste the URL into the card editor image field (or upload via the image editor)
 
-2. Take a snapshot to find image URLs:
-   ```
-   mcp__chrome-devtools__take_snapshot
-   ```
+**Images are stored in Cloudflare R2** - uploaded via `POST /upload-image` endpoint. The card editor handles this automatically.
 
-3. Look for `i.ebayimg.com` URLs in the snapshot
+### 4. Register the Checklist
 
-4. Download images using curl:
-   ```bash
-   curl -o [output-path].webp "[ebayimg-url]"
-   ```
-
-5. Verify the downloaded image shows the correct player and card
-
-**Image verification checklist:**
-- [ ] Correct player name visible on card
-- [ ] Correct team/uniform
-- [ ] Correct set branding (SAGE, Leaf, Panini, etc.)
-- [ ] Card number matches if applicable
-
-### 4. Create the HTML Checklist
-
-Use the existing template structure from `jayden-daniels-rookie-checklist.html`:
-
-```javascript
-const cards = {
-    college: [
-        { set: "YEAR SET_NAME", num: "#NUMBER", name: "Base", type: "Base",
-          search: "search+terms+for+ebay", img: "player-cards/image.webp" },
-    ],
-    panini: [...],
-    topps: [...],
-    other: [...]
-};
+Add an entry to `checklists-registry.json`:
+```json
+{
+    "id": "checklist-id",
+    "title": "Display Title",
+    "navLabel": "Short Label",
+    "description": "Brief description for index card",
+    "type": "dynamic",
+    "order": 10,
+    "accentColor": "#hex",
+    "borderColor": "#hex"
+}
 ```
 
-**Card object fields:**
-- `set` - Full set name with year (e.g., "2023 SAGE")
-- `num` - Card number with # prefix (e.g., "#8") or empty string
-- `name` - Card variant name (e.g., "Base", "Silver", "Holo")
-- `type` - Card type for filtering: "Base", "Base RC", "Parallel", "Insert", "Insert SSP"
-- `search` - eBay search terms, plus-separated
-- `img` - Relative path to image file, or empty string for placeholder
-
-### 5. File Organization
-
-```
-sports-card-checklists/
-├── [player]-rookie-checklist.html
-├── [player]-cards/
-│   ├── card_[year]_[set]_[variant].webp
-│   └── ...
-├── serve.sh
-└── README.md
-```
-
-**Image naming convention:**
-- `card_[year]_[set]_[variant].webp`
-- Example: `card_2023_sage_base.webp`, `card_2024_prizm_silver.webp`
-
-## Price Estimation
-
-The template includes rough price estimation based on card type and set:
-
-```javascript
-const priceGuide = {
-    'Base': 1, 'Base RC': 1.5,
-    'Parallel': 5, 'Insert': 4, 'Insert SSP': 50,
-};
-
-const setMods = {
-    'Score': 0.5, 'Donruss': 0.8, 'Prizm': 2, 'Select': 1.5,
-    'Chrome': 2.5, 'Leaf': 0.5, 'SAGE': 0.3, ...
-};
-```
-
-Adjust modifiers based on the player's popularity and card market.
+The ChecklistCreatorModal handles this automatically when creating via the UI.
 
 ## Testing
 
-1. Start local server: `./serve.sh` or `python3 -m http.server 8000`
-2. Open `http://localhost:8000/[checklist].html`
-3. Verify all images load correctly
-4. Test checkbox persistence (uses localStorage)
-5. Test filters (price, type, status)
+- Auth and data do not work locally - test on the deployed site
+- GitHub Pages deploys in ~30-60 seconds after push
+- For preview sites, sync the preview gist from production first
 
 ## References
 
