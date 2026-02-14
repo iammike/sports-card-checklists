@@ -737,13 +737,15 @@ select, input[type="text"] {
 }
 
 .section-progress {
-    float: right;
-    font-family: 'Barlow', sans-serif;
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: inherit;
     font-size: 0.65em;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    opacity: 0.6;
-    vertical-align: middle;
+    font-weight: inherit;
+    letter-spacing: inherit;
+    opacity: 0.5;
 }
 .section-progress.complete {
     opacity: 0.9;
