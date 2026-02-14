@@ -3,6 +3,12 @@
 ## Card Selection
 - **Avoid print-on-demand cards** - Generally don't add Topps Now or Panini Instant cards. Exception: players with very limited card options where this is their only/best card.
 
+## Architecture
+- **All checklists are config-driven** - `checklist.html` + `checklist-engine.js` loads config from gist via `?id=xxx`
+- **No per-checklist HTML files** - Checklists are added via gist registry, not by creating new HTML pages
+- Config stored in gist: `checklists-registry.json`, `{id}-config.json`, `{id}-cards.json`
+- Images stored in Cloudflare R2, served via Worker - no git-based image flow
+
 ## Data Storage
 - **The GitHub Gist is the source of truth** for all collection data (owned cards, stats)
 - Never use localStorage as the primary data source - it won't work for online visitors
@@ -14,8 +20,12 @@
 - Skip local preview for most changes; test on the live site after merge
 - GitHub Pages deploys in ~30-60 seconds after push
 - After a PR is merged, wait for user to test before pushing more fixes - create new PRs instead of adding to old branches
+- **Unit tests** - Run `npm test` (vitest). Tests cover sanitize, CardRenderer, and CardEditorModal search term generation.
 - **Preview gist sync** - Before testing on Cloudflare preview sites, remind user to sync preview gist from production (login on preview site, use "Sync from Production" button). Otherwise data may be stale or have outdated schema.
-- **Preview URL format** - Cloudflare Pages converts branch names: slashes become dashes, then truncated to exactly 28 characters. Count AFTER converting slashes. Example: `fix/consolidate-search-toggles` → `fix-consolidate-search-toggles` (30 chars) → truncate to `fix-consolidate-search-toggl` (28 chars) → `https://fix-consolidate-search-toggl.sports-card-checklists.pages.dev`
+- **Preview URL format** - Cloudflare Pages converts branch names: slashes become dashes, then truncated to exactly 28 characters. Count AFTER converting slashes. Example: `fix/consolidate-search-toggles` -> `fix-consolidate-search-toggles` (30 chars) -> truncate to `fix-consolidate-search-toggl` (28 chars) -> `https://fix-consolidate-search-toggl.sports-card-checklists.pages.dev`
+
+## Pull Requests
+- **Never force-merge with `--admin`** - Let CI checks run and merge only after they pass
 
 ## Consistency
 - When making changes to a page or card component, consider applying the same change to all checklists/cards
