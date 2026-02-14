@@ -11,8 +11,7 @@ A modern web app for tracking sports card collections with cloud sync, real-time
 ### Collection Tracking
 - **Checkbox-based ownership** - Mark cards as owned with a single click
 - **Progress tracking** - See owned/total counts and completion percentage
-- **Price estimates** - Automatic price estimation based on card type, set, and rarity
-- **Value calculations** - Track total collection value and remaining cost to complete
+- **Manual pricing** - Record purchase prices on individual cards
 
 ### Cloud Sync
 - **GitHub OAuth authentication** - Secure login via GitHub
@@ -24,6 +23,7 @@ A modern web app for tracking sports card collections with cloud sync, real-time
 ### Filtering & Search
 - **Status filter** - Show all, owned only, or needed cards
 - **Text search** - Find cards by name, set, or any text
+- **Sort options** - Sort by year, set name, serial number, price
 
 ### Inline Editing (Owner Only)
 - **Add new cards** - Add cards directly from the UI
@@ -32,9 +32,9 @@ A modern web app for tracking sports card collections with cloud sync, real-time
 - **Schema-driven forms** - Custom fields per checklist type
 
 ### Image Tools (Owner Only)
-- **Image editor** - Full-featured editor with crop, rotate, and flip tools (powered by Cropper.js)
+- **Tab-based image editor** - Perspective correction and crop/rotate in a single editor (powered by Cropper.js)
 - **Edit existing images** - Re-edit previously saved images with one click
-- **Fine rotation** - Slider plus +/- buttons for precise straightening (0.5° increments)
+- **Fine rotation** - Slider plus +/- buttons for precise straightening (0.5 increments)
 - **Local file upload** - Upload images from your computer via button or drag & drop
 - **Multiple sources** - Fetch images from eBay or Beckett listings
 - **Auto-processing** - Images automatically resized and converted to WebP on save
@@ -58,29 +58,37 @@ A modern web app for tracking sports card collections with cloud sync, real-time
 ## Architecture
 
 ```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│   GitHub Pages  │────▶│   Static HTML    │────▶│   Browser JS    │
-│   (Hosting)     │     │   + CSS + JS     │     │   (Vanilla)     │
-└─────────────────┘     └──────────────────┘     └────────┬────────┘
-                                                          │
-                        ┌─────────────────────────────────┼─────────────────────────────────┐
-                        │                                 │                                 │
-                        ▼                                 ▼                                 ▼
-              ┌─────────────────┐              ┌─────────────────┐              ┌─────────────────┐
-              │ Cloudflare      │              │ Cloudflare R2   │              │ GitHub Gist     │
-              │ Workers (OAuth  │              │ (Image storage) │              │ (Collection     │
-              │  + image proxy) │              └─────────────────┘              │  storage)       │
-              └─────────────────┘                                               └─────────────────┘
+                              ┌──────────────────┐
+                              │   GitHub Pages   │
+                              │   (Hosting)      │
+                              └────────┬─────────┘
+                                       │
+                              ┌────────▼─────────┐
+                              │   checklist.html  │
+                              │   + engine JS     │
+                              │   (config-driven) │
+                              └────────┬──────────┘
+                                       │
+          ┌────────────────────────────┼────────────────────────────┐
+          │                            │                            │
+          ▼                            ▼                            ▼
+┌─────────────────┐         ┌─────────────────┐         ┌─────────────────┐
+│ Cloudflare      │         │ Cloudflare R2   │         │ GitHub Gist     │
+│ Workers (OAuth  │         │ (Image storage) │         │ (Collection +   │
+│  + image proxy) │         │                 │         │  config storage) │
+└─────────────────┘         └─────────────────┘         └─────────────────┘
 ```
 
 ### Key Components
 
 | File | Purpose |
 |------|---------|
-| `github-sync.js` | OAuth flow, Gist CRUD, GitHub API integration |
-| `shared.js` | Reusable utilities (ChecklistManager, CardRenderer, PriceUtils, etc.) |
-| `worker.js` | Cloudflare Worker for OAuth, image proxy, and R2 image upload/serve |
 | `checklist.html` + `checklist-engine.js` | Config-driven checklist page (loads via `?id=xxx`) |
+| `shared.js` | Shared components (CardEditorModal, CardRenderer, ChecklistManager, ImageProcessor, etc.) |
+| `shared.css` | All shared styles |
+| `github-sync.js` | OAuth flow, Gist CRUD, R2 image upload, GitHub API integration |
+| `worker.js` | Cloudflare Worker for OAuth, image proxy, and R2 image upload/serve |
+| `index.html` | Landing page with dynamic checklist cards from gist registry |
 
 ### Security Features
 
@@ -101,42 +109,55 @@ python3 -m http.server 8000
 
 Then open http://localhost:8000
 
+Note: Auth and gist data require the deployed domain. Local dev is useful for CSS/layout work only.
+
+### Running Tests
+```bash
+npm test        # run once
+npm run test:watch  # watch mode
+```
+
+Tests use vitest with jsdom and cover sanitization, card rendering, and search term generation.
+
 ### Preview Deployments
 
 Cloudflare Pages preview deployments allow testing changes without affecting production:
 - Branch previews at `<branch>.sports-card-checklists.pages.dev`
-- Isolated data storage (changes don't affect production)
-- Image uploads work on preview sites (stored in R2, shared with production)
-
-### Project Structure
-```
-├── index.html                    # Landing page with all checklists
-├── checklist.html                    # Config-driven checklist page (?id=xxx)
-├── checklist-engine.js               # Checklist engine (loads config from gist)
-├── images/                       # Legacy card images (migrated to R2)
-├── github-sync.js                # OAuth + Gist storage
-├── shared.js                     # Shared utilities and components
-├── shared.css                    # Shared styles
-├── worker.js                     # Cloudflare Worker (deploy separately)
-├── wrangler.toml                 # Cloudflare Worker config (R2 binding)
-└── serve.sh                      # Local server script
-```
+- Isolated data storage (changes don't affect production gist)
 
 ### Adding New Checklists
 
-1. Create a new HTML file based on an existing checklist
-2. Create a corresponding images folder
-3. Update the card data in the JavaScript section
-4. Add the checklist to `index.html`
-5. Configure ChecklistManager with appropriate checklistId
+Checklists are config-driven and stored entirely in the GitHub Gist:
+
+1. Log in on the live site
+2. Use the "Create Checklist" button to set up a new config (`{id}-config.json`)
+3. Add cards through the inline card editor (saved to `{id}-cards.json`)
+4. The checklist automatically appears on the index page via `checklists-registry.json`
+
+No code changes needed to add a new checklist.
+
+### Project Structure
+```
+├── index.html               # Landing page (loads checklists from gist registry)
+├── checklist.html           # Config-driven checklist page (?id=xxx)
+├── checklist-engine.js      # Checklist engine (loads config from gist)
+├── github-sync.js           # OAuth + Gist + R2 storage
+├── shared.js                # Shared utilities and components
+├── shared.css               # Shared styles
+├── worker.js                # Cloudflare Worker (deploy separately)
+├── wrangler.toml            # Cloudflare Worker config (R2 binding)
+├── tests/                   # Unit tests (vitest)
+└── scripts/                 # Maintenance/migration scripts (gitignored)
+```
 
 ## Tech Stack
 
 - **Frontend**: Vanilla JavaScript (no frameworks)
 - **Hosting**: GitHub Pages (production), Cloudflare Pages (preview)
 - **Auth**: GitHub OAuth via Cloudflare Workers
-- **Storage**: GitHub Gists (JSON)
+- **Storage**: GitHub Gists (JSON config + card data)
 - **Images**: Cloudflare R2, WebP format, processed client-side
+- **Testing**: Vitest with jsdom
 - **CI/CD**: GitHub Actions for Worker deploys
 
 ## License
