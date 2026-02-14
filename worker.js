@@ -51,12 +51,29 @@ async function handleServeImage(request, env, key) {
   return new Response(object.body, { headers });
 }
 
+// Production origins allowed to upload images to R2.
+// Preview sites share the same R2 bucket, so uploads from them
+// would overwrite production images.
+const UPLOAD_ALLOWED_ORIGINS = [
+  'https://iammike.github.io',
+];
+
 // Upload image to R2 (authenticated)
 async function handleUploadImage(request, env, corsOrigin) {
   const corsHeaders = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': corsOrigin,
   };
+
+  // Block uploads from preview/non-production origins
+  const requestOrigin = request.headers.get('Origin');
+  if (!UPLOAD_ALLOWED_ORIGINS.includes(requestOrigin)) {
+    return new Response(JSON.stringify({
+      error: 'Image uploads are only allowed from the production site. Preview sites share the same R2 bucket, so uploads are blocked to prevent overwriting production images.',
+    }), {
+      status: 403, headers: corsHeaders,
+    });
+  }
 
   // Validate auth token
   const authHeader = request.headers.get('Authorization');
