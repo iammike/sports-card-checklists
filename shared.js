@@ -3502,6 +3502,24 @@ class ChecklistCreatorModal {
         backdrop.querySelector('#creator-add-category').onclick = () => this._addCategoryRow();
         backdrop.querySelector('#creator-add-subtitle-line').onclick = () => this._addSubtitleLineRow();
 
+        // Escape key to close
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && backdrop.classList.contains('active')) {
+                this.close();
+            }
+        });
+
+        // Enter key to save (unless in a textarea or while saving)
+        const modal = backdrop.querySelector('.card-editor-modal');
+        modal.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !['TEXTAREA'].includes(e.target.tagName)) {
+                const saveBtn = backdrop.querySelector('#creator-save');
+                if (saveBtn && saveBtn.disabled) return;
+                e.preventDefault();
+                this.save();
+            }
+        });
+
         this.backdrop = backdrop;
         document.body.appendChild(backdrop);
         this._trackDirty();
