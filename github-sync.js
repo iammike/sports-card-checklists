@@ -261,6 +261,15 @@ class GitHubSync {
         this._gistCache = null;
         this._publicGistCache = null;
 
+        // Clear DynamicNav sessionStorage cache so registry reloads fresh
+        try {
+            for (const key of Object.keys(sessionStorage)) {
+                if (key.startsWith('checklists-registry-')) {
+                    sessionStorage.removeItem(key);
+                }
+            }
+        } catch (e) { /* ignore */ }
+
         return true;
     }
 

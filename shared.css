@@ -458,12 +458,12 @@ h1 {
 
     .nav-hamburger {
         display: flex;
-        order: 2;
-        margin-left: auto;
+        order: 3;
     }
 
     .nav-auth {
-        order: 3;
+        order: 2;
+        margin-left: auto;
     }
 
     .nav-links {
