@@ -482,7 +482,9 @@
             const registry = await DynamicNav.loadRegistry();
             if (!registry || !registry.checklists) return {};
 
-            const dynamicEntries = registry.checklists.filter(e => e.type === 'dynamic');
+            const dynamicEntries = registry.checklists
+                .filter(e => e.type === 'dynamic')
+                .sort((a, b) => (a.navLabel || a.title).localeCompare(b.navLabel || b.title));
             if (dynamicEntries.length === 0) return {};
 
             const grid = document.querySelector('.checklist-grid');
