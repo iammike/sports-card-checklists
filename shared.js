@@ -1855,19 +1855,23 @@ class ImageEditorModal {
             this.makeHandleDraggable(handle, i);
         }
 
-        // Defer position/line updates until CSS layout settles (canvas has
-        // max-width/max-height constraints that aren't applied synchronously)
-        requestAnimationFrame(() => requestAnimationFrame(() => {
+        // Update positions once layout and modal transition have settled.
+        // The modal animates transform: scale(0.9)->scale(1) over 200ms,
+        // which skews getBoundingClientRect. On cached images the onload
+        // fires before the transition finishes, so we need both paths.
+        const update = () => {
             this.updateHandlePositions();
             this.drawGuideLines();
-        }));
+        };
+        // Double rAF for first-open (transition already done, image was slow)
+        requestAnimationFrame(() => requestAnimationFrame(update));
+        // transitionend for repeat-open (image cached, loads mid-transition)
+        const modal = this.backdrop.querySelector('.image-editor-modal');
+        modal.addEventListener('transitionend', () => requestAnimationFrame(update), { once: true });
 
         // Keep handles and guide lines in sync on resize
         if (this._resizeObserver) this._resizeObserver.disconnect();
-        this._resizeObserver = new ResizeObserver(() => {
-            this.updateHandlePositions();
-            this.drawGuideLines();
-        });
+        this._resizeObserver = new ResizeObserver(update);
         this._resizeObserver.observe(this.perspectiveCanvas);
     }
 
