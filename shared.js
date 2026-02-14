@@ -3184,7 +3184,7 @@ const DynamicNav = {
         // Only add dynamic entries - legacy links are already hardcoded in HTML
         const dynamicEntries = registry.checklists
             .filter(e => e.type === 'dynamic')
-            .sort((a, b) => (a.order || 0) - (b.order || 0));
+            .sort((a, b) => (a.navLabel || a.title).localeCompare(b.navLabel || b.title));
 
         // Remove any previously added dynamic links
         navLinks.querySelectorAll('.nav-link[data-dynamic]').forEach(el => el.remove());
