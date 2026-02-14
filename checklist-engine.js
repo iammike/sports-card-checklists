@@ -579,11 +579,7 @@ class ChecklistEngine {
     // ========================================
 
     getPrice(card) {
-        const mode = this.config.cardDisplay?.priceMode || 'estimated';
-        if (mode === 'explicit') {
-            return card.price || 0;
-        }
-        return PriceUtils.estimate(card);
+        return card.price || 0;
     }
 
     getPriceThresholds() {
@@ -844,8 +840,8 @@ class ChecklistEngine {
                 break;
             case 'scarcity':
                 sorted.sort((a, b) => {
-                    const aRun = window.PriceUtils.parseSerial(a.serial);
-                    const bRun = window.PriceUtils.parseSerial(b.serial);
+                    const aRun = window.CardRenderer.parseSerial(a.serial);
+                    const bRun = window.CardRenderer.parseSerial(b.serial);
                     if (aRun && bRun) return aRun - bRun;
                     if (aRun) return -1;
                     if (bRun) return 1;
