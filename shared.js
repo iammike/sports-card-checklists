@@ -1354,7 +1354,7 @@ class ImageEditorModal {
         this.rejectPromise = null;
         this.rotation = 0;
         // Tab-based UI state
-        this.activeTab = 'corners'; // 'corners' | 'crop'
+        this.activeTab = 'crop'; // 'crop' | 'perspective'
         this.switching = false;
         this.perspectiveCanvas = null;
         this.perspectiveOverlay = null;
@@ -1399,18 +1399,13 @@ class ImageEditorModal {
                 </div>
                 <div class="image-editor-body">
                     <div class="image-editor-tabs">
-                        <button type="button" class="image-editor-tab active" data-tab="corners">Corners</button>
-                        <button type="button" class="image-editor-tab" data-tab="crop">Crop & Rotate</button>
+                        <button type="button" class="image-editor-tab active" data-tab="crop">Crop & Rotate</button>
+                        <button type="button" class="image-editor-tab" data-tab="perspective">Perspective</button>
                     </div>
                     <div class="image-editor-canvas">
                         <img id="image-editor-img" src="" alt="Edit">
                     </div>
-                    <div data-tab-content="corners" class="image-editor-tab-panel">
-                        <div class="perspective-controls">
-                            <div class="perspective-hint">Drag the corners to match the card edges</div>
-                        </div>
-                    </div>
-                    <div data-tab-content="crop" class="image-editor-tab-panel" style="display:none">
+                    <div data-tab-content="crop" class="image-editor-tab-panel">
                         <div class="image-editor-controls">
                             <div class="image-editor-controls-row">
                                 <button class="image-editor-tool" data-action="rotate-left" title="Rotate 90° Left">
@@ -1432,6 +1427,11 @@ class ImageEditorModal {
                             <div class="image-editor-controls-row">
                                 <input type="text" class="image-editor-rotation-input" id="image-editor-rotate-value" value="0°" inputmode="decimal">
                             </div>
+                        </div>
+                    </div>
+                    <div data-tab-content="perspective" class="image-editor-tab-panel" style="display:none">
+                        <div class="perspective-controls">
+                            <div class="perspective-hint">Drag the corners to correct perspective</div>
                         </div>
                     </div>
                 </div>
@@ -1542,7 +1542,7 @@ class ImageEditorModal {
     // Handle toolbar actions
     handleToolAction(action) {
         if (action === 'reset') {
-            if (this.activeTab === 'corners') {
+            if (this.activeTab === 'perspective') {
                 this.resetCornerHandles();
             } else if (this.cropper) {
                 this.baseRotation = 0;
@@ -1586,7 +1586,7 @@ class ImageEditorModal {
         }
 
         // Reset state
-        this.activeTab = 'corners';
+        this.activeTab = 'crop';
         this.switching = false;
         this.savedCornerPositions = null;
         this.originalImageSrc = imageSrc;
@@ -1601,38 +1601,35 @@ class ImageEditorModal {
         const isHttpUrl = imageSrc.startsWith('http');
         this.cacheBustedSrc = isHttpUrl ? imageSrc + (imageSrc.includes('?') ? '&' : '?') + '_cb=1' : imageSrc;
 
-        // Show the Corners tab by default
-        this.updateTabUI('corners');
-
-        // Hide the <img> (perspective uses its own canvas)
-        const img = this.backdrop.querySelector('#image-editor-img');
-        img.style.display = 'none';
-        img.crossOrigin = 'anonymous';
+        // Show the Crop & Rotate tab by default
+        this.updateTabUI('crop');
 
         // Show modal
         this.backdrop.classList.add('active');
 
-        // Load the image, then set up perspective canvas
+        // Load the image into Cropper.js
+        const img = this.backdrop.querySelector('#image-editor-img');
+        img.crossOrigin = 'anonymous';
+        img.style.display = '';
+
         return new Promise((resolve, reject) => {
             this.resolvePromise = resolve;
             this.rejectPromise = reject;
 
-            const tempImg = new Image();
-            tempImg.crossOrigin = 'anonymous';
-            tempImg.onload = () => {
-                this.setupPerspectiveCanvas(tempImg);
+            img.onload = () => {
+                this.cropper = new Cropper(img, this.cropperOptions);
             };
-            tempImg.onerror = () => {
+            img.onerror = () => {
                 this.close();
                 reject(new Error('Failed to load image'));
             };
-            tempImg.src = this.cacheBustedSrc;
+            img.src = this.cacheBustedSrc;
         });
     }
 
     // Confirm (Done) - output result from whichever tab is active
     confirm() {
-        if (this.activeTab === 'corners') {
+        if (this.activeTab === 'perspective') {
             // If corners moved, apply perspective transform then output
             if (!this.cornersAreDefault()) {
                 const srcCorners = this.cornerPositions.map(p => ({
@@ -1735,13 +1732,13 @@ class ImageEditorModal {
         );
     }
 
-    // Switch between Corners and Crop & Rotate tabs
+    // Switch between Perspective and Crop & Rotate tabs
     switchTab(tabName) {
         if (this.switching) return;
         this.switching = true;
 
         if (tabName === 'crop') {
-            // Corners -> Crop & Rotate
+            // Perspective -> Crop & Rotate
             this.savedCornerPositions = this.cornerPositions.map(p => ({ ...p }));
 
             // Get the image to feed into Cropper
@@ -1783,7 +1780,7 @@ class ImageEditorModal {
             };
             img.src = imageSrc;
         } else {
-            // Crop & Rotate -> Corners
+            // Crop & Rotate -> Perspective
             // Destroy Cropper
             if (this.cropper) {
                 this.cropper.destroy();
@@ -1804,8 +1801,8 @@ class ImageEditorModal {
                 if (this.savedCornerPositions) {
                     this.cornerPositions = this.savedCornerPositions.map(p => ({ ...p }));
                 }
-                this.activeTab = 'corners';
-                this.updateTabUI('corners');
+                this.activeTab = 'perspective';
+                this.updateTabUI('perspective');
                 this.switching = false;
             };
             tempImg.onerror = () => {
@@ -2036,7 +2033,7 @@ class ImageEditorModal {
             this.cropper = null;
         }
         this.cleanupPerspective();
-        this.activeTab = 'corners';
+        this.activeTab = 'crop';
         this.switching = false;
         this.savedCornerPositions = null;
         this.resolvePromise = null;
