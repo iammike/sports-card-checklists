@@ -595,7 +595,7 @@ class ChecklistEngine {
         const owned = cardId ? this.isOwned(cardId) : false;
         const price = this.getPrice(card);
         const showPlayer = this.config.cardDisplay?.showPlayerName !== false && card.player;
-        const playerForSearch = showPlayer ? card.player + ' ' : '';
+        const playerForSearch = card.player ? card.player + ' ' : '';
         const defaultSearch = encodeURIComponent(`${playerForSearch}${card.set} ${card.num}`);
         const searchUrl = CardRenderer.getEbayUrl(card.search || defaultSearch);
         const priceSearchTerm = card.priceSearch || defaultSearch;
