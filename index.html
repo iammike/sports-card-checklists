@@ -206,7 +206,11 @@
             align-items: center;
             gap: 4px;
             padding: 3px 8px;
-            background: rgba(255,255,255,0.05);
+            background:
+                linear-gradient(90deg,
+                    rgba(255,255,255,0.05) var(--pill-pct, 0%),
+                    transparent var(--pill-pct, 0%)),
+                rgba(255,255,255,0.05);
             border-radius: 3px;
             font-size: 0.7em;
             font-weight: 500;
@@ -542,7 +546,8 @@
                                 const owned = stats[pill.id + 'Owned'] || stats[pill.id + 'Total'] ? (stats[pill.id + 'Owned'] || 0) : 0;
                                 const total = stats[pill.id + 'Total'] || 0;
                                 if (total === 0) return '';
-                                return `<span class="stat-pill">${sanitizeText(pill.label)} <span class="count">${owned}/${total}</span></span>`;
+                                const pillPct = Math.round((owned / total) * 100);
+                                return `<span class="stat-pill" style="--pill-pct: ${pillPct}%">${sanitizeText(pill.label)} <span class="count">${owned}/${total}</span></span>`;
                             }).join('')}
                         </div>` : ''}
                         </div>
