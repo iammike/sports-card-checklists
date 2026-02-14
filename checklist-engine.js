@@ -820,6 +820,7 @@ class ChecklistEngine {
             return 'Sort: As Entered';
         }
         const labels = {
+            'alphabetical': 'Sort: Alphabetical',
             'year': 'Sort: Year',
             'set': 'Sort: Set/Brand',
             'price-low': 'Sort: Price (Low to High)',
