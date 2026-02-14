@@ -3022,14 +3022,11 @@ class CardEditorModal {
             data.search = this.generateSearchTerm(data.set, data.num, data.variant, data.player);
         }
 
-        if (this.isNewCard) {
-            this.onSave(null, data, true);
-        } else {
-            this.onSave(this.currentCardId, data, false);
-        }
+        // Close editor first so user sees the card update immediately
+        this.setDirty(false);
+        this.backdrop.classList.remove('active');
 
-        // Handle owned state change - always pass data so handler can compute
-        // the post-save card ID (card ID changes when data changes)
+        // Handle owned state change
         if (this.onOwnedChange) {
             const nowOwned = this.backdrop.querySelector('#editor-owned').checked;
             if (nowOwned !== this._initialOwned) {
@@ -3037,8 +3034,12 @@ class CardEditorModal {
             }
         }
 
-        this.setDirty(false);
-        this.backdrop.classList.remove('active');
+        // Fire save (awaited so errors propagate to the async chain)
+        if (this.isNewCard) {
+            await this.onSave(null, data, true);
+        } else {
+            await this.onSave(this.currentCardId, data, false);
+        }
     }
 
     // Delete card
