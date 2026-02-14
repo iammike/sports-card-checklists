@@ -736,6 +736,21 @@ select, input[type="text"] {
     background: linear-gradient(90deg, var(--color-accent), transparent);
 }
 
+.section-progress {
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: inherit;
+    font-size: 0.65em;
+    font-weight: inherit;
+    letter-spacing: inherit;
+    opacity: 0.5;
+}
+.section-progress.complete {
+    opacity: 0.85;
+}
+
 .inserts-note {
     padding: 10px 15px;
     font-size: 12px;

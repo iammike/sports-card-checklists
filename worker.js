@@ -69,7 +69,7 @@ async function handleUploadImage(request, env, corsOrigin) {
   const requestOrigin = request.headers.get('Origin');
   if (!UPLOAD_ALLOWED_ORIGINS.includes(requestOrigin)) {
     return new Response(JSON.stringify({
-      error: 'Image uploads are only allowed from the production site. Preview sites share the same R2 bucket, so uploads are blocked to prevent overwriting production images.',
+      error: 'Image uploads are disabled on preview sites.',
     }), {
       status: 403, headers: corsHeaders,
     });

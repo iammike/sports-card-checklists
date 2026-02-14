@@ -597,34 +597,31 @@ class GitHubSync {
     // Upload an image to Cloudflare R2 via the Worker
     // Returns the full R2 URL on success, null on failure
     async uploadImage(key, base64Content) {
-        if (!this.token) return null;
+        if (!this.token) throw new Error('Not authenticated');
 
-        try {
-            const response = await fetch(CONFIG.OAUTH_PROXY_URL + '/upload-image', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.token}`,
-                },
-                body: JSON.stringify({
-                    key,
-                    base64: base64Content,
-                    contentType: 'image/webp',
-                }),
-            });
+        const response = await fetch(CONFIG.OAUTH_PROXY_URL + '/upload-image', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.token}`,
+            },
+            body: JSON.stringify({
+                key,
+                base64: base64Content,
+                contentType: 'image/webp',
+            }),
+        });
 
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                console.error('Image upload failed:', response.status, error);
-                return null;
+        if (!response.ok) {
+            const body = await response.json().catch(() => ({}));
+            if (response.status === 403 && body.error) {
+                throw new Error(body.error);
             }
-
-            const data = await response.json();
-            return data.url;
-        } catch (error) {
-            console.error('Failed to upload image:', error);
-            return null;
+            throw new Error(`Upload failed (${response.status})`);
         }
+
+        const data = await response.json();
+        return data.url;
     }
 
     // ========================================
