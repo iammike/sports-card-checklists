@@ -715,7 +715,12 @@ class ChecklistEngine {
 
     _renderFilters() {
         const container = document.getElementById('filters-container');
-        const sorts = this.config.sortOptions || ['default', 'year', 'set', 'price-low', 'price-high', 'owned', 'needed'];
+        let sorts = this.config.sortOptions || ['default', 'year', 'set', 'price-low', 'price-high', 'owned', 'needed'];
+        const defaultSort = this.config.defaultSortMode;
+        // Remove the defaultSortMode from the list since "Default" already applies it
+        if (defaultSort) {
+            sorts = sorts.filter(s => s !== defaultSort);
+        }
         const customFilters = this.config.customFilters || [];
 
         let html = '';
@@ -760,8 +765,15 @@ class ChecklistEngine {
     }
 
     _getSortLabel(key) {
+        if (key === 'default') {
+            const ds = this.config.defaultSortMode;
+            if (ds) {
+                const inner = this._getSortLabel(ds).replace('Sort: ', '');
+                return `Sort: ${inner} (Default)`;
+            }
+            return 'Sort: Default';
+        }
         const labels = {
-            'default': 'Sort: Default',
             'year': 'Sort: Year',
             'set': 'Sort: Set/Brand',
             'price-low': 'Sort: Price (Low to High)',
