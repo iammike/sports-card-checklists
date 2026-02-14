@@ -3201,7 +3201,29 @@ const DynamicNav = {
         });
     },
 
-    // Set up hamburger menu toggle for mobile
+    // Check if nav links overflow and toggle compact/hamburger mode
+    _checkOverflow() {
+        const navBar = document.querySelector('.nav-bar');
+        const navLinks = document.querySelector('.nav-links');
+        const hamburger = document.getElementById('nav-hamburger');
+        if (!navBar || !navLinks || !hamburger) return;
+
+        // Close menu before measuring
+        hamburger.classList.remove('open');
+        navLinks.classList.remove('open');
+        hamburger.setAttribute('aria-expanded', 'false');
+
+        // Remove compact mode to measure natural row width
+        navBar.classList.remove('nav-compact');
+
+        // Check if links overflow their container
+        const overflow = navLinks.scrollWidth > navLinks.clientWidth + 1;
+        if (overflow) {
+            navBar.classList.add('nav-compact');
+        }
+    },
+
+    // Set up hamburger menu toggle
     _initHamburger() {
         const hamburger = document.getElementById('nav-hamburger');
         const navLinks = document.querySelector('.nav-links');
@@ -3230,6 +3252,13 @@ const DynamicNav = {
                 hamburger.setAttribute('aria-expanded', 'false');
             }
         });
+
+        // Re-check overflow on resize
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => this._checkOverflow(), 100);
+        });
     },
 
     // Initialize: load registry and update nav
@@ -3239,6 +3268,7 @@ const DynamicNav = {
             this.renderNav(registry);
         }
         this._initHamburger();
+        this._checkOverflow();
     }
 };
 
