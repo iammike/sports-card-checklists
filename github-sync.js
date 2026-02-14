@@ -401,30 +401,42 @@ class GitHubSync {
 
         // Queue saves to prevent concurrent writes
         this._saveQueue = this._saveQueue.then(async () => {
-            try {
-                const response = await fetch(`https://api.github.com/gists/${this.getActiveGistId()}`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Authorization': `Bearer ${this.token}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        files: {
-                            [CONFIG.GIST_FILENAME]: {
-                                content: JSON.stringify(data, null, 2),
-                            },
+            const maxRetries = 3;
+            for (let attempt = 0; attempt < maxRetries; attempt++) {
+                try {
+                    const response = await fetch(`https://api.github.com/gists/${this.getActiveGistId()}`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Authorization': `Bearer ${this.token}`,
+                            'Content-Type': 'application/json',
                         },
-                    }),
-                });
+                        body: JSON.stringify({
+                            files: {
+                                [CONFIG.GIST_FILENAME]: {
+                                    content: JSON.stringify(data, null, 2),
+                                },
+                            },
+                        }),
+                    });
 
-                if (response.ok) {
-                    this._cachedData = data; // Update cache on successful save
+                    if (response.ok) {
+                        this._cachedData = data; // Update cache on successful save
+                        return true;
+                    }
+
+                    // Retry on 409 Conflict (git-level conflict from rapid saves)
+                    if (response.status === 409 && attempt < maxRetries - 1) {
+                        await new Promise(r => setTimeout(r, 300 * (attempt + 1)));
+                        continue;
+                    }
+
+                    return false;
+                } catch (error) {
+                    console.error('Failed to save to gist:', error);
+                    return false;
                 }
-                return response.ok;
-            } catch (error) {
-                console.error('Failed to save to gist:', error);
-                return false;
             }
+            return false;
         });
 
         return this._saveQueue;
@@ -855,33 +867,44 @@ class GitHubSync {
         }
 
         const filename = `${checklistId}-cards.json`;
+        const maxRetries = 3;
 
-        try {
-            const response = await fetch(`https://api.github.com/gists/${this.getActiveGistId()}`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${this.token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    files: {
-                        [filename]: {
-                            content: JSON.stringify(cardData, null, 2),
-                        },
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+            try {
+                const response = await fetch(`https://api.github.com/gists/${this.getActiveGistId()}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${this.token}`,
+                        'Content-Type': 'application/json',
                     },
-                }),
-            });
+                    body: JSON.stringify({
+                        files: {
+                            [filename]: {
+                                content: JSON.stringify(cardData, null, 2),
+                            },
+                        },
+                    }),
+                });
 
-            if (response.ok) return { ok: true };
-            console.error(`Save failed: ${response.status}`, await response.text().catch(() => ''));
-            if (response.status === 401 || response.status === 403) {
-                return { ok: false, reason: 'auth_expired' };
+                if (response.ok) return { ok: true };
+
+                // Retry on 409 Conflict (git-level conflict from rapid saves)
+                if (response.status === 409 && attempt < maxRetries - 1) {
+                    await new Promise(r => setTimeout(r, 300 * (attempt + 1)));
+                    continue;
+                }
+
+                console.error(`Save failed: ${response.status}`, await response.text().catch(() => ''));
+                if (response.status === 401 || response.status === 403) {
+                    return { ok: false, reason: 'auth_expired' };
+                }
+                return { ok: false, reason: 'api_error', status: response.status };
+            } catch (error) {
+                console.error('Failed to save card data to gist:', error);
+                return { ok: false, reason: 'network_error' };
             }
-            return { ok: false, reason: 'api_error', status: response.status };
-        } catch (error) {
-            console.error('Failed to save card data to gist:', error);
-            return { ok: false, reason: 'network_error' };
         }
+        return { ok: false, reason: 'api_error', status: 409 };
     }
 
     // Load card data from gist (for logged-in user editing)
