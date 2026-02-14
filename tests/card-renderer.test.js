@@ -36,6 +36,34 @@ describe('CardRenderer.getSetName', () => {
   });
 });
 
+describe('CardRenderer.parseSerial', () => {
+  it('parses /99 format', () => {
+    expect(CardRenderer.parseSerial('/99')).toBe(99);
+  });
+
+  it('parses bare number', () => {
+    expect(CardRenderer.parseSerial('99')).toBe(99);
+  });
+
+  it('parses 1/1', () => {
+    expect(CardRenderer.parseSerial('1/1')).toBe(1);
+  });
+
+  it('parses numbered with prefix like 23/50', () => {
+    expect(CardRenderer.parseSerial('23/50')).toBe(50);
+  });
+
+  it('returns null for null/undefined/empty', () => {
+    expect(CardRenderer.parseSerial(null)).toBeNull();
+    expect(CardRenderer.parseSerial(undefined)).toBeNull();
+    expect(CardRenderer.parseSerial('')).toBeNull();
+  });
+
+  it('returns null for non-numeric strings', () => {
+    expect(CardRenderer.parseSerial('abc')).toBeNull();
+  });
+});
+
 describe('CardRenderer.getEbayUrl', () => {
   it('generates eBay search URL', () => {
     const url = CardRenderer.getEbayUrl('Jayden+Daniels+Rookie');

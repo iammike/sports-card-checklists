@@ -554,104 +554,6 @@ class ChecklistManager {
     }
 }
 
-/**
- * Price estimation utilities
- */
-const PriceUtils = {
-    // Default price guide by card type
-    priceGuide: {
-        'Base': 1, 'Insert': 4, 'Chase': 15,
-    },
-
-    // Set-specific price modifiers (longest names first to avoid partial matches)
-    setMods: [
-        ['Donruss Optic', 1.3], ['Donruss Elite', 1.5], ['Cosmic Chrome', 2],
-        ['Topps Chrome', 2.5], ['Topps Now', 3], ['Totally Certified', 1],
-        ['Rookies & Stars', 1], ['Gold Standard', 1.5], ['Wild Card', 0.4],
-        ['Prizm', 2], ['Select', 1.5], ['Mosaic', 1.2], ['Donruss', 0.8],
-        ['Optic', 1.3], ['Chrome', 2.5], ['Origins', 5], ['Contenders', 2.5],
-        ['Phoenix', 1.2], ['Absolute', 0.7], ['Score', 0.5], ['Leaf', 0.5],
-        ['SAGE', 0.3], ['Bowman', 1], ['Certified', 1], ['Luminance', 1],
-        ['Prestige', 0.8], ['Chronicles', 0.8], ['Zenith', 1],
-        ['Illusions', 1],
-    ],
-
-    // High-value variant/insert overrides (checked against set name)
-    variantPricing: [
-        [/Color Blast/i, 500], [/Kaboom/i, 200], [/Downtown/i, 60],
-        [/Stained Glass/i, 40],
-    ],
-
-    // Parse serial string (e.g., "/99", "99", "1/1") to numeric print run
-    parseSerial(serial) {
-        if (!serial) return null;
-        // Try "/99" format first, then bare number "99"
-        const slashMatch = serial.match(/\/(\d+)/);
-        if (slashMatch) return parseInt(slashMatch[1], 10);
-        const bareMatch = serial.match(/^(\d+)$/);
-        return bareMatch ? parseInt(bareMatch[1], 10) : null;
-    },
-
-    // Estimate price for a card
-    estimate(card) {
-        // If card has explicit price, use it
-        if (card.price !== undefined) return card.price;
-
-        let base = this.priceGuide[card.type] || 1;
-
-        // Check set modifiers (ordered longest-first to avoid partial matches)
-        for (const [setKey, mod] of this.setMods) {
-            if (card.set && card.set.includes(setKey)) {
-                base *= mod;
-                break;
-            }
-        }
-
-        // Numbered cards
-        const printRun = this.parseSerial(card.serial);
-        if (printRun) {
-            if (printRun === 1) {
-                base *= 200;
-            } else {
-                base *= Math.max(3, Math.pow(100 / printRun, 1.3));
-            }
-        }
-
-        // Patch/relic cards (check flag or detect from variant)
-        const variantStr = card.variant || '';
-        if (card.patch || /Swatch|Jersey|Relic|Memorabilia|Patch/i.test(variantStr)) {
-            base *= 2;
-        }
-
-        // Autographed cards
-        if (card.auto) {
-            base *= 5;
-        }
-
-        // RC multiplier
-        if (card.rc) {
-            base *= 1.5;
-        }
-
-        // High-value variant/insert overrides (check set name for insert names)
-        const checkStr = (card.variant || '') + ' ' + (card.set || '');
-        for (const [pattern, price] of this.variantPricing) {
-            if (pattern.test(checkStr)) {
-                base = Math.max(base, price);
-                break;
-            }
-        }
-
-        return Math.round(base * 10) / 10;
-    },
-
-    // Get price badge CSS class
-    getPriceClass(price) {
-        if (price < 3) return '';
-        if (price < 10) return 'mid';
-        return 'high';
-    }
-};
 
 /**
  * Filter utilities
@@ -704,6 +606,15 @@ const FilterUtils = {
 const CardRenderer = {
     // Default price thresholds for badge styling
     defaultThresholds: { mid: 3, high: 10 },
+
+    // Parse serial string (e.g., "/99", "99", "1/1") to numeric print run
+    parseSerial(serial) {
+        if (!serial) return null;
+        const slashMatch = serial.match(/\/(\d+)/);
+        if (slashMatch) return parseInt(slashMatch[1], 10);
+        const bareMatch = serial.match(/^(\d+)$/);
+        return bareMatch ? parseInt(bareMatch[1], 10) : null;
+    },
 
     // Generate eBay search URL
     getEbayUrl(searchTerm) {
@@ -4075,7 +3986,6 @@ class ChecklistCreatorModal {
         const highThreshold = parseInt(this.backdrop.querySelector('#creator-threshold-high').value) || 10;
         config.cardDisplay = {
             ...(config.cardDisplay || {}),
-            priceMode: 'explicit',
             showPlayerName: this.backdrop.querySelector('#creator-show-player').checked,
             priceThresholds: { mid: midThreshold, high: highThreshold },
         };
@@ -4251,7 +4161,6 @@ class ChecklistCreatorModal {
 // Export for use in pages
 window.CARD_TYPES = CARD_TYPES;
 window.ChecklistManager = ChecklistManager;
-window.PriceUtils = PriceUtils;
 window.FilterUtils = FilterUtils;
 window.CardRenderer = CardRenderer;
 window.StatsAnimator = StatsAnimator;

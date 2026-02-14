@@ -2,7 +2,7 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
 // Load shared.js into the jsdom global context so tests can access
-// PriceUtils, CardRenderer, sanitizeText, sanitizeUrl, etc.
+// CardRenderer, sanitizeText, sanitizeUrl, etc.
 const sharedPath = resolve(import.meta.dirname, '..', 'shared.js');
 const sharedCode = readFileSync(sharedPath, 'utf-8');
 

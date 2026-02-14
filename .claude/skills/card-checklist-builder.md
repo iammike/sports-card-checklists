@@ -47,7 +47,7 @@ Use the ChecklistCreatorModal in the UI (login, click "+" button on the index pa
         { "id": "category-2", "label": "Category Two" }
     ],
     "showPlayerName": true,
-    "cardDisplay": { "priceMode": "explicit" },
+    "cardDisplay": {},
     "theme": {
         "primaryColor": "#hex",
         "darkColor": "#hex",
@@ -74,7 +74,7 @@ Use the ChecklistCreatorModal in the UI (login, click "+" button on the index pa
 - `num` - Card number with # prefix (e.g., "#8") or empty string
 - `player` - Player name (when `showPlayerName: true`)
 - `variant` - Card variant (e.g., "Base", "Silver Prizm")
-- `price` - Explicit price value (when `priceMode: 'explicit'`)
+- `price` - Price value
 - `auto` - Boolean, autographed card
 - `patch` - Boolean, patch/relic card
 - `serial` - Print run (e.g., "/99", "/25")
