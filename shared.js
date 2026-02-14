@@ -2555,10 +2555,6 @@ class CardEditorModal {
             btn.title = 'Uploading...';
             const r2Url = await githubSync.uploadImage(newKey, base64Data);
 
-            if (!r2Url) {
-                throw new Error('Failed to upload image - check console for details');
-            }
-
             // Update the input field with the R2 URL
             imgInput.value = r2Url;
             this.updateImagePreview(`data:image/webp;base64,${base64Data}`);
@@ -2637,10 +2633,6 @@ class CardEditorModal {
             // Upload to R2
             btn.title = 'Uploading...';
             const r2Url = await githubSync.uploadImage(key, base64Content);
-
-            if (!r2Url) {
-                throw new Error('Failed to upload image');
-            }
 
             // Update the input field with the R2 URL
             imgInput.value = r2Url;
@@ -2723,10 +2715,6 @@ class CardEditorModal {
 
             // Upload to R2
             const r2Url = await githubSync.uploadImage(key, base64Content);
-
-            if (!r2Url) {
-                throw new Error('Failed to upload image');
-            }
 
             // Update the input field with the R2 URL
             imgInput.value = r2Url;
