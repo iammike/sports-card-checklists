@@ -51,9 +51,7 @@ A modern web app for tracking sports card collections with cloud sync, real-time
 
 ## Checklists
 
-- **[Jayden Daniels Rookie Cards](https://iammike.github.io/sports-card-checklists/checklist.html?id=jayden-daniels)** - College and NFL rookie cards
-- **[Washington Commanders QBs](https://iammike.github.io/sports-card-checklists/checklist.html?id=washington-qbs)** - Rookie cards of Washington starting QBs (1970-present)
-- **[JMU Pro Players](https://iammike.github.io/sports-card-checklists/checklist.html?id=jmu-pro-players)** - Cards of JMU alumni who played professionally
+All checklists are config-driven and managed via the gist registry. Browse them on the **[live site](https://iammike.github.io/sports-card-checklists/)**.
 
 ## Architecture
 
