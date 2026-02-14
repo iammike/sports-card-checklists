@@ -98,6 +98,7 @@ class ChecklistEngine {
             const cardEl = checkbox ? checkbox.closest('.card') : null;
             if (cardEl) cardEl.classList.toggle('owned', nowOwned);
             this.updateStats();
+            this._updateSectionCompletion();
         };
 
         // Render
@@ -993,6 +994,50 @@ class ChecklistEngine {
 
         CollapsibleSections.init({ persist: true, storageKey: `${this.id}-collapsed` });
         this.updateStats();
+        this._updateSectionCompletion();
+    }
+
+    _updateSectionCompletion() {
+        const container = document.getElementById('sections-container');
+        if (!container) return;
+
+        const setCheck = (header, complete) => {
+            const existing = header.querySelector('.section-check');
+            if (complete && !existing) {
+                const check = document.createElement('span');
+                check.className = 'section-check';
+                check.textContent = '\u2713';
+                header.appendChild(check);
+            } else if (!complete && existing) {
+                existing.remove();
+            }
+        };
+
+        container.querySelectorAll('.section-header').forEach(header => {
+            const section = header.closest('.section');
+            const grid = section
+                ? section.querySelector('.card-grid')
+                : null;
+            if (!grid) { setCheck(header, false); return; }
+
+            const cards = grid.querySelectorAll('.card:not(.collection-link-card)');
+            if (cards.length === 0) { setCheck(header, false); return; }
+
+            const allOwned = Array.from(cards).every(c => c.classList.contains('owned'));
+            setCheck(header, allOwned);
+        });
+
+        container.querySelectorAll('.group-header').forEach(groupHeader => {
+            const next = groupHeader.nextElementSibling;
+            const sectionGroup = next && next.classList.contains('section-group') ? next : null;
+            if (!sectionGroup) { setCheck(groupHeader, false); return; }
+
+            const childHeaders = sectionGroup.querySelectorAll('.section-header');
+            if (childHeaders.length === 0) { setCheck(groupHeader, false); return; }
+
+            const allComplete = Array.from(childHeaders).every(h => h.querySelector('.section-check'));
+            setCheck(groupHeader, allComplete);
+        });
     }
 
     _filterCard(card, statusFilter, searchTerm, customFilterValues) {
@@ -1063,6 +1108,27 @@ class ChecklistEngine {
         container.innerHTML = `<div class="card-grid">${filtered.map(c => this.createCardElement(c)).join('')}</div>`;
     }
 
+    _sectionProgress(cards) {
+        if (!cards || cards.length === 0) return null;
+        const countable = cards.filter(c => !c.collectionLink);
+        if (countable.length === 0) return null;
+        let owned = 0;
+        countable.forEach(card => {
+            if (this.isOwned(this.getCardId(card))) owned++;
+        });
+        return { owned, total: countable.length };
+    }
+
+    _sectionHeaderHtml(label, cssClass, allCards) {
+        const progress = this._sectionProgress(allCards);
+        let badge = '';
+        if (progress) {
+            const complete = progress.owned === progress.total;
+            badge = `<span class="section-progress${complete ? ' complete' : ''}">${complete ? '&#10003; ' : ''}${progress.owned}/${progress.total}</span>`;
+        }
+        return `<div class="${cssClass}">${sanitizeText(label)}${badge}</div>`;
+    }
+
     _renderCategoryCards(container, sortBy, statusFilter, searchTerm, customFilterValues) {
         // Category data shape (like Jayden Daniels, JMU)
         const categories = this.config.categories || [];
@@ -1072,9 +1138,10 @@ class ChecklistEngine {
             const allCards = this._getAllCardsFlat();
             let filtered = allCards.filter(card => this._filterCard(card, statusFilter, searchTerm, customFilterValues));
             const sorted = this.sortCards(filtered, sortBy);
+            const allCardsFlat = this._getAllCardsFlat();
             container.innerHTML = `
                 <div class="section">
-                    <div class="section-header">All Cards</div>
+                    ${this._sectionHeaderHtml('All Cards', 'section-header', allCardsFlat)}
                     <div class="card-grid">${sorted.map(c => this.createCardElement(c)).join('')}</div>
                 </div>`;
             return;
@@ -1086,7 +1153,8 @@ class ChecklistEngine {
         categories.forEach(cat => {
             if (cat.children && cat.children.length > 0) {
                 // Parent with subcategories - render as group-header + section-group
-                html += `<div class="group-header cat-${cat.id}">${sanitizeText(cat.label)}</div>`;
+                const groupCards = cat.children.flatMap(child => this.cards[child.id] || []);
+                html += this._sectionHeaderHtml(cat.label, `group-header cat-${cat.id}`, groupCards);
                 if (cat.note) {
                     html += `<div class="inserts-note">${sanitizeText(cat.note)}</div>`;
                 }
@@ -1098,7 +1166,7 @@ class ChecklistEngine {
                     if (filtered.length === 0 && childCards.length === 0) return;
                     const childSectionClass = cat.isMain !== false ? 'default-section' : '';
                     html += `<div class="section ${childSectionClass}">`;
-                    html += `<div class="section-header cat-${child.id}">${sanitizeText(child.label)}</div>`;
+                    html += this._sectionHeaderHtml(child.label, `section-header cat-${child.id}`, childCards);
                     html += `<div class="card-grid" id="${child.id}-cards">${filtered.map(c => this.createCardElement(c)).join('')}</div>`;
                     html += `</div>`;
                 });
@@ -1115,13 +1183,13 @@ class ChecklistEngine {
 
                 if (cat.note) {
                     html += `<div class="section ${sectionClass}" id="${cat.id}-section">`;
-                    html += `<div class="${headerClass}">${sanitizeText(cat.label)}</div>`;
+                    html += this._sectionHeaderHtml(cat.label, headerClass, catCards);
                     html += `<div class="inserts-note">${sanitizeText(cat.note)}</div>`;
                     html += `<div class="card-grid" id="${cat.id}-cards">${filtered.map(c => this.createCardElement(c)).join('')}</div>`;
                     html += `</div>`;
                 } else {
                     html += `<div class="section ${sectionClass}">`;
-                    html += `<div class="${headerClass}">${sanitizeText(cat.label)}</div>`;
+                    html += this._sectionHeaderHtml(cat.label, headerClass, catCards);
                     html += `<div class="card-grid" id="${cat.id}-cards">${filtered.map(c => this.createCardElement(c)).join('')}</div>`;
                     html += `</div>`;
                 }
