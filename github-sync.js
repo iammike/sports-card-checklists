@@ -830,7 +830,7 @@ class GitHubSync {
 
     // Save card data to gist (as separate file per checklist)
     async saveCardData(checklistId, cardData) {
-        if (!this.token) return false;
+        if (!this.token) return { ok: false, reason: 'not_authenticated' };
 
         const gistId = this.getActiveGistId();
         if (!gistId) {
@@ -855,10 +855,15 @@ class GitHubSync {
                 }),
             });
 
-            return response.ok;
+            if (response.ok) return { ok: true };
+            console.error(`Save failed: ${response.status}`, await response.text().catch(() => ''));
+            if (response.status === 401 || response.status === 403) {
+                return { ok: false, reason: 'auth_expired' };
+            }
+            return { ok: false, reason: 'api_error', status: response.status };
         } catch (error) {
             console.error('Failed to save card data to gist:', error);
-            return false;
+            return { ok: false, reason: 'network_error' };
         }
     }
 

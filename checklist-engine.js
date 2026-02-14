@@ -249,16 +249,37 @@ class ChecklistEngine {
         } else {
             this.cardData.categories = this.cards;
         }
-        const success = await githubSync.saveCardData(this.id, this.cardData);
-        if (success) {
+
+        // Try save with one automatic retry
+        let result = await githubSync.saveCardData(this.id, this.cardData);
+        if (!result.ok && result.reason !== 'auth_expired') {
+            // Brief pause then retry once for transient failures
+            await new Promise(r => setTimeout(r, 1500));
+            result = await githubSync.saveCardData(this.id, this.cardData);
+        }
+
+        if (result.ok) {
             this.checklistManager.setSyncStatus('synced', 'Saved');
-            // Update stats in gist so index page reflects card count changes
             const stats = this.computeStats();
             await githubSync.saveChecklistStats(this.id, stats);
+        } else if (result.reason === 'auth_expired') {
+            this.checklistManager.setSyncStatus('error', 'Session expired');
+            this._showSaveError('Your session has expired. Please sign out and sign back in, then try again.');
         } else {
             this.checklistManager.setSyncStatus('error', 'Save failed');
+            this._showSaveError('Save failed. Your changes are still in memory - try refreshing and editing again.');
         }
-        return success;
+        return result.ok;
+    }
+
+    _showSaveError(message) {
+        // Show a dismissible error banner at the top of the page
+        const existing = document.querySelector('.save-error-banner');
+        if (existing) existing.remove();
+        const banner = document.createElement('div');
+        banner.className = 'save-error-banner';
+        banner.innerHTML = `<span>${message}</span><button onclick="this.parentElement.remove()">&times;</button>`;
+        document.body.prepend(banner);
     }
 
     // ========================================
