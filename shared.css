@@ -194,11 +194,11 @@ h1 {
 
 .nav-link {
     font-family: 'Bebas Neue', sans-serif;
-    font-size: 0.85em;
+    font-size: 1em;
     letter-spacing: 0.08em;
     text-decoration: none;
     color: #777;
-    padding: 6px 10px;
+    padding: 8px 14px;
     border-radius: 3px;
     position: relative;
     transition: all 0.2s ease;
