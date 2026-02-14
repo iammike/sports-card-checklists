@@ -195,9 +195,11 @@ class ChecklistEngine {
 
         // Try authenticated gist first, fall back to public gist
         const config = await githubSync.loadChecklistConfig(this.id);
-        if (config) return config;
+        if (config) { config.id = this.id; return config; }
 
-        return githubSync.loadPublicChecklistConfig(this.id);
+        const publicConfig = await githubSync.loadPublicChecklistConfig(this.id);
+        if (publicConfig) publicConfig.id = this.id;
+        return publicConfig;
     }
 
     async _loadCardData() {
