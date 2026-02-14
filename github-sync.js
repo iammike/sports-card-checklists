@@ -793,11 +793,21 @@ class GitHubSync {
                 });
             }
         }
-        return this._writeGistFiles({
+        const ok = await this._writeGistFiles({
             [`${checklistId}-config.json`]: config,
             [`${checklistId}-cards.json`]: emptyCards,
             'checklists-registry.json': registry,
         });
+        if (ok) {
+            // Write initial zeroed stats so the index page shows 0/0 immediately
+            await this.saveChecklistStats(checklistId, {
+                owned: 0,
+                total: 0,
+                ownedValue: 0,
+                neededValue: 0,
+            });
+        }
+        return ok;
     }
 
     // Delete a dynamic checklist: saves backup, then removes config, cards, stats, and registry entry
