@@ -668,31 +668,41 @@ class GitHubSync {
         const gistId = this.getActiveGistId();
         if (!gistId) return false;
 
-        try {
-            const response = await fetch(`https://api.github.com/gists/${gistId}`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${this.token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    files: {
-                        [filename]: {
-                            content: JSON.stringify(data, null, 2),
-                        },
+        const maxRetries = 3;
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+            try {
+                const response = await fetch(`https://api.github.com/gists/${gistId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${this.token}`,
+                        'Content-Type': 'application/json',
                     },
-                }),
-            });
-            // Invalidate gist cache on write
-            if (response.ok) {
-                this._gistCache = null;
-                this._publicGistCache = null;
+                    body: JSON.stringify({
+                        files: {
+                            [filename]: {
+                                content: JSON.stringify(data, null, 2),
+                            },
+                        },
+                    }),
+                });
+                // Invalidate gist cache on write
+                if (response.ok) {
+                    this._gistCache = null;
+                    this._publicGistCache = null;
+                    return true;
+                }
+                // Retry on 409 Conflict (git-level conflict from rapid saves)
+                if (response.status === 409 && attempt < maxRetries - 1) {
+                    await new Promise(r => setTimeout(r, 300 * (attempt + 1)));
+                    continue;
+                }
+                return false;
+            } catch (error) {
+                console.error(`Failed to write ${filename}:`, error);
+                return false;
             }
-            return response.ok;
-        } catch (error) {
-            console.error(`Failed to write ${filename}:`, error);
-            return false;
         }
+        return false;
     }
 
     // Write multiple JSON files to the gist in one API call
@@ -708,24 +718,33 @@ class GitHubSync {
             };
         }
 
-        try {
-            const response = await fetch(`https://api.github.com/gists/${gistId}`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${this.token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ files }),
-            });
-            if (response.ok) {
-                this._gistCache = null;
-                this._publicGistCache = null;
+        const maxRetries = 3;
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+            try {
+                const response = await fetch(`https://api.github.com/gists/${gistId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${this.token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ files }),
+                });
+                if (response.ok) {
+                    this._gistCache = null;
+                    this._publicGistCache = null;
+                    return true;
+                }
+                if (response.status === 409 && attempt < maxRetries - 1) {
+                    await new Promise(r => setTimeout(r, 300 * (attempt + 1)));
+                    continue;
+                }
+                return false;
+            } catch (error) {
+                console.error('Failed to write gist files:', error);
+                return false;
             }
-            return response.ok;
-        } catch (error) {
-            console.error('Failed to write gist files:', error);
-            return false;
         }
+        return false;
     }
 
     // Load checklists registry from gist
