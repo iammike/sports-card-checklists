@@ -468,7 +468,7 @@ h1 {
 
     .nav-links {
         order: 4;
-        width: 100%;
+        flex: 0 0 100%;
         flex-direction: column;
         margin: 0;
         gap: 0;
