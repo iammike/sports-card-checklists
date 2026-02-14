@@ -2,6 +2,8 @@
 //
 // Configuration: Set these values after creating your GitHub OAuth App and Cloudflare Worker
 const IS_PREVIEW = window.location.hostname.endsWith('.pages.dev');
+const PREVIEW_GIST_ID = 'ec645b5e213447ac37de95ffada2d31b';
+const PRODUCTION_GIST_ID = '5f2b43f0588d72892273ae8f24f68c2d';
 const CONFIG = {
     // Use preview OAuth app for pages.dev, production app for github.io
     GITHUB_CLIENT_ID: IS_PREVIEW
@@ -11,10 +13,8 @@ const CONFIG = {
     GIST_FILENAME: 'sports-card-checklists.json',
     GIST_DESCRIPTION: 'Sports Card Checklist Collection Data',
     // Preview uses separate gist so testing doesn't affect production
-    PUBLIC_GIST_ID: IS_PREVIEW
-        ? 'ec645b5e213447ac37de95ffada2d31b'  // Preview gist
-        : '5f2b43f0588d72892273ae8f24f68c2d', // Production gist
-    PRODUCTION_GIST_ID: '5f2b43f0588d72892273ae8f24f68c2d', // For syncing preview from prod
+    PUBLIC_GIST_ID: IS_PREVIEW ? PREVIEW_GIST_ID : PRODUCTION_GIST_ID,
+    PRODUCTION_GIST_ID: PRODUCTION_GIST_ID, // For syncing preview from prod
 };
 
 // Storage keys
@@ -26,6 +26,13 @@ class GitHubSync {
     constructor() {
         this.token = localStorage.getItem(TOKEN_KEY);
         this.gistId = localStorage.getItem(GIST_ID_KEY);
+
+        // Guard: clear preview gist ID if it leaked into production localStorage
+        if (!IS_PREVIEW && this.gistId === PREVIEW_GIST_ID) {
+            this.gistId = null;
+            localStorage.removeItem(GIST_ID_KEY);
+        }
+
         try {
             this.user = JSON.parse(localStorage.getItem(USER_KEY) || 'null');
         } catch (e) {
@@ -298,6 +305,8 @@ class GitHubSync {
         const gists = await response.json();
 
         for (const gist of gists) {
+            // Skip the preview gist when searching on production
+            if (!IS_PREVIEW && gist.id === PREVIEW_GIST_ID) continue;
             if (gist.files[CONFIG.GIST_FILENAME]) {
                 this.gistId = gist.id;
                 localStorage.setItem(GIST_ID_KEY, this.gistId);
