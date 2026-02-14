@@ -4174,9 +4174,17 @@ class ChecklistCreatorModal {
                             entry.title = config.title;
                             entry.navLabel = config.navLabel;
                             entry.description = config.indexCard?.description || '';
-                            entry.accentColor = config.theme?.accentColor || config.theme?.primaryColor || '#667eea';
-                            entry.borderColor = config.theme?.primaryColor || '#667eea';
-                            entry.extraPills = extraPills.length > 0 ? extraPills : undefined;
+                            // Only update colors if theme was explicitly set (not defaults)
+                            if (config.theme?.accentColor && config.theme.accentColor !== '#667eea') {
+                                entry.accentColor = config.theme.accentColor;
+                            }
+                            if (config.theme?.primaryColor && config.theme.primaryColor !== '#667eea') {
+                                entry.borderColor = config.theme.primaryColor;
+                            }
+                            // Only update extraPills if categories have showOnIndex set
+                            if (extraPills.length > 0) {
+                                entry.extraPills = extraPills;
+                            }
                             await githubSync.saveRegistry(registry);
                         }
                     }
