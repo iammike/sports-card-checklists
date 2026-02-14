@@ -191,10 +191,13 @@ class ChecklistEngine {
     // ========================================
 
     async _loadConfig() {
-        if (typeof githubSync !== 'undefined') {
-            return githubSync.loadChecklistConfig(this.id);
-        }
-        return null;
+        if (typeof githubSync === 'undefined') return null;
+
+        // Try authenticated gist first, fall back to public gist
+        const config = await githubSync.loadChecklistConfig(this.id);
+        if (config) return config;
+
+        return githubSync.loadPublicChecklistConfig(this.id);
     }
 
     async _loadCardData() {
@@ -264,7 +267,10 @@ class ChecklistEngine {
             await githubSync.saveChecklistStats(this.id, stats);
         } else if (result.reason === 'auth_expired') {
             this.checklistManager.setSyncStatus('error', 'Session expired');
-            this._showSaveError('Your session has expired. Please sign out and sign back in, then try again.');
+            this._showSaveError('Your session has expired.', 'Sign Out', () => {
+                githubSync.logout();
+                window.location.reload();
+            });
         } else {
             this.checklistManager.setSyncStatus('error', 'Save failed');
             this._showSaveError('Save failed. Your changes are still in memory - try refreshing and editing again.');
@@ -272,13 +278,30 @@ class ChecklistEngine {
         return result.ok;
     }
 
-    _showSaveError(message) {
+    _showSaveError(message, actionLabel, actionFn) {
         // Show a dismissible error banner at the top of the page
         const existing = document.querySelector('.save-error-banner');
         if (existing) existing.remove();
         const banner = document.createElement('div');
         banner.className = 'save-error-banner';
-        banner.innerHTML = `<span>${message}</span><button onclick="this.parentElement.remove()">&times;</button>`;
+
+        const span = document.createElement('span');
+        span.textContent = message;
+        banner.appendChild(span);
+
+        if (actionLabel && actionFn) {
+            const actionBtn = document.createElement('button');
+            actionBtn.className = 'save-error-action';
+            actionBtn.textContent = actionLabel;
+            actionBtn.addEventListener('click', actionFn);
+            banner.appendChild(actionBtn);
+        }
+
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = '\u00d7';
+        closeBtn.addEventListener('click', () => banner.remove());
+        banner.appendChild(closeBtn);
+
         document.body.prepend(banner);
     }
 

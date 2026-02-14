@@ -484,6 +484,15 @@ h1 {
     opacity: 1;
 }
 
+.save-error-banner .save-error-action {
+    font-size: 0.9em;
+    font-weight: 600;
+    padding: 4px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
 .read-only-notice {
     font-family: 'Barlow', sans-serif;
     background: rgba(255, 182, 18, 0.2);

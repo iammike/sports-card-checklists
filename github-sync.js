@@ -872,6 +872,15 @@ class GitHubSync {
         return this._readGistFile(`${checklistId}-cards.json`);
     }
 
+    // Load config from public gist (fallback when auth fails)
+    async loadPublicChecklistConfig(checklistId) {
+        const filename = `${checklistId}-config.json`;
+        const gist = await this._fetchGist(true);
+        if (!gist) return null;
+        const content = gist.files[filename]?.content;
+        return content ? JSON.parse(content) : null;
+    }
+
     // Load card data from public gist (fallback, or for non-logged-in users)
     async loadPublicCardData(checklistId) {
         const filename = `${checklistId}-cards.json`;
