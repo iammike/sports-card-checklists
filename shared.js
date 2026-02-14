@@ -285,8 +285,11 @@ class ChecklistManager {
         // Allow custom ID field, otherwise generate from set+num+variant
         if (card.id) return card.id;
         const str = (card.set || '') + (card.num || '') + (card.variant || '');
-        // Use encodeURIComponent to handle unicode (btoa only accepts Latin-1)
-        return btoa(encodeURIComponent(str)).replace(/[^a-zA-Z0-9]/g, '');
+        // Replace non-Latin-1 chars (e.g. iOS smart quotes) so btoa doesn't throw.
+        // Must NOT use encodeURIComponent here - that changes the encoding and
+        // breaks all existing stored card IDs.
+        const safe = str.replace(/[^\x00-\xFF]/g, '_');
+        return btoa(safe).replace(/[^a-zA-Z0-9]/g, '');
     }
 
     // Check if current user is the owner
