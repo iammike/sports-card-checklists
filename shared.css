@@ -178,10 +178,6 @@ h1 {
     color: #666;
 }
 
-.nav-divider {
-    display: none;
-}
-
 .nav-links {
     display: flex;
     align-items: center;
@@ -503,7 +499,6 @@ h1 {
     }
 
     .nav-brand-text { display: none; }
-    .nav-divider { display: none; }
 
     .nav-dropdown {
         right: -8px;

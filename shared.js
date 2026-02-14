@@ -6,6 +6,14 @@ const R2_IMAGE_BASE = 'https://cards-oauth.iammikec.workers.dev/images/';
 // Standard card types used across all checklists
 const CARD_TYPES = ['Base', 'Insert', 'Chase'];
 
+// Normalize smart/curly quotes to ASCII (iOS keyboards produce these)
+function normalizeQuotes(text) {
+    if (!text) return text;
+    return text
+        .replace(/[\u2018\u2019\u201A]/g, "'")   // smart single quotes
+        .replace(/[\u201C\u201D\u201E]/g, '"');   // smart double quotes
+}
+
 // Sanitization helpers for XSS prevention
 function sanitizeText(text) {
     const div = document.createElement('div');
@@ -277,7 +285,8 @@ class ChecklistManager {
         // Allow custom ID field, otherwise generate from set+num+variant
         if (card.id) return card.id;
         const str = (card.set || '') + (card.num || '') + (card.variant || '');
-        return btoa(str).replace(/[^a-zA-Z0-9]/g, '');
+        // Use encodeURIComponent to handle unicode (btoa only accepts Latin-1)
+        return btoa(encodeURIComponent(str)).replace(/[^a-zA-Z0-9]/g, '');
     }
 
     // Check if current user is the owner
@@ -2147,7 +2156,7 @@ class CardEditorModal {
             } else if (config.type === 'select') {
                 data[fieldName] = el.value;
             } else {
-                const val = el.value.trim();
+                const val = normalizeQuotes(el.value.trim());
                 // Parse comma-separated values if configured
                 if (config.parseArray) {
                     data[fieldName] = val ? val.split(',').map(v => v.trim()).filter(v => v) : [];
@@ -2896,9 +2905,9 @@ class CardEditorModal {
             num = '#' + num;
         }
 
-        // Core fields
+        // Core fields (normalize smart quotes from mobile keyboards)
         const data = {
-            set: this.backdrop.querySelector('#editor-set').value.trim(),
+            set: normalizeQuotes(this.backdrop.querySelector('#editor-set').value.trim()),
             num: num,
             type: this.backdrop.querySelector('#editor-type')?.value || ''
         };
@@ -3176,12 +3185,11 @@ const DynamicNav = {
         return path.endsWith('checklist.html') && search.includes(`id=${entry.id}`);
     },
 
-    // Add dynamic checklist links to the nav (preserves hardcoded legacy links)
+    // Add checklist links to the nav from registry
     renderNav(registry) {
         const navLinks = document.querySelector('.nav-links');
         if (!navLinks) return;
 
-        // Only add dynamic entries - legacy links are already hardcoded in HTML
         const dynamicEntries = registry.checklists
             .filter(e => e.type === 'dynamic')
             .sort((a, b) => (a.navLabel || a.title).localeCompare(b.navLabel || b.title));

@@ -59,3 +59,25 @@ describe('sanitizeUrl', () => {
     expect(sanitizeUrl('not a url')).toBe('');
   });
 });
+
+describe('normalizeQuotes', () => {
+  const normalizeQuotes = globalThis.normalizeQuotes;
+
+  it('converts smart single quotes to ASCII', () => {
+    expect(normalizeQuotes('O\u2019Neal')).toBe("O'Neal");
+    expect(normalizeQuotes('\u2018hello\u2019')).toBe("'hello'");
+  });
+
+  it('converts smart double quotes to ASCII', () => {
+    expect(normalizeQuotes('\u201Chello\u201D')).toBe('"hello"');
+  });
+
+  it('passes through regular quotes', () => {
+    expect(normalizeQuotes("O'Neal")).toBe("O'Neal");
+  });
+
+  it('handles null/empty', () => {
+    expect(normalizeQuotes(null)).toBe(null);
+    expect(normalizeQuotes('')).toBe('');
+  });
+});
