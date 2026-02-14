@@ -187,21 +187,23 @@ h1 {
     align-items: center;
     justify-content: center;
     gap: 4px;
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
+    flex: 1;
+    min-width: 0;
+    flex-wrap: wrap;
+    margin: 0 16px;
 }
 
 .nav-link {
     font-family: 'Bebas Neue', sans-serif;
-    font-size: 0.95em;
+    font-size: 0.85em;
     letter-spacing: 0.08em;
     text-decoration: none;
     color: #777;
-    padding: 8px 16px;
+    padding: 6px 10px;
     border-radius: 3px;
     position: relative;
     transition: all 0.2s ease;
+    white-space: nowrap;
 }
 
 .nav-link:hover {
@@ -403,32 +405,101 @@ h1 {
     color: var(--color-accent, #f39c12);
 }
 
+/* Hamburger button */
+.nav-hamburger {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    padding: 8px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.nav-hamburger span {
+    display: block;
+    width: 20px;
+    height: 2px;
+    background: #888;
+    border-radius: 1px;
+    transition: all 0.3s ease;
+    transform-origin: center;
+}
+
+.nav-hamburger:hover span {
+    background: #ccc;
+}
+
+.nav-hamburger.open span:nth-child(1) {
+    transform: translateY(6px) rotate(45deg);
+}
+
+.nav-hamburger.open span:nth-child(2) {
+    opacity: 0;
+}
+
+.nav-hamburger.open span:nth-child(3) {
+    transform: translateY(-6px) rotate(-45deg);
+}
+
 /* Mobile nav */
 @media (max-width: 768px) {
     .nav-inner {
         height: auto;
         flex-wrap: wrap;
         padding: 10px max(20px, env(safe-area-inset-right)) 10px max(20px, env(safe-area-inset-left));
-        gap: 8px;
+        gap: 0;
     }
 
     .nav-brand-text { display: none; }
     .nav-divider { display: none; }
 
-    .nav-links {
-        position: static;
-        transform: none;
+    .nav-hamburger {
+        display: flex;
+        order: 2;
+        margin-left: auto;
+    }
+
+    .nav-auth {
         order: 3;
+    }
+
+    .nav-links {
+        order: 4;
         width: 100%;
-        justify-content: center;
+        flex-direction: column;
+        margin: 0;
+        gap: 0;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease;
+    }
+
+    .nav-links.open {
+        max-height: 500px;
         padding-top: 8px;
         border-top: 1px solid rgba(255,255,255,0.05);
-        gap: 2px;
     }
 
     .nav-link {
-        font-size: 0.75em;
-        padding: 6px 8px;
+        width: 100%;
+        font-size: 0.85em;
+        padding: 10px 16px;
+        border-radius: 0;
+        border-bottom: 1px solid rgba(255,255,255,0.03);
+        box-sizing: border-box;
+    }
+
+    .nav-link.active {
+        border-left: 3px solid var(--color-accent, #f39c12);
+        padding-left: 13px;
+        background: linear-gradient(90deg, rgba(243, 156, 18, 0.1) 0%, transparent 100%);
+    }
+
+    .nav-link.active::after {
+        display: none;
     }
 
     /* Dropdown adjusts on mobile */

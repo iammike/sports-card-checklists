@@ -3201,13 +3201,44 @@ const DynamicNav = {
         });
     },
 
+    // Set up hamburger menu toggle for mobile
+    _initHamburger() {
+        const hamburger = document.getElementById('nav-hamburger');
+        const navLinks = document.querySelector('.nav-links');
+        if (!hamburger || !navLinks) return;
+
+        hamburger.addEventListener('click', () => {
+            const isOpen = hamburger.classList.toggle('open');
+            navLinks.classList.toggle('open');
+            hamburger.setAttribute('aria-expanded', String(isOpen));
+        });
+
+        // Close menu when a nav link is clicked
+        navLinks.addEventListener('click', (e) => {
+            if (e.target.classList.contains('nav-link')) {
+                hamburger.classList.remove('open');
+                navLinks.classList.remove('open');
+                hamburger.setAttribute('aria-expanded', 'false');
+            }
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!hamburger.contains(e.target) && !navLinks.contains(e.target)) {
+                hamburger.classList.remove('open');
+                navLinks.classList.remove('open');
+                hamburger.setAttribute('aria-expanded', 'false');
+            }
+        });
+    },
+
     // Initialize: load registry and update nav
     async init() {
         const registry = await this.loadRegistry();
         if (registry && registry.checklists && registry.checklists.length > 0) {
             this.renderNav(registry);
         }
-        // If no registry, hardcoded nav links stay as fallback
+        this._initHamburger();
     }
 };
 
