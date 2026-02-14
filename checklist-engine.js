@@ -817,7 +817,7 @@ class ChecklistEngine {
                 const inner = this._getSortLabel(ds).replace('Sort: ', '');
                 return `Sort: ${inner} (Default)`;
             }
-            return 'Sort: Default';
+            return 'Sort: As Entered';
         }
         const labels = {
             'year': 'Sort: Year',
