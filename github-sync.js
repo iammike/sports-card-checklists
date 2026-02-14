@@ -344,6 +344,10 @@ class GitHubSync {
                 headers: { 'Authorization': `Bearer ${this.token}` },
             });
 
+            // If auth failed, fall back to public data
+            if (!response.ok && (response.status === 401 || response.status === 403)) {
+                return this.loadPublicData();
+            }
             if (!response.ok) return null;
 
             const gist = await response.json();
@@ -610,6 +614,10 @@ class GitHubSync {
                 response = await fetch(`https://api.github.com/gists/${gistId}`, {
                     headers: { 'Authorization': `Bearer ${this.token}` },
                 });
+                // If auth failed, fall back to public gist
+                if (!response.ok && (response.status === 401 || response.status === 403)) {
+                    return this._fetchGist(true);
+                }
             } else {
                 response = await fetch(`https://api.github.com/gists/${CONFIG.PUBLIC_GIST_ID}`);
             }
