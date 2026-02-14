@@ -748,8 +748,7 @@ select, input[type="text"] {
     opacity: 0.5;
 }
 .section-progress.complete {
-    opacity: 0.9;
-    color: #4caf50;
+    opacity: 0.85;
 }
 
 .inserts-note {
