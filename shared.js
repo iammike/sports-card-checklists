@@ -3111,12 +3111,17 @@ class AddCardButton {
  */
 const DynamicNav = {
     _registry: null,
-    _sessionKey: 'checklists-registry',
+
+    // Cache key includes gist ID so switching gists invalidates automatically
+    _getSessionKey() {
+        const gistId = window.githubSync?.getActiveGistId() || 'public';
+        return `checklists-registry-${gistId}`;
+    },
 
     // Get cached registry from sessionStorage
     _getCached() {
         try {
-            const cached = sessionStorage.getItem(this._sessionKey);
+            const cached = sessionStorage.getItem(this._getSessionKey());
             if (cached) return JSON.parse(cached);
         } catch (e) { /* ignore */ }
         return null;
@@ -3124,7 +3129,7 @@ const DynamicNav = {
 
     _setCache(registry) {
         try {
-            sessionStorage.setItem(this._sessionKey, JSON.stringify(registry));
+            sessionStorage.setItem(this._getSessionKey(), JSON.stringify(registry));
         } catch (e) { /* ignore */ }
     },
 
@@ -4176,7 +4181,7 @@ class ChecklistCreatorModal {
                         }
                     }
                     DynamicNav._registry = null;
-                    sessionStorage.removeItem(DynamicNav._sessionKey);
+                    sessionStorage.removeItem(DynamicNav._getSessionKey());
                 } catch (regError) {
                     console.warn('Config saved but registry update failed:', regError);
                 }
@@ -4213,7 +4218,7 @@ class ChecklistCreatorModal {
 
                 // Clear nav cache
                 DynamicNav._registry = null;
-                sessionStorage.removeItem(DynamicNav._sessionKey);
+                sessionStorage.removeItem(DynamicNav._getSessionKey());
             }
 
             this.isDirty = false;
