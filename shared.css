@@ -820,6 +820,10 @@ select, input[type="text"] {
 /* ============================================
    Card Component
    ============================================ */
+.card.filter-hidden {
+    display: none;
+}
+
 .card {
     border: 1px solid var(--card-border);
     border-radius: var(--radius-md);

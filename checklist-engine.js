@@ -14,6 +14,8 @@ class ChecklistEngine {
         this.cardEditor = null;
         this.cardContextMenu = null;
         this.addCardButton = null;
+        this._renderedSortBy = null;  // Sort used for current DOM
+        this._renderedCards = [];     // Card data in DOM render order
     }
 
     // ========================================
@@ -637,6 +639,10 @@ class ChecklistEngine {
     // ========================================
 
     createCardElement(card) {
+        // Track rendered card for filter-only updates
+        const cardIdx = this._renderedCards.length;
+        this._renderedCards.push(card);
+
         const cardId = card.collectionLink ? null : this.getCardId(card);
         const owned = cardId ? this.isOwned(cardId) : false;
         const price = this.getPrice(card);
@@ -654,12 +660,12 @@ class ChecklistEngine {
 
         // Collection link cards (special type)
         if (card.collectionLink) {
-            return this._renderCollectionLinkCard(card);
+            return this._renderCollectionLinkCard(card, cardIdx);
         }
 
         const cardClass = `card ${owned ? 'owned' : ''}`.trim();
 
-        let html = `<div class="${cardClass}" data-price="${price}"${card.sport ? ` data-sport="${card.sport}"` : ''}${card.era ? ` data-era="${card.era}"` : ''} data-type="${card.type || ''}">`;
+        let html = `<div class="${cardClass}" data-card-idx="${cardIdx}" data-price="${price}"${card.sport ? ` data-sport="${card.sport}"` : ''}${card.era ? ` data-era="${card.era}"` : ''} data-type="${card.type || ''}">`;
         html += `<div class="card-image-wrapper">`;
         html += CardRenderer.renderAttributeBadges(card, this.config.customFields);
         html += CardRenderer.renderPriceBadge(price, thresholds);
@@ -719,7 +725,7 @@ class ChecklistEngine {
         return html;
     }
 
-    _renderCollectionLinkCard(card) {
+    _renderCollectionLinkCard(card, cardIdx) {
         const link = sanitizeText(card.collectionLink);
 
         // Badge: show linked checklist stats if available, else cardCount
@@ -744,7 +750,7 @@ class ChecklistEngine {
             imageHtml = CardRenderer.renderCardImage(card.img, card.player, link);
         }
 
-        return `<div class="card collection-link" onclick="window.location.href='${link}'">
+        return `<div class="card collection-link" data-card-idx="${cardIdx}" onclick="window.location.href='${link}'">
             <div class="card-image-wrapper">
                 ${badgeHtml}
                 ${imageHtml}
@@ -844,8 +850,14 @@ class ChecklistEngine {
     }
 
     _onFilterChange() {
-        this.renderCards();
-        this.updateStats();
+        const sortBy = document.getElementById('sort-filter')?.value || 'default';
+        if (sortBy === this._renderedSortBy && this._renderedCards.length > 0) {
+            // Sort unchanged - just toggle visibility on existing DOM elements
+            this._applyFilters();
+        } else {
+            // Sort changed - full DOM rebuild needed
+            this.renderCards();
+        }
     }
 
     // ========================================
@@ -974,7 +986,26 @@ class ChecklistEngine {
         const container = document.getElementById('sections-container');
         const sortBy = document.getElementById('sort-filter')?.value || 'default';
 
-        // Get filter values
+        // Reset card tracking for this render
+        this._renderedCards = [];
+
+        const totalCards = this._getAllCardsFlat().length;
+        if (totalCards === 0) {
+            this._renderEmptyState(container);
+        } else if (this._isFlat()) {
+            this._renderFlatCards(container, sortBy);
+        } else {
+            this._renderCategoryCards(container, sortBy);
+        }
+
+        this._renderedSortBy = sortBy;
+        this._applyFilters();
+        CollapsibleSections.init({ persist: true, storageKey: `${this.id}-collapsed` });
+    }
+
+    // Toggle visibility on existing DOM elements without rebuilding
+    _applyFilters() {
+        const container = document.getElementById('sections-container');
         const statusFilter = document.getElementById('status-filter')?.value || 'all';
         const searchTerm = (document.getElementById('search')?.value || '').toLowerCase();
         const customFilterValues = {};
@@ -983,17 +1014,39 @@ class ChecklistEngine {
             if (el) customFilterValues[f.id] = el.value;
         });
 
-        const totalCards = this._getAllCardsFlat().length;
-        if (totalCards === 0) {
-            this._renderEmptyState(container);
-        } else if (this._isFlat()) {
-            this._renderFlatCards(container, sortBy, statusFilter, searchTerm, customFilterValues);
-        } else {
-            this._renderCategoryCards(container, sortBy, statusFilter, searchTerm, customFilterValues);
-        }
+        // Toggle visibility on individual cards
+        container.querySelectorAll('.card').forEach(cardEl => {
+            const idx = parseInt(cardEl.dataset.cardIdx);
+            const card = this._renderedCards[idx];
+            if (!card) return;
+            const visible = this._filterCard(card, statusFilter, searchTerm, customFilterValues);
+            cardEl.classList.toggle('filter-hidden', !visible);
+        });
 
-        CollapsibleSections.init({ persist: true, storageKey: `${this.id}-collapsed` });
+        // Update section visibility
+        this._updateSectionVisibility(container);
         this.updateStats();
+    }
+
+    // Hide sections and group headers when all their cards are filtered out
+    _updateSectionVisibility(container) {
+        // Hide sections with no visible cards
+        container.querySelectorAll('.section').forEach(section => {
+            const hasVisible = section.querySelector('.card:not(.filter-hidden)') !== null;
+            section.style.display = hasVisible ? '' : 'none';
+        });
+
+        // Hide group headers + section groups when all child sections are hidden
+        container.querySelectorAll('.section-group').forEach(group => {
+            const hasVisibleSection = group.querySelector('.section:not([style*="display: none"])') !== null;
+            group.style.display = hasVisibleSection ? '' : 'none';
+            // Hide associated group header and note
+            let prev = group.previousElementSibling;
+            while (prev && (prev.classList.contains('group-header') || prev.classList.contains('inserts-note'))) {
+                prev.style.display = hasVisibleSection ? '' : 'none';
+                prev = prev.previousElementSibling;
+            }
+        });
     }
 
     _filterCard(card, statusFilter, searchTerm, customFilterValues) {
@@ -1052,16 +1105,16 @@ class ChecklistEngine {
         }
     }
 
-    _renderFlatCards(container, sortBy, statusFilter, searchTerm, customFilterValues) {
+    _renderFlatCards(container, sortBy) {
         // Flat data shape - simple card list with no sections
-        let filtered = this.cards.filter(card => this._filterCard(card, statusFilter, searchTerm, customFilterValues));
+        let cards = [...this.cards];
         const defaultSort = this.config.defaultSortMode;
         if (sortBy !== 'default') {
-            filtered = this.sortCards(filtered, sortBy);
+            cards = this.sortCards(cards, sortBy);
         } else if (defaultSort) {
-            filtered = this.sortCards(filtered, defaultSort);
+            cards = this.sortCards(cards, defaultSort);
         }
-        container.innerHTML = `<div class="card-grid">${filtered.map(c => this.createCardElement(c)).join('')}</div>`;
+        container.innerHTML = `<div class="card-grid">${cards.map(c => this.createCardElement(c)).join('')}</div>`;
     }
 
     _sectionProgress(cards) {
@@ -1085,15 +1138,14 @@ class ChecklistEngine {
         return `<div class="${cssClass}">${sanitizeText(label)}${badge}</div>`;
     }
 
-    _renderCategoryCards(container, sortBy, statusFilter, searchTerm, customFilterValues) {
+    _renderCategoryCards(container, sortBy) {
         // Category data shape (like Jayden Daniels, JMU)
         const categories = this.config.categories || [];
 
         if (sortBy !== 'default') {
-            // Flatten all cards with category info, filter, sort
+            // Flatten all cards, sort (filtering handled by _applyFilters)
             const allCards = this._getAllCardsFlat();
-            let filtered = allCards.filter(card => this._filterCard(card, statusFilter, searchTerm, customFilterValues));
-            const sorted = this.sortCards(filtered, sortBy);
+            const sorted = this.sortCards(allCards, sortBy);
             container.innerHTML = `
                 <div class="section">
                     ${this._sectionHeaderHtml('All Cards', 'section-header', allCards)}
@@ -1102,7 +1154,7 @@ class ChecklistEngine {
             return;
         }
 
-        // Default: render each category as a section (apply default sort within each)
+        // Default: render each category as a section (filtering handled by _applyFilters)
         const defaultSort = this.config.defaultSortMode;
         let html = '';
         categories.forEach(cat => {
@@ -1116,22 +1168,20 @@ class ChecklistEngine {
                 html += `<div class="section-group">`;
                 cat.children.forEach(child => {
                     const childCards = this.cards[child.id] || [];
-                    let filtered = childCards.filter(card => this._filterCard(card, statusFilter, searchTerm, customFilterValues));
-                    if (defaultSort) filtered = this.sortCards(filtered, defaultSort);
-                    if (filtered.length === 0 && childCards.length === 0) return;
+                    if (childCards.length === 0) return;
+                    let sorted = defaultSort ? this.sortCards([...childCards], defaultSort) : childCards;
                     const childSectionClass = cat.isMain !== false ? 'default-section' : '';
                     html += `<div class="section ${childSectionClass}">`;
                     html += this._sectionHeaderHtml(child.label, `section-header cat-${child.id}`, childCards);
-                    html += `<div class="card-grid" id="${child.id}-cards">${filtered.map(c => this.createCardElement(c)).join('')}</div>`;
+                    html += `<div class="card-grid" id="${child.id}-cards">${sorted.map(c => this.createCardElement(c)).join('')}</div>`;
                     html += `</div>`;
                 });
                 html += `</div>`;
             } else {
                 // Simple category (no children)
                 const catCards = this.cards[cat.id] || [];
-                let filtered = catCards.filter(card => this._filterCard(card, statusFilter, searchTerm, customFilterValues));
-                if (defaultSort) filtered = this.sortCards(filtered, defaultSort);
-                if (filtered.length === 0 && catCards.length === 0) return;
+                if (catCards.length === 0) return;
+                let sorted = defaultSort ? this.sortCards([...catCards], defaultSort) : catCards;
 
                 const sectionClass = cat.isMain !== false ? 'default-section' : '';
                 const headerClass = `section-header cat-${cat.id}`;
@@ -1140,25 +1190,18 @@ class ChecklistEngine {
                     html += `<div class="section ${sectionClass}" id="${cat.id}-section">`;
                     html += this._sectionHeaderHtml(cat.label, headerClass, catCards);
                     html += `<div class="inserts-note">${sanitizeText(cat.note)}</div>`;
-                    html += `<div class="card-grid" id="${cat.id}-cards">${filtered.map(c => this.createCardElement(c)).join('')}</div>`;
+                    html += `<div class="card-grid" id="${cat.id}-cards">${sorted.map(c => this.createCardElement(c)).join('')}</div>`;
                     html += `</div>`;
                 } else {
                     html += `<div class="section ${sectionClass}">`;
                     html += this._sectionHeaderHtml(cat.label, headerClass, catCards);
-                    html += `<div class="card-grid" id="${cat.id}-cards">${filtered.map(c => this.createCardElement(c)).join('')}</div>`;
+                    html += `<div class="card-grid" id="${cat.id}-cards">${sorted.map(c => this.createCardElement(c)).join('')}</div>`;
                     html += `</div>`;
                 }
             }
         });
 
         container.innerHTML = html;
-
-        // Apply visibility filter (hide sections with no visible cards after filtering)
-        container.querySelectorAll('.section').forEach(section => {
-            const cards = section.querySelectorAll('.card');
-            const hasVisible = cards.length > 0;
-            section.style.display = hasVisible ? '' : 'none';
-        });
     }
 
     _getAllCardsFlat() {
