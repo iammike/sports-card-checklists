@@ -98,7 +98,6 @@ class ChecklistEngine {
             const cardEl = checkbox ? checkbox.closest('.card') : null;
             if (cardEl) cardEl.classList.toggle('owned', nowOwned);
             this.updateStats();
-            this._updateSectionCompletion();
         };
 
         // Render
@@ -994,50 +993,6 @@ class ChecklistEngine {
 
         CollapsibleSections.init({ persist: true, storageKey: `${this.id}-collapsed` });
         this.updateStats();
-        this._updateSectionCompletion();
-    }
-
-    _updateSectionCompletion() {
-        const container = document.getElementById('sections-container');
-        if (!container) return;
-
-        const setCheck = (header, complete) => {
-            const existing = header.querySelector('.section-check');
-            if (complete && !existing) {
-                const check = document.createElement('span');
-                check.className = 'section-check';
-                check.textContent = '\u2713';
-                header.appendChild(check);
-            } else if (!complete && existing) {
-                existing.remove();
-            }
-        };
-
-        container.querySelectorAll('.section-header').forEach(header => {
-            const section = header.closest('.section');
-            const grid = section
-                ? section.querySelector('.card-grid')
-                : null;
-            if (!grid) { setCheck(header, false); return; }
-
-            const cards = grid.querySelectorAll('.card:not(.collection-link-card)');
-            if (cards.length === 0) { setCheck(header, false); return; }
-
-            const allOwned = Array.from(cards).every(c => c.classList.contains('owned'));
-            setCheck(header, allOwned);
-        });
-
-        container.querySelectorAll('.group-header').forEach(groupHeader => {
-            const next = groupHeader.nextElementSibling;
-            const sectionGroup = next && next.classList.contains('section-group') ? next : null;
-            if (!sectionGroup) { setCheck(groupHeader, false); return; }
-
-            const childHeaders = sectionGroup.querySelectorAll('.section-header');
-            if (childHeaders.length === 0) { setCheck(groupHeader, false); return; }
-
-            const allComplete = Array.from(childHeaders).every(h => h.querySelector('.section-check'));
-            setCheck(groupHeader, allComplete);
-        });
     }
 
     _filterCard(card, statusFilter, searchTerm, customFilterValues) {
