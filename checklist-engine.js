@@ -1138,10 +1138,9 @@ class ChecklistEngine {
             const allCards = this._getAllCardsFlat();
             let filtered = allCards.filter(card => this._filterCard(card, statusFilter, searchTerm, customFilterValues));
             const sorted = this.sortCards(filtered, sortBy);
-            const allCardsFlat = this._getAllCardsFlat();
             container.innerHTML = `
                 <div class="section">
-                    ${this._sectionHeaderHtml('All Cards', 'section-header', allCardsFlat)}
+                    ${this._sectionHeaderHtml('All Cards', 'section-header', allCards)}
                     <div class="card-grid">${sorted.map(c => this.createCardElement(c)).join('')}</div>
                 </div>`;
             return;
