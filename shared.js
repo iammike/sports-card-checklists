@@ -1799,11 +1799,10 @@ class ImageEditorModal {
             tempImg.crossOrigin = 'anonymous';
             tempImg.onload = () => {
                 this.setupPerspectiveCanvas(tempImg);
-                // Restore saved corner positions if available
+                // Restore saved corner positions if available (the deferred
+                // rAF in setupPerspectiveCanvas will pick up the restored positions)
                 if (this.savedCornerPositions) {
                     this.cornerPositions = this.savedCornerPositions.map(p => ({ ...p }));
-                    this.updateHandlePositions();
-                    this.drawGuideLines();
                 }
                 this.activeTab = 'corners';
                 this.updateTabUI('corners');
@@ -1856,8 +1855,20 @@ class ImageEditorModal {
             this.makeHandleDraggable(handle, i);
         }
 
-        this.updateHandlePositions();
-        this.drawGuideLines();
+        // Defer position/line updates until CSS layout settles (canvas has
+        // max-width/max-height constraints that aren't applied synchronously)
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            this.updateHandlePositions();
+            this.drawGuideLines();
+        }));
+
+        // Keep handles and guide lines in sync on resize
+        if (this._resizeObserver) this._resizeObserver.disconnect();
+        this._resizeObserver = new ResizeObserver(() => {
+            this.updateHandlePositions();
+            this.drawGuideLines();
+        });
+        this._resizeObserver.observe(this.perspectiveCanvas);
     }
 
     // Reset corner handles to default inset positions
@@ -2005,6 +2016,7 @@ class ImageEditorModal {
 
     // Clean up perspective mode DOM elements
     cleanupPerspective() {
+        if (this._resizeObserver) { this._resizeObserver.disconnect(); this._resizeObserver = null; }
         this.cornerHandles.forEach(h => h.remove());
         this.cornerHandles = [];
         if (this.perspectiveCanvas) { this.perspectiveCanvas.remove(); this.perspectiveCanvas = null; }
