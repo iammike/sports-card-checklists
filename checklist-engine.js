@@ -1250,15 +1250,20 @@ class ChecklistEngine {
                 this.updateStats();
             },
             onSave: async (cardId, cardData, isNew) => {
+                const newId = this.getCardId(cardData);
                 if (isNew) {
                     this._addCard(cardData);
                 } else {
+                    // Transfer owned status if card ID changed (e.g. variant/set/num edit)
+                    if (cardId !== newId && this.checklistManager.isOwned(cardId)) {
+                        this.checklistManager.toggleOwned(cardId, false);
+                        this.checklistManager.toggleOwned(newId, true);
+                    }
                     this._updateCard(cardId, cardData);
                 }
                 this.renderCards();
                 this.updateStats();
                 // Scroll to the card
-                const newId = this.getCardId(cardData);
                 const cardEl = document.querySelector(`.card[data-id="${newId}"]`);
                 if (cardEl) {
                     cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
