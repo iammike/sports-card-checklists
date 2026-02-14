@@ -359,6 +359,9 @@
                 </svg>
                 <span class="nav-brand-text">MIKE'S CARDS</span>
             </a>
+            <button class="nav-hamburger" id="nav-hamburger" aria-label="Menu" aria-expanded="false">
+                <span></span><span></span><span></span>
+            </button>
             <div class="nav-links"></div>
             <div class="nav-auth">
                 <span class="sync-status" id="sync-status"></span>
@@ -565,6 +568,9 @@
             // Render dynamic checklist cards from registry and aggregate stats
             const allStats = await renderDynamicChecklists();
             updateAggregateStats(allStats);
+
+            // Render nav links + hamburger (registry already cached by renderDynamicChecklists)
+            await DynamicNav.init();
 
             // Add "Create New Checklist" to dropdown menu (owner-only)
             if (githubSync.isLoggedIn()) {

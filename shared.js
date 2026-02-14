@@ -3201,13 +3201,74 @@ const DynamicNav = {
         });
     },
 
+    // Check if nav links overflow and toggle compact/hamburger mode
+    _checkOverflow() {
+        const navBar = document.querySelector('.nav-bar');
+        const navLinks = document.querySelector('.nav-links');
+        const hamburger = document.getElementById('nav-hamburger');
+        if (!navBar || !navLinks || !hamburger) return;
+
+        // Close menu before measuring
+        hamburger.classList.remove('open');
+        navLinks.classList.remove('open');
+        hamburger.setAttribute('aria-expanded', 'false');
+
+        // Remove compact mode to measure natural row width
+        navBar.classList.remove('nav-compact');
+
+        // Check if links overflow their container
+        const overflow = navLinks.scrollWidth > navLinks.clientWidth + 1;
+        if (overflow) {
+            navBar.classList.add('nav-compact');
+        }
+    },
+
+    // Set up hamburger menu toggle
+    _initHamburger() {
+        const hamburger = document.getElementById('nav-hamburger');
+        const navLinks = document.querySelector('.nav-links');
+        if (!hamburger || !navLinks) return;
+
+        hamburger.addEventListener('click', () => {
+            const isOpen = hamburger.classList.toggle('open');
+            navLinks.classList.toggle('open');
+            hamburger.setAttribute('aria-expanded', String(isOpen));
+        });
+
+        // Close menu when a nav link is clicked
+        navLinks.addEventListener('click', (e) => {
+            if (e.target.classList.contains('nav-link')) {
+                hamburger.classList.remove('open');
+                navLinks.classList.remove('open');
+                hamburger.setAttribute('aria-expanded', 'false');
+            }
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!hamburger.contains(e.target) && !navLinks.contains(e.target)) {
+                hamburger.classList.remove('open');
+                navLinks.classList.remove('open');
+                hamburger.setAttribute('aria-expanded', 'false');
+            }
+        });
+
+        // Re-check overflow on resize
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => this._checkOverflow(), 100);
+        });
+    },
+
     // Initialize: load registry and update nav
     async init() {
         const registry = await this.loadRegistry();
         if (registry && registry.checklists && registry.checklists.length > 0) {
             this.renderNav(registry);
         }
-        // If no registry, hardcoded nav links stay as fallback
+        this._initHamburger();
+        this._checkOverflow();
     }
 };
 
