@@ -3916,7 +3916,7 @@ class ChecklistCreatorModal {
         this.backdrop.querySelector('#creator-accent-hex').textContent = '#f39c12';
         this.backdrop.querySelector('#creator-dark-theme').checked = false;
         this.backdrop.querySelector('#creator-use-sections').checked = true;
-        this.backdrop.querySelector('#creator-show-player').checked = false;
+        this.backdrop.querySelector('#creator-show-player').checked = true;
         this.backdrop.querySelector('#creator-description').value = '';
 
         // Reset attribute checkboxes to checked
