@@ -482,7 +482,7 @@
             if (!registry || !registry.checklists) return {};
 
             const dynamicEntries = registry.checklists
-                .filter(e => e.type === 'dynamic')
+                .filter(e => e.type === 'dynamic' && !e.hidden)
                 .sort((a, b) => (a.title || a.navLabel).localeCompare(b.title || b.navLabel));
             if (dynamicEntries.length === 0) return {};
 
