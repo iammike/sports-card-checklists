@@ -1448,6 +1448,27 @@ select, input[type="text"] {
     min-width: 0;
 }
 
+.card-editor-header-price {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 0;
+}
+
+.card-editor-header-price label {
+    font-family: 'Barlow', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: #888;
+}
+
+.card-editor-header-price .card-editor-input {
+    width: 60px;
+    padding: 6px 8px !important;
+    font-size: 14px !important;
+    text-align: right;
+}
+
 .card-editor-owned-toggle {
     display: flex;
     align-items: center;

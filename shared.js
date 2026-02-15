@@ -2020,13 +2020,8 @@ class CardEditorModal {
             // fullWidth fields (e.g. variant) are rendered inline in the template grid, not here
             const rowFields = fields.filter(([_, c]) => !c.fullWidth);
 
-            // If no custom attribute fields, render price as a compact grid field
-            if (rowFields.length === 0) {
-                return `<div class="card-editor-field">
-                    <label class="card-editor-label">Price</label>
-                    <input type="text" class="card-editor-input" id="editor-price" placeholder="$" inputmode="numeric">
-                </div>`;
-            }
+            // If no custom attribute fields, price is rendered in the header bar
+            if (rowFields.length === 0) return '';
 
             const innerHtml = rowFields.map(([fieldName, config]) => {
                 const id = `editor-${fieldName}`;
@@ -2044,16 +2039,10 @@ class CardEditorModal {
                     </div>`;
                 }
             }).join('');
-            const priceHtml = `
-                    <div class="card-editor-attr-text card-editor-attr-price">
-                        <label for="editor-price">Price:</label>
-                        <input type="text" class="card-editor-input" id="editor-price" placeholder="$" inputmode="numeric">
-                    </div>`;
             return `<div class="card-editor-field full-width card-editor-attributes">
                 <label class="card-editor-label">Attributes</label>
                 <div class="card-editor-attr-row">
                     ${innerHtml}
-                    ${priceHtml}
                 </div>
             </div>`;
         }
@@ -2180,6 +2169,10 @@ class CardEditorModal {
                     <div class="card-editor-header-left">
                         <h2 class="card-editor-title">EDIT CARD</h2>
                         <div class="card-editor-subtitle">Update card details</div>
+                    </div>
+                    <div class="card-editor-header-price" id="editor-header-price">
+                        <label for="editor-price">$</label>
+                        <input type="text" class="card-editor-input" id="editor-price" placeholder="0" inputmode="numeric">
                     </div>
                     <label class="card-editor-owned-toggle" id="editor-owned-toggle">
                         <input type="checkbox" id="editor-owned">
