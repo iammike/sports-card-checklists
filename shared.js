@@ -2172,7 +2172,7 @@ class CardEditorModal {
                     </div>
                     <div class="card-editor-header-price" id="editor-header-price">
                         <label for="editor-price">$</label>
-                        <input type="text" class="card-editor-input" id="editor-price" placeholder="0" inputmode="numeric">
+                        <input type="text" class="card-editor-input" id="editor-price" placeholder="" inputmode="numeric">
                     </div>
                     <label class="card-editor-owned-toggle" id="editor-owned-toggle">
                         <input type="checkbox" id="editor-owned">
