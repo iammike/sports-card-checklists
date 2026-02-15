@@ -1409,10 +1409,38 @@ class ImageEditorModal {
                 rotateSlider.value = clamped;
                 if (updateInput) rotateInput.value = clamped + '°';
 
-                // Apply total rotation (base + fine)
+                // Apply total rotation (base + fine), then refit canvas to container
                 if (this.cropper) {
+                    const oldCanvas = this.cropper.getCanvasData();
+                    const crop = this.cropper.getCropBoxData();
+                    // Save crop box as proportions of canvas
+                    const rel = {
+                        left: (crop.left - oldCanvas.left) / oldCanvas.width,
+                        top: (crop.top - oldCanvas.top) / oldCanvas.height,
+                        width: crop.width / oldCanvas.width,
+                        height: crop.height / oldCanvas.height
+                    };
                     this.cropper.rotateTo(this.baseRotation + this.fineRotation);
-                    this.cropper.setCropBoxData(this.cropper.getCanvasData());
+                    // Clear crop box so viewMode 1 doesn't prevent canvas from shrinking
+                    this.cropper.clear();
+                    // Refit canvas to container
+                    const container = this.cropper.getContainerData();
+                    const canvas = this.cropper.getCanvasData();
+                    const ratio = Math.min(container.width / canvas.width, container.height / canvas.height);
+                    const w = canvas.width * ratio;
+                    const h = canvas.height * ratio;
+                    const newLeft = (container.width - w) / 2;
+                    const newTop = (container.height - h) / 2;
+                    this.cropper.setCanvasData({ left: newLeft, top: newTop, width: w, height: h });
+                    // Re-enable crop box and restore proportions
+                    this.cropper.crop();
+                    const fitted = this.cropper.getCanvasData();
+                    this.cropper.setCropBoxData({
+                        left: fitted.left + rel.left * fitted.width,
+                        top: fitted.top + rel.top * fitted.height,
+                        width: rel.width * fitted.width,
+                        height: rel.height * fitted.height
+                    });
                 }
             };
             // Store for use in handleToolAction
@@ -1662,7 +1690,10 @@ class ImageEditorModal {
                 const resultCanvas = PerspectiveTransform.transform(this.perspectiveCanvas, srcCorners);
                 imageSrc = resultCanvas ? resultCanvas.toDataURL('image/png') : this.cacheBustedSrc;
             } else {
-                imageSrc = this.cacheBustedSrc;
+                // Use perspective canvas as-is (preserves any previous crop)
+                imageSrc = this.perspectiveCanvas
+                    ? this.perspectiveCanvas.toDataURL('image/png')
+                    : this.cacheBustedSrc;
             }
 
             // Clean up perspective DOM
@@ -1673,7 +1704,7 @@ class ImageEditorModal {
             img.style.display = '';
             img.crossOrigin = 'anonymous';
 
-            // Reset crop rotation state
+            // Reset crop rotation state (crop was baked into perspective image)
             this.baseRotation = 0;
             this.fineRotation = 0;
             if (this.setFineRotation) this.setFineRotation(0);
@@ -1691,8 +1722,11 @@ class ImageEditorModal {
             img.src = imageSrc;
         } else {
             // Crop & Rotate -> Perspective
-            // Destroy Cropper
+            // Get cropped image before destroying cropper
+            let croppedSrc = null;
             if (this.cropper) {
+                const croppedCanvas = this.cropper.getCroppedCanvas();
+                if (croppedCanvas) croppedSrc = croppedCanvas.toDataURL('image/png');
                 this.cropper.destroy();
                 this.cropper = null;
             }
@@ -1701,7 +1735,7 @@ class ImageEditorModal {
             const img = this.backdrop.querySelector('#image-editor-img');
             img.style.display = 'none';
 
-            // Load original image into perspective canvas
+            // Load cropped (or original) image into perspective canvas
             const tempImg = new Image();
             tempImg.crossOrigin = 'anonymous';
             tempImg.onload = () => {
@@ -1718,7 +1752,7 @@ class ImageEditorModal {
             tempImg.onerror = () => {
                 this.switching = false;
             };
-            tempImg.src = this.cacheBustedSrc;
+            tempImg.src = croppedSrc || this.cacheBustedSrc;
         }
     }
 
