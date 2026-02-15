@@ -1411,14 +1411,32 @@ class ImageEditorModal {
 
                 // Apply total rotation (base + fine), then refit canvas to container
                 if (this.cropper) {
+                    const oldCanvas = this.cropper.getCanvasData();
+                    const crop = this.cropper.getCropBoxData();
+                    // Save crop box as proportions of canvas
+                    const rel = {
+                        left: (crop.left - oldCanvas.left) / oldCanvas.width,
+                        top: (crop.top - oldCanvas.top) / oldCanvas.height,
+                        width: crop.width / oldCanvas.width,
+                        height: crop.height / oldCanvas.height
+                    };
                     this.cropper.rotateTo(this.baseRotation + this.fineRotation);
+                    // Refit canvas to container
                     const container = this.cropper.getContainerData();
                     const canvas = this.cropper.getCanvasData();
                     const ratio = Math.min(container.width / canvas.width, container.height / canvas.height);
                     const w = canvas.width * ratio;
                     const h = canvas.height * ratio;
-                    this.cropper.setCanvasData({ left: (container.width - w) / 2, top: (container.height - h) / 2, width: w, height: h });
-                    this.cropper.setCropBoxData(this.cropper.getCanvasData());
+                    const newLeft = (container.width - w) / 2;
+                    const newTop = (container.height - h) / 2;
+                    this.cropper.setCanvasData({ left: newLeft, top: newTop, width: w, height: h });
+                    // Restore crop box proportionally
+                    this.cropper.setCropBoxData({
+                        left: newLeft + rel.left * w,
+                        top: newTop + rel.top * h,
+                        width: rel.width * w,
+                        height: rel.height * h
+                    });
                 }
             };
             // Store for use in handleToolAction
