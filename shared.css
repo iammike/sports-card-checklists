@@ -1437,7 +1437,6 @@ select, input[type="text"] {
 .card-editor-header {
     padding: 20px 24px 16px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    position: relative;
     display: flex;
     align-items: flex-start;
     gap: 12px;
@@ -1475,7 +1474,6 @@ select, input[type="text"] {
     gap: 6px;
     cursor: pointer;
     padding: 6px 0;
-    margin-right: 28px;
     -webkit-user-select: none;
     user-select: none;
 }
@@ -1525,9 +1523,6 @@ select, input[type="text"] {
 }
 
 .card-editor-close {
-    position: absolute;
-    top: 16px;
-    right: 16px;
     width: 32px;
     height: 32px;
     border: none;
@@ -1540,6 +1535,7 @@ select, input[type="text"] {
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
 }
 
 .card-editor-close:hover {
