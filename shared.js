@@ -1701,36 +1701,15 @@ class ImageEditorModal {
             img.style.display = '';
             img.crossOrigin = 'anonymous';
 
-            // Restore or reset crop rotation state
-            const restoreCrop = this.savedCropState && this.cornersAreDefault();
-            if (restoreCrop) {
-                this.baseRotation = this.savedCropState.baseRotation;
-                this.fineRotation = this.savedCropState.fineRotation;
-            } else {
-                this.baseRotation = 0;
-                this.fineRotation = 0;
-            }
-            if (this.setFineRotation) this.setFineRotation(restoreCrop ? this.fineRotation : 0);
+            // Reset crop rotation state (crop was baked into perspective image)
+            this.baseRotation = 0;
+            this.fineRotation = 0;
+            if (this.setFineRotation) this.setFineRotation(0);
 
             img.onload = () => {
                 this.cropper = new Cropper(img, {
                     ...this.cropperOptions,
                     ready: () => {
-                        // Restore rotation and crop box if perspective wasn't changed
-                        if (restoreCrop) {
-                            const saved = this.savedCropState;
-                            if (saved.baseRotation || saved.fineRotation) {
-                                this.cropper.rotateTo(saved.baseRotation + saved.fineRotation);
-                            }
-                            const c = this.cropper.getCanvasData();
-                            this.cropper.setCropBoxData({
-                                left: c.left + saved.relCrop.left * c.width,
-                                top: c.top + saved.relCrop.top * c.height,
-                                width: saved.relCrop.width * c.width,
-                                height: saved.relCrop.height * c.height,
-                            });
-                        }
-                        this.savedCropState = null;
                         this.activeTab = 'crop';
                         this.updateTabUI('crop');
                         this.switching = false;
@@ -1740,20 +1719,11 @@ class ImageEditorModal {
             img.src = imageSrc;
         } else {
             // Crop & Rotate -> Perspective
-            // Save crop state before destroying
+            // Get cropped image before destroying cropper
+            let croppedSrc = null;
             if (this.cropper) {
-                const canvas = this.cropper.getCanvasData();
-                const crop = this.cropper.getCropBoxData();
-                this.savedCropState = {
-                    relCrop: {
-                        left: (crop.left - canvas.left) / canvas.width,
-                        top: (crop.top - canvas.top) / canvas.height,
-                        width: crop.width / canvas.width,
-                        height: crop.height / canvas.height,
-                    },
-                    baseRotation: this.baseRotation,
-                    fineRotation: this.fineRotation,
-                };
+                const croppedCanvas = this.cropper.getCroppedCanvas();
+                if (croppedCanvas) croppedSrc = croppedCanvas.toDataURL('image/png');
                 this.cropper.destroy();
                 this.cropper = null;
             }
@@ -1762,7 +1732,7 @@ class ImageEditorModal {
             const img = this.backdrop.querySelector('#image-editor-img');
             img.style.display = 'none';
 
-            // Load original image into perspective canvas
+            // Load cropped (or original) image into perspective canvas
             const tempImg = new Image();
             tempImg.crossOrigin = 'anonymous';
             tempImg.onload = () => {
@@ -1779,7 +1749,7 @@ class ImageEditorModal {
             tempImg.onerror = () => {
                 this.switching = false;
             };
-            tempImg.src = this.cacheBustedSrc;
+            tempImg.src = croppedSrc || this.cacheBustedSrc;
         }
     }
 
