@@ -1701,15 +1701,30 @@ class ImageEditorModal {
             img.style.display = '';
             img.crossOrigin = 'anonymous';
 
-            // Reset crop rotation state
-            this.baseRotation = 0;
-            this.fineRotation = 0;
-            if (this.setFineRotation) this.setFineRotation(0);
+            // Restore or reset crop rotation state
+            const restoreCrop = this.savedCropState && this.cornersAreDefault();
+            if (restoreCrop) {
+                this.baseRotation = this.savedCropState.baseRotation;
+                this.fineRotation = this.savedCropState.fineRotation;
+            } else {
+                this.baseRotation = 0;
+                this.fineRotation = 0;
+            }
+            if (this.setFineRotation) this.setFineRotation(restoreCrop ? this.fineRotation : 0);
 
             img.onload = () => {
                 this.cropper = new Cropper(img, {
                     ...this.cropperOptions,
                     ready: () => {
+                        // Restore rotation and crop box if perspective wasn't changed
+                        if (restoreCrop) {
+                            const saved = this.savedCropState;
+                            if (saved.baseRotation || saved.fineRotation) {
+                                this.cropper.rotateTo(saved.baseRotation + saved.fineRotation);
+                            }
+                            this.cropper.setCropBoxData(saved.cropBoxData);
+                        }
+                        this.savedCropState = null;
                         this.activeTab = 'crop';
                         this.updateTabUI('crop');
                         this.switching = false;
@@ -1719,8 +1734,14 @@ class ImageEditorModal {
             img.src = imageSrc;
         } else {
             // Crop & Rotate -> Perspective
-            // Destroy Cropper
+            // Save crop state before destroying
             if (this.cropper) {
+                this.savedCropState = {
+                    cropBoxData: this.cropper.getCropBoxData(),
+                    canvasData: this.cropper.getCanvasData(),
+                    baseRotation: this.baseRotation,
+                    fineRotation: this.fineRotation,
+                };
                 this.cropper.destroy();
                 this.cropper = null;
             }
