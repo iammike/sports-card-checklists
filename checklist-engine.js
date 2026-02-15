@@ -251,6 +251,9 @@ class ChecklistEngine {
     }
 
     async _saveCardData() {
+        // Merge with latest gist data to prevent overwriting external changes (#560)
+        await this._mergeWithFreshGistData();
+
         if (this._isFlat()) {
             this.cardData.cards = this.cards;
         } else {
@@ -280,6 +283,50 @@ class ChecklistEngine {
             this._showSaveError('Save failed. Your changes are still in memory - try refreshing and editing again.');
         }
         return result.ok;
+    }
+
+    // Merge local cards with fresh gist data so external field additions aren't lost
+    async _mergeWithFreshGistData() {
+        try {
+            // Clear cache to get truly fresh data
+            githubSync._gistCache = null;
+            githubSync._publicGistCache = null;
+
+            const freshData = await githubSync.loadCardData(this.id)
+                || await githubSync.loadPublicCardData(this.id);
+            if (!freshData) return;
+
+            const freshCards = this._isFlat() ? freshData.cards : freshData.categories;
+            if (!freshCards) return;
+
+            if (this._isFlat()) {
+                this.cards = this._mergeCardArrays(this.cards, freshCards);
+            } else {
+                for (const catId of Object.keys(this.cards)) {
+                    if (freshCards[catId]) {
+                        this.cards[catId] = this._mergeCardArrays(this.cards[catId], freshCards[catId]);
+                    }
+                }
+            }
+        } catch (e) {
+            // Non-fatal: proceed with save using local data if merge fails
+            console.warn('Failed to merge with fresh gist data:', e);
+        }
+    }
+
+    // Merge two card arrays: fresh fields as base, local fields overlay
+    _mergeCardArrays(localCards, freshCards) {
+        const freshMap = new Map();
+        freshCards.forEach(c => freshMap.set(this.getCardId(c), c));
+
+        return localCards.map(localCard => {
+            const id = this.getCardId(localCard);
+            const freshCard = freshMap.get(id);
+            if (!freshCard) return localCard;
+            // Fresh as base preserves externally-added fields,
+            // local overlay preserves user's in-session edits
+            return { ...freshCard, ...localCard };
+        });
     }
 
     _showSaveError(message, actionLabel, actionFn) {
@@ -702,16 +749,10 @@ class ChecklistEngine {
         }
 
         // Card info (set, number, variant)
-        if (card.years) {
-            // Washington QBs style: set + num on one line
-            html += `<div class="card-info"><span class="card-set">${sanitizeText(card.set)}</span> ${sanitizeText(card.num)}</div>`;
-        } else {
-            // Standard style: set title, number + variant, type
-            if (card.set) html += `<div class="card-title">${sanitizeText(card.set)}</div>`;
-            if (card.num || displayVariant) html += `<div class="card-number">${sanitizeText(card.num)} ${sanitizeText(displayVariant)}</div>`;
-            if (displayType) {
-                html += `<div class="card-type">${sanitizeText(displayType)}</div>`;
-            }
+        if (card.set) html += `<div class="card-title">${sanitizeText(card.set)}</div>`;
+        if (card.num || displayVariant) html += `<div class="card-number">${sanitizeText(card.num)} ${sanitizeText(displayVariant)}</div>`;
+        if (displayType) {
+            html += `<div class="card-type">${sanitizeText(displayType)}</div>`;
         }
 
         // Card actions
@@ -1309,8 +1350,7 @@ class ChecklistEngine {
         StatsAnimator.animateStats({
             owned: { el: document.getElementById('owned-count'), value: stats.owned },
             total: { el: document.getElementById('total-count'), value: stats.total },
-            totalValue: { el: document.getElementById('total-value'), value: stats.ownedValue + stats.neededValue },
-            ownedValue: { el: document.getElementById('owned-value'), value: stats.ownedValue },
+            totalValue: { el: document.getElementById('total-value'), value: stats.ownedValue },
             neededValue: { el: document.getElementById('needed-value'), value: stats.neededValue },
         });
     }
