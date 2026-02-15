@@ -397,8 +397,7 @@
                     <div class="aggregate-stat-value highlight" id="agg-value">$0</div>
                     <div class="aggregate-stat-label">Est. Value</div>
                     <div class="aggregate-stat-breakdown">
-                        <span class="owned" id="agg-owned-value">$0 owned</span>
-                        <span class="needed" id="agg-needed-value">$0 needed</span>
+                        <span class="needed" id="agg-needed-value">$0 to complete</span>
                     </div>
                 </div>
             </div>
@@ -453,8 +452,6 @@
             const statsEl = document.getElementById('aggregate-stats');
             statsEl.style.display = 'block';
 
-            const totalValue = totalOwnedValue + totalNeededValue;
-
             if (!hasAnimatedStats) {
                 hasAnimatedStats = true;
                 // Animate the main stats with staggered delays
@@ -465,19 +462,17 @@
                     animateValue(document.getElementById('agg-total'), 0, totalCards, 1200);
                 }, 350);
                 setTimeout(() => {
-                    animateValue(document.getElementById('agg-value'), 0, totalValue, 1400, '$');
+                    animateValue(document.getElementById('agg-value'), 0, totalOwnedValue, 1400, '$');
                 }, 500);
                 setTimeout(() => {
-                    animateValue(document.getElementById('agg-owned-value'), 0, totalOwnedValue, 1000, '$', ' owned');
-                    animateValue(document.getElementById('agg-needed-value'), 0, totalNeededValue, 1000, '$', ' needed');
+                    animateValue(document.getElementById('agg-needed-value'), 0, totalNeededValue, 1000, '$', ' to complete');
                 }, 650);
             } else {
                 // Just update without animation (e.g., when data changes)
                 document.getElementById('agg-owned').textContent = totalOwned;
                 document.getElementById('agg-total').textContent = totalCards;
-                document.getElementById('agg-value').textContent = '$' + totalValue;
-                document.getElementById('agg-owned-value').textContent = '$' + totalOwnedValue + ' owned';
-                document.getElementById('agg-needed-value').textContent = '$' + totalNeededValue + ' needed';
+                document.getElementById('agg-value').textContent = '$' + totalOwnedValue;
+                document.getElementById('agg-needed-value').textContent = '$' + totalNeededValue + ' to complete';
             }
         }
 
@@ -536,7 +531,7 @@
                                     ${stats.owned} of ${stats.total} cards
                                 </div>
                                 <div class="value-line">
-                                    <span class="value-owned">$${stats.ownedValue || 0} owned</span> ·
+                                    <span class="value-owned">$${stats.ownedValue || 0} value</span> ·
                                     <span class="value-needed">$${stats.neededValue || 0} to complete</span>
                                 </div>
                             </div>

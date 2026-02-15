@@ -758,7 +758,7 @@ const StatsAnimator = {
             if (stats.total) stats.total.el.textContent = stats.total.value;
             if (stats.totalValue) stats.totalValue.el.textContent = '$' + stats.totalValue.value;
             if (stats.ownedValue) stats.ownedValue.el.textContent = '$' + stats.ownedValue.value + ' owned';
-            if (stats.neededValue) stats.neededValue.el.textContent = '$' + stats.neededValue.value + ' needed';
+            if (stats.neededValue) stats.neededValue.el.textContent = '$' + stats.neededValue.value + ' to complete';
             return;
         }
 
@@ -774,10 +774,10 @@ const StatsAnimator = {
         if (stats.totalValue) {
             setTimeout(() => this.animateValue(stats.totalValue.el, 0, stats.totalValue.value, 1400, '$'), 400);
         }
-        if (stats.ownedValue && stats.neededValue) {
+        if (stats.neededValue) {
             setTimeout(() => {
-                this.animateValue(stats.ownedValue.el, 0, stats.ownedValue.value, 1000, '$', ' owned');
-                this.animateValue(stats.neededValue.el, 0, stats.neededValue.value, 1000, '$', ' needed');
+                if (stats.ownedValue) this.animateValue(stats.ownedValue.el, 0, stats.ownedValue.value, 1000, '$', ' owned');
+                this.animateValue(stats.neededValue.el, 0, stats.neededValue.value, 1000, '$', ' to complete');
             }, 550);
         }
     },
@@ -2579,8 +2579,8 @@ class CardEditorModal {
         }
     }
 
-    // Process image: fetch, show editor, resize, upload to R2, update field with URL
-    async processImage() {
+    // Process image: fetch, optionally show editor, resize, upload to R2, update field with URL
+    async processImage({ skipEditor = false } = {}) {
         const imgInput = this.backdrop.querySelector('#editor-img');
         const url = imgInput.value.trim();
         const btn = this.backdrop.querySelector('#editor-process-img');
@@ -2604,9 +2604,14 @@ class CardEditorModal {
             const { base64: rawBase64, contentType } = await this.imageProcessor.fetchViaProxy(url);
             const rawDataUrl = `data:${contentType};base64,${rawBase64}`;
 
-            // Show image editor for crop/rotate
-            btn.title = 'Edit image...';
-            const editedDataUrl = await imageEditor.open(rawDataUrl);
+            // Show image editor for crop/rotate (unless skipped for auto-save)
+            let editedDataUrl;
+            if (skipEditor) {
+                editedDataUrl = rawDataUrl;
+            } else {
+                btn.title = 'Edit image...';
+                editedDataUrl = await imageEditor.open(rawDataUrl);
+            }
 
             // User confirmed - now process the edited image
             btn.title = 'Processing...';
@@ -2984,6 +2989,7 @@ class CardEditorModal {
         const imgUrl = this.backdrop.querySelector('#editor-img').value.trim();
 
         // Auto-process image if it's from a supported domain and not yet processed
+        // Skip the editor on save - just fetch, process, and upload directly
         if (this.needsImageProcessing(imgUrl)) {
             const btn = this.backdrop.querySelector('.card-editor-btn.save');
             const originalText = btn.textContent;
@@ -2991,7 +2997,7 @@ class CardEditorModal {
             btn.disabled = true;
 
             try {
-                await this.processImage();
+                await this.processImage({ skipEditor: true });
             } catch (error) {
                 console.error('Auto-process failed:', error);
                 // Continue with save even if processing fails
