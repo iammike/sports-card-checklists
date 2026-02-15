@@ -1451,7 +1451,7 @@ select, input[type="text"] {
     display: flex;
     align-items: center;
     gap: 4px;
-    padding: 2px 0;
+    height: 32px;
 }
 
 .card-editor-header-price label {
@@ -1473,7 +1473,7 @@ select, input[type="text"] {
     align-items: center;
     gap: 6px;
     cursor: pointer;
-    padding: 6px 0;
+    height: 32px;
     -webkit-user-select: none;
     user-select: none;
 }
