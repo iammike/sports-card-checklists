@@ -939,6 +939,11 @@ select, input[type="text"] {
 }
 
 .card-number {
+    font-weight: 400;
+    color: var(--color-text-muted);
+}
+
+.card-variant {
     font-family: 'Barlow', sans-serif;
     font-size: 12px;
     font-weight: 500;
