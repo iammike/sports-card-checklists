@@ -1412,6 +1412,7 @@ class ImageEditorModal {
                 // Apply total rotation (base + fine)
                 if (this.cropper) {
                     this.cropper.rotateTo(this.baseRotation + this.fineRotation);
+                    this.cropper.setCropBoxData(this.cropper.getCanvasData());
                 }
             };
             // Store for use in handleToolAction
