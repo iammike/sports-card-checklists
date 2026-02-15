@@ -512,20 +512,6 @@ class ChecklistManager {
         const clearBtn = document.querySelector('.clear-btn');
         if (clearBtn) clearBtn.style.display = this.isReadOnly ? 'none' : '';
 
-        // Show read-only notice
-        const authBar = document.getElementById('auth-bar');
-        const existingNotice = document.querySelector('.read-only-notice');
-        if (this.isReadOnly && !existingNotice && authBar) {
-            const notice = document.createElement('span');
-            notice.className = 'read-only-notice';
-            notice.textContent = `Viewing ${this.ownerUsername}'s collection`;
-            const rightSection = authBar.querySelector('.right-section');
-            if (rightSection) {
-                authBar.insertBefore(notice, rightSection);
-            }
-        } else if (!this.isReadOnly && existingNotice) {
-            existingNotice.remove();
-        }
     }
 
     // Clear all owned cards (with confirmation)
@@ -1994,8 +1980,6 @@ class CardEditorModal {
         // Types: 'text', 'select', 'checkbox'
         // For select: options is array of { value, label } or just strings
         this.customFields = options.customFields || {};
-        // priceInAttributes is now always true - price renders in the compact attributes row
-        this.priceInAttributes = true;
     }
 
     // Generate eBay search term from card data
