@@ -1690,7 +1690,10 @@ class ImageEditorModal {
                 const resultCanvas = PerspectiveTransform.transform(this.perspectiveCanvas, srcCorners);
                 imageSrc = resultCanvas ? resultCanvas.toDataURL('image/png') : this.cacheBustedSrc;
             } else {
-                imageSrc = this.cacheBustedSrc;
+                // Use perspective canvas as-is (preserves any previous crop)
+                imageSrc = this.perspectiveCanvas
+                    ? this.perspectiveCanvas.toDataURL('image/png')
+                    : this.cacheBustedSrc;
             }
 
             // Clean up perspective DOM
