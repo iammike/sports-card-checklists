@@ -1409,9 +1409,15 @@ class ImageEditorModal {
                 rotateSlider.value = clamped;
                 if (updateInput) rotateInput.value = clamped + '°';
 
-                // Apply total rotation (base + fine)
+                // Apply total rotation (base + fine), then refit canvas to container
                 if (this.cropper) {
                     this.cropper.rotateTo(this.baseRotation + this.fineRotation);
+                    const container = this.cropper.getContainerData();
+                    const canvas = this.cropper.getCanvasData();
+                    const ratio = Math.min(container.width / canvas.width, container.height / canvas.height);
+                    const w = canvas.width * ratio;
+                    const h = canvas.height * ratio;
+                    this.cropper.setCanvasData({ left: (container.width - w) / 2, top: (container.height - h) / 2, width: w, height: h });
                     this.cropper.setCropBoxData(this.cropper.getCanvasData());
                 }
             };
