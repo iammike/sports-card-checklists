@@ -1937,14 +1937,20 @@ select, input[type="text"] {
     to { transform: rotate(360deg); }
 }
 
-/* Edit button - below preview, full width */
+/* Image actions row - below preview */
+.card-editor-image-actions {
+    display: none;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+/* Edit button */
 .card-editor-edit-btn {
     display: none;
+    flex: 1;
     align-items: center;
     justify-content: center;
-    width: 100%;
     padding: 8px 16px;
-    margin-top: 8px;
     background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
     border: none;
     border-radius: 4px;
@@ -1956,6 +1962,31 @@ select, input[type="text"] {
     cursor: pointer;
     transition: all 0.2s;
     white-space: nowrap;
+}
+
+/* Remove button */
+.card-editor-remove-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #e94343 0%, #f95c38 100%);
+    border: none;
+    border-radius: 4px;
+    color: #fff;
+    font-family: 'Barlow', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.card-editor-remove-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(233, 67, 67, 0.4);
 }
 
 .card-editor-edit-btn:hover {

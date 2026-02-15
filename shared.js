@@ -2258,10 +2258,13 @@ class CardEditorModal {
                             <div class="card-editor-image-preview" id="editor-img-dropzone">
                                 <span class="placeholder">No image</span>
                             </div>
-                            <button type="button" class="card-editor-edit-btn" id="editor-edit-img" title="Edit existing image" style="display: none;">
-                                <span class="edit-text">Edit</span>
-                                <span class="edit-spinner"></span>
-                            </button>
+                            <div class="card-editor-image-actions" id="editor-image-actions" style="display: none;">
+                                <button type="button" class="card-editor-edit-btn" id="editor-edit-img" title="Edit existing image">
+                                    <span class="edit-text">Edit</span>
+                                    <span class="edit-spinner"></span>
+                                </button>
+                                <button type="button" class="card-editor-remove-btn" id="editor-remove-img" title="Remove image">Remove</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2364,7 +2367,7 @@ class CardEditorModal {
         this.backdrop.querySelector('#editor-img').oninput = (e) => {
             this.updateImagePreview(e.target.value);
             this.updateProcessButton(e.target.value);
-            this.updateEditButton(e.target.value);
+            this.updateImageActions(e.target.value);
         };
 
         // Process image button
@@ -2372,6 +2375,9 @@ class CardEditorModal {
 
         // Edit existing image button
         this.backdrop.querySelector('#editor-edit-img').onclick = () => this.editExistingImage();
+
+        // Remove image button
+        this.backdrop.querySelector('#editor-remove-img').onclick = () => this.removeImage();
 
         // Upload zone click
         this.backdrop.querySelector('#editor-upload-zone').onclick = () => {
@@ -2467,13 +2473,30 @@ class CardEditorModal {
         btn.style.display = isEbay ? 'flex' : 'none';
     }
 
-    // Update edit button visibility based on URL (show for local or R2 images)
-    updateEditButton(url) {
-        const btn = this.backdrop.querySelector('#editor-edit-img');
-        if (!btn) return;
+    // Update image actions row visibility (show for any image, edit only for R2/local)
+    updateImageActions(url) {
+        const actionsRow = this.backdrop.querySelector('#editor-image-actions');
+        const editBtn = this.backdrop.querySelector('#editor-edit-img');
+        if (!actionsRow) return;
 
-        const isEditable = url && (url.startsWith(this.imageFolder) || url.startsWith(R2_IMAGE_BASE));
-        btn.style.display = isEditable ? 'flex' : 'none';
+        const hasImage = url && url.trim() !== '';
+        actionsRow.style.display = hasImage ? 'flex' : 'none';
+
+        if (editBtn) {
+            const isEditable = hasImage && (url.startsWith(this.imageFolder) || url.startsWith(R2_IMAGE_BASE));
+            editBtn.style.display = isEditable ? 'flex' : 'none';
+        }
+    }
+
+    // Remove image from card
+    removeImage() {
+        if (!confirm('Remove this image?')) return;
+
+        const imgInput = this.backdrop.querySelector('#editor-img');
+        imgInput.value = '';
+        this.updateImagePreview('');
+        this.updateImageActions('');
+        this.setDirty(true);
     }
 
     // Reset image tabs to "Paste URL"
@@ -2546,7 +2569,7 @@ class CardEditorModal {
             imgInput.value = r2Url;
             this.updateImagePreview(`data:image/webp;base64,${base64Data}`);
             this.updateProcessButton(r2Url);
-            this.updateEditButton(r2Url);
+            this.updateImageActions(r2Url);
             this.setDirty(true);
 
             btn.title = 'Done! Image uploaded';
@@ -2630,7 +2653,7 @@ class CardEditorModal {
             imgInput.value = r2Url;
             this.updateImagePreview(`data:image/webp;base64,${base64Content}`);
             this.updateProcessButton(r2Url);
-            this.updateEditButton(r2Url);
+            this.updateImageActions(r2Url);
             this.setDirty(true);
 
             btn.title = 'Done! Image uploaded';
@@ -2712,7 +2735,7 @@ class CardEditorModal {
             imgInput.value = r2Url;
             this.updateImagePreview(`data:image/webp;base64,${base64Content}`);
             this.updateProcessButton(r2Url);
-            this.updateEditButton(r2Url);
+            this.updateImageActions(r2Url);
             this.setDirty(true);
 
             // Clear file input for future uploads
@@ -2784,7 +2807,7 @@ class CardEditorModal {
 
         this.updateImagePreview(cardData.img);
         this.updateProcessButton(cardData.img);
-        this.updateEditButton(cardData.img);
+        this.updateImageActions(cardData.img);
         this.setDirty(false);
         this.ebayManuallyEdited = false;
 
@@ -2838,7 +2861,7 @@ class CardEditorModal {
         }
         this.updateImagePreview('');
         this.updateProcessButton('');
-        this.updateEditButton('');
+        this.updateImageActions('');
         this.setDirty(false);
         this.ebayManuallyEdited = false;
 
