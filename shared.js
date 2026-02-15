@@ -1421,6 +1421,8 @@ class ImageEditorModal {
                         height: crop.height / oldCanvas.height
                     };
                     this.cropper.rotateTo(this.baseRotation + this.fineRotation);
+                    // Clear crop box so viewMode 1 doesn't prevent canvas from shrinking
+                    this.cropper.clear();
                     // Refit canvas to container
                     const container = this.cropper.getContainerData();
                     const canvas = this.cropper.getCanvasData();
@@ -1430,12 +1432,14 @@ class ImageEditorModal {
                     const newLeft = (container.width - w) / 2;
                     const newTop = (container.height - h) / 2;
                     this.cropper.setCanvasData({ left: newLeft, top: newTop, width: w, height: h });
-                    // Restore crop box proportionally
+                    // Re-enable crop box and restore proportions
+                    this.cropper.crop();
+                    const fitted = this.cropper.getCanvasData();
                     this.cropper.setCropBoxData({
-                        left: newLeft + rel.left * w,
-                        top: newTop + rel.top * h,
-                        width: rel.width * w,
-                        height: rel.height * h
+                        left: fitted.left + rel.left * fitted.width,
+                        top: fitted.top + rel.top * fitted.height,
+                        width: rel.width * fitted.width,
+                        height: rel.height * fitted.height
                     });
                 }
             };
