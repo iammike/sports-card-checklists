@@ -3231,7 +3231,7 @@ const DynamicNav = {
         if (!navLinks) return;
 
         const dynamicEntries = registry.checklists
-            .filter(e => e.type === 'dynamic')
+            .filter(e => e.type === 'dynamic' && !e.hidden)
             .sort((a, b) => (a.navLabel || a.title).localeCompare(b.navLabel || b.title));
 
         // Remove any previously added dynamic links
