@@ -3197,15 +3197,6 @@ select, input[type="text"] {
 }
 
 
-/* Player info styles (used by dynamic checklists) */
-.player-years {
-    font-size: 0.75em;
-    color: #888;
-}
-.player-record {
-    font-size: 0.7em;
-    color: #aaa;
-}
 
 /* Intro text block (used by dynamic checklists) */
 .intro-text {

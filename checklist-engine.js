@@ -738,16 +738,6 @@ class ChecklistEngine {
             });
         }
 
-        // Player years + record (Washington QBs style - legacy)
-        if (card.years) {
-            html += `<div class="player-years">${sanitizeText(card.years)}`;
-            if (card.record) html += ` &bull; ${sanitizeText(card.record)}`;
-            html += `</div>`;
-        }
-        if (card.playoff && card.playoff !== '-') {
-            html += `<div class="player-record">Playoffs: ${sanitizeText(card.playoff)}</div>`;
-        }
-
         // Card info (set, number, variant)
         if (card.set) html += `<div class="card-title">${sanitizeText(card.set)}</div>`;
         if (card.num || displayVariant) html += `<div class="card-number">${sanitizeText(card.num)} ${sanitizeText(displayVariant)}</div>`;
@@ -797,7 +787,6 @@ class ChecklistEngine {
                 ${imageHtml}
             </div>
             <div class="player-name">${sanitizeText(card.player)}</div>
-            ${card.years ? `<div class="player-years">${sanitizeText(card.years)} &bull; ${sanitizeText(card.record || '')}</div>` : ''}
             <a href="${link}" class="collection-cta">View Full Collection</a>
         </div>`;
     }
@@ -997,26 +986,29 @@ class ChecklistEngine {
         return sorted;
     }
 
+    _parseRecord(card) {
+        if (!card.record || card.record === '-') return null;
+        const clean = card.record.split(/\s*·/)[0].trim();
+        const parts = clean.split('-');
+        if (parts.length < 2) return null;
+        return { wins: parseInt(parts[0]) || 0, losses: parseInt(parts[1]) || 0 };
+    }
+
     _getWinPct(card) {
-        if (!card.record || card.record === '-') return 0;
-        const parts = card.record.split('-');
-        if (parts.length < 2) return 0;
-        const wins = parseInt(parts[0]) || 0;
-        const losses = parseInt(parts[1]) || 0;
-        const total = wins + losses;
-        return total > 0 ? wins / total : 0;
+        const r = this._parseRecord(card);
+        if (!r) return 0;
+        const total = r.wins + r.losses;
+        return total > 0 ? r.wins / total : 0;
     }
 
     _getWins(card) {
-        if (!card.record || card.record === '-') return 0;
-        return parseInt(card.record.split('-')[0]) || 0;
+        const r = this._parseRecord(card);
+        return r ? r.wins : 0;
     }
 
     _getGamesPlayed(card) {
-        if (!card.record || card.record === '-') return 0;
-        const parts = card.record.split('-');
-        if (parts.length < 2) return 0;
-        return (parseInt(parts[0]) || 0) + (parseInt(parts[1]) || 0);
+        const r = this._parseRecord(card);
+        return r ? r.wins + r.losses : 0;
     }
 
     // ========================================
