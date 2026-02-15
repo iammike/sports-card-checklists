@@ -561,16 +561,6 @@ h1 {
     white-space: nowrap;
 }
 
-.read-only-notice {
-    font-family: 'Barlow', sans-serif;
-    background: rgba(255, 182, 18, 0.2);
-    color: #FFB612;
-    padding: 8px 12px;
-    border-radius: var(--radius-md);
-    font-size: 0.85em;
-    font-weight: 500;
-    margin-right: auto;
-}
 
 /* ============================================
    Stats Section (Scoreboard Style)
@@ -631,7 +621,6 @@ h1 {
     margin-top: 6px;
 }
 
-.stat-breakdown .owned-value { color: var(--color-success); }
 .stat-breakdown .needed-value { color: var(--color-warning); }
 
 /* ============================================
@@ -1251,7 +1240,6 @@ select, input[type="text"] {
 @media print {
     .card { break-inside: avoid; }
     .search-link { display: none; }
-    .auth-bar { display: none; }
     .filters { display: none; }
     .clear-btn { display: none; }
     body { background: white; }
@@ -3217,14 +3205,6 @@ select, input[type="text"] {
 .player-record {
     font-size: 0.7em;
     color: #aaa;
-}
-.card-info {
-    font-size: 0.75em;
-    color: #bbb;
-    margin: 6px 0;
-}
-.card-set {
-    color: var(--color-accent-text, var(--color-accent, #f39c12));
 }
 
 /* Intro text block (used by dynamic checklists) */
