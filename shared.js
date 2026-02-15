@@ -2019,6 +2019,14 @@ class CardEditorModal {
             // fullWidth fields (e.g. variant) are rendered inline in the template grid, not here
             const rowFields = fields.filter(([_, c]) => !c.fullWidth);
 
+            // If no custom attribute fields, render price as a compact grid field
+            if (rowFields.length === 0) {
+                return `<div class="card-editor-field">
+                    <label class="card-editor-label">Price</label>
+                    <input type="text" class="card-editor-input" id="editor-price" placeholder="$" inputmode="numeric">
+                </div>`;
+            }
+
             const innerHtml = rowFields.map(([fieldName, config]) => {
                 const id = `editor-${fieldName}`;
                 if (config.type === 'checkbox') {
