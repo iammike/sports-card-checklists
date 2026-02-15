@@ -739,8 +739,12 @@ class ChecklistEngine {
         }
 
         // Card info (set, number, variant)
-        if (card.set) html += `<div class="card-title">${sanitizeText(card.set)}</div>`;
-        if (card.num || displayVariant) html += `<div class="card-number">${sanitizeText(card.num)} ${sanitizeText(displayVariant)}</div>`;
+        if (card.set) {
+            let titleHtml = sanitizeText(card.set);
+            if (card.num) titleHtml += ` <span class="card-number">${sanitizeText(card.num)}</span>`;
+            html += `<div class="card-title">${titleHtml}</div>`;
+        }
+        if (displayVariant) html += `<div class="card-variant">${sanitizeText(displayVariant)}</div>`;
         if (displayType) {
             html += `<div class="card-type">${sanitizeText(displayType)}</div>`;
         }
