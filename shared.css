@@ -1756,7 +1756,7 @@ select, input[type="text"] {
     white-space: nowrap;
 }
 
-.card-editor-attr-text .card-editor-input {
+.card-editor-modal .card-editor-attr-text .card-editor-input {
     width: 60px;
     padding: 8px 10px !important;
     font-size: 13px !important;
