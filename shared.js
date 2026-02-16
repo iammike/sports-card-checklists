@@ -2045,7 +2045,9 @@ class CardEditorModal {
     // position: 'top' (before set), 'after-num' (after card number), 'attributes' (horizontal row), 'bottom' (after attributes)
     generateCustomFieldsHtml(position = 'top') {
         const fields = Object.entries(this.customFields)
-            .filter(([_, config]) => (config.position || 'top') === position);
+            .filter(([key, config]) => (config.position || 'top') === position)
+            .filter(([key]) => !(key === 'player' && position === 'top' && this.customFields.position?.position === 'after-num'))
+            .filter(([key]) => !(key === 'position' && position === 'after-num' && this.customFields.player));
 
         if (fields.length === 0 && position !== 'attributes') return '';
 
@@ -2123,6 +2125,39 @@ class CardEditorModal {
         }
 
         return fieldHtml;
+    }
+
+    // Render top fields, pulling position out of after-num to sit next to player name
+    _generateTopFieldsWithPosition() {
+        const hasPosition = this.customFields.position && (this.customFields.position.position === 'after-num');
+        if (!hasPosition) return this.generateCustomFieldsHtml('top');
+
+        // Render top fields except player, then player + position as a row
+        const topFields = Object.entries(this.customFields)
+            .filter(([key, c]) => (c.position || 'top') === 'top' && key !== 'player');
+        const hasPlayer = !!this.customFields.player;
+
+        let html = '';
+        if (hasPlayer) {
+            html += `<div class="card-editor-field">
+                <label class="card-editor-label">Player Name</label>
+                <input type="text" class="card-editor-input" id="editor-player" placeholder="">
+            </div>`;
+            html += `<div class="card-editor-field">
+                <label class="card-editor-label">Position</label>
+                <input type="text" class="card-editor-input" id="editor-position" placeholder="QB">
+            </div>`;
+        }
+        // Render remaining top fields
+        for (const [fieldName, config] of topFields) {
+            const id = `editor-${fieldName}`;
+            const fullWidth = config.fullWidth ? ' full-width' : '';
+            html += `<div class="card-editor-field${fullWidth}">
+                <label class="card-editor-label">${config.label}</label>
+                <input type="text" class="card-editor-input" id="${id}" placeholder="${config.placeholder || ''}">
+            </div>`;
+        }
+        return html;
     }
 
     // Populate custom fields from card data
@@ -2216,7 +2251,7 @@ class CardEditorModal {
                 </div>
                 <div class="card-editor-body">
                     <div class="card-editor-grid">
-                        ${this.generateCustomFieldsHtml('top')}
+                        ${this._generateTopFieldsWithPosition()}
                         <div class="card-editor-field">
                             <label class="card-editor-label">Set Name</label>
                             <input type="text" class="card-editor-input" id="editor-set" placeholder="2024 Panini Prizm">
