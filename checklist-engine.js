@@ -1369,6 +1369,15 @@ class ChecklistEngine {
         const categories = this.config.categories || [];
         const customFields = this.config.customFields || {};
 
+        // Normalize: position field should be next to player name (top), not after-num
+        if (customFields.position?.position === 'after-num') {
+            customFields.position = { ...customFields.position, position: undefined };
+        }
+        // When position field exists alongside player, player shouldn't be full-width
+        if (customFields.position && customFields.player?.fullWidth) {
+            customFields.player = { ...customFields.player, fullWidth: false };
+        }
+
         // Build categories list for dropdown (with optgroup for subcategories)
         let editorCategories;
         if (this._isFlat()) {
