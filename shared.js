@@ -1124,7 +1124,8 @@ class ImageProcessor {
 
         // Create filename, sanitize for filesystem
         const name = parts.join('_').replace(/[^a-z0-9_-]/g, '');
-        return `${name}.webp`;
+        // Fall back to timestamp if all card fields are empty
+        return `${name || Date.now().toString(36)}.webp`;
     }
 
     // Full pipeline: fetch, process, return base64 content (for committing)
@@ -2670,7 +2671,6 @@ class CardEditorModal {
             // Get card data from form to generate filename
             const cardData = {
                 set: this.backdrop.querySelector('#editor-set')?.value || '',
-                name: this.backdrop.querySelector('#editor-name')?.value || '',
                 num: this.backdrop.querySelector('#editor-num')?.value || ''
             };
 
@@ -2753,7 +2753,6 @@ class CardEditorModal {
             // Get card data from form to generate filename
             const cardData = {
                 set: this.backdrop.querySelector('#editor-set')?.value || '',
-                name: this.backdrop.querySelector('#editor-name')?.value || '',
                 num: this.backdrop.querySelector('#editor-num')?.value || ''
             };
 
