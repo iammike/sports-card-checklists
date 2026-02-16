@@ -498,7 +498,8 @@ class ChecklistEngine {
                 border-color: ${accent};
             }
             .player-name { color: ${linkColor}; font-size: 14px; font-weight: bold; margin-bottom: 4px; }
-            .player-position { font-weight: normal; opacity: 0.6; font-size: 12px; }
+            .player-position { font-size: 10px; font-weight: 400; opacity: 0.3; margin-left: 4px; letter-spacing: 0.5px; }
+            .player-position::before { content: '·'; margin-right: 3px; opacity: 0.5; }
             .group-header {
                 border-bottom-color: ${accent};
             }
