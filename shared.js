@@ -854,6 +854,10 @@ class CardContextMenu {
             const card = e.target.closest('.card');
             if (!card) return;
 
+            // Let browser handle right-click on non-image links (copy link, open in new tab)
+            const link = e.target.closest('a');
+            if (link && !link.querySelector('img.card-image')) return;
+
             // Non-owners only get menu if card has an image
             const isOwner = this.checklistManager?.isOwner();
             if (!isOwner && !card.querySelector('img.card-image')) return;
