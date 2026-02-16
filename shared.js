@@ -3438,6 +3438,10 @@ class ChecklistCreatorModal {
                                 <input type="checkbox" id="creator-show-player">
                                 <span>Show player name on cards</span>
                             </label>
+                            <label class="card-editor-checkbox" title="Show a position field on each card (e.g. QB, DE, HC). Requires player name to be enabled.">
+                                <input type="checkbox" id="creator-show-position">
+                                <span>Show position on cards</span>
+                            </label>
                         </div>
                         <div class="card-editor-field">
                             <label class="card-editor-label" title="Extra sort options available in the sort dropdown on the checklist page">Additional Sorts</label>
@@ -4050,6 +4054,7 @@ class ChecklistCreatorModal {
         this.backdrop.querySelector('#creator-dark-theme').checked = false;
         this.backdrop.querySelector('#creator-use-sections').checked = true;
         this.backdrop.querySelector('#creator-show-player').checked = true;
+        this.backdrop.querySelector('#creator-show-position').checked = false;
         this.backdrop.querySelector('#creator-description').value = '';
 
         // Reset attribute checkboxes to checked
@@ -4090,6 +4095,7 @@ class ChecklistCreatorModal {
         this.backdrop.querySelector('#creator-dark-theme').checked = config.theme?.darkTheme || false;
         this.backdrop.querySelector('#creator-use-sections').checked = config.dataShape !== 'flat';
         this.backdrop.querySelector('#creator-show-player').checked = config.cardDisplay?.showPlayerName !== false;
+        this.backdrop.querySelector('#creator-show-position').checked = config.cardDisplay?.showPosition || !!config.customFields?.position;
         this.backdrop.querySelector('#creator-description').value = config.indexCard?.description || '';
 
         // Categories as rows
@@ -4187,9 +4193,11 @@ class ChecklistCreatorModal {
         config.dataShape = dataShape;
         const midThreshold = parseInt(this.backdrop.querySelector('#creator-threshold-mid').value) || 3;
         const highThreshold = parseInt(this.backdrop.querySelector('#creator-threshold-high').value) || 10;
+        const showPosition = this.backdrop.querySelector('#creator-show-position').checked;
         config.cardDisplay = {
             ...(config.cardDisplay || {}),
             showPlayerName: this.backdrop.querySelector('#creator-show-player').checked,
+            showPosition: showPosition || undefined,
             priceThresholds: { mid: midThreshold, high: highThreshold },
         };
 
@@ -4202,6 +4210,11 @@ class ChecklistCreatorModal {
             config.cardDisplay.includePlayerInCardId = true;
         } else {
             delete config.cardDisplay.includePlayerInCardId;
+        }
+
+        // Position field (if showing position)
+        if (showPosition) {
+            customFields.position = { label: 'Position', type: 'text', position: 'after-num' };
         }
 
         // Subtitle lines
