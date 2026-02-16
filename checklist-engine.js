@@ -498,6 +498,7 @@ class ChecklistEngine {
                 border-color: ${accent};
             }
             .player-name { color: ${linkColor}; font-size: 14px; font-weight: bold; margin-bottom: 4px; }
+            .player-position { font-weight: normal; opacity: 0.6; font-size: 12px; }
             .group-header {
                 border-bottom-color: ${accent};
             }
@@ -719,9 +720,10 @@ class ChecklistEngine {
         html += CardRenderer.renderCardImage(card.img, card.set, searchUrl);
         html += `</div>`;
 
-        // Player name (JMU, Washington QBs)
+        // Player name (JMU, Washington QBs) with optional position
         if (showPlayer) {
-            html += `<div class="player-name">${sanitizeText(card.player)}</div>`;
+            const posHtml = card.position ? ` <span class="player-position">${sanitizeText(card.position)}</span>` : '';
+            html += `<div class="player-name">${sanitizeText(card.player)}${posHtml}</div>`;
         }
 
         // Custom subtitle lines (config-driven)
