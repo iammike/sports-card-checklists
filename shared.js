@@ -4215,15 +4215,15 @@ class ChecklistCreatorModal {
 
         // Player field (if showing player names)
         if (config.cardDisplay.showPlayerName) {
-            customFields.player = { label: 'Player Name', type: 'text', fullWidth: true };
+            customFields.player = { label: 'Player Name', type: 'text', fullWidth: !showPosition };
             config.cardDisplay.includePlayerInCardId = true;
         } else {
             delete config.cardDisplay.includePlayerInCardId;
         }
 
-        // Position field (if showing position)
+        // Position field (next to player name)
         if (showPosition) {
-            customFields.position = { label: 'Position', type: 'text', position: 'after-num' };
+            customFields.position = { label: 'Position', type: 'text' };
         }
 
         // Subtitle lines
