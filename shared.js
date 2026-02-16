@@ -3525,6 +3525,16 @@ class ChecklistCreatorModal {
             backdrop.querySelector('#creator-accent-hex').textContent = e.target.value;
         });
 
+        // Position requires player name
+        const playerCheck = backdrop.querySelector('#creator-show-player');
+        const posCheck = backdrop.querySelector('#creator-show-position');
+        const syncPos = () => {
+            posCheck.disabled = !playerCheck.checked;
+            if (!playerCheck.checked) posCheck.checked = false;
+        };
+        playerCheck.addEventListener('change', syncPos);
+        syncPos();
+
         // Update green hint when mid threshold changes
         // Price threshold validation
         const validateThreshold = (input, fallback) => {
@@ -4055,6 +4065,7 @@ class ChecklistCreatorModal {
         this.backdrop.querySelector('#creator-use-sections').checked = true;
         this.backdrop.querySelector('#creator-show-player').checked = true;
         this.backdrop.querySelector('#creator-show-position').checked = false;
+        this.backdrop.querySelector('#creator-show-player').dispatchEvent(new Event('change'));
         this.backdrop.querySelector('#creator-description').value = '';
 
         // Reset attribute checkboxes to checked
@@ -4096,6 +4107,7 @@ class ChecklistCreatorModal {
         this.backdrop.querySelector('#creator-use-sections').checked = config.dataShape !== 'flat';
         this.backdrop.querySelector('#creator-show-player').checked = config.cardDisplay?.showPlayerName !== false;
         this.backdrop.querySelector('#creator-show-position').checked = config.cardDisplay?.showPosition || !!config.customFields?.position;
+        this.backdrop.querySelector('#creator-show-player').dispatchEvent(new Event('change'));
         this.backdrop.querySelector('#creator-description').value = config.indexCard?.description || '';
 
         // Categories as rows
