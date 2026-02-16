@@ -6,28 +6,12 @@ A modern web app for tracking sports card collections with cloud sync, real-time
 
 ![JavaScript](https://img.shields.io/badge/JavaScript-Vanilla-yellow) ![GitHub Pages](https://img.shields.io/badge/Hosted-GitHub%20Pages-blue) ![Cloudflare](https://img.shields.io/badge/Auth-Cloudflare%20Workers-orange)
 
-<table>
-<tr>
-<td width="50%">
-<p align="center"><strong>Card Editor</strong></p>
-<img src="docs/screenshots/card-editor.png" alt="Card editor modal with custom fields" width="100%">
-</td>
-<td width="50%">
-<p align="center"><strong>Checklist Configuration</strong></p>
-<img src="docs/screenshots/checklist-config.png" alt="Checklist configuration with themes and sections" width="100%">
-</td>
-</tr>
-<tr>
-<td>
-<p align="center"><strong>Image Editor - Crop & Rotate</strong></p>
-<img src="docs/screenshots/image-editor-crop.png" alt="Image editor with crop and rotate controls" width="100%">
-</td>
-<td>
-<p align="center"><strong>Image Editor - Perspective Correction</strong></p>
-<img src="docs/screenshots/image-editor-perspective.png" alt="Image editor with perspective correction" width="100%">
-</td>
-</tr>
-</table>
+<p>
+<a href="docs/screenshots/card-editor.png"><img src="docs/screenshots/card-editor.png" alt="Card editor" width="140"></a>
+<a href="docs/screenshots/checklist-config.png"><img src="docs/screenshots/checklist-config.png" alt="Checklist configuration" width="140"></a>
+<a href="docs/screenshots/image-editor-crop.png"><img src="docs/screenshots/image-editor-crop.png" alt="Image editor - crop and rotate" width="200"></a>
+<a href="docs/screenshots/image-editor-perspective.png"><img src="docs/screenshots/image-editor-perspective.png" alt="Image editor - perspective correction" width="200"></a>
+</p>
 
 ## Features
 
@@ -70,7 +54,7 @@ A modern web app for tracking sports card collections with cloud sync, real-time
 - **Edit existing images** - Re-edit previously saved images with one click
 - **Cloudflare R2 storage** - Images uploaded instantly, no git involvement
 
-### Checklist Configuration
+### Checklist Configuration (Owner Only)
 - **Create from UI** - Set up new checklists with title, description, theme, and structure
 - **Theme customization** - Primary/accent colors and dark mode toggle
 - **Section management** - Organize cards into collapsible, color-coded sections
