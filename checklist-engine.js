@@ -1377,6 +1377,14 @@ class ChecklistEngine {
         if (customFields.position && customFields.player?.fullWidth) {
             customFields.player = { ...customFields.player, fullWidth: false };
         }
+        // When no position field, player should be full-width (nothing to pair with)
+        if (!customFields.position && customFields.player && !customFields.player.fullWidth) {
+            customFields.player = { ...customFields.player, fullWidth: true };
+        }
+        // Position field should always be narrow for proper row pairing
+        if (customFields.position && !customFields.position.narrow) {
+            customFields.position = { ...customFields.position, narrow: true };
+        }
 
         // Build categories list for dropdown (with optgroup for subcategories)
         let editorCategories;
