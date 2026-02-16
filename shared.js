@@ -2008,7 +2008,6 @@ class CardEditorModal {
         this.backdrop = null;
         this.isNewCard = false;
         this.imageProcessor = new ImageProcessor();
-        this.ebayManuallyEdited = false; // Track if user manually edited eBay search term
         this._initialOwned = false; // Track initial owned state to detect changes
 
         // Schema-driven custom fields
@@ -2456,9 +2455,7 @@ class CardEditorModal {
             advancedToggle.textContent = isHidden ? 'Hide advanced' : 'Advanced';
         };
 
-        // Track manual edits to eBay search term
         this.backdrop.querySelector('#editor-ebay').oninput = () => {
-            this.ebayManuallyEdited = true;
             this.setDirty(true);
         };
 
@@ -2945,7 +2942,6 @@ class CardEditorModal {
         this.updateProcessButton(cardData.img);
         this.updateImageActions(cardData.img);
         this.setDirty(false);
-        this.ebayManuallyEdited = false;
 
         // Set owned toggle
         const owned = this.isOwned(cardId);
@@ -2999,7 +2995,6 @@ class CardEditorModal {
         this.updateProcessButton('');
         this.updateImageActions('');
         this.setDirty(false);
-        this.ebayManuallyEdited = false;
 
         // Default owned to unchecked for new cards
         this._initialOwned = false;
@@ -3149,23 +3144,11 @@ class CardEditorModal {
 
         const data = this.getFormData();
 
-        // Check if set or num changed and eBay search wasn't manually edited
-        if (!this.ebayManuallyEdited && this.currentCard) {
-            const setChanged = data.set !== (this.currentCard.set || '');
-            const numChanged = data.num !== (this.currentCard.num || '').replace(/^#/, '');
-
-            if (setChanged || numChanged) {
-                // Regenerate search term
-                const variant = data.variant || this.currentCard.variant;
-                data.search = this.generateSearchTerm(data.set, data.num, variant, data.player);
-                // Clear any custom ebay field since we're regenerating
-                delete data.ebay;
-            }
-        }
-
-        // Auto-generate search term if ebay field is empty
-        if (!data.ebay) {
-            data.search = this.generateSearchTerm(data.set, data.num, data.variant, data.player);
+        // If user manually set an eBay search override, store it; otherwise
+        // the renderer generates the search term at page load from card fields.
+        if (data.ebay) {
+            data.search = data.ebay;
+            delete data.ebay;
         }
 
         // Close editor first so user sees the card update immediately
