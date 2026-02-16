@@ -8,6 +8,7 @@
 // 4. Deploy and note your worker URL (e.g., https://your-worker.your-subdomain.workers.dev)
 
 const ALLOWED_ORIGINS = [
+  'https://cards.iammike.org',
   'https://iammike.github.io',
   'http://localhost:8000',
   'http://127.0.0.1:8000',
@@ -55,6 +56,7 @@ async function handleServeImage(request, env, key) {
 // Preview sites share the same R2 bucket, so uploads from them
 // would overwrite production images.
 const UPLOAD_ALLOWED_ORIGINS = [
+  'https://cards.iammike.org',
   'https://iammike.github.io',
 ];
 
