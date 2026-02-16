@@ -1576,6 +1576,12 @@ select, input[type="text"] {
     gap: 16px;
 }
 
+.card-editor-row {
+    grid-column: 1 / -1;
+    display: grid;
+    gap: 16px;
+}
+
 .card-editor-field {
     display: flex;
     flex-direction: column;
@@ -2156,6 +2162,10 @@ select, input[type="text"] {
 
     .card-editor-grid {
         grid-template-columns: 1fr;
+    }
+
+    .card-editor-row {
+        grid-template-columns: 1fr !important;
     }
 
     .card-editor-body {

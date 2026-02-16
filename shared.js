@@ -2188,6 +2188,138 @@ class CardEditorModal {
         return data;
     }
 
+    // Render a single custom field as HTML
+    renderCustomField(name, config) {
+        const id = `editor-${name}`;
+        const placeholder = config.placeholder || '';
+
+        if (config.type === 'select') {
+            const options = (config.options || []).map(opt => {
+                const value = typeof opt === 'string' ? opt : opt.value;
+                const label = typeof opt === 'string' ? opt : opt.label;
+                return `<option value="${value}">${label}</option>`;
+            }).join('');
+            return `<div class="card-editor-field">
+                <label class="card-editor-label">${config.label}</label>
+                <select class="card-editor-select" id="${id}">${options}</select>
+            </div>`;
+        } else if (config.type === 'checkbox') {
+            return `<div class="card-editor-field">
+                <label class="card-editor-label">${config.label}</label>
+                <label class="card-editor-checkbox">
+                    <input type="checkbox" id="${id}">
+                    <span>${config.checkboxLabel || 'Yes'}</span>
+                </label>
+            </div>`;
+        } else {
+            const colorHint = config.color ? `<span class="card-editor-color-hint" style="background:${config.color}"></span>` : '';
+            return `<div class="card-editor-field">
+                <label class="card-editor-label">${config.label}${colorHint}</label>
+                <input type="text" class="card-editor-input" id="${id}" placeholder="${placeholder}">
+            </div>`;
+        }
+    }
+
+    // Build editor field rows with per-row grid columns based on field sizes
+    buildEditorRows() {
+        const fields = [];
+
+        // 1. Top custom fields (player, position)
+        for (const [name, config] of Object.entries(this.customFields)) {
+            if ((config.position || 'top') !== 'top') continue;
+            fields.push({ html: this.renderCustomField(name, config), size: config.narrow ? 'narrow' : 'wide' });
+        }
+
+        // 2. Set Name (wide) + Card Number (narrow)
+        fields.push({
+            html: `<div class="card-editor-field">
+                <label class="card-editor-label">Set Name</label>
+                <input type="text" class="card-editor-input" id="editor-set" placeholder="2024 Panini Prizm">
+            </div>`,
+            size: 'wide'
+        });
+        fields.push({
+            html: `<div class="card-editor-field">
+                <label class="card-editor-label">Card Number</label>
+                <input type="text" class="card-editor-input" id="editor-num" placeholder="123">
+            </div>`,
+            size: 'narrow'
+        });
+
+        // 3. Card Type (wide, conditional)
+        if (this.cardTypes.length > 0) {
+            fields.push({
+                html: `<div class="card-editor-field">
+                    <label class="card-editor-label">Card Type</label>
+                    <select class="card-editor-select" id="editor-type">
+                        ${this.cardTypes.map(t => `<option value="${t}">${t}</option>`).join('')}
+                    </select>
+                </div>`,
+                size: 'wide'
+            });
+        }
+
+        // 4. After-num custom fields
+        for (const [name, config] of Object.entries(this.customFields)) {
+            if ((config.position || 'top') !== 'after-num') continue;
+            fields.push({ html: this.renderCustomField(name, config), size: config.narrow ? 'narrow' : 'wide' });
+        }
+
+        // 5. Full-width attribute fields (variant) - rendered inline as wide
+        for (const [name, config] of Object.entries(this.customFields)) {
+            if ((config.position || 'top') !== 'attributes' || !config.fullWidth) continue;
+            fields.push({
+                html: `<div class="card-editor-field">
+                    <label class="card-editor-label">${config.label}</label>
+                    <input type="text" class="card-editor-input" id="editor-${name}" placeholder="${config.placeholder || ''}">
+                </div>`,
+                size: 'wide'
+            });
+        }
+
+        // 6. Section dropdown (wide, conditional)
+        if (this.categories) {
+            const options = this.categories.map(c => {
+                if (c.group) {
+                    return `<optgroup label="${c.group}">${c.children.map(child =>
+                        `<option value="${child.value}">${child.label}</option>`
+                    ).join('')}</optgroup>`;
+                }
+                const label = typeof c === 'string' ? c.charAt(0).toUpperCase() + c.slice(1) : c.label;
+                const value = typeof c === 'string' ? c : c.value;
+                return `<option value="${value}">${label}</option>`;
+            }).join('');
+            fields.push({
+                html: `<div class="card-editor-field">
+                    <label class="card-editor-label">Section</label>
+                    <select class="card-editor-select" id="editor-category">${options}</select>
+                </div>`,
+                size: 'wide'
+            });
+        }
+
+        // Pair fields into rows with per-row grid-template-columns
+        const rows = [];
+        let i = 0;
+        while (i < fields.length) {
+            if (i + 1 < fields.length) {
+                const a = fields[i];
+                const b = fields[i + 1];
+                let cols;
+                if (a.size === 'wide' && b.size === 'narrow') cols = '3fr 1fr';
+                else if (a.size === 'narrow' && b.size === 'wide') cols = '1fr 3fr';
+                else cols = '1fr 1fr';
+                rows.push(`<div class="card-editor-row" style="grid-template-columns:${cols}">${a.html}${b.html}</div>`);
+                i += 2;
+            } else {
+                rows.push(`<div class="card-editor-row" style="grid-template-columns:1fr">${fields[i].html}</div>`);
+                i++;
+            }
+        }
+
+        return rows.join('');
+    }
+
     // Initialize - create modal DOM
     init() {
         // Remove existing card editor backdrop so re-init works after settings changes
@@ -2216,43 +2348,7 @@ class CardEditorModal {
                 </div>
                 <div class="card-editor-body">
                     <div class="card-editor-grid">
-                        ${this.generateCustomFieldsHtml('top')}
-                        <div class="card-editor-field">
-                            <label class="card-editor-label">Set Name</label>
-                            <input type="text" class="card-editor-input" id="editor-set" placeholder="2024 Panini Prizm">
-                        </div>
-                        <div class="card-editor-field">
-                            <label class="card-editor-label">Card Number</label>
-                            <input type="text" class="card-editor-input" id="editor-num" placeholder="123">
-                        </div>
-                        ${this.cardTypes.length > 0 ? `<div class="card-editor-field">
-                            <label class="card-editor-label">Card Type</label>
-                            <select class="card-editor-select" id="editor-type">
-                                ${this.cardTypes.map(t => `<option value="${t}">${t}</option>`).join('')}
-                            </select>
-                        </div>` : ''}
-                        ${this.generateCustomFieldsHtml('after-num')}
-                        ${Object.entries(this.customFields)
-                            .filter(([_, c]) => (c.position || 'top') === 'attributes' && c.fullWidth)
-                            .map(([name, c]) => `<div class="card-editor-field">
-                            <label class="card-editor-label">${c.label}</label>
-                            <input type="text" class="card-editor-input" id="editor-${name}" placeholder="${c.placeholder || ''}">
-                        </div>`).join('')}
-                        ${this.categories ? `<div class="card-editor-field">
-                            <label class="card-editor-label">Section</label>
-                            <select class="card-editor-select" id="editor-category">
-                                ${this.categories.map(c => {
-                                    if (c.group) {
-                                        return `<optgroup label="${c.group}">${c.children.map(child =>
-                                            `<option value="${child.value}">${child.label}</option>`
-                                        ).join('')}</optgroup>`;
-                                    }
-                                    const label = typeof c === 'string' ? c.charAt(0).toUpperCase() + c.slice(1) : c.label;
-                                    const value = typeof c === 'string' ? c : c.value;
-                                    return `<option value="${value}">${label}</option>`;
-                                }).join('')}
-                            </select>
-                        </div>` : ''}
+                        ${this.buildEditorRows()}
                         ${this.generateCustomFieldsHtml('attributes')}
                         ${this.generateCustomFieldsHtml('bottom')}
                         <div class="card-editor-field full-width card-editor-advanced-toggle">
@@ -4223,7 +4319,7 @@ class ChecklistCreatorModal {
 
         // Position field (next to player name)
         if (showPosition) {
-            customFields.position = { label: 'Position', type: 'text' };
+            customFields.position = { label: 'Position', type: 'text', narrow: true };
         }
 
         // Subtitle lines
