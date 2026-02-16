@@ -6,13 +6,6 @@ A modern web app for tracking sports card collections with cloud sync, real-time
 
 ![JavaScript](https://img.shields.io/badge/JavaScript-Vanilla-yellow) ![GitHub Pages](https://img.shields.io/badge/Hosted-GitHub%20Pages-blue) ![Cloudflare](https://img.shields.io/badge/Auth-Cloudflare%20Workers-orange)
 
-<p>
-<a href="docs/screenshots/card-editor.png"><img src="docs/screenshots/card-editor.png" alt="Card editor" width="140"></a>
-<a href="docs/screenshots/checklist-config.png"><img src="docs/screenshots/checklist-config.png" alt="Checklist configuration" width="140"></a>
-<a href="docs/screenshots/image-editor-crop.png"><img src="docs/screenshots/image-editor-crop.png" alt="Image editor - crop and rotate" width="200"></a>
-<a href="docs/screenshots/image-editor-perspective.png"><img src="docs/screenshots/image-editor-perspective.png" alt="Image editor - perspective correction" width="200"></a>
-</p>
-
 ## Features
 
 ### Collection Tracking
@@ -37,14 +30,14 @@ A modern web app for tracking sports card collections with cloud sync, real-time
 - **Custom filters** - Checklist-specific dropdown filters (e.g., sport, era, team)
 - **Sort options** - Year, set name, serial scarcity, price (low/high), and custom fields
 
-### Inline Editing (Owner Only)
+### Inline Editing (Owner Only) · [Screenshot](docs/screenshots/card-editor.png)
 - **Context menu** - Right-click or long-press for Edit, Delete, and Add Card options
 - **Floating Add Card button** - Always-accessible button that follows your scroll position
 - **Schema-driven forms** - Custom fields per checklist (text, dropdowns, checkboxes)
 - **Delete checklist** - Remove a checklist and all associated data
 - **Clear All** - Reset all ownership data for a checklist
 
-### Image Tools (Owner Only)
+### Image Tools (Owner Only) · [Crop](docs/screenshots/image-editor-crop.png) · [Perspective](docs/screenshots/image-editor-perspective.png)
 - **Tab-based image editor** - Crop/rotate and perspective correction in a single editor
 - **4-point perspective correction** - Drag corners to straighten angled card photos
 - **Fine rotation** - Slider plus +/- buttons for precise straightening (0.5-degree increments)
@@ -54,7 +47,7 @@ A modern web app for tracking sports card collections with cloud sync, real-time
 - **Edit existing images** - Re-edit previously saved images with one click
 - **Cloudflare R2 storage** - Images uploaded instantly, no git involvement
 
-### Checklist Configuration (Owner Only)
+### Checklist Configuration (Owner Only) · [Screenshot](docs/screenshots/checklist-config.png)
 - **Create from UI** - Set up new checklists with title, description, theme, and structure
 - **Theme customization** - Primary/accent colors and dark mode toggle
 - **Section management** - Organize cards into collapsible, color-coded sections
