@@ -2227,7 +2227,8 @@ class CardEditorModal {
         // 1. Top custom fields (player, position)
         for (const [name, config] of Object.entries(this.customFields)) {
             if ((config.position || 'top') !== 'top') continue;
-            fields.push({ html: this.renderCustomField(name, config), size: config.narrow ? 'narrow' : 'wide' });
+            const size = config.fullWidth ? 'full' : (config.narrow ? 'narrow' : 'wide');
+            fields.push({ html: this.renderCustomField(name, config), size });
         }
 
         // 2. Set Name (wide) + Card Number (narrow)
@@ -2302,8 +2303,12 @@ class CardEditorModal {
         const rows = [];
         let i = 0;
         while (i < fields.length) {
-            if (i + 1 < fields.length) {
-                const a = fields[i];
+            const a = fields[i];
+            // Full-width fields always get their own row
+            if (a.size === 'full') {
+                rows.push(`<div class="card-editor-row" style="grid-template-columns:1fr">${a.html}</div>`);
+                i++;
+            } else if (i + 1 < fields.length && fields[i + 1].size !== 'full') {
                 const b = fields[i + 1];
                 let cols;
                 if (a.size === 'wide' && b.size === 'narrow') cols = '3fr 1fr';
@@ -2312,7 +2317,7 @@ class CardEditorModal {
                 rows.push(`<div class="card-editor-row" style="grid-template-columns:${cols}">${a.html}${b.html}</div>`);
                 i += 2;
             } else {
-                rows.push(`<div class="card-editor-row" style="grid-template-columns:1fr">${fields[i].html}</div>`);
+                rows.push(`<div class="card-editor-row" style="grid-template-columns:1fr">${a.html}</div>`);
                 i++;
             }
         }
