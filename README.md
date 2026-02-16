@@ -2,7 +2,7 @@
 
 A modern web app for tracking sports card collections with cloud sync, real-time stats, and inline editing.
 
-**Live site: [iammike.github.io/sports-card-checklists](https://iammike.github.io/sports-card-checklists/)**
+**Live site: [cards.iammike.org](https://cards.iammike.org/)**
 
 ![JavaScript](https://img.shields.io/badge/JavaScript-Vanilla-yellow) ![GitHub Pages](https://img.shields.io/badge/Hosted-GitHub%20Pages-blue) ![Cloudflare](https://img.shields.io/badge/Auth-Cloudflare%20Workers-orange)
 
