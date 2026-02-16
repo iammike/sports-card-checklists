@@ -2938,11 +2938,8 @@ class CardEditorModal {
 
     // Gather form data
     getFormData() {
-        // Add # prefix to card number if not present
-        let num = this.backdrop.querySelector('#editor-num').value.trim();
-        if (num && !num.startsWith('#')) {
-            num = '#' + num;
-        }
+        // Strip # prefix from card number (renderer adds it for display)
+        let num = this.backdrop.querySelector('#editor-num').value.trim().replace(/^#/, '');
 
         // Core fields (normalize smart quotes from mobile keyboards)
         const data = {
@@ -3055,7 +3052,7 @@ class CardEditorModal {
         // Check if set or num changed and eBay search wasn't manually edited
         if (!this.ebayManuallyEdited && this.currentCard) {
             const setChanged = data.set !== (this.currentCard.set || '');
-            const numChanged = data.num !== (this.currentCard.num || '');
+            const numChanged = data.num !== (this.currentCard.num || '').replace(/^#/, '');
 
             if (setChanged || numChanged) {
                 // Regenerate search term

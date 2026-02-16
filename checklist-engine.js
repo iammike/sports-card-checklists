@@ -748,7 +748,10 @@ class ChecklistEngine {
         // Card info (set, number, variant)
         if (card.set) {
             let titleHtml = sanitizeText(card.set);
-            if (card.num) titleHtml += ` <span class="card-number">${sanitizeText(card.num)}</span>`;
+            if (card.num) {
+                const num = card.num.startsWith('#') ? card.num : '#' + card.num;
+                titleHtml += ` <span class="card-number">${sanitizeText(num)}</span>`;
+            }
             html += `<div class="card-title">${titleHtml}</div>`;
         }
         if (displayVariant) html += `<div class="card-variant">${sanitizeText(displayVariant)}</div>`;
