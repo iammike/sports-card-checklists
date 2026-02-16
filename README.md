@@ -33,48 +33,60 @@ A modern web app for tracking sports card collections with cloud sync, real-time
 
 ### Collection Tracking
 - **Checkbox-based ownership** - Mark cards as owned with a single click
-- **Progress tracking** - See owned/total counts and completion percentage
-- **Manual pricing** - Record purchase prices on individual cards
+- **Progress tracking** - Owned/total counts and completion percentage per section and overall
+- **Manual pricing** - Record purchase prices with color-coded badges
+- **Card attribute badges** - AUTO (autograph), PATCH (relic), serial number (/99), and price badges rendered on each card
+- **Serial tracking** - Record numbered cards (/99, /25, /1) with scarcity-based sorting
 
 ### Cloud Sync
 - **GitHub OAuth authentication** - Secure login via GitHub
-- **Gist-based storage** - Collection data synced to public GitHub Gist
+- **Gist-based storage** - Collection data synced to a public GitHub Gist
 - **Cross-device sync** - Access your collection from any device
-- **Public viewing** - Visitors can view your collection (read-only)
-- **CSRF protection** - Secure OAuth flow with state parameter validation
+- **Public viewing** - Visitors can browse your collection read-only
+- **Offline fallback** - Falls back to cached data if the gist is unreachable
+- **Sync status indicator** - Real-time feedback on save progress
+- **Multi-tab awareness** - Automatically refreshes data when switching browser tabs
 
 ### Filtering & Search
-- **Status filter** - Show all, owned only, or needed cards
-- **Text search** - Find cards by name, set, or any text
-- **Sort options** - Sort by year, set name, serial number, price
+- **Status filter** - Show all cards, owned only, or needed to complete
+- **Text search** - Find cards by name, set, variant, or any text
+- **Custom filters** - Checklist-specific dropdown filters (e.g., sport, era, team)
+- **Sort options** - Year, set name, serial scarcity, price (low/high), and custom fields
 
 ### Inline Editing (Owner Only)
-- **Add new cards** - Add cards directly from the UI
-- **Edit card details** - Right-click or long-press to edit any card
-- **Delete cards** - Remove cards with confirmation
-- **Schema-driven forms** - Custom fields per checklist type
+- **Context menu** - Right-click or long-press for Edit, Delete, and Add Card options
+- **Floating Add Card button** - Always-accessible button that follows your scroll position
+- **Schema-driven forms** - Custom fields per checklist (text, dropdowns, checkboxes)
+- **Delete checklist** - Remove a checklist and all associated data
+- **Clear All** - Reset all ownership data for a checklist
 
 ### Image Tools (Owner Only)
-- **Tab-based image editor** - Perspective correction and crop/rotate in a single editor (powered by Cropper.js)
+- **Tab-based image editor** - Crop/rotate and perspective correction in a single editor
+- **4-point perspective correction** - Drag corners to straighten angled card photos
+- **Fine rotation** - Slider plus +/- buttons for precise straightening (0.5-degree increments)
+- **Local file upload** - Upload from your computer via button or drag & drop
+- **Multiple sources** - Fetch images from eBay or Beckett listings via CORS proxy
+- **Auto-processing** - Resized to max 1000px, converted to WebP (JPEG fallback)
 - **Edit existing images** - Re-edit previously saved images with one click
-- **Fine rotation** - Slider plus +/- buttons for precise straightening (0.5 increments)
-- **Local file upload** - Upload images from your computer via button or drag & drop
-- **Multiple sources** - Fetch images from eBay or Beckett listings
-- **Auto-processing** - Images automatically resized and converted to WebP on save
 - **Cloudflare R2 storage** - Images uploaded instantly, no git involvement
+
+### Checklist Configuration
+- **Create from UI** - Set up new checklists with title, description, theme, and structure
+- **Theme customization** - Primary/accent colors and dark mode toggle
+- **Section management** - Organize cards into collapsible, color-coded sections
+- **Sort and filter config** - Choose default sort mode and enable custom filter dropdowns
+- **Custom fields** - Define checklist-specific data fields positioned anywhere in the editor
+- **Collection link cards** - Special cards that display stats from linked checklists
 
 ### UI/UX
 - **Animated stats** - Numbers count up on first load
 - **Collapsible sections** - Click section headers to expand/collapse
-- **Auto-hiding sections** - Empty sections automatically hidden
+- **Auto-hiding sections** - Empty sections hidden automatically
+- **Dynamic navigation** - Checklist links loaded from gist registry
 - **Responsive design** - Works on desktop and mobile
 - **Print-friendly** - Clean layout for printing checklists
 - **Direct eBay links** - One-click search for any card
 - **Price guide links** - Quick access to price lookups
-
-## Checklists
-
-All checklists are config-driven and managed via the gist registry. Browse them on the **[live site](https://iammike.github.io/sports-card-checklists/)**.
 
 ## Architecture
 
@@ -105,19 +117,20 @@ All checklists are config-driven and managed via the gist registry. Browse them 
 | File | Purpose |
 |------|---------|
 | `checklist.html` + `checklist-engine.js` | Config-driven checklist page (loads via `?id=xxx`) |
-| `shared.js` | Shared components (CardEditorModal, CardRenderer, ChecklistManager, ImageProcessor, etc.) |
+| `shared.js` | Shared components (CardEditorModal, CardRenderer, ImageProcessor, ImageEditorModal, etc.) |
 | `shared.css` | All shared styles |
 | `github-sync.js` | OAuth flow, Gist CRUD, R2 image upload, GitHub API integration |
-| `worker.js` | Cloudflare Worker for OAuth, image proxy, and R2 image upload/serve |
+| `worker.js` | Cloudflare Worker for OAuth, image proxy, and R2 upload/serve |
 | `index.html` | Landing page with dynamic checklist cards from gist registry |
 
-### Security Features
+### Security
 
 - **OAuth proxy** - Client secret never exposed to browser
 - **CORS restrictions** - Worker only accepts requests from allowed origins
 - **CSRF protection** - State parameter validation on OAuth callback
 - **XSS prevention** - All user content sanitized before rendering
 - **URL validation** - Only allowed protocols and domains
+- **Upload restrictions** - Image uploads restricted to production origin only
 
 ## Development
 
@@ -142,16 +155,18 @@ Tests use vitest with jsdom and cover sanitization, card rendering, and search t
 
 ### Preview Deployments
 
-Cloudflare Pages preview deployments allow testing changes without affecting production:
-- Branch previews at `<branch>.sports-card-checklists.pages.dev`
-- Isolated data storage (changes don't affect production gist)
+Cloudflare Pages builds preview deployments for each branch:
+- Preview URLs: `<branch>.sports-card-checklists.pages.dev` (slashes become dashes, truncated to 28 chars)
+- Isolated data storage with separate preview gist
+- **Sync from Production** button to pull latest data into preview
+- Separate OAuth app for preview sites
 
 ### Adding New Checklists
 
 Checklists are config-driven and stored entirely in the GitHub Gist:
 
 1. Log in on the live site
-2. Use the "Create Checklist" button to set up a new config (`{id}-config.json`)
+2. Use the "Create Checklist" button to configure title, theme, sections, sort options, and custom fields
 3. Add cards through the inline card editor (saved to `{id}-cards.json`)
 4. The checklist automatically appears on the index page via `checklists-registry.json`
 
@@ -165,7 +180,7 @@ No code changes needed to add a new checklist.
 ├── github-sync.js           # OAuth + Gist + R2 storage
 ├── shared.js                # Shared utilities and components
 ├── shared.css               # Shared styles
-├── worker.js                # Cloudflare Worker (deploy separately)
+├── worker.js                # Cloudflare Worker (deploy separately via GitHub Actions)
 ├── wrangler.toml            # Cloudflare Worker config (R2 binding)
 ├── tests/                   # Unit tests (vitest)
 └── scripts/                 # Maintenance/migration scripts (gitignored)
@@ -173,13 +188,13 @@ No code changes needed to add a new checklist.
 
 ## Tech Stack
 
-- **Frontend**: Vanilla JavaScript (no frameworks)
+- **Frontend**: Vanilla JavaScript (no frameworks), [Cropper.js](https://fengyuanchen.github.io/cropperjs/) for image editing
 - **Hosting**: GitHub Pages (production), Cloudflare Pages (preview)
-- **Auth**: GitHub OAuth via Cloudflare Workers
+- **Auth**: GitHub OAuth via Cloudflare Workers (separate apps for production and preview)
 - **Storage**: GitHub Gists (JSON config + card data)
 - **Images**: Cloudflare R2, WebP format, processed client-side
 - **Testing**: Vitest with jsdom
-- **CI/CD**: GitHub Actions for Worker deploys
+- **CI/CD**: GitHub Actions for Worker deployment and version stamping
 
 ## License
 
