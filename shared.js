@@ -791,6 +791,7 @@ class CardContextMenu {
     // SVG icons
     static ICON_EDIT = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
     static ICON_DELETE = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
+    static ICON_DOWNLOAD = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>';
 
     // Initialize context menu
     init() {
@@ -803,16 +804,6 @@ class CardContextMenu {
     createMenu() {
         this.menu = document.createElement('div');
         this.menu.className = 'card-context-menu';
-        this.menu.innerHTML = `
-            <button class="context-menu-item" data-action="edit">
-                ${CardContextMenu.ICON_EDIT}
-                <span>Edit card</span>
-            </button>
-            <button class="context-menu-item danger" data-action="delete">
-                ${CardContextMenu.ICON_DELETE}
-                <span>Delete card</span>
-            </button>
-        `;
         document.body.appendChild(this.menu);
 
         // Handle menu item clicks
@@ -827,19 +818,45 @@ class CardContextMenu {
                 if (confirm('Delete this card?')) {
                     this.onDelete(this.currentCardId);
                 }
+            } else if (action === 'save-image') {
+                this.saveImage();
             }
             this.hide();
         });
+    }
+
+    // Save card image to device
+    saveImage() {
+        const img = this.currentCard?.querySelector('img.card-image');
+        if (!img) return;
+
+        const filename = (img.alt || 'card').replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '.jpg';
+
+        fetch(img.src)
+            .then(r => r.blob())
+            .then(blob => {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = filename;
+                a.click();
+                URL.revokeObjectURL(a.href);
+            })
+            .catch(() => {
+                // Fallback: open image in new tab
+                window.open(img.src, '_blank');
+            });
     }
 
     // Attach right-click and long-press listeners to cards (uses event delegation)
     attachCardListeners() {
         // Right-click (desktop)
         document.addEventListener('contextmenu', (e) => {
-            if (!this.checklistManager?.isOwner()) return;
-
             const card = e.target.closest('.card');
             if (!card) return;
+
+            // Non-owners only get menu if card has an image
+            const isOwner = this.checklistManager?.isOwner();
+            if (!isOwner && !card.querySelector('img.card-image')) return;
 
             e.preventDefault();
             this.show(e.clientX, e.clientY, card);
@@ -852,10 +869,12 @@ class CardContextMenu {
         const MOVE_THRESHOLD = 10; // pixels
 
         document.addEventListener('touchstart', (e) => {
-            if (!this.checklistManager?.isOwner()) return;
-
             const card = e.target.closest('.card');
             if (!card) return;
+
+            // Non-owners only get menu if card has an image
+            const isOwner = this.checklistManager?.isOwner();
+            if (!isOwner && !card.querySelector('img.card-image')) return;
 
             const touch = e.touches[0];
             touchStartPos = { x: touch.clientX, y: touch.clientY };
@@ -906,6 +925,19 @@ class CardContextMenu {
         const checkbox = cardElement.querySelector('input[type="checkbox"]');
         this.currentCardId = checkbox?.id || cardElement.dataset.cardId;
         this.currentCard = cardElement;
+
+        // Build menu items based on ownership
+        const isOwner = this.checklistManager?.isOwner();
+        const hasImage = !!cardElement.querySelector('img.card-image');
+        let html = '';
+        if (isOwner) {
+            html += `<button class="context-menu-item" data-action="edit">${CardContextMenu.ICON_EDIT}<span>Edit card</span></button>`;
+            html += `<button class="context-menu-item danger" data-action="delete">${CardContextMenu.ICON_DELETE}<span>Delete card</span></button>`;
+        }
+        if (!isOwner && hasImage) {
+            html += `<button class="context-menu-item" data-action="save-image">${CardContextMenu.ICON_DOWNLOAD}<span>Save image</span></button>`;
+        }
+        this.menu.innerHTML = html;
 
         // Position menu
         this.menu.style.left = `${x}px`;
