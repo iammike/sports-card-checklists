@@ -2776,7 +2776,7 @@ class CardEditorModal {
             };
 
             // Generate filename and key
-            const filename = this.imageProcessor.generateFilename(cardData);
+            const filename = this.imageProcessor.generateFilename(cardData, true);
             const key = `${this.imageFolder}/${filename}`;
 
             // Resize and convert to WebP
@@ -2858,7 +2858,7 @@ class CardEditorModal {
             };
 
             // Generate filename and key
-            const filename = this.imageProcessor.generateFilename(cardData);
+            const filename = this.imageProcessor.generateFilename(cardData, true);
             const key = `${this.imageFolder}/${filename}`;
 
             // Process the image (resize, convert to webp)
