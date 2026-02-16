@@ -614,7 +614,7 @@ class GitHubSync {
 
         if (!response.ok) {
             const body = await response.json().catch(() => ({}));
-            if (response.status === 403 && body.error) {
+            if (body.error) {
                 throw new Error(body.error);
             }
             throw new Error(`Upload failed (${response.status})`);
