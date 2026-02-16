@@ -498,13 +498,17 @@ class ChecklistEngine {
                 border-color: ${accent};
             }
             .player-name { color: ${linkColor}; font-size: 14px; font-weight: bold; margin-bottom: 4px; }
-            .player-position { font-size: 10px; font-weight: 400; opacity: 0.3; margin-left: 4px; letter-spacing: 0.5px; }
-            .player-position::before { content: '·'; margin-right: 3px; opacity: 0.5; }
             .group-header {
                 border-bottom-color: ${accent};
             }
             `;
         }
+
+        // Position abbreviation (both themes)
+        css += `
+            .player-position { font-size: 10px; font-weight: 400; opacity: 0.3; margin-left: -3px; letter-spacing: 0.5px; }
+            .player-position::before { content: '\\00B7'; margin: 0 1px; opacity: 0.5; }
+        `;
 
         // Category-specific header colors (including subcategories)
         if (this.config.categories) {
