@@ -616,7 +616,7 @@ const CardRenderer = {
 
     // Generate eBay search URL
     getEbayUrl(searchTerm) {
-        return `https://www.ebay.com/sch/i.html?_nkw=${searchTerm}&_sop=15&LH_BIN=1`;
+        return `https://www.ebay.com/sch/i.html?_nkw=${searchTerm.replace(/"/g, '%22')}&_sop=15&LH_BIN=1`;
     },
 
     // Generate SportsCardsPro search URL
