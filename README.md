@@ -6,6 +6,29 @@ A modern web app for tracking sports card collections with cloud sync, real-time
 
 ![JavaScript](https://img.shields.io/badge/JavaScript-Vanilla-yellow) ![GitHub Pages](https://img.shields.io/badge/Hosted-GitHub%20Pages-blue) ![Cloudflare](https://img.shields.io/badge/Auth-Cloudflare%20Workers-orange)
 
+<table>
+<tr>
+<td width="50%">
+<p align="center"><strong>Card Editor</strong></p>
+<img src="docs/screenshots/card-editor.png" alt="Card editor modal with custom fields" width="100%">
+</td>
+<td width="50%">
+<p align="center"><strong>Checklist Configuration</strong></p>
+<img src="docs/screenshots/checklist-config.png" alt="Checklist configuration with themes and sections" width="100%">
+</td>
+</tr>
+<tr>
+<td>
+<p align="center"><strong>Image Editor - Crop & Rotate</strong></p>
+<img src="docs/screenshots/image-editor-crop.png" alt="Image editor with crop and rotate controls" width="100%">
+</td>
+<td>
+<p align="center"><strong>Image Editor - Perspective Correction</strong></p>
+<img src="docs/screenshots/image-editor-perspective.png" alt="Image editor with perspective correction" width="100%">
+</td>
+</tr>
+</table>
+
 ## Features
 
 ### Collection Tracking
