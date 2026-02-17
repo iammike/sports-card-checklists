@@ -624,6 +624,51 @@ class GitHubSync {
         return data.url;
     }
 
+    // Delete an image from Cloudflare R2 via the Worker
+    async deleteImage(key) {
+        if (!this.token) throw new Error('Not authenticated');
+
+        const response = await fetch(CONFIG.OAUTH_PROXY_URL + '/delete-image', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.token}`,
+            },
+            body: JSON.stringify({ key }),
+        });
+
+        if (!response.ok) {
+            const body = await response.json().catch(() => ({}));
+            if (body.error) {
+                throw new Error(body.error);
+            }
+            throw new Error(`Delete failed (${response.status})`);
+        }
+
+        return true;
+    }
+
+    // List all images in R2 (for cleanup scripts)
+    async listImages(cursor = null) {
+        if (!this.token) throw new Error('Not authenticated');
+
+        const response = await fetch(CONFIG.OAUTH_PROXY_URL + '/list-images', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.token}`,
+            },
+            body: JSON.stringify({ cursor }),
+        });
+
+        if (!response.ok) {
+            const body = await response.json().catch(() => ({}));
+            throw new Error(body.error || `List failed (${response.status})`);
+        }
+
+        return response.json();
+    }
+
     // ========================================
     // Registry & Config Operations (stored in gist)
     // ========================================

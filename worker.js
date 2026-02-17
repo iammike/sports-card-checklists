@@ -170,6 +170,167 @@ async function handleUploadImage(request, env, corsOrigin) {
   });
 }
 
+// Delete image from R2 (authenticated)
+async function handleDeleteImage(request, env, corsOrigin) {
+  const corsHeaders = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': corsOrigin,
+  };
+
+  // Block from preview/non-production origins
+  const requestOrigin = request.headers.get('Origin');
+  if (!UPLOAD_ALLOWED_ORIGINS.includes(requestOrigin)) {
+    return new Response(JSON.stringify({
+      error: 'Image deletion is disabled on preview sites.',
+    }), {
+      status: 403, headers: corsHeaders,
+    });
+  }
+
+  // Validate auth token
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return new Response(JSON.stringify({ error: 'Missing authorization' }), {
+      status: 401, headers: corsHeaders,
+    });
+  }
+
+  const token = authHeader.slice(7);
+  try {
+    const userResponse = await fetch('https://api.github.com/user', {
+      headers: { 'Authorization': `Bearer ${token}`, 'User-Agent': 'cards-oauth-worker' },
+    });
+    if (!userResponse.ok) {
+      return new Response(JSON.stringify({ error: 'Invalid token' }), {
+        status: 401, headers: corsHeaders,
+      });
+    }
+    const user = await userResponse.json();
+    if (user.login !== 'iammike') {
+      return new Response(JSON.stringify({ error: 'Unauthorized user' }), {
+        status: 403, headers: corsHeaders,
+      });
+    }
+  } catch {
+    return new Response(JSON.stringify({ error: 'Auth verification failed' }), {
+      status: 500, headers: corsHeaders,
+    });
+  }
+
+  // Parse and validate request body
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
+      status: 400, headers: corsHeaders,
+    });
+  }
+
+  const { key } = body;
+
+  if (!key) {
+    return new Response(JSON.stringify({ error: 'Missing key' }), {
+      status: 400, headers: corsHeaders,
+    });
+  }
+
+  // Validate key format: images/{folder}/{file}.webp
+  if (!/^images\/[a-z0-9-]+\/[a-z0-9_.-]+\.webp$/i.test(key)) {
+    return new Response(JSON.stringify({ error: 'Invalid key format. Expected: images/{folder}/{file}.webp' }), {
+      status: 400, headers: corsHeaders,
+    });
+  }
+
+  // Delete from R2 (idempotent - no error if missing)
+  try {
+    await env.IMAGES_BUCKET.delete(key);
+  } catch (error) {
+    console.error('R2 delete error:', error);
+    return new Response(JSON.stringify({ error: 'Delete failed' }), {
+      status: 500, headers: corsHeaders,
+    });
+  }
+
+  return new Response(JSON.stringify({ deleted: true }), {
+    headers: corsHeaders,
+  });
+}
+
+// List images in R2 (authenticated, for cleanup scripts)
+async function handleListImages(request, env, corsOrigin) {
+  const corsHeaders = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': corsOrigin,
+  };
+
+  // Validate auth token
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return new Response(JSON.stringify({ error: 'Missing authorization' }), {
+      status: 401, headers: corsHeaders,
+    });
+  }
+
+  const token = authHeader.slice(7);
+  try {
+    const userResponse = await fetch('https://api.github.com/user', {
+      headers: { 'Authorization': `Bearer ${token}`, 'User-Agent': 'cards-oauth-worker' },
+    });
+    if (!userResponse.ok) {
+      return new Response(JSON.stringify({ error: 'Invalid token' }), {
+        status: 401, headers: corsHeaders,
+      });
+    }
+    const user = await userResponse.json();
+    if (user.login !== 'iammike') {
+      return new Response(JSON.stringify({ error: 'Unauthorized user' }), {
+        status: 403, headers: corsHeaders,
+      });
+    }
+  } catch {
+    return new Response(JSON.stringify({ error: 'Auth verification failed' }), {
+      status: 500, headers: corsHeaders,
+    });
+  }
+
+  // Parse optional cursor from body
+  let cursor = null;
+  try {
+    const body = await request.json();
+    cursor = body.cursor || null;
+  } catch {
+    // No body or invalid JSON is fine
+  }
+
+  try {
+    const listed = await env.IMAGES_BUCKET.list({
+      prefix: 'images/',
+      cursor,
+      limit: 1000,
+    });
+
+    const objects = listed.objects.map(obj => ({
+      key: obj.key,
+      size: obj.size,
+      uploaded: obj.uploaded,
+    }));
+
+    return new Response(JSON.stringify({
+      objects,
+      cursor: listed.truncated ? listed.cursor : null,
+      truncated: listed.truncated,
+    }), {
+      headers: corsHeaders,
+    });
+  } catch (error) {
+    console.error('R2 list error:', error);
+    return new Response(JSON.stringify({ error: 'List failed' }), {
+      status: 500, headers: corsHeaders,
+    });
+  }
+}
+
 // Proxy image endpoint - fetches external images to bypass CORS
 async function handleProxyImage(request, corsOrigin) {
   try {
@@ -266,6 +427,14 @@ export default {
 
     if (request.method === 'POST' && url.pathname === '/upload-image') {
       return handleUploadImage(request, env, corsOrigin);
+    }
+
+    if (request.method === 'POST' && url.pathname === '/delete-image') {
+      return handleDeleteImage(request, env, corsOrigin);
+    }
+
+    if (request.method === 'POST' && url.pathname === '/list-images') {
+      return handleListImages(request, env, corsOrigin);
     }
 
     // Only handle POST to /token
