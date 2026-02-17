@@ -1,10 +1,12 @@
 {
   "private": true,
   "scripts": {
+    "build": "node build.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "devDependencies": {
+    "esbuild": "^0.27.3",
     "jsdom": "^28.0.0",
     "vitest": "^3.0.0"
   }
