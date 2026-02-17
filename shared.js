@@ -4551,7 +4551,7 @@ const ShoppingList = {
             // Collect all unowned cards
             const shoppingItems = [];
 
-            for (const entry of checklists) {
+            for (const entry of checklists.filter(e => !e.hidden)) {
                 const id = entry.id;
                 const config = await githubSync.loadChecklistConfig(id)
                     || await githubSync.loadPublicChecklistConfig(id);
