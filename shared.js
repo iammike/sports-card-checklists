@@ -4580,7 +4580,7 @@ const ShoppingList = {
                             set: card.set || '',
                             num: card.num || '',
                             name: card.name || card.player
-                                || (entry.navLabel || entry.title || '').replace(/\b\w/g, c => c.toUpperCase()),
+                                || (entry.navLabel || entry.title || '').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()),
                             variant: card.variant || '',
                             price: card.price || 0,
                             checklist: entry.title || id
