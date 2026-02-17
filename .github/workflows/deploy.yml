@@ -44,6 +44,17 @@ jobs:
         run: |
           echo "{\"commit\": \"${GITHUB_SHA:0:7}\", \"url\": \"https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA\"}" > version.json
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 

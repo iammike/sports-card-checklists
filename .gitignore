@@ -23,5 +23,8 @@
 # Node
 node_modules/
 
+# Build output
+dist/
+
 # Local scripts (utilities, migrations)
 scripts/
