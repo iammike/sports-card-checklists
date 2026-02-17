@@ -304,11 +304,9 @@ async function handleListImages(request, env, corsOrigin) {
   }
 
   try {
-    const listed = await env.IMAGES_BUCKET.list({
-      prefix: 'images/',
-      cursor,
-      limit: 1000,
-    });
+    const listOptions = { prefix: 'images/', limit: 1000 };
+    if (cursor) listOptions.cursor = cursor;
+    const listed = await env.IMAGES_BUCKET.list(listOptions);
 
     const objects = listed.objects.map(obj => ({
       key: obj.key,
