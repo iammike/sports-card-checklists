@@ -4577,7 +4577,7 @@ const ShoppingList = {
                             setName: CardRenderer.getSetName(card),
                             set: card.set || '',
                             num: card.num || '',
-                            name: card.name || card.player || '',
+                            name: card.name || card.player || entry.title || '',
                             variant: card.variant || '',
                             price: card.price || 0,
                             checklist: entry.title || id
