@@ -438,11 +438,6 @@ class ChecklistManager {
                     </div>
                     ${ownerItemsHtml}
                     ${syncButtonHtml}
-                    <button class="nav-dropdown-item" id="shopping-list-btn">
-                        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM17.99 9l-1.41-1.42-6.59 6.59-2.58-2.57-1.42 1.41 4 3.99z"/></svg>
-                        Shopping List
-                    </button>
-                    <div class="nav-dropdown-divider"></div>
                     <button class="nav-dropdown-item" id="auth-logout-btn">
                         <svg viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
                         Sign out
@@ -468,7 +463,6 @@ class ChecklistManager {
                 dropdown.classList.remove('open');
             });
             document.getElementById('auth-logout-btn').onclick = () => this.logout();
-            document.getElementById('shopping-list-btn').onclick = () => ShoppingList.generate();
             const clearAllBtn = document.getElementById('clear-all-btn');
             if (clearAllBtn) clearAllBtn.onclick = () => this.clearAll();
             // Sync button (preview only)
