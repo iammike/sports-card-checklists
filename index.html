@@ -433,7 +433,7 @@
         // Track if we've animated yet (only animate once)
         let hasAnimatedStats = false;
 
-        function updateAggregateStats(allStats) {
+        function updateAggregateStats(allStats, uniqueOwnedCount) {
             let totalOwned = 0, totalCards = 0, totalOwnedValue = 0, totalNeededValue = 0;
             let hasAnyStats = false;
 
@@ -446,6 +446,11 @@
                     totalNeededValue += stats.neededValue || 0;
                 }
             });
+
+            // Use de-duplicated owned count when available
+            if (uniqueOwnedCount != null && uniqueOwnedCount < totalOwned) {
+                totalOwned = uniqueOwnedCount;
+            }
 
             if (!hasAnyStats) return;
 
@@ -551,7 +556,15 @@
                 grid.appendChild(card);
             });
 
-            return dynamicStats;
+            // Compute unique owned count across all visible checklists
+            const allOwnedIds = gistData?.checklists || {};
+            const uniqueOwned = new Set();
+            dynamicEntries.forEach(entry => {
+                const ids = allOwnedIds[entry.id];
+                if (ids) ids.forEach(id => uniqueOwned.add(id));
+            });
+
+            return { stats: dynamicStats, uniqueOwnedCount: uniqueOwned.size };
         }
 
         async function init() {
@@ -568,8 +581,8 @@
             });
 
             // Render dynamic checklist cards from registry and aggregate stats
-            const allStats = await renderDynamicChecklists();
-            updateAggregateStats(allStats);
+            const { stats: allStats, uniqueOwnedCount } = await renderDynamicChecklists();
+            updateAggregateStats(allStats, uniqueOwnedCount);
 
             // Render nav links + hamburger (registry already cached by renderDynamicChecklists)
             await DynamicNav.init();
