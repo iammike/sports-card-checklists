@@ -523,6 +523,16 @@ class ImageEditorModal {
                 this.cancel();
             }
         });
+
+        // Enter key to confirm
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && this.backdrop.classList.contains('active')) {
+                // Don't trigger if focused on an input (like the rotation text field)
+                if (e.target.tagName === 'INPUT') return;
+                e.preventDefault();
+                this.confirm();
+            }
+        });
     }
 
     // Handle toolbar actions
