@@ -4495,9 +4495,11 @@ const ShoppingList = {
         });
     },
 
-    generateCardId(card) {
+    generateCardId(card, config) {
         if (card.id) return card.id;
-        const str = (card.set || '') + (card.num || '') + (card.variant || '');
+        const includePlayer = config?.cardDisplay?.includePlayerInCardId;
+        const str = (includePlayer ? (card.player || '') : '')
+            + (card.set || '') + (card.num || '') + (card.variant || '');
         const safe = str.replace(/[^\x00-\xFF]/g, '_');
         return btoa(safe).replace(/[^a-zA-Z0-9]/g, '');
     },
@@ -4545,8 +4547,11 @@ const ShoppingList = {
                 return;
             }
 
+            // Force fresh load (page-load cache may be stale)
+            githubSync._cachedData = null;
             const data = await githubSync.loadData() || await githubSync.loadPublicData();
             const ownedByChecklist = data?.checklists || {};
+            console.log('[ShoppingList] Loaded owned data for checklists:', Object.keys(ownedByChecklist).map(k => `${k}: ${(ownedByChecklist[k] || []).length} cards`));
 
             // Collect all unowned cards
             const shoppingItems = [];
@@ -4567,14 +4572,15 @@ const ShoppingList = {
                 for (const card of allCards) {
                     // Skip cards with no set name (incomplete data)
                     if (!card.set) continue;
-                    const cardId = this.generateCardId(card);
+                    const cardId = this.generateCardId(card, config);
                     if (!owned.includes(cardId)) {
                         shoppingItems.push({
                             year: CardRenderer.getYear(card),
                             setName: CardRenderer.getSetName(card),
                             set: card.set || '',
                             num: card.num || '',
-                            name: card.name || card.player || '',
+                            name: card.name || card.player
+                                || (entry.navLabel || entry.title || '').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()),
                             variant: card.variant || '',
                             price: card.price || 0,
                             checklist: entry.title || id
