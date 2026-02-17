@@ -222,6 +222,13 @@
             color: #888;
             transform: translateY(1px);
         }
+        .checklist-card .stat-pill.complete {
+            background: rgba(76, 175, 80, 0.12);
+            color: #4caf50;
+        }
+        .checklist-card .stat-pill.complete .count {
+            color: #4caf50;
+        }
         .coming-soon {
             opacity: 0.5;
             pointer-events: none;
@@ -542,7 +549,8 @@
                                 const total = stats[pill.id + 'Total'] || 0;
                                 if (total === 0) return '';
                                 const pillPct = Math.round((owned / total) * 100);
-                                return `<span class="stat-pill" style="--pill-pct: ${pillPct}%">${sanitizeText(pill.label)} <span class="count">${owned}/${total}</span></span>`;
+                                const isComplete = owned === total;
+                                return `<span class="stat-pill${isComplete ? ' complete' : ''}" style="--pill-pct: ${pillPct}%">${sanitizeText(pill.label)} <span class="count">${isComplete ? '\u2713' : `${owned}/${total}`}</span></span>`;
                             }).join('')}
                         </div>` : ''}
                         </div>
