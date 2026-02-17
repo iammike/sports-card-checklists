@@ -556,12 +556,12 @@
                 grid.appendChild(card);
             });
 
-            // Compute unique owned count across all visible checklists
-            const allOwnedIds = gistData?.checklists || {};
+            // Compute unique owned count using universal fingerprints (set+num+variant, no player)
             const uniqueOwned = new Set();
-            dynamicEntries.forEach(entry => {
-                const ids = allOwnedIds[entry.id];
-                if (ids) ids.forEach(id => uniqueOwned.add(id));
+            Object.values(dynamicStats).forEach(stats => {
+                if (stats?.ownedFingerprints) {
+                    stats.ownedFingerprints.forEach(fp => uniqueOwned.add(fp));
+                }
             });
 
             return { stats: dynamicStats, uniqueOwnedCount: uniqueOwned.size };
