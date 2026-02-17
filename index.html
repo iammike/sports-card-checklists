@@ -506,14 +506,24 @@
                         : await githubSync.loadPublicCardData(entry.id);
                     if (!config || !cardData) continue;
 
-                    // Flatten all cards
+                    // Flatten main-category cards only (matching computeStats behavior)
                     let cards;
                     if (config.dataShape === 'flat') {
                         cards = cardData.cards || [];
                     } else {
                         cards = [];
-                        for (const arr of Object.values(cardData.categories || {})) {
-                            cards.push(...arr);
+                        const categories = config.categories || [];
+                        const mainCats = categories.filter(c => c.isMain !== false);
+                        const mainCatIds = new Set();
+                        mainCats.forEach(cat => {
+                            if (cat.children && cat.children.length > 0) {
+                                cat.children.forEach(child => mainCatIds.add(child.id));
+                            } else {
+                                mainCatIds.add(cat.id);
+                            }
+                        });
+                        for (const [catId, arr] of Object.entries(cardData.categories || {})) {
+                            if (mainCatIds.has(catId)) cards.push(...arr);
                         }
                     }
 
@@ -535,20 +545,12 @@
                     });
 
                     // Map owned IDs to universal fingerprints
-                    let matched = 0, missed = 0;
                     ownedIds.forEach(id => {
                         const card = cardById.get(id);
-                        if (card) {
-                            matched++;
-                            uniqueFPs.add(fingerprint(card));
-                        } else {
-                            missed++;
-                        }
+                        if (card) uniqueFPs.add(fingerprint(card));
                     });
-                    console.log(`[de-dup] ${entry.id}: ${matched} matched, ${missed} missed, ${cardById.size} cards in map, ${ownedIds.length} owned`);
                 }
 
-                console.log(`[de-dup] Total unique fingerprints: ${uniqueFPs.size}, summed owned: ${Object.values(allOwned).reduce((sum, ids) => sum + (ids?.length || 0), 0)}`);
                 return uniqueFPs.size;
             } catch (e) {
                 console.warn('Failed to compute unique owned count:', e);
