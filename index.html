@@ -649,12 +649,8 @@
 
             // Render dynamic checklist cards from registry and aggregate stats
             const { stats: allStats, entries } = await renderDynamicChecklists();
-            updateAggregateStats(allStats);
-
-            // De-duplicate owned count across checklists (async, updates after initial render)
-            computeUniqueOwned(entries).then(uniqueCount => {
-                if (uniqueCount != null) updateAggregateStats(allStats, uniqueCount);
-            });
+            const uniqueCount = await computeUniqueOwned(entries);
+            updateAggregateStats(allStats, uniqueCount);
 
             // Render nav links + hamburger (registry already cached by renderDynamicChecklists)
             await DynamicNav.init();
