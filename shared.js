@@ -4509,10 +4509,25 @@ const ShoppingList = {
     },
 
     flattenCards(cardData, config) {
-        if (config.dataShape === 'flat') return cardData.cards || [];
+        if (config.dataShape === 'flat') {
+            // Exclude collection link cards (not real cards)
+            return (cardData.cards || []).filter(c => !c.collectionLink);
+        }
+        // Category-based: only include main categories
+        const categories = config.categories || [];
+        const mainCatIds = new Set();
+        categories.filter(c => c.isMain !== false).forEach(cat => {
+            if (cat.children && cat.children.length > 0) {
+                cat.children.forEach(child => mainCatIds.add(child.id));
+            } else {
+                mainCatIds.add(cat.id);
+            }
+        });
         const all = [];
-        for (const cards of Object.values(cardData.categories || {})) {
-            cards.forEach(c => all.push(c));
+        for (const [catId, cards] of Object.entries(cardData.categories || {})) {
+            if (mainCatIds.size === 0 || mainCatIds.has(catId)) {
+                cards.forEach(c => { if (!c.collectionLink) all.push(c); });
+            }
         }
         return all;
     },
@@ -4556,6 +4571,8 @@ const ShoppingList = {
                 const owned = ownedByChecklist[id] || [];
 
                 for (const card of allCards) {
+                    // Skip cards with no set name (incomplete data)
+                    if (!card.set) continue;
                     const cardId = this.generateCardId(card);
                     if (!owned.includes(cardId)) {
                         shoppingItems.push({
@@ -4572,8 +4589,11 @@ const ShoppingList = {
                 }
             }
 
-            // Sort by year, set name, card number
+            // Sort by year, set name, card number (cards without year go last)
             shoppingItems.sort((a, b) => {
+                const hasYearA = a.year > 0 ? 0 : 1;
+                const hasYearB = b.year > 0 ? 0 : 1;
+                if (hasYearA !== hasYearB) return hasYearA - hasYearB;
                 if (a.year !== b.year) return a.year - b.year;
                 if (a.setName !== b.setName) return a.setName.localeCompare(b.setName);
                 const numA = parseInt(a.num) || 0;
