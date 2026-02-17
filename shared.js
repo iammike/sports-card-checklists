@@ -3,6 +3,12 @@
 // R2 image storage base URL
 const R2_IMAGE_BASE = 'https://cards-oauth.iammikec.workers.dev/images/';
 
+// Extract R2 key from a full R2 URL (e.g. "images/jayden/2025_base_1.webp")
+function r2KeyFromUrl(url) {
+    if (!url || !url.startsWith(R2_IMAGE_BASE)) return null;
+    return url.slice(R2_IMAGE_BASE.length - 'images/'.length);
+}
+
 // Standard card types used across all checklists
 const CARD_TYPES = ['Base', 'Insert', 'Chase'];
 
@@ -2704,7 +2710,13 @@ class CardEditorModal {
 
             // Upload to R2
             btn.title = 'Uploading...';
+            const oldKey = r2KeyFromUrl(url);
             const r2Url = await githubSync.uploadImage(newKey, base64Data);
+
+            // Clean up old R2 image (fire-and-forget)
+            if (oldKey && oldKey !== newKey) {
+                githubSync.deleteImage(oldKey).catch(() => {});
+            }
 
             // Update the input field with the R2 URL
             imgInput.value = r2Url;
@@ -2740,6 +2752,9 @@ class CardEditorModal {
             alert('Please sign in to process images');
             return;
         }
+
+        // Capture old R2 key before upload replaces the URL
+        const oldKey = r2KeyFromUrl(url);
 
         // Show loading state
         btn.classList.add('processing');
@@ -2789,6 +2804,11 @@ class CardEditorModal {
             btn.title = 'Uploading...';
             const r2Url = await githubSync.uploadImage(key, base64Content);
 
+            // Clean up old R2 image (fire-and-forget)
+            if (oldKey && oldKey !== key) {
+                githubSync.deleteImage(oldKey).catch(() => {});
+            }
+
             // Update the input field with the R2 URL
             imgInput.value = r2Url;
             this.updateImagePreview(`data:image/webp;base64,${base64Content}`);
@@ -2827,6 +2847,9 @@ class CardEditorModal {
             alert('Please select an image file');
             return;
         }
+
+        // Capture old R2 key before upload replaces the URL
+        const oldKey = r2KeyFromUrl(imgInput.value.trim());
 
         // Show loading state
         zone.classList.add('processing');
@@ -2869,6 +2892,11 @@ class CardEditorModal {
 
             // Upload to R2
             const r2Url = await githubSync.uploadImage(key, base64Content);
+
+            // Clean up old R2 image (fire-and-forget)
+            if (oldKey && oldKey !== key) {
+                githubSync.deleteImage(oldKey).catch(() => {});
+            }
 
             // Update the input field with the R2 URL
             imgInput.value = r2Url;
