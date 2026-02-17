@@ -4551,7 +4551,6 @@ const ShoppingList = {
             githubSync._cachedData = null;
             const data = await githubSync.loadData() || await githubSync.loadPublicData();
             const ownedByChecklist = data?.checklists || {};
-            console.log('[ShoppingList] Loaded owned data for checklists:', Object.keys(ownedByChecklist).map(k => `${k}: ${(ownedByChecklist[k] || []).length} cards`));
 
             // Collect all unowned cards
             const shoppingItems = [];
