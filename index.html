@@ -440,7 +440,7 @@
         // Track if we've animated yet (only animate once)
         let hasAnimatedStats = false;
 
-        function updateAggregateStats(allStats, uniqueOwnedCount) {
+        function updateAggregateStats(allStats, uniqueOwned) {
             let totalOwned = 0, totalCards = 0, totalOwnedValue = 0, totalNeededValue = 0;
             let hasAnyStats = false;
 
@@ -454,9 +454,10 @@
                 }
             });
 
-            // Use de-duplicated owned count when available
-            if (uniqueOwnedCount != null && uniqueOwnedCount < totalOwned) {
-                totalOwned = uniqueOwnedCount;
+            // Use de-duplicated owned count and value when available
+            if (uniqueOwned != null) {
+                if (uniqueOwned.count < totalOwned) totalOwned = uniqueOwned.count;
+                if (uniqueOwned.value < totalOwnedValue) totalOwnedValue = uniqueOwned.value;
             }
 
             if (!hasAnyStats) return;
@@ -501,7 +502,7 @@
                     return btoa(str.replace(/[^\x00-\xFF]/g, '_')).replace(/[^a-zA-Z0-9]/g, '');
                 };
 
-                const uniqueFPs = new Set();
+                const uniqueFPs = new Map(); // fingerprint -> price
                 for (const entry of entries) {
                     const ownedIds = allOwned[entry.id] || [];
                     if (ownedIds.length === 0) continue;
@@ -552,16 +553,23 @@
                         cardById.set(id, card);
                     });
 
-                    // Map owned IDs to universal fingerprints
+                    // Map owned IDs to universal fingerprints, keeping highest price per card
                     ownedIds.forEach(id => {
                         const card = cardById.get(id);
-                        if (card) uniqueFPs.add(fingerprint(card));
+                        if (!card) return;
+                        const fp = fingerprint(card);
+                        const price = parseFloat(card.price) || 0;
+                        const existing = uniqueFPs.get(fp) || 0;
+                        if (price > existing) uniqueFPs.set(fp, price);
+                        else if (!uniqueFPs.has(fp)) uniqueFPs.set(fp, 0);
                     });
                 }
 
-                return uniqueFPs.size;
+                let uniqueValue = 0;
+                uniqueFPs.forEach(price => { uniqueValue += price; });
+                return { count: uniqueFPs.size, value: uniqueValue };
             } catch (e) {
-                console.warn('Failed to compute unique owned count:', e);
+                console.warn('Failed to compute unique owned stats:', e);
                 return null;
             }
         }
@@ -660,8 +668,8 @@
 
             // Render dynamic checklist cards from registry and aggregate stats
             const { stats: allStats, entries } = await renderDynamicChecklists();
-            const uniqueCount = await computeUniqueOwned(entries);
-            updateAggregateStats(allStats, uniqueCount);
+            const uniqueOwned = await computeUniqueOwned(entries);
+            updateAggregateStats(allStats, uniqueOwned);
 
             // Render nav links + hamburger (registry already cached by renderDynamicChecklists)
             await DynamicNav.init();
