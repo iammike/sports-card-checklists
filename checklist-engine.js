@@ -1283,9 +1283,9 @@ class ChecklistEngine {
         const mainCats = categories.filter(c => c.isMain !== false);
         const extraCats = categories.filter(c => c.isMain === false);
 
-        // Universal fingerprint for cross-checklist de-duplication (always set+num+variant, no player)
+        // Universal fingerprint for cross-checklist de-duplication (always player+set+num+variant)
         const cardFingerprint = (card) => {
-            const str = (card.set || '') + (card.num || '') + (card.variant || '');
+            const str = (card.player || '') + (card.set || '') + (card.num || '') + (card.variant || '');
             return btoa(str.replace(/[^\x00-\xFF]/g, '_')).replace(/[^a-zA-Z0-9]/g, '');
         };
 
