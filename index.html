@@ -518,13 +518,19 @@
                     }
 
                     // Build card ID -> card map using checklist-specific encoding
+                    // Must mirror getCardId() logic: check card.id first (unless includePlayerInCardId)
                     const includePlayer = config.cardDisplay?.includePlayerInCardId;
                     const cardById = new Map();
                     cards.forEach(card => {
                         if (card.collectionLink) return;
-                        const str = (includePlayer ? (card.player || '') : '')
-                            + (card.set || '') + (card.num || '') + (card.variant || '');
-                        const id = btoa(str.replace(/[^\x00-\xFF]/g, '_')).replace(/[^a-zA-Z0-9]/g, '');
+                        let id;
+                        if (includePlayer) {
+                            id = btoa(((card.player || '') + (card.set || '') + (card.num || '') + (card.variant || '')).replace(/[^\x00-\xFF]/g, '_')).replace(/[^a-zA-Z0-9]/g, '');
+                        } else if (card.id) {
+                            id = card.id;
+                        } else {
+                            id = btoa(((card.set || '') + (card.num || '') + (card.variant || '')).replace(/[^\x00-\xFF]/g, '_')).replace(/[^a-zA-Z0-9]/g, '');
+                        }
                         cardById.set(id, card);
                     });
 
