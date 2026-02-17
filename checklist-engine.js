@@ -1283,17 +1283,10 @@ class ChecklistEngine {
         const mainCats = categories.filter(c => c.isMain !== false);
         const extraCats = categories.filter(c => c.isMain === false);
 
-        // Universal fingerprint for cross-checklist de-duplication (always player+set+num+variant)
-        const cardFingerprint = (card) => {
-            const str = (card.player || '') + (card.set || '') + (card.num || '') + (card.variant || '');
-            return btoa(str.replace(/[^\x00-\xFF]/g, '_')).replace(/[^a-zA-Z0-9]/g, '');
-        };
-
         if (this._isFlat()) {
             // Flat: count all non-collectionLink cards
             const countable = this.cards.filter(c => !c.collectionLink);
             let ownedCount = 0, totalValue = 0, ownedValue = 0, neededValue = 0;
-            const ownedFingerprints = [];
             countable.forEach(card => {
                 const price = this.getPrice(card);
                 const owned = this.isOwned(this.getCardId(card));
@@ -1301,7 +1294,6 @@ class ChecklistEngine {
                 if (owned) {
                     ownedCount++;
                     ownedValue += price;
-                    ownedFingerprints.push(cardFingerprint(card));
                 } else {
                     neededValue += price;
                 }
@@ -1311,7 +1303,6 @@ class ChecklistEngine {
                 total: countable.length,
                 ownedValue: Math.round(ownedValue),
                 neededValue: Math.round(neededValue),
-                ownedFingerprints,
             };
         }
 
@@ -1327,7 +1318,6 @@ class ChecklistEngine {
 
         // Category-based: count only main categories
         let ownedCount = 0, totalCount = 0, totalValue = 0, ownedValue = 0, neededValue = 0;
-        const ownedFingerprints = [];
         mainCats.forEach(cat => {
             getCardsForCategory(cat).forEach(card => {
                 const price = this.getPrice(card);
@@ -1337,7 +1327,6 @@ class ChecklistEngine {
                 if (owned) {
                     ownedCount++;
                     ownedValue += price;
-                    ownedFingerprints.push(cardFingerprint(card));
                 } else {
                     neededValue += price;
                 }
@@ -1349,7 +1338,6 @@ class ChecklistEngine {
             total: totalCount,
             ownedValue: Math.round(ownedValue),
             neededValue: Math.round(neededValue),
-            ownedFingerprints,
         };
 
         // Add extra category stats
