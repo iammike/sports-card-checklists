@@ -440,7 +440,7 @@
         // Track if we've animated yet (only animate once)
         let hasAnimatedStats = false;
 
-        function updateAggregateStats(allStats) {
+        function updateAggregateStats(allStats, uniqueOwnedCount) {
             let totalOwned = 0, totalCards = 0, totalOwnedValue = 0, totalNeededValue = 0;
             let hasAnyStats = false;
 
@@ -453,6 +453,11 @@
                     totalNeededValue += stats.neededValue || 0;
                 }
             });
+
+            // Use de-duplicated owned count when available
+            if (uniqueOwnedCount != null && uniqueOwnedCount < totalOwned) {
+                totalOwned = uniqueOwnedCount;
+            }
 
             if (!hasAnyStats) return;
 
@@ -480,6 +485,84 @@
                 document.getElementById('agg-total').textContent = totalCards;
                 document.getElementById('agg-value').textContent = '$' + totalOwnedValue;
                 document.getElementById('agg-needed-value').textContent = '$' + totalNeededValue + ' to complete';
+            }
+        }
+
+        // Compute unique owned count by loading card data (gist is already cached, no extra API calls)
+        async function computeUniqueOwned(entries) {
+            try {
+                const isLoggedIn = window.githubSync?.isLoggedIn();
+                const data = isLoggedIn ? await githubSync.loadData() : await githubSync.loadPublicData();
+                const allOwned = data?.checklists || {};
+
+                // Variant excluded - same player+set+num is the same physical card
+                const fingerprint = (card) => {
+                    const str = (card.player || '') + (card.set || '') + (card.num || '');
+                    return btoa(str.replace(/[^\x00-\xFF]/g, '_')).replace(/[^a-zA-Z0-9]/g, '');
+                };
+
+                const uniqueFPs = new Set();
+                for (const entry of entries) {
+                    const ownedIds = allOwned[entry.id] || [];
+                    if (ownedIds.length === 0) continue;
+
+                    const config = isLoggedIn
+                        ? await githubSync.loadChecklistConfig(entry.id)
+                        : await githubSync.loadPublicChecklistConfig(entry.id);
+                    const cardData = isLoggedIn
+                        ? await githubSync.loadCardData(entry.id)
+                        : await githubSync.loadPublicCardData(entry.id);
+                    if (!config || !cardData) continue;
+
+                    // Flatten main-category cards only (matching computeStats behavior)
+                    let cards;
+                    if (config.dataShape === 'flat') {
+                        cards = cardData.cards || [];
+                    } else {
+                        cards = [];
+                        const categories = config.categories || [];
+                        const mainCats = categories.filter(c => c.isMain !== false);
+                        const mainCatIds = new Set();
+                        mainCats.forEach(cat => {
+                            if (cat.children && cat.children.length > 0) {
+                                cat.children.forEach(child => mainCatIds.add(child.id));
+                            } else {
+                                mainCatIds.add(cat.id);
+                            }
+                        });
+                        for (const [catId, arr] of Object.entries(cardData.categories || {})) {
+                            if (mainCatIds.has(catId)) cards.push(...arr);
+                        }
+                    }
+
+                    // Build card ID -> card map using checklist-specific encoding
+                    // Must mirror getCardId() logic: check card.id first (unless includePlayerInCardId)
+                    const includePlayer = config.cardDisplay?.includePlayerInCardId;
+                    const cardById = new Map();
+                    cards.forEach(card => {
+                        if (card.collectionLink) return;
+                        let id;
+                        if (includePlayer) {
+                            id = btoa(((card.player || '') + (card.set || '') + (card.num || '') + (card.variant || '')).replace(/[^\x00-\xFF]/g, '_')).replace(/[^a-zA-Z0-9]/g, '');
+                        } else if (card.id) {
+                            id = card.id;
+                        } else {
+                            id = btoa(((card.set || '') + (card.num || '') + (card.variant || '')).replace(/[^\x00-\xFF]/g, '_')).replace(/[^a-zA-Z0-9]/g, '');
+                        }
+                        cardById.set(id, card);
+                    });
+
+                    // Map owned IDs to universal fingerprints
+                    ownedIds.forEach(id => {
+                        const card = cardById.get(id);
+                        if (card) uniqueFPs.add(fingerprint(card));
+                    });
+                }
+
+                return uniqueFPs.size;
+            } catch (e) {
+                console.warn('Failed to compute unique owned count:', e);
+                return null;
             }
         }
 
@@ -559,7 +642,7 @@
                 grid.appendChild(card);
             });
 
-            return dynamicStats;
+            return { stats: dynamicStats, entries: dynamicEntries };
         }
 
         async function init() {
@@ -576,8 +659,9 @@
             });
 
             // Render dynamic checklist cards from registry and aggregate stats
-            const allStats = await renderDynamicChecklists();
-            updateAggregateStats(allStats);
+            const { stats: allStats, entries } = await renderDynamicChecklists();
+            const uniqueCount = await computeUniqueOwned(entries);
+            updateAggregateStats(allStats, uniqueCount);
 
             // Render nav links + hamburger (registry already cached by renderDynamicChecklists)
             await DynamicNav.init();
