@@ -414,9 +414,12 @@ class ImageEditorModal {
         // Close button
         this.backdrop.querySelector('.image-editor-close').onclick = () => this.cancel();
 
-        // Backdrop click to close
+        // Backdrop click to close (with confirmation)
         this.backdrop.onclick = (e) => {
-            if (e.target === this.backdrop) this.cancel();
+            if (e.target === this.backdrop) {
+                if (!confirm('Discard image edits?')) return;
+                this.cancel();
+            }
         };
 
         // Cancel button
@@ -521,6 +524,15 @@ class ImageEditorModal {
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && this.backdrop.classList.contains('active')) {
                 this.cancel();
+            }
+        });
+
+        // Enter key to confirm (unless focused on an input)
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && this.backdrop.classList.contains('active')) {
+                if (e.target.tagName === 'INPUT') return;
+                e.preventDefault();
+                this.confirm();
             }
         });
     }
