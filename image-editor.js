@@ -416,7 +416,10 @@ class ImageEditorModal {
 
         // Backdrop click to close
         this.backdrop.onclick = (e) => {
-            if (e.target === this.backdrop) this.cancel();
+            if (e.target === this.backdrop) {
+                if (!confirm('Discard image edits?')) return;
+                this.cancel();
+            }
         };
 
         // Cancel button
