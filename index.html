@@ -488,10 +488,8 @@
                 const data = isLoggedIn ? await githubSync.loadData() : await githubSync.loadPublicData();
                 const allOwned = data?.checklists || {};
 
-                // Fingerprint excludes variant - same player+set+num is the same card
-                // across checklists even if labeled differently (e.g. "Grade 9" vs "")
                 const fingerprint = (card) => {
-                    const str = (card.player || '') + (card.set || '') + (card.num || '');
+                    const str = (card.player || '') + (card.set || '') + (card.num || '') + (card.variant || '');
                     return btoa(str.replace(/[^\x00-\xFF]/g, '_')).replace(/[^a-zA-Z0-9]/g, '');
                 };
 
