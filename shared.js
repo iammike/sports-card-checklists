@@ -4619,12 +4619,11 @@ const ShoppingList = {
         const margin = 12;
         const usableWidth = pageWidth - margin * 2;
 
-        // Column layout: Year | Set | # | Name | Variant | Price
+        // Column layout: Set | # | Name | Variant | Price
         const cols = [
-            { label: 'Year', width: 18 },
-            { label: 'Set', width: 62 },
+            { label: 'Set', width: 76 },
             { label: '#', width: 16 },
-            { label: 'Name', width: 52 },
+            { label: 'Name', width: 56 },
             { label: 'Variant', width: 28 },
             { label: 'Price', width: 18 }
         ];
@@ -4706,20 +4705,17 @@ const ShoppingList = {
                 return t.length < text.length ? t + '..' : t;
             };
 
-            doc.text(item.year ? String(item.year) : '', x, y + 3);
+            doc.text(truncate(item.set, cols[0].width), x, y + 3);
             x += cols[0].width;
 
-            doc.text(truncate(item.set, cols[1].width), x, y + 3);
+            doc.text(String(item.num), x, y + 3);
             x += cols[1].width;
 
-            doc.text(String(item.num), x, y + 3);
+            doc.text(truncate(item.name, cols[2].width), x, y + 3);
             x += cols[2].width;
 
-            doc.text(truncate(item.name, cols[3].width), x, y + 3);
+            doc.text(truncate(item.variant, cols[3].width), x, y + 3);
             x += cols[3].width;
-
-            doc.text(truncate(item.variant, cols[4].width), x, y + 3);
-            x += cols[4].width;
 
             if (item.price > 0) {
                 doc.text('$' + item.price.toFixed(0), x, y + 3);
