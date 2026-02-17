@@ -535,12 +535,20 @@
                     });
 
                     // Map owned IDs to universal fingerprints
+                    let matched = 0, missed = 0;
                     ownedIds.forEach(id => {
                         const card = cardById.get(id);
-                        if (card) uniqueFPs.add(fingerprint(card));
+                        if (card) {
+                            matched++;
+                            uniqueFPs.add(fingerprint(card));
+                        } else {
+                            missed++;
+                        }
                     });
+                    console.log(`[de-dup] ${entry.id}: ${matched} matched, ${missed} missed, ${cardById.size} cards in map, ${ownedIds.length} owned`);
                 }
 
+                console.log(`[de-dup] Total unique fingerprints: ${uniqueFPs.size}, summed owned: ${Object.values(allOwned).reduce((sum, ids) => sum + (ids?.length || 0), 0)}`);
                 return uniqueFPs.size;
             } catch (e) {
                 console.warn('Failed to compute unique owned count:', e);
