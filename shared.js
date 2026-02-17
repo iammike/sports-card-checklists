@@ -4528,8 +4528,8 @@ const ShoppingList = {
         try {
             await this.loadJsPDF();
 
-            // Load registry and owned data
-            const registry = await githubSync.loadRegistry();
+            // Load registry (use DynamicNav which has session caching)
+            const registry = await DynamicNav.loadRegistry();
             if (!registry || !registry.length) {
                 alert('No checklists found.');
                 return;
