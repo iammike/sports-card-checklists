@@ -4529,8 +4529,9 @@ const ShoppingList = {
             await this.loadJsPDF();
 
             // Load registry (use DynamicNav which has session caching)
-            const registry = await DynamicNav.loadRegistry();
-            if (!registry || !registry.length) {
+            const registryData = await DynamicNav.loadRegistry();
+            const checklists = registryData?.checklists || [];
+            if (!checklists.length) {
                 alert('No checklists found.');
                 return;
             }
@@ -4541,7 +4542,7 @@ const ShoppingList = {
             // Collect all unowned cards
             const shoppingItems = [];
 
-            for (const entry of registry) {
+            for (const entry of checklists) {
                 const id = entry.id;
                 const config = await githubSync.loadChecklistConfig(id)
                     || await githubSync.loadPublicChecklistConfig(id);
