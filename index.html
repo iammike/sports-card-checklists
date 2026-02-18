@@ -94,38 +94,21 @@
             margin-bottom: 20px;
         }
         .checklist-search {
-            width: 100%;
-            font-family: 'Barlow', sans-serif;
-            font-size: 0.9em;
-            font-weight: 500;
-            padding: 10px 14px 10px 38px;
+            flex: 1;
+            min-width: 0;
+            padding: 10px 14px;
             background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 4px;
+            border: 1px solid rgba(255,255,255,0.12);
             color: #ccc;
-            outline: none;
             transition: border-color 0.2s;
         }
         .checklist-search:focus {
             border-color: rgba(243, 156, 18, 0.4);
+            outline: none;
         }
         .checklist-search::placeholder {
             color: #555;
-        }
-        .checklist-search-wrap {
-            position: relative;
-            flex: 1;
-            min-width: 0;
-        }
-        .checklist-search-wrap svg {
-            position: absolute;
-            left: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 16px;
-            height: 16px;
-            fill: #555;
-            pointer-events: none;
+            font-style: italic;
         }
         .checklist-filter-pills {
             display: flex;
@@ -497,10 +480,7 @@
         </div>
 
         <div class="checklist-filter-bar" id="checklist-filter-bar" style="display: none;">
-            <div class="checklist-search-wrap">
-                <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-                <input type="text" class="checklist-search" id="checklist-search" placeholder="Search checklists..." autocomplete="off">
-            </div>
+            <input type="text" class="checklist-search" id="checklist-search" placeholder="Search checklists..." autocomplete="off">
             <div class="checklist-filter-pills">
                 <button class="filter-pill active" data-filter="all">All</button>
                 <button class="filter-pill" data-filter="in-progress">In Progress</button>
