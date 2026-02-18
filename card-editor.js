@@ -814,6 +814,14 @@ class CardEditorModal {
         if (!confirm('Remove this image?')) return;
 
         const imgInput = this.backdrop.querySelector('#editor-img');
+        const oldUrl = imgInput.value.trim();
+
+        // Delete old R2 image (fire-and-forget)
+        const oldKey = r2KeyFromUrl(oldUrl);
+        if (oldKey) {
+            githubSync.deleteImage(oldKey).catch(() => {});
+        }
+
         imgInput.value = '';
         this.updateImagePreview('');
         this.updateImageActions('');
@@ -1251,11 +1259,8 @@ class CardEditorModal {
             type: this.backdrop.querySelector('#editor-type')?.value || ''
         };
 
-        // Image - only include if set (so clearing can delete it)
-        const imgVal = this.backdrop.querySelector('#editor-img').value.trim();
-        if (imgVal) {
-            data.img = imgVal;
-        }
+        // Image - always include so merge with fresh gist data doesn't restore deleted images
+        data.img = this.backdrop.querySelector('#editor-img').value.trim();
 
         // Category - only include if field exists
         const categoryField = this.backdrop.querySelector('#editor-category');
