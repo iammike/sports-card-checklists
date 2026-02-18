@@ -753,9 +753,11 @@ class CardEditorModal {
             }
         });
 
-        // Enter key to save (unless in a select or textarea)
-        modal.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !['SELECT', 'TEXTAREA'].includes(e.target.tagName)) {
+        // Enter key to save (unless in a select, textarea, or image editor is open)
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && this.backdrop.classList.contains('active')
+                && !document.querySelector('.image-editor-backdrop.active')
+                && !['SELECT', 'TEXTAREA'].includes(e.target.tagName)) {
                 e.preventDefault();
                 this.save();
             }
