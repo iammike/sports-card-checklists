@@ -164,22 +164,24 @@ No code changes needed to add a new checklist.
 ```
 ├── index.html               # Landing page (loads checklists from gist registry)
 ├── checklist.html           # Config-driven checklist page (?id=xxx)
-├── checklist-engine.js      # Checklist engine (loads config from gist)
-├── github-sync.js           # OAuth + Gist + R2 storage
-├── shared.js                # Shared utilities (sanitize, filter, stats animation)
-├── card-renderer.js         # Card HTML rendering and badge generation
-├── card-editor.js           # CardEditorModal with schema-driven custom fields
-├── checklist-manager.js     # Ownership tracking, save/load, sync status
-├── checklist-creator.js     # Checklist creation/settings modal
-├── collapsible-sections.js  # Expandable section headers
-├── image-editor.js          # Image crop/rotate, perspective correction, upload
-├── shopping-list.js         # Shopping List PDF export
-├── nav.js                   # Dynamic navigation, auth UI, dropdown menus
 ├── shared.css               # All shared styles
+├── src/                     # JavaScript source modules
+│   ├── github-sync.js       #   OAuth + Gist + R2 storage
+│   ├── shared.js            #   Shared utilities (sanitize, filter, stats animation)
+│   ├── card-renderer.js     #   Card HTML rendering and badge generation
+│   ├── card-editor.js       #   CardEditorModal with schema-driven custom fields
+│   ├── checklist-manager.js #   Ownership tracking, save/load, sync status
+│   ├── checklist-creator.js #   Checklist creation/settings modal
+│   ├── collapsible-sections.js # Expandable section headers
+│   ├── image-editor.js      #   Image crop/rotate, perspective correction, upload
+│   ├── shopping-list.js     #   Shopping List PDF export
+│   ├── nav.js               #   Dynamic navigation, auth UI, dropdown menus
+│   └── checklist-engine.js  #   Checklist engine (loads config from gist)
+├── dist/                    # Built output (app.min.js, checklist-engine.min.js, shared.min.css)
+├── tests/                   # Unit tests (vitest)
 ├── build.js                 # esbuild bundler (concatenates + minifies JS/CSS)
 ├── worker.js                # Cloudflare Worker (deploy separately via GitHub Actions)
 ├── wrangler.toml            # Cloudflare Worker config (R2 binding)
-├── tests/                   # Unit tests (vitest)
 └── scripts/                 # Maintenance/migration scripts (gitignored)
 ```
 

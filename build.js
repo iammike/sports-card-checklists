@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Shared JS files in load order (globals, not ES modules)
+const srcDir = path.join(__dirname, 'src');
 const sharedFiles = [
   'github-sync.js',
   'shared.js',
@@ -22,7 +23,7 @@ async function build() {
 
   // Concatenate shared JS files
   const combined = sharedFiles
-    .map(f => fs.readFileSync(path.join(__dirname, f), 'utf8'))
+    .map(f => fs.readFileSync(path.join(srcDir, f), 'utf8'))
     .join('\n');
 
   // Minify concatenated JS -> dist/app.min.js
@@ -33,7 +34,7 @@ async function build() {
   fs.writeFileSync(path.join(distDir, 'app.min.js'), appResult.code);
 
   // Minify checklist-engine.js -> dist/checklist-engine.min.js
-  const engineSrc = fs.readFileSync(path.join(__dirname, 'checklist-engine.js'), 'utf8');
+  const engineSrc = fs.readFileSync(path.join(srcDir, 'checklist-engine.js'), 'utf8');
   const engineResult = await esbuild.transform(engineSrc, {
     minify: true,
     target: 'es2020',
