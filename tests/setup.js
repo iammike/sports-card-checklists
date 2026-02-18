@@ -22,6 +22,6 @@ const files = [
 ];
 
 for (const file of files) {
-    const code = readFileSync(resolve(import.meta.dirname, '..', file), 'utf-8');
+    const code = readFileSync(resolve(import.meta.dirname, '..', 'src', file), 'utf-8');
     (0, eval)(code);
 }
