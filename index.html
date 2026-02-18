@@ -19,6 +19,8 @@
             min-height: 100vh;
             padding: 0 20px 40px;
             color: #fff;
+            --color-surface: rgba(255,255,255,0.05);
+            --color-text: #ccc;
         }
         .container {
             max-width: 800px;
@@ -84,7 +86,66 @@
         }
         .checklist-grid {
             display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
             gap: 20px;
+        }
+        .checklist-filter-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            justify-content: space-between;
+        }
+        input.checklist-search {
+            width: 200px;
+            padding: 8px 12px;
+            font-size: 0.75em;
+            font-weight: 600;
+            border-color: rgba(255,255,255,0.12);
+            border-radius: 3px;
+        }
+        input.checklist-search:focus {
+            border-color: rgba(243, 156, 18, 0.4);
+            outline: none;
+        }
+        .checklist-search::placeholder {
+            color: #555;
+            font-style: italic;
+        }
+        .checklist-filter-pills {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .filter-pill {
+            font-family: 'Barlow', sans-serif;
+            font-size: 0.75em;
+            font-weight: 600;
+            padding: 8px 12px;
+            border-radius: 3px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: transparent;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .filter-pill:hover {
+            border-color: rgba(255,255,255,0.2);
+            color: #999;
+        }
+        .filter-pill.active {
+            background: rgba(243, 156, 18, 0.15);
+            border-color: rgba(243, 156, 18, 0.3);
+            color: #f39c12;
+        }
+        .checklist-no-results {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 40px 20px;
+            color: #555;
+            font-family: 'Barlow', sans-serif;
+            font-size: 0.9em;
         }
         .checklist-card {
             --card-accent: #f39c12;
@@ -196,9 +257,9 @@
         /* Secondary stats - right column */
         .checklist-card .secondary-stats {
             display: flex;
-            flex-direction: column;
+            flex-wrap: wrap;
             gap: 6px;
-            align-items: flex-end;
+            margin-top: 10px;
         }
         .checklist-card .stat-pill {
             font-family: 'Barlow', sans-serif;
@@ -246,7 +307,7 @@
             border: 1px solid rgba(255,182,18,0.2);
             border-radius: 4px;
             padding: 24px 28px 20px;
-            margin-bottom: 36px;
+            margin-bottom: 24px;
             position: relative;
             box-shadow:
                 0 4px 24px rgba(0,0,0,0.4),
@@ -356,6 +417,16 @@
             }
             .aggregate-stat { padding: 14px 12px 12px; }
             .aggregate-stat-value { font-size: 2.6em; }
+            .checklist-grid {
+                grid-template-columns: 1fr;
+            }
+            .checklist-filter-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .checklist-filter-pills {
+                justify-content: center;
+            }
         }
     </style>
 </head>
@@ -410,6 +481,15 @@
             </div>
         </div>
 
+        <div class="checklist-filter-bar" id="checklist-filter-bar" style="display: none;">
+            <input type="text" class="checklist-search" id="checklist-search" placeholder="Search checklists..." autocomplete="off">
+            <div class="checklist-filter-pills">
+                <button class="filter-pill active" data-filter="all">All</button>
+                <button class="filter-pill" data-filter="in-progress">In Progress</button>
+                <button class="filter-pill" data-filter="complete">Complete</button>
+                <button class="filter-pill" data-filter="not-started">Not Started</button>
+            </div>
+        </div>
         <div class="checklist-grid"></div>
     </div>
 
@@ -632,6 +712,7 @@
                                     <span class="value-needed">$${stats.neededValue || 0} to complete</span>
                                 </div>
                             </div>
+                        </div>
                         ${entry.extraPills && hasStats ? `
                         <div class="secondary-stats">
                             ${entry.extraPills.map(pill => {
@@ -643,13 +724,73 @@
                                 return `<span class="stat-pill${isComplete ? ' complete' : ''}" style="--pill-pct: ${pillPct}%">${sanitizeText(pill.label)} <span class="count">${isComplete ? '\u2713' : `${owned}/${total}`}</span></span>`;
                             }).join('')}
                         </div>` : ''}
-                        </div>
                     </div>` : '<div class="progress-section" style="display:block"><p style="font-size:12px;color:#666;">No cards yet</p></div>'}
                 `;
                 grid.appendChild(card);
             });
 
             return { stats: dynamicStats, entries: dynamicEntries };
+        }
+
+        function initChecklistFilters() {
+            const searchInput = document.getElementById('checklist-search');
+            const filterBar = document.getElementById('checklist-filter-bar');
+            const pills = filterBar.querySelectorAll('.filter-pill');
+            const grid = document.querySelector('.checklist-grid');
+            let activeFilter = 'all';
+
+            function applyFilters() {
+                const query = searchInput.value.toLowerCase().trim();
+                const cards = grid.querySelectorAll('.checklist-card');
+                let visibleCount = 0;
+
+                cards.forEach(card => {
+                    const title = card.querySelector('h2')?.textContent.toLowerCase() || '';
+                    const desc = card.querySelector('p')?.textContent.toLowerCase() || '';
+                    const matchesSearch = !query || title.includes(query) || desc.includes(query);
+
+                    let matchesFilter = true;
+                    if (activeFilter !== 'all') {
+                        const progressText = card.querySelector('.progress-main-text')?.textContent || '';
+                        const match = progressText.match(/(\d+)\s+of\s+(\d+)/);
+                        const owned = match ? parseInt(match[1]) : 0;
+                        const total = match ? parseInt(match[2]) : 0;
+                        const hasCards = total > 0;
+
+                        if (activeFilter === 'complete') matchesFilter = hasCards && owned === total;
+                        else if (activeFilter === 'in-progress') matchesFilter = hasCards && owned > 0 && owned < total;
+                        else if (activeFilter === 'not-started') matchesFilter = !hasCards || owned === 0;
+                    }
+
+                    const visible = matchesSearch && matchesFilter;
+                    card.style.display = visible ? '' : 'none';
+                    if (visible) visibleCount++;
+                });
+
+                // Show/remove "no results" message
+                const existing = grid.querySelector('.checklist-no-results');
+                if (existing) existing.remove();
+                if (visibleCount === 0 && cards.length > 0) {
+                    const msg = document.createElement('div');
+                    msg.className = 'checklist-no-results';
+                    msg.textContent = 'No checklists match your search.';
+                    grid.appendChild(msg);
+                }
+            }
+
+            searchInput.addEventListener('input', applyFilters);
+
+            pills.forEach(pill => {
+                pill.addEventListener('click', () => {
+                    pills.forEach(p => p.classList.remove('active'));
+                    pill.classList.add('active');
+                    activeFilter = pill.dataset.filter;
+                    applyFilters();
+                });
+            });
+
+            // Show filter bar now that cards are rendered
+            filterBar.style.display = '';
         }
 
         async function init() {
@@ -667,6 +808,7 @@
 
             // Render dynamic checklist cards from registry and aggregate stats
             const { stats: allStats, entries } = await renderDynamicChecklists();
+            if (entries && entries.length > 0) initChecklistFilters();
             const uniqueOwned = await computeUniqueOwned(entries);
             updateAggregateStats(allStats, uniqueOwned);
 
