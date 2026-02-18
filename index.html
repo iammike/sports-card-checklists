@@ -98,16 +98,13 @@
             font-family: 'Barlow', sans-serif;
             font-size: 0.9em;
             font-weight: 500;
-            padding: 10px 14px 10px 36px;
+            padding: 10px 14px 10px 38px;
             background: rgba(255,255,255,0.05);
             border: 1px solid rgba(255,255,255,0.1);
             border-radius: 4px;
             color: #ccc;
             outline: none;
             transition: border-color 0.2s;
-            -webkit-appearance: none;
-            appearance: none;
-            color-scheme: dark;
         }
         .checklist-search:focus {
             border-color: rgba(243, 156, 18, 0.4);
@@ -275,9 +272,9 @@
         /* Secondary stats - right column */
         .checklist-card .secondary-stats {
             display: flex;
-            flex-direction: column;
+            flex-wrap: wrap;
             gap: 6px;
-            align-items: flex-end;
+            margin-top: 10px;
         }
         .checklist-card .stat-pill {
             font-family: 'Barlow', sans-serif;
@@ -733,6 +730,7 @@
                                     <span class="value-needed">$${stats.neededValue || 0} to complete</span>
                                 </div>
                             </div>
+                        </div>
                         ${entry.extraPills && hasStats ? `
                         <div class="secondary-stats">
                             ${entry.extraPills.map(pill => {
@@ -744,7 +742,6 @@
                                 return `<span class="stat-pill${isComplete ? ' complete' : ''}" style="--pill-pct: ${pillPct}%">${sanitizeText(pill.label)} <span class="count">${isComplete ? '\u2713' : `${owned}/${total}`}</span></span>`;
                             }).join('')}
                         </div>` : ''}
-                        </div>
                     </div>` : '<div class="progress-section" style="display:block"><p style="font-size:12px;color:#666;">No cards yet</p></div>'}
                 `;
                 grid.appendChild(card);
