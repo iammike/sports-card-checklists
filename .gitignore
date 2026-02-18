@@ -28,3 +28,6 @@ dist/
 
 # Local scripts (utilities, migrations)
 scripts/
+
+# Image scraping working directory
+_image-candidates/
