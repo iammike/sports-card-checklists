@@ -16,6 +16,8 @@ class ChecklistEngine {
         this.addCardButton = null;
         this._renderedSortBy = null;  // Sort used for current DOM
         this._renderedCards = [];     // Card data in DOM render order
+        this._reorderMode = false;
+        this._sortableInstances = [];
     }
 
     // ========================================
@@ -852,6 +854,9 @@ class ChecklistEngine {
         // Search
         html += `<input type="text" id="search" placeholder="Search cards...">`;
 
+        // Reorder button (visible when sort=Manual and user is owner)
+        html += `<button id="reorder-btn" class="filter-btn" style="display:none">Reorder</button>`;
+
         container.innerHTML = html;
 
         // Bind events
@@ -859,6 +864,10 @@ class ChecklistEngine {
             sel.addEventListener('change', () => this._onFilterChange());
         });
         container.querySelector('#search')?.addEventListener('input', () => this._onFilterChange());
+        container.querySelector('#reorder-btn')?.addEventListener('click', () => this._toggleReorderMode());
+
+        // Show reorder button if applicable
+        this._updateReorderButton();
     }
 
     _getSortLabel(key) {
@@ -868,7 +877,7 @@ class ChecklistEngine {
                 const inner = this._getSortLabel(ds).replace('Sort: ', '');
                 return `Sort: ${inner} (Default)`;
             }
-            return 'Sort: As Entered';
+            return 'Sort: Manual';
         }
         const labels = {
             'alphabetical': 'Sort: Alphabetical',
@@ -895,6 +904,10 @@ class ChecklistEngine {
     }
 
     _onFilterChange() {
+        // Exit reorder mode if active when filters change
+        if (this._reorderMode) this._exitReorderMode();
+        this._updateReorderButton();
+
         const sortBy = document.getElementById('sort-filter')?.value || 'default';
         if (sortBy === this._renderedSortBy && this._renderedCards.length > 0) {
             // Sort unchanged - just toggle visibility on existing DOM elements
@@ -1360,6 +1373,105 @@ class ChecklistEngine {
             totalValue: { el: document.getElementById('total-value'), value: stats.ownedValue },
             neededValue: { el: document.getElementById('needed-value'), value: stats.neededValue },
         });
+    }
+
+    // ========================================
+    // Reorder Mode (drag-and-drop)
+    // ========================================
+
+    _isManualSort() {
+        const sortBy = document.getElementById('sort-filter')?.value || 'default';
+        return sortBy === 'default' && !this.config.defaultSortMode;
+    }
+
+    _updateReorderButton() {
+        const btn = document.getElementById('reorder-btn');
+        if (!btn) return;
+        const isOwner = this.checklistManager?.isOwner();
+        btn.style.display = (this._isManualSort() && isOwner) ? '' : 'none';
+    }
+
+    _toggleReorderMode() {
+        if (this._reorderMode) {
+            this._exitReorderMode();
+        } else {
+            this._enterReorderMode();
+        }
+    }
+
+    _enterReorderMode() {
+        if (typeof Sortable === 'undefined') return;
+        this._reorderMode = true;
+
+        const container = document.getElementById('sections-container');
+        container.classList.add('reorder-mode');
+
+        const btn = document.getElementById('reorder-btn');
+        if (btn) {
+            btn.textContent = 'Done';
+            btn.classList.add('active');
+        }
+
+        // Init SortableJS on each card-grid
+        this._sortableInstances = [];
+        container.querySelectorAll('.card-grid').forEach(grid => {
+            this._sortableInstances.push(this._initSortable(grid));
+        });
+    }
+
+    _exitReorderMode() {
+        this._reorderMode = false;
+
+        const container = document.getElementById('sections-container');
+        container.classList.remove('reorder-mode');
+
+        const btn = document.getElementById('reorder-btn');
+        if (btn) {
+            btn.textContent = 'Reorder';
+            btn.classList.remove('active');
+        }
+
+        // Destroy Sortable instances
+        this._sortableInstances.forEach(s => s.destroy());
+        this._sortableInstances = [];
+    }
+
+    _initSortable(gridEl) {
+        return new Sortable(gridEl, {
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            dragClass: 'sortable-drag',
+            onEnd: (evt) => this._onReorderEnd(evt, gridEl),
+        });
+    }
+
+    _onReorderEnd(evt, gridEl) {
+        const { oldIndex, newIndex } = evt;
+        if (oldIndex === newIndex) return;
+
+        // Determine which card array to reorder
+        let arr;
+        if (this._isFlat()) {
+            arr = this.cards;
+        } else {
+            // Grid elements have id like "{categoryId}-cards"
+            const gridId = gridEl.id;
+            const catId = gridId ? gridId.replace(/-cards$/, '') : null;
+            if (catId && this.cards[catId]) {
+                arr = this.cards[catId];
+            } else {
+                // Fallback: single merged grid (shouldn't happen in manual sort)
+                return;
+            }
+        }
+
+        // Splice card from old to new position
+        const [moved] = arr.splice(oldIndex, 1);
+        arr.splice(newIndex, 0, moved);
+
+        // Save to gist
+        this.checklistManager.setSyncStatus('syncing', 'Saving...');
+        this._saveCardData();
     }
 
     // ========================================
