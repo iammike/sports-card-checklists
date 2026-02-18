@@ -3269,6 +3269,12 @@ select, input[type="text"] {
     cursor: grabbing;
 }
 
+.reorder-mode .card:hover {
+    border-color: var(--card-border, transparent);
+    box-shadow: none;
+    transform: none;
+}
+
 .reorder-mode .card::before {
     content: '\2807';
     position: absolute;
