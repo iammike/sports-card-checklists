@@ -532,6 +532,7 @@ class ImageEditorModal {
             if (e.key === 'Enter' && this.backdrop.classList.contains('active')) {
                 if (e.target.tagName === 'INPUT') return;
                 e.preventDefault();
+                e.stopImmediatePropagation();
                 this.confirm();
             }
         });
