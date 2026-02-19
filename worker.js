@@ -350,8 +350,13 @@ async function handleProxyImage(request, corsOrigin) {
       });
     }
 
-    // Fetch the image
-    const imageResponse = await fetch(url);
+    // Fetch the image (with browser-like UA so hosts don't reject the request)
+    const imageResponse = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
+      },
+    });
     if (!imageResponse.ok) {
       return new Response(JSON.stringify({ error: 'Failed to fetch image' }), {
         status: 502,
