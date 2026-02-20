@@ -326,20 +326,23 @@ class ImageEditorModal {
     async loadCropperJS() {
         if (window.Cropper) return;
 
-        // Load CSS
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = 'https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css';
-        document.head.appendChild(link);
+        const cssReady = new Promise((resolve) => {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = 'https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css';
+            link.onload = resolve;
+            document.head.appendChild(link);
+        });
 
-        // Load JS
-        return new Promise((resolve, reject) => {
+        const jsReady = new Promise((resolve, reject) => {
             const script = document.createElement('script');
             script.src = 'https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js';
             script.onload = resolve;
             script.onerror = () => reject(new Error('Failed to load Cropper.js'));
             document.head.appendChild(script);
         });
+
+        await Promise.all([cssReady, jsReady]);
     }
 
     // Initialize - create modal DOM
