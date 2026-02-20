@@ -507,7 +507,7 @@
         </div>
 
         <div class="checklist-filter-bar" id="checklist-filter-bar" style="display: none;">
-            <input type="text" class="checklist-search" id="checklist-search" placeholder="Search checklists..." autocomplete="off">
+            <span class="search-wrapper"><input type="text" class="checklist-search" id="checklist-search" placeholder="Search checklists..." autocomplete="off"><button class="search-clear" type="button">&times;</button></span>
             <div class="checklist-filter-pills">
                 <button class="filter-pill active" data-filter="all">All</button>
                 <button class="filter-pill" data-filter="in-progress">In Progress</button>
@@ -811,6 +811,11 @@
             }
 
             searchInput.addEventListener('input', applyFilters);
+            document.querySelector('#checklist-filter-bar .search-clear')?.addEventListener('click', () => {
+                searchInput.value = '';
+                searchInput.focus();
+                applyFilters();
+            });
 
             pills.forEach(pill => {
                 pill.addEventListener('click', () => {
