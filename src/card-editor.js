@@ -130,9 +130,9 @@ class CardContextMenu {
 
     // Show menu at position
     show(x, y, cardElement) {
-        // Get card ID from checkbox or data attribute
+        // Get card ID from checkbox, data attribute, or element id
         const checkbox = cardElement.querySelector('input[type="checkbox"]');
-        this.currentCardId = checkbox?.id || cardElement.dataset.cardId;
+        this.currentCardId = checkbox?.id || cardElement.dataset.cardId || cardElement.id?.replace(/^card-/, '');
         this.currentCard = cardElement;
 
         // Show/hide owner-only items (Edit, Delete)
