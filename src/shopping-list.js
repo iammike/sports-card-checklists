@@ -103,17 +103,27 @@ const ShoppingList = {
             }
         });
 
+        const updateToggleText = () => {
+            const checkboxes = backdrop.querySelectorAll('#sl-checklist-list input[type="checkbox"]');
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            backdrop.querySelector('#sl-toggle-all').textContent = allChecked ? 'Select None' : 'Select All';
+        };
+
         backdrop.querySelector('#sl-toggle-all').onclick = () => {
             const checkboxes = backdrop.querySelectorAll('#sl-checklist-list input[type="checkbox"]');
             const allChecked = Array.from(checkboxes).every(cb => cb.checked);
             checkboxes.forEach(cb => { cb.checked = !allChecked; });
-            backdrop.querySelector('#sl-toggle-all').textContent = allChecked ? 'Select All' : 'Select None';
+            updateToggleText();
         };
+
+        // Update toggle text when individual checkboxes change
+        backdrop.querySelector('#sl-checklist-list').addEventListener('change', updateToggleText);
 
         backdrop.querySelector('#sl-generate').onclick = () => this._onGenerate();
 
         document.body.appendChild(backdrop);
         this.backdrop = backdrop;
+        this._updateToggleText = updateToggleText;
     },
 
     async showOptionsModal() {
@@ -137,8 +147,8 @@ const ShoppingList = {
             list.appendChild(item);
         }
 
-        // Reset toggle text
-        this.backdrop.querySelector('#sl-toggle-all').textContent = 'Select None';
+        // Update toggle text based on checkbox state
+        this._updateToggleText();
 
         // Reset options to defaults
         this.backdrop.querySelector('#sl-include-extra').checked = false;
