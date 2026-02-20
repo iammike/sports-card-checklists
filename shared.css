@@ -1382,6 +1382,36 @@ select, input[type="text"] {
     background: rgba(231, 76, 60, 0.15);
 }
 
+.context-menu-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 4px 0;
+}
+
+/* Copy link toast */
+.copy-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a1a2e;
+    color: #e0e0e0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-family: 'Barlow', sans-serif;
+    font-size: 14px;
+    z-index: 10001;
+    pointer-events: none;
+    animation: toast-fade 1.5s ease forwards;
+}
+
+@keyframes toast-fade {
+    0% { opacity: 1; }
+    70% { opacity: 1; }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+}
+
 /* ============================================
    Card Editor Modal - Broadcast Style
    ============================================ */

@@ -109,6 +109,9 @@ class ChecklistEngine {
         this.cardContextMenu.init();
         this.cardEditor.init();
         this.renderCards();
+
+        // Deep-link: scroll to card if URL has #card-{id} hash
+        this._scrollToHashCard();
     }
 
     // ========================================
@@ -721,7 +724,7 @@ class ChecklistEngine {
 
         const cardClass = `card ${owned ? 'owned' : ''}`.trim();
 
-        let html = `<div class="${cardClass}" data-card-idx="${cardIdx}" data-price="${price}"${card.sport ? ` data-sport="${card.sport}"` : ''}${card.era ? ` data-era="${card.era}"` : ''} data-type="${card.type || ''}">`;
+        let html = `<div class="${cardClass}" id="card-${cardId}" data-card-idx="${cardIdx}" data-price="${price}"${card.sport ? ` data-sport="${card.sport}"` : ''}${card.era ? ` data-era="${card.era}"` : ''} data-type="${card.type || ''}">`;
         html += `<div class="card-image-wrapper">`;
         html += CardRenderer.renderAttributeBadges(card, this.config.customFields);
         html += CardRenderer.renderPriceBadge(price, thresholds);
@@ -920,6 +923,36 @@ class ChecklistEngine {
             // Sort changed - full DOM rebuild needed
             this.renderCards();
         }
+    }
+
+    // ========================================
+    // Deep Linking
+    // ========================================
+
+    _scrollToHashCard() {
+        const hash = window.location.hash;
+        if (!hash || !hash.startsWith('#card-')) return;
+
+        const elementId = hash.slice(1); // Remove leading #
+        const cardEl = document.getElementById(elementId);
+        if (!cardEl) return;
+
+        // Expand collapsed section if the card is inside one
+        const collapsibleContent = cardEl.closest('.collapsible-content');
+        if (collapsibleContent && collapsibleContent.classList.contains('collapsed')) {
+            // Find the associated header and click it to expand
+            const section = collapsibleContent.closest('.section');
+            const header = section
+                ? section.querySelector('.section-header.collapsed, .group-header.collapsed')
+                : collapsibleContent.previousElementSibling;
+            if (header) header.click();
+        }
+
+        // Scroll to card after a brief delay (allows section expand animation)
+        requestAnimationFrame(() => {
+            cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            cardEl.classList.add('card-highlight');
+        });
     }
 
     // ========================================
