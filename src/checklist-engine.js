@@ -1679,7 +1679,7 @@ class ChecklistEngine {
             if (cardData.ebay) { card.search = cardData.ebay; delete card.ebay; }
             if (cardData.priceSearch) { card.priceSearch = cardData.priceSearch; } else { delete card.priceSearch; }
             // Clean up falsy optional fields
-            ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant'].forEach(key => {
+            ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant', 'search'].forEach(key => {
                 if (!(key in cardData) || !cardData[key]) delete card[key];
             });
             this._cleanupCustomFields(card, cardData);
@@ -1694,7 +1694,7 @@ class ChecklistEngine {
             if (cardData.ebay) { card.search = cardData.ebay; delete card.ebay; }
             if (cardData.priceSearch) { card.priceSearch = cardData.priceSearch; } else { delete card.priceSearch; }
             // Clean up falsy optional fields
-            ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant'].forEach(key => {
+            ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant', 'search'].forEach(key => {
                 if (!(key in cardData) || !cardData[key]) delete card[key];
             });
             this._cleanupCustomFields(card, cardData);
