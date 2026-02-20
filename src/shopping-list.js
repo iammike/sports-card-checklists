@@ -276,8 +276,8 @@ const ShoppingList = {
         const cols = [
             { label: 'Set', width: 76 },
             { label: '#', width: 16 },
-            { label: 'Name', width: 56 },
-            { label: 'Variant', width: 28 },
+            { label: 'Name', width: 42 },
+            { label: 'Variant', width: 42 },
             { label: 'Price', width: 18 }
         ];
 
