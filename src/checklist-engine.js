@@ -852,7 +852,7 @@ class ChecklistEngine {
         </select>`;
 
         // Search
-        html += `<input type="text" id="search" placeholder="Search cards...">`;
+        html += `<span class="search-wrapper"><input type="text" id="search" placeholder="Search cards..."><button class="search-clear" type="button">&times;</button></span>`;
 
         // Reorder button (visible when sort=Manual and user is owner)
         html += `<button id="reorder-btn" class="filter-btn" style="display:none">Reorder</button>`;
@@ -864,6 +864,10 @@ class ChecklistEngine {
             sel.addEventListener('change', () => this._onFilterChange());
         });
         container.querySelector('#search')?.addEventListener('input', () => this._onFilterChange());
+        container.querySelector('.search-clear')?.addEventListener('click', () => {
+            const input = container.querySelector('#search');
+            if (input) { input.value = ''; input.focus(); this._onFilterChange(); }
+        });
         container.querySelector('#reorder-btn')?.addEventListener('click', () => this._toggleReorderMode());
 
         // Show reorder button if applicable
