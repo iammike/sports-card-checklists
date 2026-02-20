@@ -3095,7 +3095,7 @@ select, input[type="text"] {
 }
 
 .card-highlight {
-    animation: card-highlight-pulse 2s ease-in-out;
+    animation: card-highlight-pulse 3s ease-in-out;
 }
 
 @keyframes row-flash {
