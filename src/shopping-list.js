@@ -57,7 +57,7 @@ const ShoppingList = {
         backdrop.innerHTML =
             '<div class="card-editor-modal shopping-list-modal">' +
                 '<div class="card-editor-header">' +
-                    '<div>' +
+                    '<div class="card-editor-header-left">' +
                         '<div class="card-editor-title">SHOPPING LIST</div>' +
                         '<div class="card-editor-subtitle">Select options for PDF export</div>' +
                     '</div>' +
