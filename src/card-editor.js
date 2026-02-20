@@ -1183,7 +1183,7 @@ class CardEditorModal {
         const typeEl = this.backdrop.querySelector('#editor-type');
         if (typeEl) typeEl.value = cardData.type || 'Base';
         this.backdrop.querySelector('#editor-price').value = cardData.price !== undefined ? cardData.price : '';
-        const ebayValue = cardData.ebay || '';
+        const ebayValue = cardData.search || cardData.ebay || '';
         this.backdrop.querySelector('#editor-ebay').value = ebayValue;
         this.backdrop.querySelector('#editor-img').value = cardData.img || '';
 
