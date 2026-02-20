@@ -397,7 +397,7 @@ const ShoppingList = {
             doc.text(truncate(item.set, cols[0].width), x, y + 3);
             x += cols[0].width;
 
-            doc.text(String(item.num), x, y + 3);
+            doc.text(truncate(String(item.num), cols[1].width), x, y + 3);
             x += cols[1].width;
 
             doc.text(truncate(item.name, cols[2].width), x, y + 3);
