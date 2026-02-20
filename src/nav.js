@@ -56,7 +56,7 @@ const AuthUI = {
                 dropdown.classList.remove('open');
             });
             document.getElementById('auth-logout-btn').onclick = logoutFn;
-            document.getElementById('shopping-list-btn').onclick = () => ShoppingList.generate();
+            document.getElementById('shopping-list-btn').onclick = () => ShoppingList.showOptionsModal();
             // Sync button (preview only)
             const syncBtn = document.getElementById('sync-from-prod-btn');
             if (syncBtn) {

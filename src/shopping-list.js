@@ -2,6 +2,8 @@
  * ShoppingList - Generate a PDF of all unowned cards across every checklist
  */
 const ShoppingList = {
+    backdrop: null,
+
     async loadJsPDF() {
         if (window.jspdf) return;
         return new Promise((resolve, reject) => {
@@ -22,113 +24,247 @@ const ShoppingList = {
         return btoa(safe).replace(/[^a-zA-Z0-9]/g, '');
     },
 
-    flattenCards(cardData, config) {
+    flattenCards(cardData, config, includeExtra) {
         if (config.dataShape === 'flat') {
             // Exclude collection link cards (not real cards)
             return (cardData.cards || []).filter(c => !c.collectionLink);
         }
-        // Category-based: only include main categories
+        // Category-based: filter by main or all categories
         const categories = config.categories || [];
-        const mainCatIds = new Set();
-        categories.filter(c => c.isMain !== false).forEach(cat => {
+        const includedCatIds = new Set();
+        const filter = includeExtra ? () => true : (c => c.isMain !== false);
+        categories.filter(filter).forEach(cat => {
             if (cat.children && cat.children.length > 0) {
-                cat.children.forEach(child => mainCatIds.add(child.id));
+                cat.children.forEach(child => includedCatIds.add(child.id));
             } else {
-                mainCatIds.add(cat.id);
+                includedCatIds.add(cat.id);
             }
         });
         const all = [];
         for (const [catId, cards] of Object.entries(cardData.categories || {})) {
-            if (mainCatIds.size === 0 || mainCatIds.has(catId)) {
+            if (includedCatIds.size === 0 || includedCatIds.has(catId)) {
                 cards.forEach(c => { if (!c.collectionLink) all.push(c); });
             }
         }
         return all;
     },
 
-    async generate() {
-        const btn = document.getElementById('shopping-list-btn');
-        if (!btn || !window.githubSync) return;
+    initModal() {
+        if (this.backdrop) return;
 
-        const originalHtml = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM17.99 9l-1.41-1.42-6.59 6.59-2.58-2.57-1.42 1.41 4 3.99z"/></svg> Generating...';
+        const backdrop = document.createElement('div');
+        backdrop.className = 'card-editor-backdrop shopping-list-backdrop';
+        backdrop.innerHTML =
+            '<div class="card-editor-modal shopping-list-modal">' +
+                '<div class="card-editor-header">' +
+                    '<div>' +
+                        '<div class="card-editor-title">SHOPPING LIST</div>' +
+                        '<div class="card-editor-subtitle">Select options for PDF export</div>' +
+                    '</div>' +
+                    '<button class="card-editor-close" title="Close">&times;</button>' +
+                '</div>' +
+                '<div class="card-editor-body">' +
+                    '<div class="shopping-list-section-label">Checklists</div>' +
+                    '<button class="shopping-list-toggle-all" id="sl-toggle-all">Select None</button>' +
+                    '<div class="shopping-list-checklist-list" id="sl-checklist-list"></div>' +
+                    '<div class="shopping-list-divider"></div>' +
+                    '<div class="shopping-list-section-label">Options</div>' +
+                    '<div class="shopping-list-option">' +
+                        '<input type="checkbox" id="sl-include-extra">' +
+                        '<label for="sl-include-extra">Include extra categories (inserts, parallels, etc.)</label>' +
+                    '</div>' +
+                    '<div class="shopping-list-option">' +
+                        '<input type="checkbox" id="sl-group-by">' +
+                        '<label for="sl-group-by">Group cards by checklist</label>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="card-editor-footer">' +
+                    '<button class="card-editor-btn cancel" id="sl-cancel">Cancel</button>' +
+                    '<button class="card-editor-btn save" id="sl-generate">Generate PDF</button>' +
+                '</div>' +
+            '</div>';
+
+        backdrop.querySelector('.card-editor-close').onclick = () => this.closeModal();
+        backdrop.querySelector('#sl-cancel').onclick = () => this.closeModal();
+        backdrop.addEventListener('click', (e) => {
+            if (e.target === backdrop) this.closeModal();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && backdrop.classList.contains('active')) {
+                this.closeModal();
+            }
+        });
+
+        const modal = backdrop.querySelector('.card-editor-modal');
+        modal.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                backdrop.querySelector('#sl-generate').click();
+            }
+        });
+
+        backdrop.querySelector('#sl-toggle-all').onclick = () => {
+            const checkboxes = backdrop.querySelectorAll('#sl-checklist-list input[type="checkbox"]');
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            checkboxes.forEach(cb => { cb.checked = !allChecked; });
+            backdrop.querySelector('#sl-toggle-all').textContent = allChecked ? 'Select All' : 'Select None';
+        };
+
+        backdrop.querySelector('#sl-generate').onclick = () => this._onGenerate();
+
+        document.body.appendChild(backdrop);
+        this.backdrop = backdrop;
+    },
+
+    async showOptionsModal() {
+        if (!window.githubSync) return;
+        this.initModal();
+
+        // Populate checklist checkboxes
+        const list = this.backdrop.querySelector('#sl-checklist-list');
+        list.innerHTML = '';
+
+        const registryData = await DynamicNav.loadRegistry();
+        const checklists = (registryData?.checklists || []).filter(e => !e.hidden);
+
+        for (const entry of checklists) {
+            const item = document.createElement('div');
+            item.className = 'shopping-list-checklist-item';
+            const id = 'sl-cl-' + entry.id;
+            item.innerHTML =
+                '<input type="checkbox" id="' + id + '" data-checklist-id="' + entry.id + '" checked>' +
+                '<label for="' + id + '">' + sanitizeText(entry.title || entry.id) + '</label>';
+            list.appendChild(item);
+        }
+
+        // Reset toggle text
+        this.backdrop.querySelector('#sl-toggle-all').textContent = 'Select None';
+
+        // Reset options to defaults
+        this.backdrop.querySelector('#sl-include-extra').checked = false;
+        this.backdrop.querySelector('#sl-group-by').checked = false;
+
+        this.backdrop.classList.add('active');
+    },
+
+    closeModal() {
+        if (this.backdrop) {
+            this.backdrop.classList.remove('active');
+        }
+    },
+
+    async _onGenerate() {
+        const genBtn = this.backdrop.querySelector('#sl-generate');
+        const originalText = genBtn.textContent;
+        genBtn.disabled = true;
+        genBtn.textContent = 'Generating...';
 
         try {
-            await this.loadJsPDF();
+            // Gather selected options
+            const checkboxes = this.backdrop.querySelectorAll('#sl-checklist-list input[type="checkbox"]:checked');
+            const selectedChecklists = new Set(Array.from(checkboxes).map(cb => cb.dataset.checklistId));
+            const includeExtra = this.backdrop.querySelector('#sl-include-extra').checked;
+            const groupByChecklist = this.backdrop.querySelector('#sl-group-by').checked;
 
-            // Load registry (use DynamicNav which has session caching)
-            const registryData = await DynamicNav.loadRegistry();
-            const checklists = registryData?.checklists || [];
-            if (!checklists.length) {
-                alert('No checklists found.');
+            if (selectedChecklists.size === 0) {
+                alert('Select at least one checklist.');
                 return;
             }
 
-            // Force fresh load (page-load cache may be stale)
-            githubSync._cachedData = null;
-            const data = await githubSync.loadData() || await githubSync.loadPublicData();
-            const ownedByChecklist = data?.checklists || {};
-
-            // Collect all unowned cards
-            const shoppingItems = [];
-
-            for (const entry of checklists.filter(e => !e.hidden)) {
-                const id = entry.id;
-                const config = await githubSync.loadChecklistConfig(id)
-                    || await githubSync.loadPublicChecklistConfig(id);
-                if (!config) continue;
-
-                const cardData = await githubSync.loadCardData(id)
-                    || await githubSync.loadPublicCardData(id);
-                if (!cardData) continue;
-
-                const allCards = this.flattenCards(cardData, config);
-                const owned = ownedByChecklist[id] || [];
-
-                for (const card of allCards) {
-                    // Skip cards with no set name (incomplete data)
-                    if (!card.set) continue;
-                    const cardId = this.generateCardId(card, config);
-                    if (!owned.includes(cardId)) {
-                        shoppingItems.push({
-                            year: CardRenderer.getYear(card),
-                            setName: CardRenderer.getSetName(card),
-                            set: card.set || '',
-                            num: card.num || '',
-                            name: card.name || card.player
-                                || (entry.navLabel || entry.title || '').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()),
-                            variant: card.variant || '',
-                            price: card.price || 0,
-                            checklist: entry.title || id
-                        });
-                    }
-                }
-            }
-
-            // Sort by year, set name, card number (cards without year go last)
-            shoppingItems.sort((a, b) => {
-                const hasYearA = a.year > 0 ? 0 : 1;
-                const hasYearB = b.year > 0 ? 0 : 1;
-                if (hasYearA !== hasYearB) return hasYearA - hasYearB;
-                if (a.year !== b.year) return a.year - b.year;
-                if (a.setName !== b.setName) return a.setName.localeCompare(b.setName);
-                const numA = parseInt(a.num) || 0;
-                const numB = parseInt(b.num) || 0;
-                return numA - numB;
-            });
-
-            this.buildPDF(shoppingItems);
+            await this.generate({ selectedChecklists, includeExtra, groupByChecklist });
+            this.closeModal();
         } catch (e) {
             console.error('Shopping list generation failed:', e);
             alert('Failed to generate shopping list: ' + e.message);
         } finally {
-            btn.disabled = false;
-            btn.innerHTML = originalHtml;
+            genBtn.disabled = false;
+            genBtn.textContent = originalText;
         }
     },
 
-    buildPDF(items) {
+    async generate(options) {
+        if (!window.githubSync) return;
+
+        const selectedChecklists = options?.selectedChecklists || null;
+        const includeExtra = options?.includeExtra || false;
+        const groupByChecklist = options?.groupByChecklist || false;
+
+        await this.loadJsPDF();
+
+        // Load registry (use DynamicNav which has session caching)
+        const registryData = await DynamicNav.loadRegistry();
+        const checklists = registryData?.checklists || [];
+        if (!checklists.length) {
+            alert('No checklists found.');
+            return;
+        }
+
+        // Force fresh load (page-load cache may be stale)
+        githubSync._cachedData = null;
+        const data = await githubSync.loadData() || await githubSync.loadPublicData();
+        const ownedByChecklist = data?.checklists || {};
+
+        // Collect all unowned cards
+        const shoppingItems = [];
+
+        for (const entry of checklists.filter(e => !e.hidden)) {
+            const id = entry.id;
+
+            // Skip checklists not in selected set
+            if (selectedChecklists && !selectedChecklists.has(id)) continue;
+
+            const config = await githubSync.loadChecklistConfig(id)
+                || await githubSync.loadPublicChecklistConfig(id);
+            if (!config) continue;
+
+            const cardData = await githubSync.loadCardData(id)
+                || await githubSync.loadPublicCardData(id);
+            if (!cardData) continue;
+
+            const allCards = this.flattenCards(cardData, config, includeExtra);
+            const owned = ownedByChecklist[id] || [];
+
+            for (const card of allCards) {
+                // Skip cards with no set name (incomplete data)
+                if (!card.set) continue;
+                const cardId = this.generateCardId(card, config);
+                if (!owned.includes(cardId)) {
+                    shoppingItems.push({
+                        year: CardRenderer.getYear(card),
+                        setName: CardRenderer.getSetName(card),
+                        set: card.set || '',
+                        num: card.num || '',
+                        name: card.name || card.player
+                            || (entry.navLabel || entry.title || '').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()),
+                        variant: card.variant || '',
+                        price: card.price || 0,
+                        checklist: entry.title || id
+                    });
+                }
+            }
+        }
+
+        // Sort by year, set name, card number (cards without year go last)
+        shoppingItems.sort((a, b) => {
+            if (groupByChecklist) {
+                const cmp = a.checklist.localeCompare(b.checklist);
+                if (cmp !== 0) return cmp;
+            }
+            const hasYearA = a.year > 0 ? 0 : 1;
+            const hasYearB = b.year > 0 ? 0 : 1;
+            if (hasYearA !== hasYearB) return hasYearA - hasYearB;
+            if (a.year !== b.year) return a.year - b.year;
+            if (a.setName !== b.setName) return a.setName.localeCompare(b.setName);
+            const numA = parseInt(a.num) || 0;
+            const numB = parseInt(b.num) || 0;
+            return numA - numB;
+        });
+
+        this.buildPDF(shoppingItems, { groupByChecklist });
+    },
+
+    buildPDF(items, options) {
+        const groupByChecklist = options?.groupByChecklist || false;
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ unit: 'mm', format: 'letter' });
         const pageWidth = doc.internal.pageSize.getWidth();
@@ -146,6 +282,7 @@ const ShoppingList = {
         ];
 
         const rowHeight = 5.5;
+        const sectionHeaderHeight = 7;
         const headerHeight = 7;
         const fontSize = 8;
         const headerFontSize = 8;
@@ -190,11 +327,45 @@ const ShoppingList = {
             y += headerHeight + 1;
         };
 
-        drawHeader();
+        const drawSectionHeader = (name) => {
+            // Check if we need a new page for section header + at least one row
+            if (y + sectionHeaderHeight + headerHeight + rowHeight > pageHeight - margin - 10) {
+                this.drawPageFooter(doc, pageWidth, pageHeight, margin, doc.internal.getNumberOfPages());
+                doc.addPage();
+                y = margin;
+            }
+            doc.setFillColor(80, 80, 80);
+            doc.rect(margin, y, usableWidth, sectionHeaderHeight, 'F');
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(9);
+            doc.setTextColor(255, 255, 255);
+            doc.text(name, margin + 4, y + 5);
+            doc.setTextColor(0, 0, 0);
+            doc.setFont('helvetica', 'normal');
+            y += sectionHeaderHeight + 1;
+        };
+
+        let currentGroup = null;
+
+        if (!groupByChecklist) {
+            drawHeader();
+        }
 
         // Data rows
         doc.setFontSize(fontSize);
+        let rowIndex = 0;
         for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+
+            // Group-by-checklist: draw section header when group changes
+            if (groupByChecklist && item.checklist !== currentGroup) {
+                currentGroup = item.checklist;
+                rowIndex = 0;
+                drawSectionHeader(currentGroup);
+                drawHeader();
+                doc.setFontSize(fontSize);
+            }
+
             if (y + rowHeight > pageHeight - margin - 10) {
                 // Footer on current page
                 this.drawPageFooter(doc, pageWidth, pageHeight, margin, doc.internal.getNumberOfPages());
@@ -202,15 +373,16 @@ const ShoppingList = {
                 y = margin;
                 drawHeader();
                 doc.setFontSize(fontSize);
+                // Reset row index for alternating shading after page break
+                rowIndex = 0;
             }
 
             // Alternating row shading
-            if (i % 2 === 0) {
+            if (rowIndex % 2 === 0) {
                 doc.setFillColor(245, 245, 245);
                 doc.rect(margin, y - 1, usableWidth, rowHeight, 'F');
             }
 
-            const item = items[i];
             let x = margin + 2;
 
             const truncate = (text, maxWidth) => {
@@ -239,6 +411,7 @@ const ShoppingList = {
             }
 
             y += rowHeight;
+            rowIndex++;
         }
 
         // Footer on last page

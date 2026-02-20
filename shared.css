@@ -3325,6 +3325,122 @@ select, input[type="text"] {
     border-color: var(--color-primary, #667eea);
 }
 
+/* ========================================
+   Shopping List Modal
+   ======================================== */
+.shopping-list-modal {
+    max-width: 400px;
+}
+
+.shopping-list-modal .card-editor-body {
+    padding: 24px 28px;
+}
+
+.shopping-list-section-label {
+    font-family: 'Barlow', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: rgba(102, 126, 234, 0.7);
+    margin-bottom: 14px;
+    padding-left: 10px;
+    border-left: 2px solid rgba(102, 126, 234, 0.35);
+}
+
+.shopping-list-toggle-all {
+    background: none;
+    border: none;
+    color: #667eea;
+    font-family: 'Barlow', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 0;
+    margin-bottom: 10px;
+}
+
+.shopping-list-toggle-all:hover {
+    text-decoration: underline;
+}
+
+.shopping-list-checklist-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 20px;
+    padding-right: 4px;
+}
+
+.shopping-list-checklist-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.shopping-list-checklist-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.shopping-list-checklist-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+}
+
+.shopping-list-checklist-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.shopping-list-checklist-item input[type="checkbox"] {
+    accent-color: #667eea;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+.shopping-list-checklist-item label {
+    font-size: 13px;
+    color: #ccc;
+    cursor: pointer;
+}
+
+.shopping-list-divider {
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    margin: 4px 0 16px;
+}
+
+.shopping-list-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 0;
+}
+
+.shopping-list-option input[type="checkbox"] {
+    accent-color: #667eea;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+.shopping-list-option label {
+    font-size: 13px;
+    color: #ccc;
+    cursor: pointer;
+}
+
+@media (max-width: 500px) {
+    .shopping-list-modal .card-editor-body {
+        padding: 20px;
+    }
+
+    .shopping-list-checklist-list {
+        max-height: 180px;
+    }
+}
+
 /* Intro text block (used by dynamic checklists) */
 .intro-text {
     background: rgba(0,0,0,0.2);
