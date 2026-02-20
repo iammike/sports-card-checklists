@@ -948,10 +948,11 @@ class ChecklistEngine {
             if (header) header.click();
         }
 
-        // Scroll to card after a brief delay (allows section expand animation)
+        // Scroll to card, then highlight after scroll finishes
         requestAnimationFrame(() => {
             cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            cardEl.classList.add('card-highlight');
+            // Delay highlight so the scroll brings the card into view first
+            setTimeout(() => cardEl.classList.add('card-highlight'), 600);
         });
     }
 

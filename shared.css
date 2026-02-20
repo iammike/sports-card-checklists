@@ -3090,12 +3090,12 @@ select, input[type="text"] {
 }
 
 @keyframes card-highlight-pulse {
-    0% { box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.6); }
-    100% { box-shadow: none; }
+    0%, 100% { box-shadow: none; }
+    25%, 75% { box-shadow: 0 0 0 3px var(--color-accent, rgba(102, 126, 234, 0.6)); }
 }
 
 .card-highlight {
-    animation: card-highlight-pulse 1.5s ease-out forwards;
+    animation: card-highlight-pulse 2s ease-in-out;
 }
 
 @keyframes row-flash {
