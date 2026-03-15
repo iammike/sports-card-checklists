@@ -435,8 +435,21 @@ class ChecklistCreatorModal {
         const colors = this._extractGradientColors(data?.gradient);
         const themePrimary = this.backdrop.querySelector('#creator-primary-color').value || '#667eea';
         const themeDark = this._darkenColor(themePrimary, 0.45);
-        const color1 = colors[0] || (parentEl ? themeDark : themePrimary);
-        const color2 = colors[1] || (parentEl ? this._darkenColor(themeDark, 0.3) : themeDark);
+        let defaultColor1 = parentEl ? themeDark : themePrimary;
+        let defaultColor2 = parentEl ? this._darkenColor(themeDark, 0.3) : themeDark;
+        // New top-level sections default to first existing section's colors
+        if (!data && !parentEl) {
+            const firstRow = this.backdrop.querySelector('#creator-categories-list .creator-row-wrap');
+            if (firstRow) {
+                const firstColors = firstRow.querySelectorAll(':scope > .creator-row-main input[type="color"]');
+                if (firstColors.length >= 2) {
+                    defaultColor1 = firstColors[0].value;
+                    defaultColor2 = firstColors[1].value;
+                }
+            }
+        }
+        const color1 = colors[0] || defaultColor1;
+        const color2 = colors[1] || defaultColor2;
         const label = data?.label || '';
         const id = data?.id || '';
         const isMain = data ? data.isMain !== false : true;
@@ -768,7 +781,7 @@ class ChecklistCreatorModal {
         this.backdrop.querySelector('#creator-subtitle-lines-list').innerHTML = '';
 
         // Reset sort controls to defaults
-        this._renderSortControls(ChecklistCreatorModal.DEFAULT_SORTS, 'as-entered');
+        this._renderSortControls(ChecklistCreatorModal.DEFAULT_SORTS, 'year');
     }
 
     _populateForm(config) {
@@ -830,7 +843,7 @@ class ChecklistCreatorModal {
             });
         }
         const activeSorts = (config.sortOptions || ChecklistCreatorModal.DEFAULT_SORTS).filter(s => s !== 'default');
-        this._renderSortControls(activeSorts, config.defaultSortMode || 'as-entered', subtitleLines);
+        this._renderSortControls(activeSorts, config.defaultSortMode || 'year', subtitleLines);
 
         // Toggle visibility
         const useSections = config.dataShape !== 'flat';
@@ -870,7 +883,8 @@ class ChecklistCreatorModal {
         // Overlay form values
         config.id = id;
         config.title = title;
-        config.subtitle = this.backdrop.querySelector('#creator-subtitle').value.trim() || undefined;
+        const subtitleVal = this.backdrop.querySelector('#creator-subtitle').value.trim();
+        if (subtitleVal) config.subtitle = subtitleVal; else delete config.subtitle;
         config.navLabel = navLabel;
         const primaryColor = this.backdrop.querySelector('#creator-primary-color').value;
         config.theme = {
