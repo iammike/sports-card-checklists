@@ -5,6 +5,9 @@ on:
     types: [opened, ready_for_review]
     branches: [main]
 
+permissions:
+  pull-requests: write
+
 jobs:
   request-review:
     runs-on: ubuntu-latest
