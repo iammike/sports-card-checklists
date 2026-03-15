@@ -587,7 +587,9 @@ class ChecklistEngine {
         const subtitle = document.getElementById('page-subtitle');
         if (this.config.subtitle) {
             subtitle.textContent = this.config.subtitle;
+            subtitle.style.display = '';
         } else {
+            subtitle.textContent = '';
             subtitle.style.display = 'none';
         }
 
