@@ -843,7 +843,7 @@ class ChecklistCreatorModal {
             });
         }
         const activeSorts = (config.sortOptions || ChecklistCreatorModal.DEFAULT_SORTS).filter(s => s !== 'default');
-        this._renderSortControls(activeSorts, config.defaultSortMode || 'year', subtitleLines);
+        this._renderSortControls(activeSorts, config.defaultSortMode || 'as-entered', subtitleLines);
 
         // Toggle visibility
         const useSections = config.dataShape !== 'flat';
