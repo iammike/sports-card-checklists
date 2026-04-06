@@ -1025,9 +1025,11 @@ class ChecklistCreatorModal {
                             if (config.theme?.primaryColor && config.theme.primaryColor !== '#667eea') {
                                 entry.borderColor = config.theme.primaryColor;
                             }
-                            // Only update extraPills if categories have showOnIndex set
+                            // Update extraPills, clearing it when no categories are featured
                             if (extraPills.length > 0) {
                                 entry.extraPills = extraPills;
+                            } else {
+                                delete entry.extraPills;
                             }
                             await githubSync.saveRegistry(registry);
                         }
