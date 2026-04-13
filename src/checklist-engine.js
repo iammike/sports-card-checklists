@@ -1370,9 +1370,10 @@ class ChecklistEngine {
             return this.cards[cat.id] || [];
         };
 
-        // Category-based: count only main categories
+        // Category-based: count main categories, or all categories if none are set to count
+        const countedCats = mainCats.length > 0 ? mainCats : categories;
         let ownedCount = 0, totalCount = 0, totalValue = 0, ownedValue = 0, neededValue = 0;
-        mainCats.forEach(cat => {
+        countedCats.forEach(cat => {
             getCardsForCategory(cat).forEach(card => {
                 const price = this.getPrice(card);
                 const owned = this.isOwned(this.getCardId(card));
