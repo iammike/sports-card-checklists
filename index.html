@@ -753,7 +753,7 @@
                 const accent = entry.accentColor || '#667eea';
                 const borderColor = entry.borderColor || accent;
 
-                const isComplete = hasStats && stats.owned === stats.total && stats.total > 0;
+                const isComplete = hasStats && stats.total > 0 && stats.owned >= stats.total;
                 const card = document.createElement('a');
                 card.href = `checklist.html?id=${entry.id}`;
                 card.className = 'checklist-card' + (isComplete ? ' complete' : '');
