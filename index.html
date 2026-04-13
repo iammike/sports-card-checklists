@@ -254,18 +254,6 @@
         .checklist-card .value-line .value-needed {
             color: #ff9800;
         }
-        .checklist-card .value-line .complete-badge {
-            font-family: 'Bebas Neue', sans-serif;
-            font-size: 0.9em;
-            letter-spacing: 0.1em;
-            color: #f1c40f;
-            background: rgba(241,196,15,0.1);
-            border: 1px solid rgba(241,196,15,0.3);
-            border-radius: 3px;
-            padding: 1px 5px;
-            margin-left: 4px;
-            vertical-align: middle;
-        }
         /* Secondary stats - right column */
         .checklist-card .secondary-stats {
             display: flex;
@@ -771,14 +759,14 @@
                                     <circle class="fill" cx="24" cy="24" r="20"
                                         stroke-dasharray="${PROGRESS_RING_CIRCUMFERENCE}" stroke-dashoffset="${offset}"/>
                                 </svg>
-                                <span class="percentage">${pct}%</span>
+                                <span class="percentage">${isComplete ? '&#10003;' : pct + '%'}</span>
                             </div>
                             <div class="progress-details">
                                 <div class="progress-main-text">
                                     ${stats.owned} of ${stats.total} cards
                                 </div>
                                 <div class="value-line">
-                                    <span class="value-owned">$${stats.ownedValue || 0} value</span>${isComplete ? ' <span class="complete-badge">COMPLETE</span>' : ` · <span class="value-needed">$${stats.neededValue || 0} to complete</span>`}
+                                    <span class="value-owned">$${stats.ownedValue || 0} value</span>${isComplete ? '' : ` · <span class="value-needed">$${stats.neededValue || 0} to complete</span>`}
                                 </div>
                             </div>
                         </div>
