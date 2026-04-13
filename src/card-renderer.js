@@ -189,7 +189,7 @@ const StatsAnimator = {
             if (stats.total) stats.total.el.textContent = stats.total.value;
             if (stats.totalValue) stats.totalValue.el.textContent = '$' + stats.totalValue.value;
             if (stats.ownedValue) stats.ownedValue.el.textContent = '$' + stats.ownedValue.value + ' owned';
-            if (stats.neededValue) stats.neededValue.el.textContent = '$' + stats.neededValue.value + ' to complete';
+            if (stats.neededValue) stats.neededValue.el.textContent = stats.neededValue.text || ('$' + stats.neededValue.value + ' to complete');
             return;
         }
 
@@ -208,7 +208,11 @@ const StatsAnimator = {
         if (stats.neededValue) {
             setTimeout(() => {
                 if (stats.ownedValue) this.animateValue(stats.ownedValue.el, 0, stats.ownedValue.value, 1000, '$', ' owned');
-                this.animateValue(stats.neededValue.el, 0, stats.neededValue.value, 1000, '$', ' to complete');
+                if (stats.neededValue.text) {
+                    stats.neededValue.el.textContent = stats.neededValue.text;
+                } else {
+                    this.animateValue(stats.neededValue.el, 0, stats.neededValue.value, 1000, '$', ' to complete');
+                }
             }, 550);
         }
     },

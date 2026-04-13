@@ -1408,17 +1408,19 @@ class ChecklistEngine {
 
     updateStats() {
         const stats = this.computeStats();
+        const isComplete = stats.total > 0 && stats.owned >= stats.total;
         StatsAnimator.animateStats({
             owned: { el: document.getElementById('owned-count'), value: stats.owned },
             total: { el: document.getElementById('total-count'), value: stats.total },
             totalValue: { el: document.getElementById('total-value'), value: stats.ownedValue },
-            neededValue: { el: document.getElementById('needed-value'), value: stats.neededValue },
+            neededValue: {
+                el: document.getElementById('needed-value'),
+                value: stats.neededValue,
+                text: isComplete ? 'Collection complete!' : null,
+            },
         });
-        const isComplete = stats.total > 0 && stats.owned >= stats.total;
         const header = document.getElementById('page-header');
         if (header) header.classList.toggle('complete', isComplete);
-        const neededEl = document.getElementById('needed-value');
-        if (neededEl && isComplete) neededEl.textContent = 'Collection complete!';
     }
 
     // ========================================
