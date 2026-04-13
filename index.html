@@ -290,6 +290,44 @@
         .checklist-card .stat-pill.complete .count {
             color: #4caf50;
         }
+        /* Completed checklist card */
+        .checklist-card.complete {
+            border-left-color: #f1c40f !important;
+            background: linear-gradient(135deg, rgba(241,196,15,0.1) 0%, rgba(241,196,15,0.05) 100%) !important;
+        }
+        .checklist-card.complete:hover {
+            border-color: rgba(241,196,15,0.6);
+        }
+        .checklist-card.complete h2 {
+            color: #f1c40f;
+        }
+        .checklist-card.complete .progress-ring .fill {
+            stroke: #f1c40f;
+        }
+        .checklist-card.complete .progress-ring .percentage {
+            color: #f1c40f;
+        }
+        .checklist-card.complete .progress-main-text span {
+            color: #f1c40f;
+        }
+        .checklist-card .complete-badge {
+            display: none;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 0.7em;
+            letter-spacing: 0.12em;
+            color: #f1c40f;
+            background: rgba(241,196,15,0.1);
+            border: 1px solid rgba(241,196,15,0.35);
+            border-radius: 3px;
+            padding: 2px 7px;
+            margin-left: 8px;
+            vertical-align: middle;
+            position: relative;
+            top: -2px;
+        }
+        .checklist-card.complete .complete-badge {
+            display: inline;
+        }
         .coming-soon {
             opacity: 0.5;
             pointer-events: none;
@@ -721,13 +759,14 @@
                 const accent = entry.accentColor || '#667eea';
                 const borderColor = entry.borderColor || accent;
 
+                const isComplete = hasStats && stats.owned === stats.total && stats.total > 0;
                 const card = document.createElement('a');
                 card.href = `checklist.html?id=${entry.id}`;
-                card.className = 'checklist-card';
+                card.className = 'checklist-card' + (isComplete ? ' complete' : '');
                 card.dataset.checklist = entry.id;
                 card.style.cssText = `--card-accent: ${accent}; border-left: 3px solid ${borderColor}; background: linear-gradient(135deg, ${borderColor}18 0%, ${accent}0d 100%);`;
                 card.innerHTML = `
-                    <h2>${sanitizeText(entry.title)}</h2>
+                    <h2>${sanitizeText(entry.title)}<span class="complete-badge">COMPLETE</span></h2>
                     ${description ? `<p>${sanitizeText(description)}</p>` : ''}
                     ${entry.hideMainCount ? '' : hasStats ? `
                     <div class="progress-section" style="display:block">

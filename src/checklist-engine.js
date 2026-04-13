@@ -1414,6 +1414,11 @@ class ChecklistEngine {
             totalValue: { el: document.getElementById('total-value'), value: stats.ownedValue },
             neededValue: { el: document.getElementById('needed-value'), value: stats.neededValue },
         });
+        const isComplete = stats.total > 0 && stats.owned >= stats.total;
+        const header = document.getElementById('page-header');
+        if (header) header.classList.toggle('complete', isComplete);
+        const neededEl = document.getElementById('needed-value');
+        if (neededEl && isComplete) neededEl.textContent = 'Collection complete!';
     }
 
     // ========================================
