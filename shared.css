@@ -87,6 +87,34 @@ body {
     right: 0;
     height: 3px;
     background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
+    transition: background 0.4s ease;
+}
+
+.page-header.complete::after {
+    background: linear-gradient(90deg, transparent, #f1c40f, transparent);
+}
+
+.page-header .complete-badge {
+    display: none;
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 0.75em;
+    letter-spacing: 0.12em;
+    color: #f1c40f;
+    background: rgba(241, 196, 15, 0.1);
+    border: 1px solid rgba(241, 196, 15, 0.3);
+    border-radius: 3px;
+    padding: 3px 8px;
+}
+
+.page-header.complete .complete-badge {
+    display: block;
+}
+
+.page-header.complete .needed-value {
+    color: #f1c40f;
 }
 
 h1 {
