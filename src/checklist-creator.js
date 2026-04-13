@@ -1031,6 +1031,13 @@ class ChecklistCreatorModal {
                             } else {
                                 delete entry.extraPills;
                             }
+                            // Hide main count if no categories contribute to the total
+                            const mainCats = (config.categories || []).filter(c => c.isMain !== false);
+                            if (mainCats.length === 0) {
+                                entry.hideMainCount = true;
+                            } else {
+                                delete entry.hideMainCount;
+                            }
                             await githubSync.saveRegistry(registry);
                         }
                     }
