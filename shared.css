@@ -95,6 +95,10 @@ body {
 }
 
 
+.page-header.complete .stat-value {
+    color: #f1c40f;
+}
+
 .page-header.complete .needed-value {
     color: #f1c40f;
 }

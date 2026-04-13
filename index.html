@@ -310,18 +310,6 @@
         .checklist-card.complete .progress-main-text span {
             color: #f1c40f;
         }
-        .checklist-card .complete-badge {
-            display: none;
-            font-family: 'Bebas Neue', sans-serif;
-            font-size: 0.6em;
-            letter-spacing: 0.14em;
-            color: #f1c40f;
-            margin-top: 2px;
-            margin-bottom: 4px;
-        }
-        .checklist-card.complete .complete-badge {
-            display: block;
-        }
         .coming-soon {
             opacity: 0.5;
             pointer-events: none;
@@ -761,7 +749,6 @@
                 card.style.cssText = `--card-accent: ${accent}; border-left: 3px solid ${borderColor}; background: linear-gradient(135deg, ${borderColor}18 0%, ${accent}0d 100%);`;
                 card.innerHTML = `
                     <h2>${sanitizeText(entry.title)}</h2>
-                    <span class="complete-badge">COMPLETE</span>
                     ${description ? `<p>${sanitizeText(description)}</p>` : ''}
                     ${entry.hideMainCount ? '' : hasStats ? `
                     <div class="progress-section" style="display:block">
