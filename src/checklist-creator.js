@@ -998,6 +998,12 @@ class ChecklistCreatorModal {
             .slice(0, 3)
             .map(c => ({ id: c.id, label: c.label }));
 
+        // Flat checklists always show counts; for category-based ones, hide if no sections count
+        const mainCats = config.dataShape !== 'flat'
+            ? (config.categories || []).filter(c => c.isMain !== false)
+            : null;
+        const hideMainCount = mainCats !== null && mainCats.length === 0 ? true : undefined;
+
         try {
             if (this.editMode) {
                 // Save updated config
@@ -1031,6 +1037,12 @@ class ChecklistCreatorModal {
                             } else {
                                 delete entry.extraPills;
                             }
+                            // Hide main count if no categories contribute to the total (flat always shows)
+                            if (hideMainCount) {
+                                entry.hideMainCount = true;
+                            } else {
+                                delete entry.hideMainCount;
+                            }
                             await githubSync.saveRegistry(registry);
                         }
                     }
@@ -1062,6 +1074,7 @@ class ChecklistCreatorModal {
                     accentColor: config.theme?.accentColor || config.theme?.primaryColor || '#667eea',
                     borderColor: config.theme?.primaryColor || '#667eea',
                     extraPills: extraPills.length > 0 ? extraPills : undefined,
+                    hideMainCount,
                     type: 'dynamic',
                     order: registry.checklists.length,
                 });

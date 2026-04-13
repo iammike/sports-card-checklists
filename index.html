@@ -729,7 +729,7 @@
                 card.innerHTML = `
                     <h2>${sanitizeText(entry.title)}</h2>
                     ${description ? `<p>${sanitizeText(description)}</p>` : ''}
-                    ${hasStats ? `
+                    ${entry.hideMainCount ? '' : hasStats ? `
                     <div class="progress-section" style="display:block">
                         <div class="main-progress">
                             <div class="progress-ring">
