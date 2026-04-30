@@ -330,7 +330,10 @@ class ChecklistEngine {
             if (!freshCard) return localCard;
             // Fresh as base preserves externally-added fields,
             // local overlay preserves user's in-session edits
-            return { ...freshCard, ...localCard };
+            const merged = { ...freshCard, ...localCard };
+            // img: '' is a deletion marker set by _updateCard; honor it and strip the empty string
+            if (localCard.img === '') delete merged.img;
+            return merged;
         });
     }
 
@@ -1689,8 +1692,11 @@ class ChecklistEngine {
             if (cardData.ebay) { card.search = cardData.ebay; delete card.ebay; }
             if (cardData.priceSearch) { card.priceSearch = cardData.priceSearch; } else { delete card.priceSearch; }
             // Clean up falsy optional fields
+            // img keeps '' when explicitly cleared so _mergeCardArrays doesn't restore the old URL
             ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant', 'search'].forEach(key => {
-                if (!(key in cardData) || !cardData[key]) delete card[key];
+                if (!(key in cardData) || !cardData[key]) {
+                    if (key === 'img' && key in cardData) { card[key] = ''; } else { delete card[key]; }
+                }
             });
             this._cleanupCustomFields(card, cardData);
             // Re-sort
@@ -1704,8 +1710,11 @@ class ChecklistEngine {
             if (cardData.ebay) { card.search = cardData.ebay; delete card.ebay; }
             if (cardData.priceSearch) { card.priceSearch = cardData.priceSearch; } else { delete card.priceSearch; }
             // Clean up falsy optional fields
+            // img keeps '' when explicitly cleared so _mergeCardArrays doesn't restore the old URL
             ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant', 'search'].forEach(key => {
-                if (!(key in cardData) || !cardData[key]) delete card[key];
+                if (!(key in cardData) || !cardData[key]) {
+                    if (key === 'img' && key in cardData) { card[key] = ''; } else { delete card[key]; }
+                }
             });
             this._cleanupCustomFields(card, cardData);
             // Remove from old category, insert into new
