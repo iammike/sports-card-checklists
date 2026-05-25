@@ -1221,15 +1221,25 @@ class ChecklistEngine {
         container.innerHTML = `<div class="card-grid">${cards.map(c => this.createCardElement(c)).join('')}</div>`;
     }
 
+    _collectionLinkOwned(card) {
+        if (!card.collectionLink) return false;
+        const match = card.collectionLink.match(/[?&]id=([^&]+)/);
+        const linkedId = match ? match[1] : null;
+        const stats = linkedId ? (this._linkedStats || {})[linkedId] : null;
+        return !!(stats && stats.owned > 0);
+    }
+
     _sectionProgress(cards) {
         if (!cards || cards.length === 0) return null;
-        const countable = cards.filter(c => !c.collectionLink);
-        if (countable.length === 0) return null;
         let owned = 0;
-        countable.forEach(card => {
-            if (this.isOwned(this.getCardId(card))) owned++;
+        cards.forEach(card => {
+            if (card.collectionLink) {
+                if (this._collectionLinkOwned(card)) owned++;
+            } else if (this.isOwned(this.getCardId(card))) {
+                owned++;
+            }
         });
-        return { owned, total: countable.length };
+        return { owned, total: cards.length };
     }
 
     _sectionHeaderHtml(label, cssClass, allCards) {
@@ -1341,10 +1351,12 @@ class ChecklistEngine {
         const extraCats = categories.filter(c => c.isMain === false);
 
         if (this._isFlat()) {
-            // Flat: count all non-collectionLink cards
-            const countable = this.cards.filter(c => !c.collectionLink);
             let ownedCount = 0, totalValue = 0, ownedValue = 0, neededValue = 0;
-            countable.forEach(card => {
+            this.cards.forEach(card => {
+                if (card.collectionLink) {
+                    if (this._collectionLinkOwned(card)) ownedCount++;
+                    return;
+                }
                 const price = this.getPrice(card);
                 const owned = this.isOwned(this.getCardId(card));
                 totalValue += price;
@@ -1357,7 +1369,7 @@ class ChecklistEngine {
             });
             return {
                 owned: ownedCount,
-                total: countable.length,
+                total: this.cards.length,
                 ownedValue: Math.round(ownedValue),
                 neededValue: Math.round(neededValue),
             };
@@ -1378,9 +1390,13 @@ class ChecklistEngine {
         let ownedCount = 0, totalCount = 0, totalValue = 0, ownedValue = 0, neededValue = 0;
         countedCats.forEach(cat => {
             getCardsForCategory(cat).forEach(card => {
+                totalCount++;
+                if (card.collectionLink) {
+                    if (this._collectionLinkOwned(card)) ownedCount++;
+                    return;
+                }
                 const price = this.getPrice(card);
                 const owned = this.isOwned(this.getCardId(card));
-                totalCount++;
                 totalValue += price;
                 if (owned) {
                     ownedCount++;
@@ -1402,7 +1418,10 @@ class ChecklistEngine {
         extraCats.forEach(cat => {
             const catCards = getCardsForCategory(cat);
             const label = cat.statLabel || `${cat.id}Owned`;
-            stats[label] = catCards.filter(c => this.isOwned(this.getCardId(c))).length;
+            stats[label] = catCards.filter(c => {
+                if (c.collectionLink) return this._collectionLinkOwned(c);
+                return this.isOwned(this.getCardId(c));
+            }).length;
             stats[`${cat.id}Total`] = catCards.length;
         });
 
