@@ -1187,8 +1187,9 @@ class ChecklistEngine {
     _filterCard(card, statusFilter, searchTerm, customFilterValues) {
         // Status filter
         if (statusFilter !== 'all') {
-            const cardId = card.collectionLink ? null : this.getCardId(card);
-            const owned = cardId ? this.isOwned(cardId) : false;
+            const owned = card.collectionLink
+                ? this._collectionLinkOwned(card)
+                : this.isOwned(this.getCardId(card));
             if (statusFilter === 'owned' && !owned) return false;
             if (statusFilter === 'need' && owned) return false;
             if (statusFilter === 'needed' && owned) return false;
