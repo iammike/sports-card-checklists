@@ -112,6 +112,9 @@ class ChecklistEngine {
 
         // Deep-link: scroll to card if URL has #card-{id} hash
         this._scrollToHashCard();
+
+        // Refresh saved stats if stale (e.g. linked checklist progress changed)
+        this._refreshStatsIfStale();
     }
 
     // ========================================
@@ -250,9 +253,37 @@ class ChecklistEngine {
             : await githubSync.loadPublicStats();
 
         this._linkedStats = {};
+        this._savedStatsSnapshot = allStats[this.id] || null;
         linkedIds.forEach(id => {
             if (allStats[id]) this._linkedStats[id] = allStats[id];
         });
+    }
+
+    // Refresh saved stats if they're stale vs. computed (e.g. linked checklist progress changed).
+    // Owner-only; safe to fire-and-forget.
+    async _refreshStatsIfStale() {
+        if (!window.githubSync?.isLoggedIn()) return;
+        const user = githubSync.getUser();
+        if (!user || user.login !== 'iammike') return;
+
+        const current = this.computeStats();
+        const saved = this._savedStatsSnapshot;
+        if (this._statsEqual(saved, current)) return;
+
+        try {
+            await githubSync.saveChecklistStats(this.id, current);
+        } catch (e) {
+            console.warn('Failed to refresh stale stats:', e);
+        }
+    }
+
+    _statsEqual(a, b) {
+        if (!a || !b) return false;
+        const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+        for (const k of keys) {
+            if (a[k] !== b[k]) return false;
+        }
+        return true;
     }
 
     async _saveCardData() {
