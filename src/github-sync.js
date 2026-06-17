@@ -422,6 +422,59 @@ class GitHubSync {
         return this._saveQueue;
     }
 
+    // Distinguish a GitHub rate-limit 403 from a genuine auth 403.
+    // Secondary write rate limits return 403 (sometimes 429) with a rate-limit
+    // body and/or Retry-After header, even while the core quota looks healthy.
+    async _isRateLimited(response) {
+        if (response.status !== 403 && response.status !== 429) return false;
+        if (response.headers.get('retry-after')) return true;
+        if (response.headers.get('x-ratelimit-remaining') === '0') return true;
+        try {
+            const body = await response.clone().text();
+            return /rate limit/i.test(body);
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // Write one or more JSON files to the gist in a single PATCH, returning a
+    // rich { ok, reason } result (reason: rate_limited | auth_expired | api_error | network_error).
+    _patchGistFiles(filesMap) {
+        const files = {};
+        for (const [filename, data] of Object.entries(filesMap)) {
+            files[filename] = { content: JSON.stringify(data, null, 2) };
+        }
+
+        return this._patchGist(async (gistId) => {
+            try {
+                const response = await fetch(`https://api.github.com/gists/${gistId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${this.token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ files }),
+                });
+
+                if (response.ok) {
+                    this._gistCache = null;
+                    this._publicGistCache = null;
+                    return { done: true, value: { ok: true } };
+                }
+                if (await this._isRateLimited(response)) {
+                    return { done: true, value: { ok: false, reason: 'rate_limited' } };
+                }
+                if (response.status === 401 || response.status === 403) {
+                    return { done: true, value: { ok: false, reason: 'auth_expired' } };
+                }
+                return { done: false, status: response.status, value: { ok: false, reason: 'api_error', status: response.status } };
+            } catch (error) {
+                console.error('Failed to save card data to gist:', error);
+                return { done: true, value: { ok: false, reason: 'network_error' } };
+            }
+        });
+    }
+
     // Save collection data to gist (queued to prevent race conditions)
     async saveData(data) {
         if (!this.token) return false;
@@ -928,44 +981,34 @@ class GitHubSync {
     // Card Data Operations (stored in gist)
     // ========================================
 
-    // Save card data to gist (as separate file per checklist)
-    async saveCardData(checklistId, cardData) {
+    // Save card data, optionally bundling computed stats into the same PATCH.
+    // Passing `stats` writes both `{id}-cards.json` and the main data file in a
+    // single request, halving write pressure against GitHub's rate limit.
+    async saveCardData(checklistId, cardData, stats = null) {
         if (!this.token) return { ok: false, reason: 'not_authenticated' };
 
         if (!this.getActiveGistId()) {
             await this.findOrCreateGist();
         }
 
-        const filename = `${checklistId}-cards.json`;
+        const filesMap = { [`${checklistId}-cards.json`]: cardData };
 
-        return this._patchGist(async (gistId) => {
-            try {
-                const response = await fetch(`https://api.github.com/gists/${gistId}`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Authorization': `Bearer ${this.token}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        files: {
-                            [filename]: {
-                                content: JSON.stringify(cardData, null, 2),
-                            },
-                        },
-                    }),
-                });
+        // Bundle stats into the same write so we don't spend a second request.
+        let mergedData = null;
+        if (stats) {
+            mergedData = await this.loadData();
+            if (!mergedData) mergedData = { checklists: {}, stats: {} };
+            if (!mergedData.stats) mergedData.stats = {};
+            mergedData.stats[checklistId] = stats;
+            mergedData.lastUpdated = new Date().toISOString();
+            filesMap[CONFIG.GIST_FILENAME] = mergedData;
+        }
 
-                if (response.ok) return { done: true, value: { ok: true } };
-
-                if (response.status === 401 || response.status === 403) {
-                    return { done: true, value: { ok: false, reason: 'auth_expired' } };
-                }
-                return { done: false, status: response.status, value: { ok: false, reason: 'api_error', status: response.status } };
-            } catch (error) {
-                console.error('Failed to save card data to gist:', error);
-                return { done: true, value: { ok: false, reason: 'network_error' } };
-            }
-        });
+        const result = await this._patchGistFiles(filesMap);
+        if (result.ok && mergedData) {
+            this._cachedData = mergedData; // keep cache coherent with the write
+        }
+        return result;
     }
 
     // Load card data from gist (for logged-in user editing)
