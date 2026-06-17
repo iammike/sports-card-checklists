@@ -809,20 +809,25 @@ class CardEditorModal {
     // Update image preview
     updateImagePreview(url) {
         const preview = this.backdrop.querySelector('.card-editor-image-preview');
+
+        // Only preview values we can actually load as an image:
+        // - data: URLs used as-is
+        // - Absolute http(s) URLs (incl. R2) go through sanitizeUrl
+        // - Local relative paths under the image folder used as-is
+        // Anything else (partial typing, a pasted non-URL) would resolve against
+        // the page origin and fire a doomed request, so we skip it.
+        let src = null;
         if (url) {
-            // Determine the source URL:
-            // - data: URLs used as-is
-            // - Relative paths (local images) used as-is
-            // - Absolute URLs (http/https) go through sanitizeUrl
-            let src;
             if (url.startsWith('data:')) {
                 src = url;
             } else if (url.startsWith('http://') || url.startsWith('https://')) {
                 src = sanitizeUrl(url);
-            } else {
-                // Relative path - use as-is
+            } else if (url.startsWith(this.imageFolder)) {
                 src = url;
             }
+        }
+
+        if (src) {
             preview.innerHTML = `<img src="${src}" alt="Preview" onerror="this.outerHTML='<span class=\\'placeholder\\'>Failed to load</span>'">`;
         } else {
             preview.innerHTML = '<span class="placeholder">No image</span>';
