@@ -296,24 +296,30 @@ class ChecklistEngine {
             this.cardData.categories = this.cards;
         }
 
-        // Try save with one automatic retry
-        let result = await githubSync.saveCardData(this.id, this.cardData);
-        if (!result.ok && result.reason !== 'auth_expired') {
+        // Save card data and stats together in one PATCH (one request, not two).
+        const stats = this.computeStats();
+
+        // Try save with one automatic retry. Don't retry auth or rate-limit
+        // failures - retrying those just burns more requests against the limit.
+        const noRetry = reason => reason === 'auth_expired' || reason === 'rate_limited';
+        let result = await githubSync.saveCardData(this.id, this.cardData, stats);
+        if (!result.ok && !noRetry(result.reason)) {
             // Brief pause then retry once for transient failures
             await new Promise(r => setTimeout(r, 1500));
-            result = await githubSync.saveCardData(this.id, this.cardData);
+            result = await githubSync.saveCardData(this.id, this.cardData, stats);
         }
 
         if (result.ok) {
             this.checklistManager.setSyncStatus('synced', 'Saved');
-            const stats = this.computeStats();
-            await githubSync.saveChecklistStats(this.id, stats);
         } else if (result.reason === 'auth_expired') {
             this.checklistManager.setSyncStatus('error', 'Session expired');
             this._showSaveError('Your session has expired.', 'Sign Out', () => {
                 githubSync.logout();
                 window.location.reload();
             });
+        } else if (result.reason === 'rate_limited') {
+            this.checklistManager.setSyncStatus('error', 'Rate limited');
+            this._showSaveError('GitHub is temporarily rate-limiting writes. Your changes are saved in memory - wait a minute, then edit again to retry.');
         } else {
             this.checklistManager.setSyncStatus('error', 'Save failed');
             this._showSaveError('Save failed. Your changes are still in memory - try refreshing and editing again.');
