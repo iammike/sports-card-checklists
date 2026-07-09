@@ -656,6 +656,14 @@ class GitHubSync {
         }
     }
 
+    // Build an error flagged as an expired session so callers can prompt a
+    // re-login instead of surfacing a cryptic "Invalid token" message.
+    _authExpiredError() {
+        const err = new Error('Your session has expired. Please sign in again.');
+        err.authExpired = true;
+        return err;
+    }
+
     // Upload an image to Cloudflare R2 via the Worker
     // Returns the full R2 URL on success, null on failure
     async uploadImage(key, base64Content) {
@@ -676,6 +684,12 @@ class GitHubSync {
 
         if (!response.ok) {
             const body = await response.json().catch(() => ({}));
+            // The Worker returns 401 only for an expired/invalid token. 403 is
+            // used for non-auth cases (preview-site block, unauthorized user),
+            // so it must fall through to the real error message below.
+            if (response.status === 401) {
+                throw this._authExpiredError();
+            }
             if (body.error) {
                 throw new Error(body.error);
             }
@@ -701,6 +715,12 @@ class GitHubSync {
 
         if (!response.ok) {
             const body = await response.json().catch(() => ({}));
+            // The Worker returns 401 only for an expired/invalid token. 403 is
+            // used for non-auth cases (preview-site block, unauthorized user),
+            // so it must fall through to the real error message below.
+            if (response.status === 401) {
+                throw this._authExpiredError();
+            }
             if (body.error) {
                 throw new Error(body.error);
             }

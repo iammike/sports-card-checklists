@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
@@ -53,5 +53,46 @@ describe('GitHubSync._isRateLimited', () => {
     it('detects a 429 rate-limit response', async () => {
         const body = '{"message":"You have exceeded a secondary rate limit"}';
         expect(await sync._isRateLimited(mockResponse({ status: 429, body }))).toBe(true);
+    });
+});
+
+describe('GitHubSync image ops auth handling', () => {
+    const realFetch = globalThis.fetch;
+    afterEach(() => {
+        globalThis.fetch = realFetch;
+        sync.token = null;
+    });
+
+    // Worker response stand-in for image endpoints (they call response.json()).
+    function jsonResponse({ ok, status, body = {} }) {
+        return { ok, status, json: async () => body };
+    }
+
+    it('uploadImage flags an expired session on 401 so callers can prompt re-login', async () => {
+        sync.token = 'stale-token';
+        globalThis.fetch = async () => jsonResponse({ ok: false, status: 401, body: { error: 'Invalid token' } });
+        await expect(sync.uploadImage('images/x.webp', 'AAAA')).rejects.toMatchObject({ authExpired: true });
+    });
+
+    it('uploadImage does not flag non-auth failures as expired sessions', async () => {
+        sync.token = 'good-token';
+        globalThis.fetch = async () => jsonResponse({ ok: false, status: 500, body: { error: 'Boom' } });
+        const err = await sync.uploadImage('images/x.webp', 'AAAA').catch(e => e);
+        expect(err.message).toBe('Boom');
+        expect(err.authExpired).toBeFalsy();
+    });
+
+    it('uploadImage does not flag a 403 (preview-site block / unauthorized user) as expired', async () => {
+        sync.token = 'good-token';
+        globalThis.fetch = async () => jsonResponse({ ok: false, status: 403, body: { error: 'Image uploads are disabled on preview sites.' } });
+        const err = await sync.uploadImage('images/x.webp', 'AAAA').catch(e => e);
+        expect(err.message).toBe('Image uploads are disabled on preview sites.');
+        expect(err.authExpired).toBeFalsy();
+    });
+
+    it('deleteImage flags an expired session on 401', async () => {
+        sync.token = 'stale-token';
+        globalThis.fetch = async () => jsonResponse({ ok: false, status: 401, body: { error: 'Invalid token' } });
+        await expect(sync.deleteImage('images/x.webp')).rejects.toMatchObject({ authExpired: true });
     });
 });

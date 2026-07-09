@@ -959,10 +959,7 @@ class CardEditorModal {
             btn.title = 'Done! Image uploaded';
 
         } catch (error) {
-            if (error.message !== 'Cancelled') {
-                console.error('Image edit failed:', error);
-                alert('Failed to edit image: ' + error.message);
-            }
+            this._handleImageError(error, 'Image edit failed:', 'Failed to edit image: ');
         } finally {
             btn.classList.remove('processing');
             btn.disabled = false;
@@ -1050,11 +1047,7 @@ class CardEditorModal {
             btn.title = 'Done! Image uploaded';
 
         } catch (error) {
-            // Don't show error if user just cancelled
-            if (error.message !== 'Cancelled') {
-                console.error('Image processing failed:', error);
-                alert('Failed to process image: ' + error.message);
-            }
+            this._handleImageError(error, 'Image processing failed:', 'Failed to process image: ');
         } finally {
             btn.classList.remove('processing');
             btn.disabled = false;
@@ -1140,15 +1133,27 @@ class CardEditorModal {
             this.backdrop.querySelector('#editor-img-file').value = '';
 
         } catch (error) {
-            // Don't show error if user just cancelled
-            if (error.message !== 'Cancelled') {
-                console.error('Image upload failed:', error);
-                alert('Failed to upload image: ' + error.message);
-            }
+            this._handleImageError(error, 'Image upload failed:', 'Failed to upload image: ');
         } finally {
             zone.classList.remove('processing');
             this.setImageProcessing(false);
         }
+    }
+
+    // Centralized error handling for image upload/edit flows. Ignores user
+    // cancellations, prompts a clean re-login on an expired session, and falls
+    // back to a generic alert for everything else.
+    _handleImageError(error, logLabel, alertPrefix) {
+        if (error.message === 'Cancelled') return;
+        console.error(logLabel, error);
+        if (error.authExpired) {
+            if (confirm('Your session has expired. Sign in again to upload images?')) {
+                githubSync.logout();
+                window.location.reload();
+            }
+            return;
+        }
+        alert(alertPrefix + error.message);
     }
 
     // Set dirty state
