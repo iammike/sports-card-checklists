@@ -684,7 +684,10 @@ class GitHubSync {
 
         if (!response.ok) {
             const body = await response.json().catch(() => ({}));
-            if (response.status === 401 || response.status === 403) {
+            // The Worker returns 401 only for an expired/invalid token. 403 is
+            // used for non-auth cases (preview-site block, unauthorized user),
+            // so it must fall through to the real error message below.
+            if (response.status === 401) {
                 throw this._authExpiredError();
             }
             if (body.error) {
@@ -712,7 +715,10 @@ class GitHubSync {
 
         if (!response.ok) {
             const body = await response.json().catch(() => ({}));
-            if (response.status === 401 || response.status === 403) {
+            // The Worker returns 401 only for an expired/invalid token. 403 is
+            // used for non-auth cases (preview-site block, unauthorized user),
+            // so it must fall through to the real error message below.
+            if (response.status === 401) {
                 throw this._authExpiredError();
             }
             if (body.error) {

@@ -82,6 +82,14 @@ describe('GitHubSync image ops auth handling', () => {
         expect(err.authExpired).toBeFalsy();
     });
 
+    it('uploadImage does not flag a 403 (preview-site block / unauthorized user) as expired', async () => {
+        sync.token = 'good-token';
+        globalThis.fetch = async () => jsonResponse({ ok: false, status: 403, body: { error: 'Image uploads are disabled on preview sites.' } });
+        const err = await sync.uploadImage('images/x.webp', 'AAAA').catch(e => e);
+        expect(err.message).toBe('Image uploads are disabled on preview sites.');
+        expect(err.authExpired).toBeFalsy();
+    });
+
     it('deleteImage flags an expired session on 401', async () => {
         sync.token = 'stale-token';
         globalThis.fetch = async () => jsonResponse({ ok: false, status: 401, body: { error: 'Invalid token' } });
