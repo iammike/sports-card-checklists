@@ -34,10 +34,10 @@ describe('CardEditorModal.generateSearchTerm', () => {
         expect(result).toBe('player+set+42');
     });
 
-    it('excludes Base variant', () => {
+    it('includes Base variant (not special-cased)', () => {
         const editor = makeEditor('Player');
         const result = editor.generateSearchTerm('Set', null, 'Base', null);
-        expect(result).toBe('player+set');
+        expect(result).toBe('player+set+base');
     });
 
     it('includes non-Base variant', () => {

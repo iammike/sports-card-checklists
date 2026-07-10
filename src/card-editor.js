@@ -252,8 +252,8 @@ class CardEditorModal {
         if (num) {
             parts.push(num.replace(/^#/, ''));
         }
-        // Add variant if not "Base"
-        if (variant && variant !== 'Base') {
+        // Add variant (treated as a plain category value, not special-cased)
+        if (variant) {
             parts.push(variant);
         }
         return parts.filter(Boolean).join('+').toLowerCase().replace(/\s+/g, '+');

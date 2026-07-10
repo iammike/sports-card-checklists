@@ -749,7 +749,9 @@ class ChecklistEngine {
         const showPlayer = this.config.cardDisplay?.showPlayerName !== false && card.player;
         const playerForSearch = card.player ? card.player + ' ' :
             (this.config.cardDisplay?.showPlayerName === false && (this.config.searchPrefix || this.config.title) ? (this.config.searchPrefix || this.config.title) + ' ' : '');
-        const defaultSearch = encodeURIComponent(`${playerForSearch}${card.set || ''} ${card.num || ''}`.trim());
+        const defaultSearch = encodeURIComponent(
+            [playerForSearch.trim(), card.set, card.num, card.variant].filter(Boolean).join(' ')
+        );
         const searchUrl = CardRenderer.getEbayUrl(card.search || defaultSearch);
         const priceSearchTerm = card.priceSearch || defaultSearch;
         const scpUrl = CardRenderer.getScpUrl(priceSearchTerm);
