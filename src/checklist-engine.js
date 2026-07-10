@@ -1124,6 +1124,10 @@ class ChecklistEngine {
     // ========================================
 
     renderCards() {
+        // Rebuilding the DOM destroys the grids SortableJS is bound to, so leave
+        // reorder mode first to avoid a stale state (e.g. after editing a card).
+        if (this._reorderMode) this._exitReorderMode();
+
         const container = document.getElementById('sections-container');
         const sortBy = document.getElementById('sort-filter')?.value || 'default';
 
