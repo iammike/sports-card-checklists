@@ -1756,9 +1756,11 @@ class ChecklistEngine {
                 }
             });
             this._cleanupCustomFields(card, cardData);
-            // Re-sort
-            this.cards.splice(found.index, 1);
-            this._insertCardSorted(this.cards, card);
+            // Re-sort (skip in manual sort so the edited card keeps its position)
+            if (!this._isManualSort()) {
+                this.cards.splice(found.index, 1);
+                this._insertCardSorted(this.cards, card);
+            }
         } else {
             const { card, category: oldCategory, index } = found;
             const newCategory = cardData.category || oldCategory;
@@ -1774,10 +1776,22 @@ class ChecklistEngine {
                 }
             });
             this._cleanupCustomFields(card, cardData);
-            // Remove from old category, insert into new
-            this.cards[oldCategory].splice(index, 1);
-            if (!this.cards[newCategory]) this.cards[newCategory] = [];
-            this._insertCardSorted(this.cards[newCategory], card);
+            if (newCategory === oldCategory) {
+                // Re-sort within category (skip in manual sort to keep position)
+                if (!this._isManualSort()) {
+                    this.cards[oldCategory].splice(index, 1);
+                    this._insertCardSorted(this.cards[oldCategory], card);
+                }
+            } else {
+                // Category changed: move to the new category
+                this.cards[oldCategory].splice(index, 1);
+                if (!this.cards[newCategory]) this.cards[newCategory] = [];
+                if (this._isManualSort()) {
+                    this.cards[newCategory].push(card);
+                } else {
+                    this._insertCardSorted(this.cards[newCategory], card);
+                }
+            }
         }
     }
 
