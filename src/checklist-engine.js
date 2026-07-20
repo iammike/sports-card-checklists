@@ -1637,7 +1637,6 @@ class ChecklistEngine {
             imageFolder: `images/${this.id}`,
             categories: editorCategories,
             cardTypes: [],
-            playerName: this.config.cardDisplay?.showPlayerName === false ? this.config.title : '',
             isOwned: (cardId) => this.checklistManager.isOwned(cardId),
             onOwnedChange: (cardData, nowOwned) => {
                 const id = this.getCardId(cardData);
