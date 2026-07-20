@@ -227,7 +227,6 @@ class CardEditorModal {
         this.cardTypes = options.cardTypes || CARD_TYPES;
         this.categories = options.categories || null; // e.g., ['panini', 'topps', 'inserts', 'premium']
         this.imageFolder = options.imageFolder || 'images'; // folder for processed images
-        this.playerName = options.playerName || ''; // player name for search term generation
         this.isOwned = options.isOwned || (() => false); // callback to check if card is owned
         this.onOwnedChange = options.onOwnedChange || null; // callback when owned state changes
         this.currentCard = null;
@@ -243,20 +242,6 @@ class CardEditorModal {
         // Types: 'text', 'select', 'checkbox'
         // For select: options is array of { value, label } or just strings
         this.customFields = options.customFields || {};
-    }
-
-    // Generate eBay search term from card data
-    generateSearchTerm(set, num, variant, player) {
-        const parts = [player || this.playerName, set];
-        // Add card number without # prefix
-        if (num) {
-            parts.push(num.replace(/^#/, ''));
-        }
-        // Add variant if not "Base"
-        if (variant && variant !== 'Base') {
-            parts.push(variant);
-        }
-        return parts.filter(Boolean).join('+').toLowerCase().replace(/\s+/g, '+');
     }
 
     // Check if running on a preview site (not production)

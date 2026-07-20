@@ -59,6 +59,14 @@ const CardRenderer = {
         return bareMatch ? parseInt(bareMatch[1], 10) : null;
     },
 
+    // Build the default (unencoded) search string from card fields.
+    // prefix is the resolved player name or configured fallback (may be empty).
+    // Includes the variant unless it is the "Base" variant.
+    buildDefaultSearch(card, prefix = '') {
+        const variant = (card.variant && card.variant !== 'Base') ? card.variant : '';
+        return `${prefix} ${card.set || ''} ${card.num || ''} ${variant}`.replace(/\s+/g, ' ').trim();
+    },
+
     // Generate eBay search URL
     getEbayUrl(searchTerm) {
         return `https://www.ebay.com/sch/i.html?_nkw=${searchTerm.replace(/"/g, '%22')}&_sop=15&LH_BIN=1`;

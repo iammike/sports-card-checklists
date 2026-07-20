@@ -1,72 +1,43 @@
 import { describe, it, expect } from 'vitest';
 
-const CardEditorModal = globalThis.CardEditorModal;
+const CardRenderer = globalThis.CardRenderer;
 
-// Helper: create a minimal editor instance to test generateSearchTerm
-function makeEditor(playerName = '') {
-    const editor = Object.create(CardEditorModal.prototype);
-    editor.playerName = playerName;
-    return editor;
-}
-
-describe('CardEditorModal.generateSearchTerm', () => {
-    it('combines player, set, number, and variant', () => {
-        const editor = makeEditor('Jayden Daniels');
-        const result = editor.generateSearchTerm('2024 Donruss', '#101', 'Silver', null);
-        expect(result).toBe('jayden+daniels+2024+donruss+101+silver');
+describe('CardRenderer.buildDefaultSearch', () => {
+    it('combines prefix, set, number, and variant', () => {
+        const card = { set: '2024 Donruss', num: '#101', variant: 'Silver' };
+        expect(CardRenderer.buildDefaultSearch(card, 'Jayden Daniels'))
+            .toBe('Jayden Daniels 2024 Donruss #101 Silver');
     });
 
-    it('uses card-level player over default playerName', () => {
-        const editor = makeEditor('Default Player');
-        const result = editor.generateSearchTerm('2024 Donruss', null, null, 'Jayden Daniels');
-        expect(result).toBe('jayden+daniels+2024+donruss');
+    it('includes a non-Base variant', () => {
+        const card = { set: 'Set', variant: 'Silver Prizm' };
+        expect(CardRenderer.buildDefaultSearch(card, 'Player'))
+            .toBe('Player Set Silver Prizm');
     });
 
-    it('falls back to playerName when no card player', () => {
-        const editor = makeEditor('Jayden Daniels');
-        const result = editor.generateSearchTerm('2024 Donruss', null, null, null);
-        expect(result).toBe('jayden+daniels+2024+donruss');
+    it('excludes the Base variant', () => {
+        const card = { set: 'Set', variant: 'Base' };
+        expect(CardRenderer.buildDefaultSearch(card, 'Player')).toBe('Player Set');
     });
 
-    it('strips # prefix from card number', () => {
-        const editor = makeEditor('Player');
-        const result = editor.generateSearchTerm('Set', '#42', null, null);
-        expect(result).toBe('player+set+42');
+    it('omits the variant when absent', () => {
+        const card = { set: '2024 Donruss', num: '#5' };
+        expect(CardRenderer.buildDefaultSearch(card, 'Jayden Daniels'))
+            .toBe('Jayden Daniels 2024 Donruss #5');
     });
 
-    it('excludes Base variant', () => {
-        const editor = makeEditor('Player');
-        const result = editor.generateSearchTerm('Set', null, 'Base', null);
-        expect(result).toBe('player+set');
+    it('collapses whitespace when the card number is missing', () => {
+        const card = { set: '2024 Donruss', variant: 'Silver' };
+        expect(CardRenderer.buildDefaultSearch(card, 'Jayden Daniels'))
+            .toBe('Jayden Daniels 2024 Donruss Silver');
     });
 
-    it('includes non-Base variant', () => {
-        const editor = makeEditor('Player');
-        const result = editor.generateSearchTerm('Set', null, 'Silver Prizm', null);
-        expect(result).toBe('player+set+silver+prizm');
+    it('works with an empty prefix', () => {
+        const card = { set: '2024 Topps Chrome' };
+        expect(CardRenderer.buildDefaultSearch(card, '')).toBe('2024 Topps Chrome');
     });
 
-    it('works with no playerName and no card player', () => {
-        const editor = makeEditor('');
-        const result = editor.generateSearchTerm('2024 Donruss', '#5', null, null);
-        expect(result).toBe('2024+donruss+5');
-    });
-
-    it('lowercases everything and replaces spaces with +', () => {
-        const editor = makeEditor('JAYDEN DANIELS');
-        const result = editor.generateSearchTerm('2024 Panini Prizm', null, null, null);
-        expect(result).toBe('jayden+daniels+2024+panini+prizm');
-    });
-
-    it('handles all empty inputs', () => {
-        const editor = makeEditor('');
-        const result = editor.generateSearchTerm('', null, null, null);
-        expect(result).toBe('');
-    });
-
-    it('handles only set name', () => {
-        const editor = makeEditor('');
-        const result = editor.generateSearchTerm('2024 Topps Chrome', null, null, null);
-        expect(result).toBe('2024+topps+chrome');
+    it('handles a completely empty card', () => {
+        expect(CardRenderer.buildDefaultSearch({}, '')).toBe('');
     });
 });
