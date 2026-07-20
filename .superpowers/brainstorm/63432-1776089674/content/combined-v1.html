@@ -1,0 +1,174 @@
+<h2>A + D Combined — Three Variations</h2>
+<p class="subtitle">Banner on top, checkmark in ring — tuning the weight of the banner</p>
+
+<style>
+  .demo-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 8px; }
+  .demo-card {
+    font-family: 'Barlow', -apple-system, sans-serif;
+    border-radius: 8px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-left: 3px solid #f1c40f;
+    background: linear-gradient(135deg, rgba(241,196,15,0.1) 0%, rgba(241,196,15,0.05) 100%);
+  }
+  .demo-card h3 {
+    font-family: 'Bebas Neue', 'Impact', sans-serif;
+    font-size: 1em;
+    font-weight: 400;
+    letter-spacing: 0.05em;
+    margin: 0 0 3px;
+    color: #f1c40f;
+  }
+  .demo-card p { font-size: 0.72em; color: #999; margin: 0 0 10px; font-weight: 500; }
+  .progress-row { display: flex; align-items: center; gap: 10px; }
+  .ring { position: relative; width: 40px; height: 40px; flex-shrink: 0; }
+  .ring svg { transform: rotate(-90deg); width: 40px; height: 40px; }
+  .ring circle { fill: none; stroke-width: 4; }
+  .ring .pct {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Bebas Neue', 'Impact', sans-serif;
+    font-size: 1.1em; color: #f1c40f; line-height: 1;
+  }
+  .details { flex: 1; }
+  .main-text { font-size: 0.82em; color: #ccc; font-weight: 500; }
+  .main-text span { font-family: 'Bebas Neue', 'Impact', sans-serif; font-size: 1.1em; color: #f1c40f; font-weight: 400; }
+  .value-text { font-size: 0.68em; color: #666; margin-top: 2px; }
+  .value-text .owned { color: #f1c40f; }
+  .option-label {
+    font-family: 'Bebas Neue', 'Impact', sans-serif;
+    font-size: 0.7em; letter-spacing: 0.1em; color: #555; margin-bottom: 6px;
+  }
+
+  /* Shared: ring with checkmark */
+  .check-ring { stroke: #f1c40f; }
+  .check-ring-bg { stroke: rgba(241,196,15,0.15); }
+
+  /* VARIATION 1: Solid-ish banner with border */
+  .v1 { padding-top: 30px; }
+  .v1::before {
+    content: '✓  COMPLETE';
+    position: absolute; top: 0; left: 0; right: 0;
+    background: rgba(241,196,15,0.14);
+    border-bottom: 1px solid rgba(241,196,15,0.25);
+    color: #f1c40f;
+    font-family: 'Bebas Neue', 'Impact', sans-serif;
+    font-size: 0.62em; letter-spacing: 0.2em;
+    padding: 5px 10px;
+  }
+
+  /* VARIATION 2: Very minimal — just a hairline + tiny text */
+  .v2 { padding-top: 26px; }
+  .v2::before {
+    content: '✓  COMPLETE';
+    position: absolute; top: 0; left: 0; right: 0;
+    background: transparent;
+    border-bottom: 1px solid rgba(241,196,15,0.2);
+    color: rgba(241,196,15,0.55);
+    font-family: 'Bebas Neue', 'Impact', sans-serif;
+    font-size: 0.55em; letter-spacing: 0.22em;
+    padding: 4px 10px;
+  }
+
+  /* VARIATION 3: Gradient fade banner, no border */
+  .v3 { padding-top: 28px; }
+  .v3::before {
+    content: '✓  COMPLETE';
+    position: absolute; top: 0; left: 0; right: 0;
+    background: linear-gradient(90deg, rgba(241,196,15,0.18) 0%, transparent 70%);
+    color: #f1c40f;
+    font-family: 'Bebas Neue', 'Impact', sans-serif;
+    font-size: 0.6em; letter-spacing: 0.2em;
+    padding: 5px 10px;
+  }
+</style>
+
+<div class="cards" style="grid-template-columns: 1fr 1fr 1fr;">
+
+  <div class="card" data-choice="v1" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 0;">
+      <div class="option-label">VARIATION 1 — Filled banner</div>
+      <div class="demo-card v1">
+        <h3>JMU Pro Players</h3>
+        <p>Rookie cards of JMU alumni who made the pros.</p>
+        <div class="progress-row">
+          <div class="ring">
+            <svg viewBox="0 0 40 40">
+              <circle class="check-ring-bg" cx="20" cy="20" r="16"/>
+              <circle class="check-ring" cx="20" cy="20" r="16"
+                stroke-dasharray="100.5" stroke-dashoffset="0" stroke-linecap="round"/>
+            </svg>
+            <span class="pct">✓</span>
+          </div>
+          <div class="details">
+            <div class="main-text"><span>16</span> of <span>16</span> cards</div>
+            <div class="value-text"><span class="owned">$250 value</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Filled banner</h3>
+      <p>Solid gold-tinted strip with border. Most prominent.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="v2" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 0;">
+      <div class="option-label">VARIATION 2 — Hairline + faint text</div>
+      <div class="demo-card v2">
+        <h3>JMU Pro Players</h3>
+        <p>Rookie cards of JMU alumni who made the pros.</p>
+        <div class="progress-row">
+          <div class="ring">
+            <svg viewBox="0 0 40 40">
+              <circle class="check-ring-bg" cx="20" cy="20" r="16"/>
+              <circle class="check-ring" cx="20" cy="20" r="16"
+                stroke-dasharray="100.5" stroke-dashoffset="0" stroke-linecap="round"/>
+            </svg>
+            <span class="pct">✓</span>
+          </div>
+          <div class="details">
+            <div class="main-text"><span>16</span> of <span>16</span> cards</div>
+            <div class="value-text"><span class="owned">$250 value</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Hairline + faint text</h3>
+      <p>Most understated — just a line and muted label. Won't distract.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="v3" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 0;">
+      <div class="option-label">VARIATION 3 — Gradient fade</div>
+      <div class="demo-card v3">
+        <h3>JMU Pro Players</h3>
+        <p>Rookie cards of JMU alumni who made the pros.</p>
+        <div class="progress-row">
+          <div class="ring">
+            <svg viewBox="0 0 40 40">
+              <circle class="check-ring-bg" cx="20" cy="20" r="16"/>
+              <circle class="check-ring" cx="20" cy="20" r="16"
+                stroke-dasharray="100.5" stroke-dashoffset="0" stroke-linecap="round"/>
+            </svg>
+            <span class="pct">✓</span>
+          </div>
+          <div class="details">
+            <div class="main-text"><span>16</span> of <span>16</span> cards</div>
+            <div class="value-text"><span class="owned">$250 value</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Gradient fade</h3>
+      <p>Banner fades left-to-right, no border. Feels organic, not stamped-on.</p>
+    </div>
+  </div>
+
+</div>
