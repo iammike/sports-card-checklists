@@ -590,10 +590,14 @@
                 }
             });
 
-            // Use de-duplicated owned count and value when available
+            // Prefer the live de-duplicated numbers when available: they are
+            // computed from current card data (so they include extras and reflect
+            // cross-checklist de-dup immediately), whereas the summed stats above
+            // can lag until each checklist re-saves. Fall back to the sums only
+            // when the live computation is unavailable.
             if (uniqueOwned != null) {
-                if (uniqueOwned.count < totalOwned) totalOwned = uniqueOwned.count;
-                if (uniqueOwned.value < totalOwnedValue) totalOwnedValue = uniqueOwned.value;
+                totalOwned = uniqueOwned.count;
+                totalOwnedValue = uniqueOwned.value;
             }
 
             if (!hasAnyStats) return;
