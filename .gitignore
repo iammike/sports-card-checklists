@@ -31,3 +31,6 @@ scripts/
 
 # Image scraping working directory
 _image-candidates/
+
+# Superpowers process artifacts (never commit)
+.superpowers/

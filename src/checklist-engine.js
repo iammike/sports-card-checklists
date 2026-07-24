@@ -747,9 +747,9 @@ class ChecklistEngine {
         const owned = cardId ? this.isOwned(cardId) : false;
         const price = this.getPrice(card);
         const showPlayer = this.config.cardDisplay?.showPlayerName !== false && card.player;
-        const playerForSearch = card.player ? card.player + ' ' :
-            (this.config.cardDisplay?.showPlayerName === false && (this.config.searchPrefix || this.config.title) ? (this.config.searchPrefix || this.config.title) + ' ' : '');
-        const defaultSearch = encodeURIComponent(`${playerForSearch}${card.set || ''} ${card.num || ''}`.trim());
+        const searchPrefix = card.player ? card.player :
+            (this.config.cardDisplay?.showPlayerName === false && (this.config.searchPrefix || this.config.title) ? (this.config.searchPrefix || this.config.title) : '');
+        const defaultSearch = encodeURIComponent(CardRenderer.buildDefaultSearch(card, searchPrefix));
         const searchUrl = CardRenderer.getEbayUrl(card.search || defaultSearch);
         const priceSearchTerm = card.priceSearch || defaultSearch;
         const scpUrl = CardRenderer.getScpUrl(priceSearchTerm);
@@ -1654,7 +1654,6 @@ class ChecklistEngine {
             imageFolder: `images/${this.id}`,
             categories: editorCategories,
             cardTypes: [],
-            playerName: this.config.cardDisplay?.showPlayerName === false ? this.config.title : '',
             isOwned: (cardId) => this.checklistManager.isOwned(cardId),
             onOwnedChange: (cardData, nowOwned) => {
                 const id = this.getCardId(cardData);
