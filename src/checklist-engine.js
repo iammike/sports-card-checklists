@@ -1450,16 +1450,21 @@ class ChecklistEngine {
         });
 
         // Sum owned value from extra (non-main) categories so Est. Value
-        // reflects every owned card, not just the base/target set.
+        // reflects every owned card, not just the base/target set. Skip when
+        // there are no main categories: countedCats falls back to all
+        // categories above, so extras are already in ownedValue (avoids
+        // double-counting on hand-edited configs).
         let extraOwnedValue = 0;
-        extraCats.forEach(cat => {
-            getCardsForCategory(cat).forEach(card => {
-                if (card.collectionLink) return;
-                if (this.isOwned(this.getCardId(card))) {
-                    extraOwnedValue += this.getPrice(card);
-                }
+        if (mainCats.length > 0) {
+            extraCats.forEach(cat => {
+                getCardsForCategory(cat).forEach(card => {
+                    if (card.collectionLink) return;
+                    if (this.isOwned(this.getCardId(card))) {
+                        extraOwnedValue += this.getPrice(card);
+                    }
+                });
             });
-        });
+        }
 
         const stats = {
             owned: ownedCount,

@@ -62,4 +62,27 @@ describe('computeStats — extra category value', () => {
     const stats = engine.computeStats();
     expect(stats.ownedValue).toBe(100);
   });
+
+  it('does not double-count when a config has no main categories', () => {
+    const allExtraConfig = {
+      dataShape: 'category',
+      categories: [
+        { id: 'a', isMain: false },
+        { id: 'b', isMain: false },
+      ],
+    };
+    const engine = makeEngine({
+      config: allExtraConfig,
+      cards: {
+        a: [{ id: 'a1', price: 100 }], // owned
+        b: [{ id: 'b1', price: 25 }],  // owned
+      },
+      ownedIds: ['a1', 'b1'],
+    });
+
+    const stats = engine.computeStats();
+    // Both categories are counted once by the main-loop fallback; the extra
+    // loop must not add them a second time.
+    expect(stats.ownedValue).toBe(125);
+  });
 });
