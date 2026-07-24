@@ -656,19 +656,11 @@
                     if (config.dataShape === 'flat') {
                         cards = cardData.cards || [];
                     } else {
+                        // Include all categories (main + extra) so the unique
+                        // owned value matches the expanded Est. Value meaning.
                         cards = [];
-                        const categories = config.categories || [];
-                        const mainCats = categories.filter(c => c.isMain !== false);
-                        const mainCatIds = new Set();
-                        mainCats.forEach(cat => {
-                            if (cat.children && cat.children.length > 0) {
-                                cat.children.forEach(child => mainCatIds.add(child.id));
-                            } else {
-                                mainCatIds.add(cat.id);
-                            }
-                        });
-                        for (const [catId, arr] of Object.entries(cardData.categories || {})) {
-                            if (mainCatIds.has(catId)) cards.push(...arr);
+                        for (const arr of Object.values(cardData.categories || {})) {
+                            cards.push(...arr);
                         }
                     }
 
