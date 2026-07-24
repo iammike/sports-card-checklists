@@ -682,9 +682,11 @@
                                 mainCatIds.add(cat.id);
                             }
                         });
+                        // No main categories → engine's owned count falls back to
+                        // all categories, so mirror that here (avoids undercounting).
                         for (const [catId, arr] of Object.entries(cardData.categories || {})) {
                             cards.push(...arr);
-                            if (mainCatIds.has(catId)) {
+                            if (mainCatIds.size === 0 || mainCatIds.has(catId)) {
                                 arr.forEach(card => { if (!card.collectionLink) mainIds.add(computeId(card)); });
                             }
                         }
