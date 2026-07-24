@@ -19,6 +19,7 @@ const files = [
     'shopping-list.js',
     'nav.js',
     'checklist-creator.js',
+    'checklist-engine.js',
 ];
 
 for (const file of files) {

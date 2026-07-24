@@ -1449,14 +1449,26 @@ class ChecklistEngine {
             });
         });
 
+        // Sum owned value from extra (non-main) categories so Est. Value
+        // reflects every owned card, not just the base/target set.
+        let extraOwnedValue = 0;
+        extraCats.forEach(cat => {
+            getCardsForCategory(cat).forEach(card => {
+                if (card.collectionLink) return;
+                if (this.isOwned(this.getCardId(card))) {
+                    extraOwnedValue += this.getPrice(card);
+                }
+            });
+        });
+
         const stats = {
             owned: ownedCount,
             total: totalCount,
-            ownedValue: Math.round(ownedValue),
+            ownedValue: Math.round(ownedValue + extraOwnedValue),
             neededValue: Math.round(neededValue),
         };
 
-        // Add extra category stats
+        // Add extra category stats (owned counts per extra category)
         extraCats.forEach(cat => {
             const catCards = getCardsForCategory(cat);
             const label = cat.statLabel || `${cat.id}Owned`;
