@@ -638,7 +638,11 @@
                     return btoa(str.replace(/[^\x00-\xFF]/g, '_')).replace(/[^a-zA-Z0-9]/g, '');
                 };
 
-                const uniqueFPs = new Map(); // fingerprint -> price
+                // value spans all owned cards (main + extra) to match the
+                // expanded Est. Value; count stays main-only to match the
+                // main-only owned count it clamps (stats.owned).
+                const uniqueFPs = new Map();     // fingerprint -> highest price (main + extra)
+                const uniqueMainFPs = new Set(); // fingerprints of owned main-category cards
                 for (const entry of entries) {
                     const ownedIds = allOwned[entry.id] || [];
                     if (ownedIds.length === 0) continue;
@@ -651,34 +655,45 @@
                         : await githubSync.loadPublicCardData(entry.id);
                     if (!config || !cardData) continue;
 
-                    // Flatten all owned cards (matching computeStats behavior)
+                    // Mirror getCardId(): check card.id first unless includePlayerInCardId
+                    const includePlayer = config.cardDisplay?.includePlayerInCardId;
+                    const computeId = (card) => {
+                        if (includePlayer) {
+                            return btoa(((card.player || '') + (card.set || '') + (card.num || '') + (card.variant || '')).replace(/[^\x00-\xFF]/g, '_')).replace(/[^a-zA-Z0-9]/g, '');
+                        }
+                        if (card.id) return card.id;
+                        return btoa(((card.set || '') + (card.num || '') + (card.variant || '')).replace(/[^\x00-\xFF]/g, '_')).replace(/[^a-zA-Z0-9]/g, '');
+                    };
+
+                    // Flatten all cards (main + extra) for value; track which ids
+                    // belong to main categories for the count.
                     let cards;
+                    const mainIds = new Set();
                     if (config.dataShape === 'flat') {
                         cards = cardData.cards || [];
+                        cards.forEach(card => { if (!card.collectionLink) mainIds.add(computeId(card)); });
                     } else {
-                        // Include all categories (main + extra) so the unique
-                        // owned value matches the expanded Est. Value meaning.
                         cards = [];
-                        for (const arr of Object.values(cardData.categories || {})) {
+                        const mainCatIds = new Set();
+                        (config.categories || []).filter(c => c.isMain !== false).forEach(cat => {
+                            if (cat.children && cat.children.length > 0) {
+                                cat.children.forEach(child => mainCatIds.add(child.id));
+                            } else {
+                                mainCatIds.add(cat.id);
+                            }
+                        });
+                        for (const [catId, arr] of Object.entries(cardData.categories || {})) {
                             cards.push(...arr);
+                            if (mainCatIds.has(catId)) {
+                                arr.forEach(card => { if (!card.collectionLink) mainIds.add(computeId(card)); });
+                            }
                         }
                     }
 
-                    // Build card ID -> card map using checklist-specific encoding
-                    // Must mirror getCardId() logic: check card.id first (unless includePlayerInCardId)
-                    const includePlayer = config.cardDisplay?.includePlayerInCardId;
                     const cardById = new Map();
                     cards.forEach(card => {
                         if (card.collectionLink) return;
-                        let id;
-                        if (includePlayer) {
-                            id = btoa(((card.player || '') + (card.set || '') + (card.num || '') + (card.variant || '')).replace(/[^\x00-\xFF]/g, '_')).replace(/[^a-zA-Z0-9]/g, '');
-                        } else if (card.id) {
-                            id = card.id;
-                        } else {
-                            id = btoa(((card.set || '') + (card.num || '') + (card.variant || '')).replace(/[^\x00-\xFF]/g, '_')).replace(/[^a-zA-Z0-9]/g, '');
-                        }
-                        cardById.set(id, card);
+                        cardById.set(computeId(card), card);
                     });
 
                     // Map owned IDs to universal fingerprints, keeping highest price per card
@@ -690,12 +705,13 @@
                         const existing = uniqueFPs.get(fp) || 0;
                         if (price > existing) uniqueFPs.set(fp, price);
                         else if (!uniqueFPs.has(fp)) uniqueFPs.set(fp, 0);
+                        if (mainIds.has(id)) uniqueMainFPs.add(fp);
                     });
                 }
 
                 let uniqueValue = 0;
                 uniqueFPs.forEach(price => { uniqueValue += price; });
-                return { count: uniqueFPs.size, value: uniqueValue };
+                return { count: uniqueMainFPs.size, value: uniqueValue };
             } catch (e) {
                 console.warn('Failed to compute unique owned stats:', e);
                 return null;
