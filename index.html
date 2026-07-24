@@ -651,7 +651,7 @@
                         : await githubSync.loadPublicCardData(entry.id);
                     if (!config || !cardData) continue;
 
-                    // Flatten main-category cards only (matching computeStats behavior)
+                    // Flatten all owned cards (matching computeStats behavior)
                     let cards;
                     if (config.dataShape === 'flat') {
                         cards = cardData.cards || [];
