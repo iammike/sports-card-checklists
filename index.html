@@ -629,6 +629,18 @@
             }
         }
 
+        // Patch each checklist card's owned value with the live figure (main +
+        // extra) so cards reflect extras immediately, without waiting for the
+        // checklist to re-save its stats to the gist.
+        function updateChecklistCardValues(uniqueOwned) {
+            const perChecklist = uniqueOwned?.perChecklist;
+            if (!perChecklist) return;
+            Object.entries(perChecklist).forEach(([id, value]) => {
+                const el = document.querySelector(`.checklist-card[data-checklist="${id}"] .value-owned`);
+                if (el) el.textContent = '$' + Math.round(value) + ' value';
+            });
+        }
+
         // Compute unique owned count by loading card data (gist is already cached, no extra API calls)
         async function computeUniqueOwned(entries) {
             try {
@@ -647,6 +659,7 @@
                 // main-only owned count it clamps (stats.owned).
                 const uniqueFPs = new Map();     // fingerprint -> highest price (main + extra)
                 const uniqueMainFPs = new Set(); // fingerprints of owned main-category cards
+                const perChecklistValue = {};    // id -> owned value (main + extra), for per-card display
                 for (const entry of entries) {
                     const ownedIds = allOwned[entry.id] || [];
                     if (ownedIds.length === 0) continue;
@@ -712,12 +725,16 @@
                         if (price > existing) uniqueFPs.set(fp, price);
                         else if (!uniqueFPs.has(fp)) uniqueFPs.set(fp, 0);
                         if (mainIds.has(id)) uniqueMainFPs.add(fp);
+                        // Per-checklist owned value is not de-duplicated: each card
+                        // shows its own full owned value (main + extra), matching the
+                        // checklist page's Est. Value.
+                        perChecklistValue[entry.id] = (perChecklistValue[entry.id] || 0) + price;
                     });
                 }
 
                 let uniqueValue = 0;
                 uniqueFPs.forEach(price => { uniqueValue += price; });
-                return { count: uniqueMainFPs.size, value: uniqueValue };
+                return { count: uniqueMainFPs.size, value: uniqueValue, perChecklist: perChecklistValue };
             } catch (e) {
                 console.warn('Failed to compute unique owned stats:', e);
                 return null;
@@ -887,6 +904,7 @@
             if (entries && entries.length > 0) initChecklistFilters();
             const uniqueOwned = await computeUniqueOwned(entries);
             updateAggregateStats(allStats, uniqueOwned);
+            updateChecklistCardValues(uniqueOwned);
 
             // Render nav links + hamburger (registry already cached by renderDynamicChecklists)
             await DynamicNav.init();
