@@ -636,7 +636,7 @@
             const perChecklist = uniqueOwned?.perChecklist;
             if (!perChecklist) return;
             Object.entries(perChecklist).forEach(([id, value]) => {
-                const el = document.querySelector(`.checklist-card[data-checklist="${id}"] .value-owned`);
+                const el = document.querySelector(`.checklist-card[data-checklist="${CSS.escape(id)}"] .value-owned`);
                 if (el) el.textContent = '$' + Math.round(value) + ' value';
             });
         }
