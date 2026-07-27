@@ -45,14 +45,17 @@ function makeCategoryEngine(cardsByCategory, getCardId = hashId) {
 // `search` is the one field whose form key differs from its storage key: the
 // input is #editor-ebay and getFormData emits `ebay`, but save() renames it to
 // `search` and deletes `ebay` before calling onSave, so `ebay` never gets here.
+// A flagged entry never sends a price, even a stale one still sitting in the
+// disabled input - see the `!noCardChecked` guard in getFormData.
 // `customFields` must be the config the engine was built with: getFormData can
 // only send a field the editor rendered, so a field this config doesn't declare
 // is absent from the submission no matter what the card holds.
 function formDataWithCleared(cleared, card, extra = {}, customFields = CUSTOM_FIELDS) {
+  const noCard = 'noCard' in extra ? !!extra.noCard : !!card.noCard;
   const data = { set: card.set, num: card.num, type: '' };
   data.img = cleared === 'img' ? '' : (card.img || '');
-  data.noCard = !!card.noCard;
-  if (cleared !== 'price' && card.price) data.price = card.price;
+  data.noCard = noCard;
+  if (cleared !== 'price' && card.price && !noCard) data.price = card.price;
   if (cleared !== 'search' && card.search) data.search = card.search;
   if (cleared !== 'priceSearch' && card.priceSearch) data.priceSearch = card.priceSearch;
   for (const [name, config] of Object.entries(customFields)) {
@@ -408,13 +411,30 @@ describe('img and noCard keep their existing markers', () => {
   });
 
   it('_updateCard keeps noCard: false and the merge strips it', () => {
-    const gistCard = { id: 'n1', set: 'Prizm', noCard: true };
+    const gistCard = { id: 'n1', set: 'Prizm', num: '10', noCard: true };
     const engine = makeFlatEngine([{ ...gistCard }], (c) => c.id);
 
-    engine._updateCard('n1', { id: 'n1', set: 'Prizm', noCard: false });
+    engine._updateCard('n1', formDataWithCleared(null, gistCard, { noCard: false }));
     expect(engine.cards[0].noCard).toBe(false);
 
     const merged = engine._mergeCardArrays(engine.cards, [gistCard]);
     expect('noCard' in merged[0]).toBe(false);
+  });
+});
+
+describe('flagging an entry as no-card clears its price for real', () => {
+  it('drops a stored price from the merged card', () => {
+    // getFormData omits price entirely once "No card exists" is ticked, so the
+    // clear-tracking now makes the deletion stick. Before this fix the merge kept
+    // handing the price back, so "no card, no price" was never true end to end -
+    // even though _applyNoCardState's confirm dialog promises exactly that.
+    const gistCard = { id: 'n1', set: 'Prizm', num: '10', price: 25 };
+    const engine = makeFlatEngine([{ ...gistCard }], (c) => c.id);
+
+    engine._updateCard('n1', formDataWithCleared(null, gistCard, { noCard: true }));
+    const merged = engine._mergeCardArrays(engine.cards, [gistCard]);
+
+    expect('price' in merged[0]).toBe(false);
+    expect(merged[0].noCard).toBe(true);
   });
 });
