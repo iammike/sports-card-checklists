@@ -1037,7 +1037,6 @@ class ChecklistEngine {
             'winpct': 'Sort: Win %',
             'wins': 'Sort: Games Won',
             'games': 'Sort: Games Played',
-            'superbowl': 'Sort: Super Bowl Winners',
             'scarcity': 'Sort: Scarcity',
         };
         if (labels[key]) return labels[key];
@@ -1177,9 +1176,6 @@ class ChecklistEngine {
                     const bOwned = this.isOwned(this.getCardId(b)) ? 1 : 0;
                     return aOwned - bOwned;
                 });
-                break;
-            case 'superbowl':
-                sorted.sort((a, b) => (b.superBowl ? 1 : 0) - (a.superBowl ? 1 : 0));
                 break;
             default:
                 // Custom field sort (e.g. 'field:years-active')
