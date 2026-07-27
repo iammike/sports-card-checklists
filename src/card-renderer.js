@@ -186,7 +186,7 @@ const CardRenderer = {
         // quotes and getScpUrl escapes nothing, so neither arrives attribute-safe.
         const ebay = sanitizeAttr(searchUrl);
         if (scpUrl) {
-            return `<span class="search-links"><a href="${ebay}" target="_blank" class="search-link">eBay</a> · <a href="${sanitizeAttr(scpUrl)}" target="_blank" rel="noopener noreferrer" class="search-link">Prices</a></span>`;
+            return `<span class="search-links"><a href="${ebay}" target="_blank" rel="noopener noreferrer" class="search-link">eBay</a> · <a href="${sanitizeAttr(scpUrl)}" target="_blank" rel="noopener noreferrer" class="search-link">Prices</a></span>`;
         }
         return `<a href="${ebay}" target="_blank" rel="noopener noreferrer" class="search-link">eBay</a>`;
     },
