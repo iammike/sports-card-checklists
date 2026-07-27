@@ -868,9 +868,8 @@ class ChecklistEngine {
                 if (label) noCardHtml += `<div class="card-title">${sanitizeText(label)}</div>`;
             }
             noCardHtml += this._subtitleLinesHtml(card);
-            noCardHtml += `<div class="card-actions links-only">`;
-            noCardHtml += CardRenderer.renderSearchLinks(searchUrl, scpUrl);
-            noCardHtml += `</div>`;
+            // No owned control and no search links: there is no card to own, and
+            // an eBay or price lookup for one that was never printed is always empty.
             noCardHtml += `</div>`;
             return noCardHtml;
         }

@@ -36,10 +36,14 @@ describe('createCardElement — noCard entries', () => {
     expect(html).toContain('DID NOT PLAY');
   });
 
-  it('still renders search links', () => {
+  it('renders no search links', () => {
+    // A card that was never printed has nothing to look up - an eBay or price
+    // search for it is always empty, so the links are noise.
     const engine = makeEngine(config);
     const html = engine.createCardElement({ id: 'n1', player: 'X', noCard: true });
-    expect(html).toContain('eBay');
+    expect(html).not.toContain('eBay');
+    expect(html).not.toContain('Prices');
+    expect(html).not.toContain('card-actions');
   });
 
   it('renders as a no-card entry even when collectionLink is also set', () => {
