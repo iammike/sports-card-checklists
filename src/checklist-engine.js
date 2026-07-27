@@ -824,7 +824,14 @@ class ChecklistEngine {
             noCardHtml += `<div class="card-image-wrapper">`;
             noCardHtml += CardRenderer.renderNoCardBadge(this.config.noCardLabel);
             noCardHtml += `</div>`;
-            if (showPlayer) noCardHtml += this._playerNameHtml(card);
+            if (showPlayer) {
+                noCardHtml += this._playerNameHtml(card);
+            } else {
+                // Without a player name there is no image to identify the tile by,
+                // so fall back to the first field that names the entry
+                const label = card.set || card.player || card.num || '';
+                if (label) noCardHtml += `<div class="card-title">${sanitizeText(label)}</div>`;
+            }
             noCardHtml += this._subtitleLinesHtml(card);
             noCardHtml += `<div class="card-actions links-only">`;
             noCardHtml += CardRenderer.renderSearchLinks(searchUrl, scpUrl);

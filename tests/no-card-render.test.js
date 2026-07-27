@@ -58,6 +58,22 @@ describe('createCardElement — noCard entries', () => {
     expect(html).toContain('123');
   });
 
+  it('labels the tile with the set name when player names are hidden', () => {
+    const engine = makeEngine({ dataShape: 'flat', cardDisplay: { showPlayerName: false } });
+    const html = engine.createCardElement({
+      id: 'n1', player: 'Ariel Hukporti', set: '1990 Hoops', noCard: true,
+    });
+
+    expect(html).toContain('1990 Hoops');
+  });
+
+  it('labels the tile with the player name when there is no set name', () => {
+    const engine = makeEngine({ dataShape: 'flat', cardDisplay: { showPlayerName: false } });
+    const html = engine.createCardElement({ id: 'n1', player: 'Ariel Hukporti', noCard: true });
+
+    expect(html).toContain('Ariel Hukporti');
+  });
+
   it('renders a normal card unchanged', () => {
     const engine = makeEngine(config);
     const html = engine.createCardElement({ id: 'n2', player: 'Y', set: 'Prizm' });

@@ -960,7 +960,8 @@ select, input[type="text"] {
     border: 1px dashed #ccc;
 }
 
-.card-image.placeholder:hover {
+/* The no-card badge isn't a link, so it shouldn't pick up the link hover */
+.card-image.placeholder:hover:not(.no-card-badge) {
     background: #f0f0f0;
     color: var(--color-link, var(--color-primary));
 }
