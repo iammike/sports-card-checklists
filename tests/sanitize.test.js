@@ -98,6 +98,48 @@ describe('sanitizeUrl', () => {
   it('returns empty for invalid URLs', () => {
     expect(sanitizeUrl('not a url')).toBe('');
   });
+
+  it('rejects the relative links that sanitizeLinkUrl exists to allow', () => {
+    // Documents why the second helper is needed rather than reusing this one.
+    expect(sanitizeUrl('checklist.html?id=x')).toBe('');
+  });
+});
+
+// For navigation targets that may be relative. sanitizeUrl() rejects anything
+// without a scheme, which would blank every collection link on the site.
+describe('sanitizeLinkUrl', () => {
+  const sanitizeLinkUrl = globalThis.sanitizeLinkUrl;
+
+  it('returns empty string for null/undefined', () => {
+    expect(sanitizeLinkUrl(null)).toBe('');
+    expect(sanitizeLinkUrl(undefined)).toBe('');
+    expect(sanitizeLinkUrl('')).toBe('');
+  });
+
+  it('allows a relative link and keeps it relative', () => {
+    expect(sanitizeLinkUrl('checklist.html?id=x')).toBe('checklist.html?id=x');
+    expect(sanitizeLinkUrl('/checklist.html?id=x')).toBe('/checklist.html?id=x');
+    expect(sanitizeLinkUrl('./sub/page.html')).toBe('./sub/page.html');
+  });
+
+  it('allows absolute http(s) links unchanged', () => {
+    expect(sanitizeLinkUrl('https://example.com/a?b=1')).toBe('https://example.com/a?b=1');
+    expect(sanitizeLinkUrl('http://example.com')).toBe('http://example.com');
+  });
+
+  it('blocks javascript: links', () => {
+    expect(sanitizeLinkUrl('javascript:alert(1)')).toBe('');
+    expect(sanitizeLinkUrl('JavaScript:alert(1)')).toBe('');
+  });
+
+  it('blocks data: links', () => {
+    expect(sanitizeLinkUrl('data:text/html,<h1>hi</h1>')).toBe('');
+  });
+
+  it('keeps a quote in an otherwise valid link, leaving escaping to sanitizeAttr', () => {
+    // The two guards are separate concerns: scheme here, quotes at the sink.
+    expect(sanitizeLinkUrl(`page.html?q="x`)).toBe(`page.html?q="x`);
+  });
 });
 
 describe('normalizeQuotes', () => {

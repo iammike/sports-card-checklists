@@ -77,5 +77,21 @@ function sanitizeUrl(url) {
     }
 }
 
+// For values that become a navigation target (an href, or a window.location
+// assignment), where a 'javascript:' scheme executes. sanitizeUrl() only accepts
+// absolute URLs, but collection links are routinely relative
+// ('checklist.html?id=x'), so resolve against the document base before checking
+// the scheme. The original string is returned, not the resolved one, so a
+// relative link stays relative.
+function sanitizeLinkUrl(url) {
+    if (!url) return '';
+    try {
+        const parsed = new URL(url, document.baseURI);
+        return ['http:', 'https:'].includes(parsed.protocol) ? url : '';
+    } catch {
+        return '';
+    }
+}
+
 // Export for use in pages
 window.CARD_TYPES = CARD_TYPES;
