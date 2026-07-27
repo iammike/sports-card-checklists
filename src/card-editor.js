@@ -560,6 +560,10 @@ class CardEditorModal {
                         <label for="editor-price">$</label>
                         <input type="text" class="card-editor-input" id="editor-price" placeholder="" inputmode="numeric">
                     </div>
+                    <label class="card-editor-owned-toggle card-editor-no-card-toggle" id="editor-no-card-field" title="This person has no card in existence. Excluded from all totals.">
+                        <input type="checkbox" id="editor-no-card">
+                        <span class="owned-toggle-label">No Card</span>
+                    </label>
                     <label class="card-editor-owned-toggle" id="editor-owned-toggle">
                         <input type="checkbox" id="editor-owned">
                         <span class="owned-toggle-label">Owned</span>
@@ -570,10 +574,6 @@ class CardEditorModal {
                     <div class="card-editor-grid">
                         ${this.buildEditorRows()}
                         ${this.generateCustomFieldsHtml('attributes')}
-                        <label class="card-editor-checkbox card-editor-field full-width" id="editor-no-card-field" title="This person has no card in existence. Excluded from all totals.">
-                            <input type="checkbox" id="editor-no-card">
-                            <span>No card exists</span>
-                        </label>
                         ${this.generateCustomFieldsHtml('bottom')}
                         <div class="card-editor-field full-width card-editor-advanced-toggle">
                             <button type="button" class="card-editor-toggle-btn" id="editor-toggle-advanced">Advanced</button>

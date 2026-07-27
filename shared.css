@@ -1588,6 +1588,16 @@ select, input[type="text"] {
     color: #27ae60;
 }
 
+/* "No Card" sits beside Owned but means the opposite kind of thing, so it gets
+   a muted accent rather than the green used for ownership. */
+.card-editor-no-card-toggle input[type="checkbox"] {
+    accent-color: #8a8f98;
+}
+
+.card-editor-no-card-toggle input:checked + .owned-toggle-label {
+    color: #c0c5ce;
+}
+
 .card-editor-title {
     font-family: 'Bebas Neue', sans-serif;
     font-size: 1.6em;
