@@ -88,7 +88,7 @@ const AuthUI = {
             const data = await response.json();
             const el = document.getElementById('commit-hash');
             if (el) {
-                el.innerHTML = `<a href="${sanitizeAttr(sanitizeLinkUrl(data.url))}" target="_blank">${sanitizeText(data.commit)}</a>`;
+                el.innerHTML = `<a href="${sanitizeAttr(sanitizeLinkUrl(data.url))}" target="_blank" rel="noopener noreferrer">${sanitizeText(data.commit)}</a>`;
             }
         } catch (e) {
             // Silently fail - version.json may not exist locally

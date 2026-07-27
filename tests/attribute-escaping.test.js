@@ -229,7 +229,7 @@ describe('CardRenderer.renderCardImage — no value can break out', () => {
     const img = host.querySelector('img');
     expect(img.getAttribute('src')).toBe('a.jpg');
     expect(img.getAttribute('onerror')).toBe(null);
-    expect(host.querySelector('a').getAttributeNames().sort()).toEqual(['href', 'target']);
+    expect(host.querySelector('a').getAttributeNames().sort()).toEqual(['href', 'rel', 'target']);
   });
 
   it('renders one image with no injected attribute for a hostile image src', () => {
@@ -293,7 +293,7 @@ describe('CardRenderer.renderSearchLinks — neither URL can break out', () => {
     const { el } = renderOne({ set: '2024 Prizm', priceSearch: `x" onmouseover="alert(1)` });
 
     const prices = [...el.querySelectorAll('.search-link')].find(a => a.textContent === 'Prices');
-    expect(prices.getAttributeNames().sort()).toEqual(['class', 'href', 'target']);
+    expect(prices.getAttributeNames().sort()).toEqual(['class', 'href', 'rel', 'target']);
     expect(inlineHandlers(container())).toEqual([]);
   });
 });

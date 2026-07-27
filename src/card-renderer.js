@@ -149,9 +149,9 @@ const CardRenderer = {
     renderCardImage(imgSrc, alt, searchUrl) {
         const href = sanitizeAttr(searchUrl);
         if (imgSrc) {
-            return `<a href="${href}" target="_blank"><img class="card-image" src="${sanitizeAttr(imgSrc)}" alt="${sanitizeAttr(alt)}" loading="lazy"></a>`;
+            return `<a href="${href}" target="_blank" rel="noopener noreferrer"><img class="card-image" src="${sanitizeAttr(imgSrc)}" alt="${sanitizeAttr(alt)}" loading="lazy"></a>`;
         }
-        return `<a href="${href}" target="_blank" class="card-image placeholder">No image</a>`;
+        return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="card-image placeholder">No image</a>`;
     },
 
     // Swap a card image that failed to load for the "No image" placeholder. Only
@@ -186,9 +186,9 @@ const CardRenderer = {
         // quotes and getScpUrl escapes nothing, so neither arrives attribute-safe.
         const ebay = sanitizeAttr(searchUrl);
         if (scpUrl) {
-            return `<span class="search-links"><a href="${ebay}" target="_blank" class="search-link">eBay</a> · <a href="${sanitizeAttr(scpUrl)}" target="_blank" class="search-link">Prices</a></span>`;
+            return `<span class="search-links"><a href="${ebay}" target="_blank" class="search-link">eBay</a> · <a href="${sanitizeAttr(scpUrl)}" target="_blank" rel="noopener noreferrer" class="search-link">Prices</a></span>`;
         }
-        return `<a href="${ebay}" target="_blank" class="search-link">eBay</a>`;
+        return `<a href="${ebay}" target="_blank" rel="noopener noreferrer" class="search-link">eBay</a>`;
     },
 
     // Render achievement badges
