@@ -33,6 +33,13 @@ describe('sanitizeText', () => {
   it('handles numbers by converting to string', () => {
     expect(sanitizeText(42)).toBe('42');
   });
+
+  // Only null and undefined are empty. Escaping used to go through `text || ''`,
+  // which also swallowed 0 and false - so a config value of 0 rendered as ''.
+  it('keeps falsy values that are not null or undefined', () => {
+    expect(sanitizeText(0)).toBe('0');
+    expect(sanitizeText(false)).toBe('false');
+  });
 });
 
 describe('sanitizeAttr', () => {
@@ -55,6 +62,11 @@ describe('sanitizeAttr', () => {
 
   it('still escapes what sanitizeText escapes', () => {
     expect(sanitizeAttr('<a & b>')).toBe('&lt;a &amp; b&gt;');
+  });
+
+  it('keeps falsy values that are not null or undefined', () => {
+    expect(sanitizeAttr(0)).toBe('0');
+    expect(sanitizeAttr(false)).toBe('false');
   });
 
   it('produces an attribute that parses back to the original value', () => {

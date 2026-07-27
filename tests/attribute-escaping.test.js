@@ -477,6 +477,105 @@ describe('filter dropdowns built from config', () => {
     expect(select.id).toBe(`${HOSTILE}-filter`);
     expect(select.querySelectorAll('option')[1].value).toBe(HOSTILE);
   });
+
+  // Escaping must not eat a legitimately falsy config value. sanitizeText used to
+  // run `text || ''`, so an option value of 0 rendered as value="" - and an empty
+  // filter value is not 'all', so _filterCard compared every card against '' and
+  // hid the entire checklist.
+  it('renders a numeric option value of 0 rather than blanking it', () => {
+    const el = renderFilters({
+      customFilters: [{
+        id: 'grade', allLabel: 'All',
+        options: [{ value: 0, label: 'None' }, { value: 10, label: 'Ten' }],
+      }],
+    });
+
+    expect([...el.querySelector('#grade-filter').options].map(o => o.value))
+      .toEqual(['all', '0', '10']);
+  });
+});
+
+describe('a filter option value of 0 still filters', () => {
+  // Drives the real path end to end: _renderFilters builds the select,
+  // _applyFilters reads its value into customFilterValues and _filterCard
+  // (checklist-engine.js:1392) compares it to the card field with !==.
+  //
+  // The card field is the string '0' because that comparison does not coerce - a
+  // numeric card field of 0 does not match the select's string '0'. That gap is
+  // pre-existing and unrelated to escaping (main renders the same string '0'
+  // here); what this pins is that the option is no longer value="", which
+  // matched nothing at all.
+  beforeEach(() => {
+    document.body.innerHTML =
+      '<div id="filters-container"></div><div id="sections-container"></div>';
+  });
+
+  function setUp() {
+    const engine = makeEngine(
+      [{ set: 'Ungraded', grade: '0' }, { set: 'Gem Mint', grade: '10' }],
+      {
+        customFilters: [{
+          id: 'grade', allLabel: 'All',
+          options: [{ value: 0, label: 'None' }, { value: 10, label: 'Ten' }],
+        }],
+      }
+    );
+    engine._renderFilters();
+    engine.renderCards();
+    return engine;
+  }
+
+  function visibleTitles() {
+    return [...container().querySelectorAll('.card:not(.filter-hidden) .card-title')]
+      .map(el => el.textContent);
+  }
+
+  it('shows every card before a filter is chosen', () => {
+    setUp();
+    expect(visibleTitles()).toEqual(['Ungraded', 'Gem Mint']);
+  });
+
+  it('shows only the matching card when the 0 option is selected', () => {
+    const engine = setUp();
+
+    document.getElementById('grade-filter').value = '0';
+    engine._applyFilters();
+
+    expect(visibleTitles()).toEqual(['Ungraded']);
+  });
+
+  it('still filters normally on a non-falsy option', () => {
+    const engine = setUp();
+
+    document.getElementById('grade-filter').value = '10';
+    engine._applyFilters();
+
+    expect(visibleTitles()).toEqual(['Gem Mint']);
+  });
+});
+
+describe('CardEditorModal — a select option value of 0 survives escaping', () => {
+  // Real call site: checklist-engine passes config customFields straight through,
+  // so an option of { value: 0, label: 'None' } comes from the config gist.
+  afterEach(() => {
+    document.querySelectorAll('.card-editor-backdrop').forEach(el => el.remove());
+  });
+
+  it('renders value="0" rather than an empty value', () => {
+    const editor = new CardEditorModal({
+      cardTypes: [],
+      customFields: {
+        grade: {
+          label: 'Grade', type: 'select', position: 'top',
+          options: [{ value: 0, label: 'None' }, { value: 10, label: 'Ten' }],
+        },
+      },
+    });
+    editor.init();
+
+    expect([...editor.backdrop.querySelectorAll('#editor-grade option')].map(o => o.value))
+      .toEqual(['0', '10']);
+  });
 });
 
 describe('section markup built from config category ids', () => {

@@ -938,9 +938,7 @@ class ChecklistEngine {
 
         const cardClass = `card ${owned ? 'owned' : ''}`.trim();
 
-        // String(price) before escaping: sanitizeAttr falls back to '' for any falsy
-        // input, so a numeric 0 would otherwise render as data-price="".
-        let html = `<div class="${cardClass}" id="card-${sanitizeAttr(cardId)}" data-card-idx="${cardIdx}" data-price="${sanitizeAttr(String(price))}"${card.sport ? ` data-sport="${sanitizeAttr(card.sport)}"` : ''}${card.era ? ` data-era="${sanitizeAttr(card.era)}"` : ''} data-type="${sanitizeAttr(card.type || '')}">`;
+        let html = `<div class="${cardClass}" id="card-${sanitizeAttr(cardId)}" data-card-idx="${cardIdx}" data-price="${sanitizeAttr(price)}"${card.sport ? ` data-sport="${sanitizeAttr(card.sport)}"` : ''}${card.era ? ` data-era="${sanitizeAttr(card.era)}"` : ''} data-type="${sanitizeAttr(card.type || '')}">`;
         html += `<div class="card-image-wrapper">`;
         html += CardRenderer.renderAttributeBadges(card, this.config.customFields);
         html += CardRenderer.renderPriceBadge(price, thresholds);

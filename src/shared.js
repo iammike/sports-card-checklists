@@ -57,7 +57,10 @@ function isSafeCardId(id) {
 // Sanitization helpers for XSS prevention
 function sanitizeText(text) {
     const div = document.createElement('div');
-    div.textContent = text || '';
+    // Only null and undefined become empty. `text || ''` would also swallow 0 and
+    // false, which config values legitimately are - a custom filter option with
+    // value 0 rendered value="" and then matched no card at all.
+    div.textContent = text == null ? '' : String(text);
     return div.innerHTML;
 }
 
