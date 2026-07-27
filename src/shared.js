@@ -38,11 +38,10 @@ function buildNoCardId(source, takenIds) {
     return id;
 }
 
-// Whether an explicit card.id may be honored. Card ids are interpolated into
-// HTML attributes and into an inline JS string in the checkbox onchange, and
-// sanitizeText() escapes & < > but not quotes, so a quote in an id would break
-// out of either context. Rather than escape at each sink, ids are validated
-// here at the single point where an explicit id is accepted.
+// Whether an explicit card.id may be honored. Card ids are interpolated into HTML
+// attributes, so a quote in an id could break out of one. Ids are validated here at
+// the single point where an explicit id is accepted; the render sinks escape them
+// with sanitizeAttr as a second layer.
 //
 // This rejects nothing the app itself produces: every hashed id ends in
 // .replace(/[^a-zA-Z0-9]/g, ''), and buildNoCardId emits 'nc' + alphanumerics
@@ -60,6 +59,12 @@ function sanitizeText(text) {
     const div = document.createElement('div');
     div.textContent = text || '';
     return div.innerHTML;
+}
+
+// sanitizeText() escapes & < > but not quotes, so it cannot protect a value that
+// lands inside a quoted HTML attribute. Escape both quote characters too.
+function sanitizeAttr(value) {
+    return sanitizeText(value).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function sanitizeUrl(url) {
