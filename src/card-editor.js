@@ -229,6 +229,7 @@ class CardEditorModal {
         this.imageFolder = options.imageFolder || 'images'; // folder for processed images
         this.isOwned = options.isOwned || (() => false); // callback to check if card is owned
         this.onOwnedChange = options.onOwnedChange || null; // callback when owned state changes
+        this.getExistingIds = options.getExistingIds || (() => []); // callback listing card ids already in use
         this.currentCard = null;
         this.currentCardId = null;
         this.isDirty = false;
@@ -236,6 +237,7 @@ class CardEditorModal {
         this.isNewCard = false;
         this.imageProcessor = new ImageProcessor();
         this._initialOwned = false; // Track initial owned state to detect changes
+        this._noCardStash = null; // Owned/price values captured when "no card exists" was ticked
 
         // Schema-driven custom fields
         // Format: { fieldName: { label, type, options?, placeholder?, fullWidth? } }
@@ -568,6 +570,10 @@ class CardEditorModal {
                     <div class="card-editor-grid">
                         ${this.buildEditorRows()}
                         ${this.generateCustomFieldsHtml('attributes')}
+                        <label class="card-editor-checkbox card-editor-field full-width" id="editor-no-card-field" title="This person has no card in existence. Excluded from all totals.">
+                            <input type="checkbox" id="editor-no-card">
+                            <span>No card exists</span>
+                        </label>
                         ${this.generateCustomFieldsHtml('bottom')}
                         <div class="card-editor-field full-width card-editor-advanced-toggle">
                             <button type="button" class="card-editor-toggle-btn" id="editor-toggle-advanced">Advanced</button>
@@ -651,11 +657,26 @@ class CardEditorModal {
         // Save button
         this.backdrop.querySelector('.card-editor-btn.save').onclick = () => this.save();
 
+        // No-card checkbox - disables owned/price when this person has no card in existence.
+        // Dirty tracking is handled here, not by the generic "input" loop below: a
+        // browser click fires "input" before "change", so the generic handler would
+        // already have marked the form dirty by the time a cancelled confirm (in
+        // _applyNoCardState) reverts the checkbox - leaving the editor dirty for nothing.
+        const noCardCheckbox = this.backdrop.querySelector('#editor-no-card');
+        if (noCardCheckbox) {
+            noCardCheckbox.addEventListener('change', () => {
+                const wasDirty = this.isDirty;
+                const cancelled = this._applyNoCardState({ fromUserToggle: true }) === false;
+                this.setDirty(cancelled ? wasDirty : true);
+            });
+        }
+
         // Delete button
         this.backdrop.querySelector('.card-editor-btn.delete').onclick = () => this.delete();
 
         // Track dirty state on input
         modal.querySelectorAll('input, select').forEach(input => {
+            if (input === noCardCheckbox) return;
             input.oninput = () => this.setDirty(true);
         });
 
@@ -1204,6 +1225,10 @@ class CardEditorModal {
         this.backdrop.querySelector('#editor-owned').checked = owned;
         this._updateOwnedToggleVisibility();
 
+        this._noCardStash = null;
+        this.backdrop.querySelector('#editor-no-card').checked = !!cardData.noCard;
+        this._applyNoCardState();
+
         // Show modal
         this.backdrop.classList.add('active');
     }
@@ -1256,6 +1281,10 @@ class CardEditorModal {
         this.backdrop.querySelector('#editor-owned').checked = false;
         this._updateOwnedToggleVisibility();
 
+        this._noCardStash = null;
+        this.backdrop.querySelector('#editor-no-card').checked = false;
+        this._applyNoCardState();
+
         // Show modal
         this.backdrop.classList.add('active');
         // Focus first top-position custom field, or set name
@@ -1273,6 +1302,51 @@ class CardEditorModal {
         if (toggle) toggle.style.display = this.onOwnedChange ? '' : 'none';
     }
 
+    // Owned and price do not apply to an entry with no card in existence.
+    //
+    // Ticking the box clears both, so a user toggle first confirms the loss and
+    // stashes the pre-toggle values - unticking restores them, making a misclick
+    // recoverable. The initial sync from open()/openNew() is not a user toggle:
+    // it only updates the disabled state, so an already-flagged card can never
+    // stash cleared values as the thing to restore.
+    //
+    // Returns false when a user toggle was cancelled at the confirm, so the
+    // change handler can leave the dirty flag as it found it.
+    _applyNoCardState({ fromUserToggle = false } = {}) {
+        const checkbox = this.backdrop.querySelector('#editor-no-card');
+        const noCard = !!checkbox?.checked;
+        const owned = this.backdrop.querySelector('#editor-owned');
+        const price = this.backdrop.querySelector('#editor-price');
+        const priceWrap = this.backdrop.querySelector('#editor-header-price');
+        const ownedWrap = this.backdrop.querySelector('#editor-owned-toggle');
+
+        if (fromUserToggle && noCard && !this._noCardStash) {
+            // A price of 0 is the same as no price for this check only - storage
+            // and reads elsewhere are unaffected.
+            const priceHasValue = price && price.value.trim() !== '' && parseFloat(price.value) !== 0;
+            const hasData = (owned && owned.checked) || priceHasValue;
+            if (hasData && !confirm('This entry is marked owned or has a price. Flagging it as no card exists clears both. Continue?')) {
+                if (checkbox) checkbox.checked = false;
+                return false;
+            }
+            this._noCardStash = {
+                owned: owned ? owned.checked : false,
+                price: price ? price.value : '',
+            };
+            if (owned) owned.checked = false;
+            if (price) price.value = '';
+        } else if (fromUserToggle && !noCard && this._noCardStash) {
+            if (owned) owned.checked = this._noCardStash.owned;
+            if (price) price.value = this._noCardStash.price;
+            this._noCardStash = null;
+        }
+
+        if (owned) owned.disabled = noCard;
+        if (price) price.disabled = noCard;
+        if (priceWrap) priceWrap.classList.toggle('disabled', noCard);
+        if (ownedWrap) ownedWrap.classList.toggle('disabled', noCard);
+    }
+
     // Close modal
     close() {
         if (this.isDirty) {
@@ -1282,6 +1356,7 @@ class CardEditorModal {
         this.currentCard = null;
         this.currentCardId = null;
         this.isNewCard = false;
+        this._noCardStash = null;
         // Close image editor if it was left open
         imageEditor.close();
     }
@@ -1307,9 +1382,12 @@ class CardEditorModal {
             data.category = categoryField.value;
         }
 
-        // Price - only include if explicitly set (stored as whole number)
+        // Price - only include if explicitly set (stored as whole number). A
+        // no-card entry has no price, even if the (disabled) field still holds
+        // a stale value from before it was flagged - see _applyNoCardState.
+        const noCardChecked = !!this.backdrop.querySelector('#editor-no-card')?.checked;
         const priceVal = this.backdrop.querySelector('#editor-price').value.trim();
-        if (priceVal !== '') {
+        if (priceVal !== '' && !noCardChecked) {
             data.price = Math.round(parseFloat(priceVal)) || 0;
         }
 
@@ -1333,7 +1411,29 @@ class CardEditorModal {
         // Add custom field data
         Object.assign(data, this.getCustomFieldData());
 
+        // No-card flag - always included, like img, so noCard: false acts as a
+        // deletion marker that survives the merge with fresh gist data
+        data.noCard = noCardChecked;
+
+        // Identity: a no-card entry has no set/num/variant to hash, so it needs an
+        // explicit id. Assigned once and never regenerated, even if the name changes.
+        const existingId = this.currentCard && this.currentCard.id;
+        if (existingId) {
+            data.id = existingId;
+        } else if (noCardChecked) {
+            data.id = this.generateNoCardId(data);
+        }
+
         return data;
+    }
+
+    // Build a stable id for a no-card entry from the player name (or the first
+    // top-position custom field), falling back to the set name.
+    generateNoCardId(data) {
+        const topField = Object.entries(this.customFields)
+            .find(([_, config]) => (config.position || 'top') === 'top');
+        const source = (topField && data[topField[0]]) || data.set || '';
+        return buildNoCardId(source, this.getExistingIds());
     }
 
     // Validate form - require set name OR a top-position custom field (e.g. player name)

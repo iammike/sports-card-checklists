@@ -672,13 +672,13 @@
                         : await githubSync.loadPublicCardData(entry.id);
                     if (!config || !cardData) continue;
 
-                    // Mirror getCardId(): check card.id first unless includePlayerInCardId
+                    // Mirror getCardId(): an explicit card.id always wins
                     const includePlayer = config.cardDisplay?.includePlayerInCardId;
                     const computeId = (card) => {
+                        if (card.id) return card.id;
                         if (includePlayer) {
                             return btoa(((card.player || '') + (card.set || '') + (card.num || '') + (card.variant || '')).replace(/[^\x00-\xFF]/g, '_')).replace(/[^a-zA-Z0-9]/g, '');
                         }
-                        if (card.id) return card.id;
                         return btoa(((card.set || '') + (card.num || '') + (card.variant || '')).replace(/[^\x00-\xFF]/g, '_')).replace(/[^a-zA-Z0-9]/g, '');
                     };
 
@@ -688,7 +688,7 @@
                     const mainIds = new Set();
                     if (config.dataShape === 'flat') {
                         cards = cardData.cards || [];
-                        cards.forEach(card => { if (!card.collectionLink) mainIds.add(computeId(card)); });
+                        cards.forEach(card => { if (!card.collectionLink && !card.noCard) mainIds.add(computeId(card)); });
                     } else {
                         cards = [];
                         const mainCatIds = new Set();
@@ -704,14 +704,14 @@
                         for (const [catId, arr] of Object.entries(cardData.categories || {})) {
                             cards.push(...arr);
                             if (mainCatIds.size === 0 || mainCatIds.has(catId)) {
-                                arr.forEach(card => { if (!card.collectionLink) mainIds.add(computeId(card)); });
+                                arr.forEach(card => { if (!card.collectionLink && !card.noCard) mainIds.add(computeId(card)); });
                             }
                         }
                     }
 
                     const cardById = new Map();
                     cards.forEach(card => {
-                        if (card.collectionLink) return;
+                        if (card.collectionLink || card.noCard) return;
                         cardById.set(computeId(card), card);
                     });
 

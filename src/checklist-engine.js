@@ -53,6 +53,7 @@ class ChecklistEngine {
 
         // Load card data
         await this._loadCardData();
+        this._backfillNoCardIds();
 
         // Load stats for any linked checklists (e.g., collection link cards)
         await this._loadLinkedStats();
@@ -232,6 +233,31 @@ class ChecklistEngine {
         throw new Error('Failed to load card data');
     }
 
+    // A no-card entry has nothing to hash - no set, num or variant - so it needs
+    // an explicit id. The editor assigns one on save, but entries created by
+    // hand-editing the gist have none, and every one of them would hash to the
+    // same empty string, so edit and delete would act on the first match rather
+    // than the row the user picked. Backfill at load; persisted on the next save.
+    _backfillNoCardIds() {
+        const arrays = this._isFlat() ? [this.cards] : Object.values(this.cards || {});
+        const cards = arrays.filter(Array.isArray).flat().filter(Boolean);
+
+        const taken = new Set(cards.map(c => c.id).filter(Boolean));
+        cards.forEach(card => {
+            if (!card.noCard || card.id) return;
+            card.id = buildNoCardId(this._noCardIdSource(card), taken);
+            taken.add(card.id);
+        });
+    }
+
+    // Name to derive a no-card id from: the first top-position custom field
+    // (usually player), matching what the editor uses, then set as a fallback
+    _noCardIdSource(card) {
+        const topField = Object.entries(this.config.customFields || {})
+            .find(([_, c]) => (c.position || 'top') === 'top');
+        return (topField && card[topField[0]]) || card.player || card.set || '';
+    }
+
     async _loadLinkedStats() {
         // Find collection link cards that reference other checklists
         const allCards = this._isFlat() ? this.cards : this._getAllCardsFlat();
@@ -364,14 +390,27 @@ class ChecklistEngine {
         return localCards.map(localCard => {
             const id = this.getCardId(localCard);
             const freshCard = freshMap.get(id);
-            if (!freshCard) return localCard;
+            // An edit to set/num/variant changes the id, so the local card may not
+            // have a fresh counterpart at all - it still needs the same marker
+            // cleanup a merged card gets, just with nothing to merge against.
+            if (!freshCard) return this._stripLocalOnlyMarkers({ ...localCard }, localCard);
             // Fresh as base preserves externally-added fields,
             // local overlay preserves user's in-session edits
             const merged = { ...freshCard, ...localCard };
-            // img: '' is a deletion marker set by _updateCard; honor it and strip the empty string
-            if (localCard.img === '') delete merged.img;
-            return merged;
+            return this._stripLocalOnlyMarkers(merged, localCard);
         });
+    }
+
+    // img: '' and noCard: false are deletion markers set by _updateCard, local
+    // to the in-progress edit; honor them and strip so the gist never stores
+    // the empty string / false. Mutates and returns `merged` for convenience.
+    _stripLocalOnlyMarkers(merged, localCard) {
+        // img: '' means the image was removed
+        if (localCard.img === '') delete merged.img;
+        // noCard: false means an un-flagged entry must not pick the gist's
+        // noCard: true back up, and the gist shouldn't store false
+        if (localCard.noCard === false) delete merged.noCard;
+        return merged;
     }
 
     _showSaveError(message, actionLabel, actionFn) {
@@ -712,8 +751,12 @@ class ChecklistEngine {
     // ========================================
 
     getCardId(card) {
+        // An explicit id always wins - no-card entries have no set/num/variant to hash
+        if (card.id) return card.id;
         if (this.config.cardDisplay?.includePlayerInCardId) {
-            return btoa((card.player || '') + (card.set || '') + (card.num || '') + (card.variant || '')).replace(/[^a-zA-Z0-9]/g, '');
+            // btoa throws on non-Latin-1 input, so replace those characters the
+            // same way index.html and shopping-list.js do - all three must agree
+            return btoa(((card.player || '') + (card.set || '') + (card.num || '') + (card.variant || '')).replace(/[^\x00-\xFF]/g, '_')).replace(/[^a-zA-Z0-9]/g, '');
         }
         return this.checklistManager.getCardId(card);
     }
@@ -738,12 +781,37 @@ class ChecklistEngine {
     // Card Rendering
     // ========================================
 
+    _playerNameHtml(card) {
+        const posHtml = card.position
+            ? ` <span class="player-position">${sanitizeText(card.position)}</span>`
+            : '';
+        return `<div class="player-name">${sanitizeText(card.player)}${posHtml}</div>`;
+    }
+
+    _subtitleLinesHtml(card) {
+        const customFields = this.config.customFields || {};
+        const subtitleFields = Object.entries(customFields)
+            .filter(([key, c]) => c.position === 'bottom' && card[key]);
+        if (subtitleFields.length === 0) return '';
+        let html = '';
+        subtitleFields.forEach(([key, config]) => {
+            const color = this._ensureContrast(config.color || '#888888', this._cardBg || '#ffffff', 4.5);
+            const r = parseInt(color.slice(1, 3), 16), g = parseInt(color.slice(3, 5), 16), b = parseInt(color.slice(5, 7), 16);
+            const pillStyle = config.pill ? `;background:rgba(${r},${g},${b},0.12)` : '';
+            const pillClass = config.pill ? ' pill' : '';
+            html += `<div class="card-subtitle-line${pillClass}" style="color:${color}${pillStyle}">${sanitizeText(card[key])}</div>`;
+        });
+        return html;
+    }
+
     createCardElement(card) {
         // Track rendered card for filter-only updates
         const cardIdx = this._renderedCards.length;
         this._renderedCards.push(card);
 
-        const cardId = card.collectionLink ? null : this.getCardId(card);
+        // noCard wins over collectionLink, matching every other noCard check
+        const isCollectionLink = card.collectionLink && !card.noCard;
+        const cardId = isCollectionLink ? null : this.getCardId(card);
         const owned = cardId ? this.isOwned(cardId) : false;
         const price = this.getPrice(card);
         const showPlayer = this.config.cardDisplay?.showPlayerName !== false && card.player;
@@ -759,8 +827,31 @@ class ChecklistEngine {
         const displayType = (card.type || '').replace(/\s*RC\b/gi, '').replace(/\bBase\b/gi, '').trim();
         const displayVariant = card.variant || '';
 
+        // No-card entries: person is on the list but no card exists
+        if (card.noCard) {
+            const safeId = sanitizeText(cardId);
+            let noCardHtml = `<div class="card no-card" id="card-${safeId}" data-card-id="${safeId}" data-card-idx="${cardIdx}">`;
+            noCardHtml += `<div class="card-image-wrapper">`;
+            noCardHtml += CardRenderer.renderNoCardBadge(this.config.noCardLabel);
+            noCardHtml += `</div>`;
+            if (showPlayer) {
+                noCardHtml += this._playerNameHtml(card);
+            } else {
+                // Without a player name there is no image to identify the tile by,
+                // so fall back to the first field that names the entry
+                const label = card.set || card.player || card.num || '';
+                if (label) noCardHtml += `<div class="card-title">${sanitizeText(label)}</div>`;
+            }
+            noCardHtml += this._subtitleLinesHtml(card);
+            noCardHtml += `<div class="card-actions links-only">`;
+            noCardHtml += CardRenderer.renderSearchLinks(searchUrl, scpUrl);
+            noCardHtml += `</div>`;
+            noCardHtml += `</div>`;
+            return noCardHtml;
+        }
+
         // Collection link cards (special type)
-        if (card.collectionLink) {
+        if (isCollectionLink) {
             return this._renderCollectionLinkCard(card, cardIdx);
         }
 
@@ -774,24 +865,10 @@ class ChecklistEngine {
         html += `</div>`;
 
         // Player name (JMU, Washington QBs) with optional position
-        if (showPlayer) {
-            const posHtml = card.position ? ` <span class="player-position">${sanitizeText(card.position)}</span>` : '';
-            html += `<div class="player-name">${sanitizeText(card.player)}${posHtml}</div>`;
-        }
+        if (showPlayer) html += this._playerNameHtml(card);
 
         // Custom subtitle lines (config-driven)
-        const customFields = this.config.customFields || {};
-        const subtitleFields = Object.entries(customFields)
-            .filter(([_, c]) => c.position === 'bottom' && card[_]);
-        if (subtitleFields.length > 0) {
-            subtitleFields.forEach(([key, config]) => {
-                const color = this._ensureContrast(config.color || '#888888', this._cardBg || '#ffffff', 4.5);
-                const r = parseInt(color.slice(1, 3), 16), g = parseInt(color.slice(3, 5), 16), b = parseInt(color.slice(5, 7), 16);
-                const pillStyle = config.pill ? `;background:rgba(${r},${g},${b},0.12)` : '';
-                const pillClass = config.pill ? ' pill' : '';
-                html += `<div class="card-subtitle-line${pillClass}" style="color:${color}${pillStyle}">${sanitizeText(card[key])}</div>`;
-            });
-        }
+        html += this._subtitleLinesHtml(card);
 
         // Card info (set, number, variant)
         if (card.set) {
@@ -1197,6 +1274,8 @@ class ChecklistEngine {
     _filterCard(card, statusFilter, searchTerm, customFilterValues) {
         // Status filter
         if (statusFilter !== 'all') {
+            // No-card entries are neither owned nor obtainable
+            if (card.noCard) return false;
             const owned = card.collectionLink
                 ? this._collectionLinkOwned(card)
                 : this.isOwned(this.getCardId(card));
@@ -1273,15 +1352,17 @@ class ChecklistEngine {
 
     _sectionProgress(cards) {
         if (!cards || cards.length === 0) return null;
+        const real = cards.filter(c => !c.noCard);
+        if (real.length === 0) return null;
         let owned = 0;
-        cards.forEach(card => {
+        real.forEach(card => {
             if (card.collectionLink) {
                 if (this._collectionLinkOwned(card)) owned++;
             } else if (this.isOwned(this.getCardId(card))) {
                 owned++;
             }
         });
-        return { owned, total: cards.length };
+        return { owned, total: real.length };
     }
 
     _sectionHeaderHtml(label, cssClass, allCards) {
@@ -1393,8 +1474,10 @@ class ChecklistEngine {
         const extraCats = categories.filter(c => c.isMain === false);
 
         if (this._isFlat()) {
-            let ownedCount = 0, totalValue = 0, ownedValue = 0, neededValue = 0;
+            let ownedCount = 0, totalCount = 0, totalValue = 0, ownedValue = 0, neededValue = 0;
             this.cards.forEach(card => {
+                if (card.noCard) return;
+                totalCount++;
                 if (card.collectionLink) {
                     if (this._collectionLinkOwned(card)) ownedCount++;
                     return;
@@ -1411,7 +1494,7 @@ class ChecklistEngine {
             });
             return {
                 owned: ownedCount,
-                total: this.cards.length,
+                total: totalCount,
                 ownedValue: Math.round(ownedValue),
                 neededValue: Math.round(neededValue),
             };
@@ -1432,6 +1515,7 @@ class ChecklistEngine {
         let ownedCount = 0, totalCount = 0, totalValue = 0, ownedValue = 0, neededValue = 0;
         countedCats.forEach(cat => {
             getCardsForCategory(cat).forEach(card => {
+                if (card.noCard) return;
                 totalCount++;
                 if (card.collectionLink) {
                     if (this._collectionLinkOwned(card)) ownedCount++;
@@ -1458,6 +1542,7 @@ class ChecklistEngine {
         if (mainCats.length > 0) {
             extraCats.forEach(cat => {
                 getCardsForCategory(cat).forEach(card => {
+                    if (card.noCard) return;
                     if (card.collectionLink) return;
                     if (this.isOwned(this.getCardId(card))) {
                         extraOwnedValue += this.getPrice(card);
@@ -1475,7 +1560,7 @@ class ChecklistEngine {
 
         // Add extra category stats (owned counts per extra category)
         extraCats.forEach(cat => {
-            const catCards = getCardsForCategory(cat);
+            const catCards = getCardsForCategory(cat).filter(c => !c.noCard);
             const label = cat.statLabel || `${cat.id}Owned`;
             stats[label] = catCards.filter(c => {
                 if (c.collectionLink) return this._collectionLinkOwned(c);
@@ -1655,6 +1740,7 @@ class ChecklistEngine {
             categories: editorCategories,
             cardTypes: [],
             isOwned: (cardId) => this.checklistManager.isOwned(cardId),
+            getExistingIds: () => this._getAllCardsFlat().map(c => this.getCardId(c)),
             onOwnedChange: (cardData, nowOwned) => {
                 const id = this.getCardId(cardData);
                 this.checklistManager.toggleOwned(id, nowOwned);
@@ -1670,6 +1756,16 @@ class ChecklistEngine {
                 const newId = this.getCardId(cardData);
                 if (isNew) {
                     this._addCard(cardData);
+                } else if (cardData.noCard) {
+                    // A no-card entry can never be owned: drop any stored ownership
+                    // instead of transferring it to the new id
+                    if (this.checklistManager.isOwned(cardId)) {
+                        this.checklistManager.toggleOwned(cardId, false);
+                    }
+                    if (newId !== cardId && this.checklistManager.isOwned(newId)) {
+                        this.checklistManager.toggleOwned(newId, false);
+                    }
+                    this._updateCard(cardId, cardData);
                 } else {
                     // Transfer owned status if card ID changed (e.g. variant/set/num edit)
                     if (cardId !== newId && this.checklistManager.isOwned(cardId)) {
@@ -1746,6 +1842,8 @@ class ChecklistEngine {
             cardData.search = cardData.ebay;
             delete cardData.ebay;
         }
+        // A new card has no gist copy to clear, so the noCard: false marker is just noise
+        if (!cardData.noCard) delete cardData.noCard;
 
         if (this._isFlat()) {
             // Extract category-like fields that belong on the card directly
@@ -1769,7 +1867,8 @@ class ChecklistEngine {
             if (cardData.ebay) { card.search = cardData.ebay; delete card.ebay; }
             if (cardData.priceSearch) { card.priceSearch = cardData.priceSearch; } else { delete card.priceSearch; }
             // Clean up falsy optional fields
-            // img keeps '' when explicitly cleared so _mergeCardArrays doesn't restore the old URL
+            // img keeps '' and noCard keeps false when explicitly cleared, so
+            // _mergeCardArrays doesn't restore the old value from the gist
             ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant', 'search'].forEach(key => {
                 if (!(key in cardData) || !cardData[key]) {
                     if (key === 'img' && key in cardData) { card[key] = ''; } else { delete card[key]; }
@@ -1789,7 +1888,8 @@ class ChecklistEngine {
             if (cardData.ebay) { card.search = cardData.ebay; delete card.ebay; }
             if (cardData.priceSearch) { card.priceSearch = cardData.priceSearch; } else { delete card.priceSearch; }
             // Clean up falsy optional fields
-            // img keeps '' when explicitly cleared so _mergeCardArrays doesn't restore the old URL
+            // img keeps '' and noCard keeps false when explicitly cleared, so
+            // _mergeCardArrays doesn't restore the old value from the gist
             ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant', 'search'].forEach(key => {
                 if (!(key in cardData) || !cardData[key]) {
                     if (key === 'img' && key in cardData) { card[key] = ''; } else { delete card[key]; }

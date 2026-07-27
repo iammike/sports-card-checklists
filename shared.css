@@ -960,9 +960,27 @@ select, input[type="text"] {
     border: 1px dashed #ccc;
 }
 
-.card-image.placeholder:hover {
+/* The no-card badge isn't a link, so it shouldn't pick up the link hover */
+.card-image.placeholder:hover:not(.no-card-badge) {
     background: #f0f0f0;
     color: var(--color-link, var(--color-primary));
+}
+
+/* No-card entries: person on the list, but no card exists */
+.card.no-card {
+    opacity: 0.72;
+}
+
+.card.no-card:hover {
+    opacity: 1;
+}
+
+.no-card-badge {
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    font-size: 0.75rem;
+    text-align: center;
+    cursor: default;
 }
 
 .card-title {
@@ -3496,4 +3514,11 @@ select, input[type="text"] {
     color: #aaa;
     line-height: 1.5;
     text-align: center;
+}
+
+/* No-card toggle: owned/price don't apply when a card doesn't exist */
+.card-editor-header-price.disabled,
+.card-editor-owned-toggle.disabled {
+    opacity: 0.4;
+    pointer-events: none;
 }

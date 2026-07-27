@@ -26,8 +26,8 @@ const ShoppingList = {
 
     flattenCards(cardData, config, includeExtra) {
         if (config.dataShape === 'flat') {
-            // Exclude collection link cards (not real cards)
-            return (cardData.cards || []).filter(c => !c.collectionLink);
+            // Exclude collection link cards and no-card entries (not real cards)
+            return (cardData.cards || []).filter(c => !c.collectionLink && !c.noCard);
         }
         // Category-based: filter by main or all categories
         const categories = config.categories || [];
@@ -43,7 +43,7 @@ const ShoppingList = {
         const all = [];
         for (const [catId, cards] of Object.entries(cardData.categories || {})) {
             if (includedCatIds.size === 0 || includedCatIds.has(catId)) {
-                cards.forEach(c => { if (!c.collectionLink) all.push(c); });
+                cards.forEach(c => { if (!c.collectionLink && !c.noCard) all.push(c); });
             }
         }
         return all;
