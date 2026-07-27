@@ -672,13 +672,13 @@
                         : await githubSync.loadPublicCardData(entry.id);
                     if (!config || !cardData) continue;
 
-                    // Mirror getCardId(): check card.id first unless includePlayerInCardId
+                    // Mirror getCardId(): an explicit card.id always wins
                     const includePlayer = config.cardDisplay?.includePlayerInCardId;
                     const computeId = (card) => {
+                        if (card.id) return card.id;
                         if (includePlayer) {
                             return btoa(((card.player || '') + (card.set || '') + (card.num || '') + (card.variant || '')).replace(/[^\x00-\xFF]/g, '_')).replace(/[^a-zA-Z0-9]/g, '');
                         }
-                        if (card.id) return card.id;
                         return btoa(((card.set || '') + (card.num || '') + (card.variant || '')).replace(/[^\x00-\xFF]/g, '_')).replace(/[^a-zA-Z0-9]/g, '');
                     };
 
