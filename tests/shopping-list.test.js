@@ -70,6 +70,31 @@ describe('ShoppingList.flattenCards', () => {
         expect(result).toHaveLength(1);
         expect(result[0].set).toBe('Card');
     });
+
+    it('excludes noCard entries in flat data shape', () => {
+        const cardData = { cards: [
+            { set: 'Set A', num: '1' },
+            { player: 'Nobody', noCard: true },
+            { set: 'Set C', num: '3' },
+        ]};
+        const config = { dataShape: 'flat' };
+        const result = ShoppingList.flattenCards(cardData, config);
+        expect(result).toHaveLength(2);
+        expect(result.map(c => c.set)).toEqual(['Set A', 'Set C']);
+    });
+
+    it('excludes noCard entries in category data shape', () => {
+        const cardData = { categories: {
+            base: [
+                { set: 'Base', num: '1' },
+                { player: 'Nobody', noCard: true },
+            ],
+        }};
+        const config = { categories: [{ id: 'base', isMain: true }] };
+        const result = ShoppingList.flattenCards(cardData, config);
+        expect(result).toHaveLength(1);
+        expect(result[0].set).toBe('Base');
+    });
 });
 
 describe('ShoppingList.generateCardId', () => {
