@@ -688,7 +688,7 @@
                     const mainIds = new Set();
                     if (config.dataShape === 'flat') {
                         cards = cardData.cards || [];
-                        cards.forEach(card => { if (!card.collectionLink) mainIds.add(computeId(card)); });
+                        cards.forEach(card => { if (!card.collectionLink && !card.noCard) mainIds.add(computeId(card)); });
                     } else {
                         cards = [];
                         const mainCatIds = new Set();
@@ -704,14 +704,14 @@
                         for (const [catId, arr] of Object.entries(cardData.categories || {})) {
                             cards.push(...arr);
                             if (mainCatIds.size === 0 || mainCatIds.has(catId)) {
-                                arr.forEach(card => { if (!card.collectionLink) mainIds.add(computeId(card)); });
+                                arr.forEach(card => { if (!card.collectionLink && !card.noCard) mainIds.add(computeId(card)); });
                             }
                         }
                     }
 
                     const cardById = new Map();
                     cards.forEach(card => {
-                        if (card.collectionLink) return;
+                        if (card.collectionLink || card.noCard) return;
                         cardById.set(computeId(card), card);
                     });
 

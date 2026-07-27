@@ -1709,6 +1709,16 @@ class ChecklistEngine {
                 const newId = this.getCardId(cardData);
                 if (isNew) {
                     this._addCard(cardData);
+                } else if (cardData.noCard) {
+                    // A no-card entry can never be owned: drop any stored ownership
+                    // instead of transferring it to the new id
+                    if (this.checklistManager.isOwned(cardId)) {
+                        this.checklistManager.toggleOwned(cardId, false);
+                    }
+                    if (newId !== cardId && this.checklistManager.isOwned(newId)) {
+                        this.checklistManager.toggleOwned(newId, false);
+                    }
+                    this._updateCard(cardId, cardData);
                 } else {
                     // Transfer owned status if card ID changed (e.g. variant/set/num edit)
                     if (cardId !== newId && this.checklistManager.isOwned(cardId)) {
