@@ -1273,15 +1273,17 @@ class ChecklistEngine {
 
     _sectionProgress(cards) {
         if (!cards || cards.length === 0) return null;
+        const real = cards.filter(c => !c.noCard);
+        if (real.length === 0) return null;
         let owned = 0;
-        cards.forEach(card => {
+        real.forEach(card => {
             if (card.collectionLink) {
                 if (this._collectionLinkOwned(card)) owned++;
             } else if (this.isOwned(this.getCardId(card))) {
                 owned++;
             }
         });
-        return { owned, total: cards.length };
+        return { owned, total: real.length };
     }
 
     _sectionHeaderHtml(label, cssClass, allCards) {
@@ -1393,8 +1395,10 @@ class ChecklistEngine {
         const extraCats = categories.filter(c => c.isMain === false);
 
         if (this._isFlat()) {
-            let ownedCount = 0, totalValue = 0, ownedValue = 0, neededValue = 0;
+            let ownedCount = 0, totalCount = 0, totalValue = 0, ownedValue = 0, neededValue = 0;
             this.cards.forEach(card => {
+                if (card.noCard) return;
+                totalCount++;
                 if (card.collectionLink) {
                     if (this._collectionLinkOwned(card)) ownedCount++;
                     return;
@@ -1411,7 +1415,7 @@ class ChecklistEngine {
             });
             return {
                 owned: ownedCount,
-                total: this.cards.length,
+                total: totalCount,
                 ownedValue: Math.round(ownedValue),
                 neededValue: Math.round(neededValue),
             };
@@ -1432,6 +1436,7 @@ class ChecklistEngine {
         let ownedCount = 0, totalCount = 0, totalValue = 0, ownedValue = 0, neededValue = 0;
         countedCats.forEach(cat => {
             getCardsForCategory(cat).forEach(card => {
+                if (card.noCard) return;
                 totalCount++;
                 if (card.collectionLink) {
                     if (this._collectionLinkOwned(card)) ownedCount++;
@@ -1458,6 +1463,7 @@ class ChecklistEngine {
         if (mainCats.length > 0) {
             extraCats.forEach(cat => {
                 getCardsForCategory(cat).forEach(card => {
+                    if (card.noCard) return;
                     if (card.collectionLink) return;
                     if (this.isOwned(this.getCardId(card))) {
                         extraOwnedValue += this.getPrice(card);
@@ -1475,7 +1481,7 @@ class ChecklistEngine {
 
         // Add extra category stats (owned counts per extra category)
         extraCats.forEach(cat => {
-            const catCards = getCardsForCategory(cat);
+            const catCards = getCardsForCategory(cat).filter(c => !c.noCard);
             const label = cat.statLabel || `${cat.id}Owned`;
             stats[label] = catCards.filter(c => {
                 if (c.collectionLink) return this._collectionLinkOwned(c);
