@@ -3514,3 +3514,10 @@ select, input[type="text"] {
     line-height: 1.5;
     text-align: center;
 }
+
+/* No-card toggle: owned/price don't apply when a card doesn't exist */
+.card-editor-header-price.disabled,
+.card-editor-owned-toggle.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+}

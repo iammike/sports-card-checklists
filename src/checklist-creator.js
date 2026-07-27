@@ -124,6 +124,8 @@ class ChecklistCreatorModal {
                         <div class="card-editor-field">
                             <label class="card-editor-label" title="Extra sort options available in the sort dropdown on the checklist page">Additional Sorts</label>
                             <div class="creator-sort-chips" id="creator-sort-chips" title="Click to toggle each sort option on or off"></div>
+                            <label class="card-editor-label" style="margin-top: 8px;" title="Badge text shown on entries flagged as having no card in existence">No-Card Badge Label</label>
+                            <input type="text" class="card-editor-input" id="creator-no-card-label" placeholder="NO CARD">
                         </div>
                     </div>
 
@@ -758,6 +760,7 @@ class ChecklistCreatorModal {
         this.backdrop.querySelector('#creator-show-position').checked = false;
         this.backdrop.querySelector('#creator-show-player').dispatchEvent(new Event('change'));
         this.backdrop.querySelector('#creator-description').value = '';
+        this.backdrop.querySelector('#creator-no-card-label').value = '';
 
         // Reset attribute checkboxes to checked
         this.backdrop.querySelector('#creator-attr-variant').checked = true;
@@ -800,6 +803,7 @@ class ChecklistCreatorModal {
         this.backdrop.querySelector('#creator-show-position').checked = config.cardDisplay?.showPosition || !!config.customFields?.position;
         this.backdrop.querySelector('#creator-show-player').dispatchEvent(new Event('change'));
         this.backdrop.querySelector('#creator-description').value = config.indexCard?.description || '';
+        this.backdrop.querySelector('#creator-no-card-label').value = config.noCardLabel || '';
 
         // Categories as rows
         this.backdrop.querySelector('#creator-categories-list').innerHTML = '';
@@ -904,6 +908,9 @@ class ChecklistCreatorModal {
             showPosition: showPosition || undefined,
             priceThresholds: { mid: midThreshold, high: highThreshold },
         };
+
+        const noCardLabel = this.backdrop.querySelector('#creator-no-card-label').value.trim();
+        if (noCardLabel) config.noCardLabel = noCardLabel; else delete config.noCardLabel;
 
         // Build customFields from form
         const customFields = {};

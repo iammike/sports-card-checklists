@@ -568,6 +568,10 @@ class CardEditorModal {
                     <div class="card-editor-grid">
                         ${this.buildEditorRows()}
                         ${this.generateCustomFieldsHtml('attributes')}
+                        <label class="card-editor-checkbox card-editor-field full-width" id="editor-no-card-field" title="This person has no card in existence. Excluded from all totals.">
+                            <input type="checkbox" id="editor-no-card">
+                            <span>No card exists</span>
+                        </label>
                         ${this.generateCustomFieldsHtml('bottom')}
                         <div class="card-editor-field full-width card-editor-advanced-toggle">
                             <button type="button" class="card-editor-toggle-btn" id="editor-toggle-advanced">Advanced</button>
@@ -650,6 +654,12 @@ class CardEditorModal {
 
         // Save button
         this.backdrop.querySelector('.card-editor-btn.save').onclick = () => this.save();
+
+        // No-card checkbox - disables owned/price when this person has no card in existence
+        const noCardCheckbox = this.backdrop.querySelector('#editor-no-card');
+        if (noCardCheckbox) {
+            noCardCheckbox.addEventListener('change', () => this._applyNoCardState());
+        }
 
         // Delete button
         this.backdrop.querySelector('.card-editor-btn.delete').onclick = () => this.delete();
@@ -1204,6 +1214,9 @@ class CardEditorModal {
         this.backdrop.querySelector('#editor-owned').checked = owned;
         this._updateOwnedToggleVisibility();
 
+        this.backdrop.querySelector('#editor-no-card').checked = !!cardData.noCard;
+        this._applyNoCardState();
+
         // Show modal
         this.backdrop.classList.add('active');
     }
@@ -1256,6 +1269,9 @@ class CardEditorModal {
         this.backdrop.querySelector('#editor-owned').checked = false;
         this._updateOwnedToggleVisibility();
 
+        this.backdrop.querySelector('#editor-no-card').checked = false;
+        this._applyNoCardState();
+
         // Show modal
         this.backdrop.classList.add('active');
         // Focus first top-position custom field, or set name
@@ -1271,6 +1287,26 @@ class CardEditorModal {
     _updateOwnedToggleVisibility() {
         const toggle = this.backdrop.querySelector('#editor-owned-toggle');
         if (toggle) toggle.style.display = this.onOwnedChange ? '' : 'none';
+    }
+
+    // Owned and price do not apply to an entry with no card in existence
+    _applyNoCardState() {
+        const noCard = this.backdrop.querySelector('#editor-no-card')?.checked;
+        const owned = this.backdrop.querySelector('#editor-owned');
+        const price = this.backdrop.querySelector('#editor-price');
+        const priceWrap = this.backdrop.querySelector('#editor-header-price');
+        const ownedWrap = this.backdrop.querySelector('#editor-owned-toggle');
+
+        if (owned) {
+            owned.disabled = !!noCard;
+            if (noCard) owned.checked = false;
+        }
+        if (price) {
+            price.disabled = !!noCard;
+            if (noCard) price.value = '';
+        }
+        if (priceWrap) priceWrap.classList.toggle('disabled', !!noCard);
+        if (ownedWrap) ownedWrap.classList.toggle('disabled', !!noCard);
     }
 
     // Close modal
@@ -1323,6 +1359,11 @@ class CardEditorModal {
         const priceSearchVal = this.backdrop.querySelector('#editor-price-search').value.trim();
         if (priceSearchVal !== '') {
             data.priceSearch = priceSearchVal;
+        }
+
+        // No-card flag - omit the key entirely when false
+        if (this.backdrop.querySelector('#editor-no-card')?.checked) {
+            data.noCard = true;
         }
 
         // Preserve category if editing and no category dropdown exists
