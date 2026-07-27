@@ -965,6 +965,23 @@ select, input[type="text"] {
     color: var(--color-link, var(--color-primary));
 }
 
+/* No-card entries: person on the list, but no card exists */
+.card.no-card {
+    opacity: 0.72;
+}
+
+.card.no-card:hover {
+    opacity: 1;
+}
+
+.no-card-badge {
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    font-size: 0.75rem;
+    text-align: center;
+    cursor: default;
+}
+
 .card-title {
     font-family: 'Barlow', sans-serif;
     font-weight: 600;

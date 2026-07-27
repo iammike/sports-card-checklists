@@ -738,6 +738,29 @@ class ChecklistEngine {
     // Card Rendering
     // ========================================
 
+    _playerNameHtml(card) {
+        const posHtml = card.position
+            ? ` <span class="player-position">${sanitizeText(card.position)}</span>`
+            : '';
+        return `<div class="player-name">${sanitizeText(card.player)}${posHtml}</div>`;
+    }
+
+    _subtitleLinesHtml(card) {
+        const customFields = this.config.customFields || {};
+        const subtitleFields = Object.entries(customFields)
+            .filter(([key, c]) => c.position === 'bottom' && card[key]);
+        if (subtitleFields.length === 0) return '';
+        let html = '';
+        subtitleFields.forEach(([key, config]) => {
+            const color = this._ensureContrast(config.color || '#888888', this._cardBg || '#ffffff', 4.5);
+            const r = parseInt(color.slice(1, 3), 16), g = parseInt(color.slice(3, 5), 16), b = parseInt(color.slice(5, 7), 16);
+            const pillStyle = config.pill ? `;background:rgba(${r},${g},${b},0.12)` : '';
+            const pillClass = config.pill ? ' pill' : '';
+            html += `<div class="card-subtitle-line${pillClass}" style="color:${color}${pillStyle}">${sanitizeText(card[key])}</div>`;
+        });
+        return html;
+    }
+
     createCardElement(card) {
         // Track rendered card for filter-only updates
         const cardIdx = this._renderedCards.length;
@@ -764,6 +787,21 @@ class ChecklistEngine {
             return this._renderCollectionLinkCard(card, cardIdx);
         }
 
+        // No-card entries: person is on the list but no card exists
+        if (card.noCard) {
+            let noCardHtml = `<div class="card no-card" data-card-idx="${cardIdx}">`;
+            noCardHtml += `<div class="card-image-wrapper">`;
+            noCardHtml += CardRenderer.renderNoCardBadge(this.config.noCardLabel);
+            noCardHtml += `</div>`;
+            if (showPlayer) noCardHtml += this._playerNameHtml(card);
+            noCardHtml += this._subtitleLinesHtml(card);
+            noCardHtml += `<div class="card-actions links-only">`;
+            noCardHtml += CardRenderer.renderSearchLinks(searchUrl, scpUrl);
+            noCardHtml += `</div>`;
+            noCardHtml += `</div>`;
+            return noCardHtml;
+        }
+
         const cardClass = `card ${owned ? 'owned' : ''}`.trim();
 
         let html = `<div class="${cardClass}" id="card-${cardId}" data-card-idx="${cardIdx}" data-price="${price}"${card.sport ? ` data-sport="${card.sport}"` : ''}${card.era ? ` data-era="${card.era}"` : ''} data-type="${card.type || ''}">`;
@@ -774,24 +812,10 @@ class ChecklistEngine {
         html += `</div>`;
 
         // Player name (JMU, Washington QBs) with optional position
-        if (showPlayer) {
-            const posHtml = card.position ? ` <span class="player-position">${sanitizeText(card.position)}</span>` : '';
-            html += `<div class="player-name">${sanitizeText(card.player)}${posHtml}</div>`;
-        }
+        if (showPlayer) html += this._playerNameHtml(card);
 
         // Custom subtitle lines (config-driven)
-        const customFields = this.config.customFields || {};
-        const subtitleFields = Object.entries(customFields)
-            .filter(([_, c]) => c.position === 'bottom' && card[_]);
-        if (subtitleFields.length > 0) {
-            subtitleFields.forEach(([key, config]) => {
-                const color = this._ensureContrast(config.color || '#888888', this._cardBg || '#ffffff', 4.5);
-                const r = parseInt(color.slice(1, 3), 16), g = parseInt(color.slice(3, 5), 16), b = parseInt(color.slice(5, 7), 16);
-                const pillStyle = config.pill ? `;background:rgba(${r},${g},${b},0.12)` : '';
-                const pillClass = config.pill ? ' pill' : '';
-                html += `<div class="card-subtitle-line${pillClass}" style="color:${color}${pillStyle}">${sanitizeText(card[key])}</div>`;
-            });
-        }
+        html += this._subtitleLinesHtml(card);
 
         // Card info (set, number, variant)
         if (card.set) {
@@ -1197,6 +1221,8 @@ class ChecklistEngine {
     _filterCard(card, statusFilter, searchTerm, customFilterValues) {
         // Status filter
         if (statusFilter !== 'all') {
+            // No-card entries are neither owned nor obtainable
+            if (card.noCard) return false;
             const owned = card.collectionLink
                 ? this._collectionLinkOwned(card)
                 : this.isOwned(this.getCardId(card));
