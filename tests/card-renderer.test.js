@@ -237,3 +237,27 @@ describe('CardRenderer.renderCardImage', () => {
     expect(html).toContain('No image');
   });
 });
+
+describe('CardRenderer.renderNoCardBadge', () => {
+  it('defaults to NO CARD when no label given', () => {
+    const html = CardRenderer.renderNoCardBadge();
+    expect(html).toContain('NO CARD');
+    expect(html).toContain('no-card-badge');
+  });
+
+  it('falls back to NO CARD for a blank label', () => {
+    expect(CardRenderer.renderNoCardBadge('   ')).toContain('NO CARD');
+  });
+
+  it('uses a configured label', () => {
+    const html = CardRenderer.renderNoCardBadge('DID NOT PLAY');
+    expect(html).toContain('DID NOT PLAY');
+    expect(html).not.toContain('NO CARD');
+  });
+
+  it('escapes a malicious label', () => {
+    const html = CardRenderer.renderNoCardBadge('<img src=x onerror=alert(1)>');
+    expect(html).not.toContain('<img');
+    expect(html).toContain('&lt;');
+  });
+});

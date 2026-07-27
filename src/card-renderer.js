@@ -122,6 +122,12 @@ const CardRenderer = {
         return `<span class="serial-badge">${sanitizeText(display)}</span>`;
     },
 
+    // Render the "no card exists" placeholder that replaces the card image
+    renderNoCardBadge(label) {
+        const text = (label || '').trim() || 'NO CARD';
+        return `<div class="card-image placeholder no-card-badge">${sanitizeText(text)}</div>`;
+    },
+
     // Render all attribute badges for a card (only those enabled in customFields)
     renderAttributeBadges(card, customFields) {
         let html = '';
