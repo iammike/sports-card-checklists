@@ -50,6 +50,9 @@ function makeCategoryEngine(cardsByCategory, getCardId = hashId) {
 // `customFields` must be the config the engine was built with: getFormData can
 // only send a field the editor rendered, so a field this config doesn't declare
 // is absent from the submission no matter what the card holds.
+// Only `checkbox` and text-like fields are modelled, which is all any config here
+// declares. getCustomFieldData sends `[]` for an empty parseArray field and always
+// sends el.value for a select, so extend the else branch before using either.
 function formDataWithCleared(cleared, card, extra = {}, customFields = CUSTOM_FIELDS) {
   const noCard = 'noCard' in extra ? !!extra.noCard : !!card.noCard;
   const data = { set: card.set, num: card.num, type: '' };
