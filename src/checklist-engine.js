@@ -421,9 +421,13 @@ class ChecklistEngine {
         // Keys the edit cleared: the gist copy is the merge base, so its old
         // value has to be deleted explicitly (#686). Array-checked because a
         // hand-edited gist card could carry a _clearedKeys of any shape, and
-        // throwing here would skip the merge for the whole checklist.
+        // throwing here would skip the merge for the whole checklist. Filtered by
+        // _isManagedField for the same reason recording is: a marker read back from
+        // gist data must not be able to name an arbitrary field for deletion.
         if (Array.isArray(localCard._clearedKeys)) {
-            localCard._clearedKeys.forEach(key => delete merged[key]);
+            localCard._clearedKeys.forEach(key => {
+                if (this._isManagedField(key)) delete merged[key];
+            });
         }
         // img: '' means the image was removed
         if (localCard.img === '') delete merged.img;
@@ -1916,6 +1920,18 @@ class ChecklistEngine {
         }
     }
 
+    // Is `key` a field this checklist's editor actually renders? An empty form
+    // field only means "the user cleared this" for one that is. auto/patch/serial/
+    // variant are custom fields a config may not enable, and rc isn't in the editor
+    // at all - for those the key is absent from every submission, so treating its
+    // absence as a clear would delete legacy data from the gist.
+    // Used at both ends of the clear-tracking, recording and honoring, so the
+    // invariant "this can only ever delete a field the editor manages" holds even
+    // when the marker arrives as stored gist data rather than from an edit.
+    _isManagedField(key) {
+        return ENGINE_BUILTIN_CLEARABLE.has(key) || key in (this.config?.customFields || {});
+    }
+
     // Drop the optional fields the form left empty. Deleting them from the local
     // card isn't enough on its own: _mergeCardArrays merges over the gist copy,
     // and a key the local card no longer has can't override it, so the old value
@@ -1923,21 +1939,13 @@ class ChecklistEngine {
     // the card for the merge to delete (#686).
     // `before` is the card as it was prior to Object.assign(card, cardData).
     _clearEmptyFields(card, cardData, before) {
-        // An empty form field only means "the user cleared this" for a field this
-        // checklist's editor actually renders. auto/patch/serial/variant are custom
-        // fields a config may not enable, and rc isn't in the editor at all - for
-        // those the key is absent from every submission, so recording it as cleared
-        // would delete legacy data from the gist on an unrelated edit.
-        const managed = key => ENGINE_BUILTIN_CLEARABLE.has(key)
-            || key in (this.config.customFields || {});
-
         const cleared = [];
         // Only claim a key was cleared if it had a value to clear - otherwise a
         // field added to the gist externally would be wiped by an unrelated edit
         const clear = key => {
             delete card[key];
             // variant is both in the list below and a custom field, so guard the dup
-            if (before[key] && managed(key) && !cleared.includes(key)) cleared.push(key);
+            if (before[key] && this._isManagedField(key) && !cleared.includes(key)) cleared.push(key);
         };
 
         if (cardData.priceSearch) { card.priceSearch = cardData.priceSearch; } else { clear('priceSearch'); }

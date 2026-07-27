@@ -321,6 +321,42 @@ describe('a hand-edited gist card cannot break the merge', () => {
 
     expect(JSON.stringify(merged[0]).includes('_clearedKeys')).toBe(false);
   });
+
+  it('will not delete a field the editor does not manage', () => {
+    // A stored _clearedKeys is data, not intent. Honoring it unfiltered would let
+    // gist content name any key for deletion - the recording side is gated by
+    // _isManagedField, so the honoring side has to be too.
+    const local = { set: 'Prizm', num: '10', variant: 'Silver', _clearedKeys: ['grade'] };
+    const engine = makeFlatEngine([local]);
+
+    const merged = engine._mergeCardArrays(
+      [local],
+      [{ set: 'Prizm', num: '10', variant: 'Silver', grade: 'PSA 10' }],
+    );
+
+    expect(merged[0].grade).toBe('PSA 10');
+  });
+
+  it('still honors a builtin clearable key', () => {
+    // price is in ENGINE_BUILTIN_CLEARABLE, so the #686 fix must still apply
+    const gistCard = { set: 'Prizm', num: '10', variant: 'Silver', price: 25 };
+    const engine = makeFlatEngine([{ ...gistCard }]);
+
+    engine._updateCard(hashId(gistCard), formDataWithCleared('price', gistCard));
+    const merged = engine._mergeCardArrays(engine.cards, [gistCard]);
+
+    expect('price' in merged[0]).toBe(false);
+  });
+
+  it('still honors a key this config declares as a custom field', () => {
+    const gistCard = { set: 'Prizm', num: '10', variant: 'Silver', serial: '/99' };
+    const engine = makeFlatEngine([{ ...gistCard }]);
+
+    engine._updateCard(hashId(gistCard), formDataWithCleared('serial', gistCard));
+    const merged = engine._mergeCardArrays(engine.cards, [gistCard]);
+
+    expect('serial' in merged[0]).toBe(false);
+  });
 });
 
 describe('the cleared-keys marker never reaches the gist', () => {
