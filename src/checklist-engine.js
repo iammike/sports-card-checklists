@@ -4,6 +4,12 @@
  * Reads ?id= from URL, loads config + card data from gist,
  * and renders a fully functional checklist page.
  */
+
+// Fields the card editor always renders, so an empty one really does mean the
+// user cleared it. Every other clearable field is a custom field and is only
+// trusted when this checklist's config declares it - see _clearEmptyFields.
+const ENGINE_BUILTIN_CLEARABLE = new Set(['price', 'img', 'search', 'priceSearch']);
+
 class ChecklistEngine {
     constructor() {
         this.id = new URLSearchParams(window.location.search).get('id');
@@ -408,8 +414,10 @@ class ChecklistEngine {
     // returns `merged` for convenience.
     _stripLocalOnlyMarkers(merged, localCard) {
         // Keys the edit cleared: the gist copy is the merge base, so its old
-        // value has to be deleted explicitly (#686)
-        if (localCard._clearedKeys) {
+        // value has to be deleted explicitly (#686). Array-checked because a
+        // hand-edited gist card could carry a _clearedKeys of any shape, and
+        // throwing here would skip the merge for the whole checklist.
+        if (Array.isArray(localCard._clearedKeys)) {
             localCard._clearedKeys.forEach(key => delete merged[key]);
             // Non-enumerable, so it isn't spread into `merged` in the first place -
             // deleted anyway so the guarantee doesn't rest on the definition site
@@ -1913,17 +1921,25 @@ class ChecklistEngine {
     // Drop the optional fields the form left empty. Deleting them from the local
     // card isn't enough on its own: _mergeCardArrays merges over the gist copy,
     // and a key the local card no longer has can't override it, so the old value
-    // would come straight back. Every key that actually held a value before the
-    // edit is recorded on the card for the merge to delete (#686).
+    // would come straight back. Keys the form genuinely cleared are recorded on
+    // the card for the merge to delete (#686).
     // `before` is the card as it was prior to Object.assign(card, cardData).
     _clearEmptyFields(card, cardData, before) {
+        // An empty form field only means "the user cleared this" for a field this
+        // checklist's editor actually renders. auto/patch/serial/variant are custom
+        // fields a config may not enable, and rc isn't in the editor at all - for
+        // those the key is absent from every submission, so recording it as cleared
+        // would delete legacy data from the gist on an unrelated edit.
+        const managed = key => ENGINE_BUILTIN_CLEARABLE.has(key)
+            || key in (this.config.customFields || {});
+
         const cleared = [];
         // Only claim a key was cleared if it had a value to clear - otherwise a
         // field added to the gist externally would be wiped by an unrelated edit
         const clear = key => {
             delete card[key];
             // variant is both in the list below and a custom field, so guard the dup
-            if (before[key] && !cleared.includes(key)) cleared.push(key);
+            if (before[key] && managed(key) && !cleared.includes(key)) cleared.push(key);
         };
 
         if (cardData.priceSearch) { card.priceSearch = cardData.priceSearch; } else { clear('priceSearch'); }
@@ -1949,10 +1965,17 @@ class ChecklistEngine {
     // Record the keys this edit cleared so _mergeCardArrays can delete them from
     // the merged card. Non-enumerable so the marker can never be spread into a
     // merged copy or serialized into the gist - including when the fresh-data
-    // fetch fails and no merge runs at all. Rewritten on every edit, never added to.
+    // fetch fails and no merge runs at all.
     _recordClearedKeys(card, cleared) {
+        // Only a successful merge clears the marker (it returns fresh objects). If
+        // the merge bailed, an earlier edit's cleared key is still missing from the
+        // card and still needs deleting, so carry it forward - otherwise the next
+        // merge restores the gist's old value. Keys this edit repopulated drop out.
+        const previous = Array.isArray(card._clearedKeys) ? card._clearedKeys : [];
+        const carried = previous.filter(key => !(key in card) && !cleared.includes(key));
+
         Object.defineProperty(card, '_clearedKeys', {
-            value: cleared, enumerable: false, writable: true, configurable: true,
+            value: cleared.concat(carried), enumerable: false, writable: true, configurable: true,
         });
     }
 

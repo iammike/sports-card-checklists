@@ -2,24 +2,24 @@ import { describe, it, expect, afterEach } from 'vitest';
 
 const ChecklistEngine = globalThis.ChecklistEngine;
 
-// Mirrors a real checklist's schema: auto/rc/patch are checkbox custom fields,
-// serial/variant/notes are text custom fields.
+// Mirrors a real config (jmu-pro-players): auto/patch are checkbox custom fields,
+// serial/variant/achievement are text custom fields. `rc` is deliberately absent -
+// no checklist in production declares it, and the editor never renders it.
 const CUSTOM_FIELDS = {
   auto: { type: 'checkbox' },
-  rc: { type: 'checkbox' },
   patch: { type: 'checkbox' },
   serial: { type: 'text' },
   variant: { type: 'text' },
-  notes: { type: 'text' },
+  achievement: { type: 'text' },
 };
 
 // Identity from set+num+variant, like ChecklistManager.getCardId
 const hashId = (c) => (c.set || '') + (c.num || '') + (c.variant || '');
 
-function makeFlatEngine(cards, getCardId = hashId) {
+function makeFlatEngine(cards, getCardId = hashId, customFields = CUSTOM_FIELDS) {
   const engine = Object.create(ChecklistEngine.prototype);
   engine.id = 'test';
-  engine.config = { dataShape: 'flat', customFields: CUSTOM_FIELDS };
+  engine.config = { dataShape: 'flat', customFields };
   engine.cards = cards;
   engine.checklistManager = { getCardId };
   return engine;
@@ -41,13 +41,16 @@ function makeCategoryEngine(cardsByCategory, getCardId = hashId) {
 // Build the form data CardEditorModal.getFormData() produces for `card` with
 // only `cleared` emptied. Text fields are always sent (empty string when blank);
 // checkboxes, price, ebay and priceSearch are omitted entirely when unset.
-function formDataWithCleared(cleared, card, extra = {}) {
+// `customFields` must be the config the engine was built with: getFormData can
+// only send a field the editor rendered, so a field this config doesn't declare
+// is absent from the submission no matter what the card holds.
+function formDataWithCleared(cleared, card, extra = {}, customFields = CUSTOM_FIELDS) {
   const data = { set: card.set, num: card.num, type: '' };
   data.img = cleared === 'img' ? '' : (card.img || '');
   if (cleared !== 'price' && card.price) data.price = card.price;
   if (cleared !== 'search' && card.search) data.ebay = card.search;
   if (cleared !== 'priceSearch' && card.priceSearch) data.priceSearch = card.priceSearch;
-  for (const [name, config] of Object.entries(CUSTOM_FIELDS)) {
+  for (const [name, config] of Object.entries(customFields)) {
     if (config.type === 'checkbox') {
       if (cleared !== name && card[name]) data[name] = true;
     } else {
@@ -62,12 +65,11 @@ function formDataWithCleared(cleared, card, extra = {}) {
 const CLEARABLE = {
   price: 25,
   auto: true,
-  rc: true,
   patch: true,
   serial: '/99',
   search: 'stored ebay term',
   priceSearch: 'stored price term',
-  notes: 'stored notes',
+  achievement: 'stored achievement',
 };
 
 describe('clearing a field persists through the merge (flat)', () => {
@@ -154,7 +156,7 @@ describe('fields the edit did not touch survive the merge', () => {
 
   it('leaves cards the user never edited untouched', () => {
     const edited = { set: 'Prizm', num: '10', variant: 'Silver', price: 25 };
-    const other = { set: 'Prizm', num: '11', variant: 'Silver', price: 40, notes: 'keep me' };
+    const other = { set: 'Prizm', num: '11', variant: 'Silver', price: 40, achievement: 'keep me' };
     const engine = makeFlatEngine([{ ...edited }, { ...other }]);
 
     engine._updateCard(hashId(edited), formDataWithCleared('price', edited));
@@ -162,7 +164,123 @@ describe('fields the edit did not touch survive the merge', () => {
 
     expect('price' in merged[0]).toBe(false);
     expect(merged[1].price).toBe(40);
-    expect(merged[1].notes).toBe('keep me');
+    expect(merged[1].achievement).toBe('keep me');
+  });
+});
+
+// An empty form field means "cleared" only for a field the editor renders. These
+// fields are never in the form data at all, so treating their absence as a clear
+// would delete real data from the gist on an unrelated edit.
+describe('fields this checklist does not manage are never deleted', () => {
+  it('keeps rc, which no config declares and the editor never renders', () => {
+    // 31 production cards on jmu-pro-players carry rc: true
+    const gistCard = { set: 'Prizm', num: '10', variant: 'Silver', rc: true, price: 25 };
+    const engine = makeFlatEngine([{ ...gistCard }]);
+
+    engine._updateCard(hashId(gistCard), formDataWithCleared('price', gistCard));
+    const merged = engine._mergeCardArrays(engine.cards, [gistCard]);
+
+    expect('price' in merged[0]).toBe(false);
+    expect(merged[0].rc).toBe(true);
+  });
+
+  it('keeps serial when this config has no serial field', () => {
+    // The `busts` config shape: customFields are player and variant only
+    const customFields = { player: { type: 'text' }, variant: { type: 'text' } };
+    const gistCard = { set: 'Prizm', num: '10', variant: 'Silver', serial: '/99', price: 25 };
+    const engine = makeFlatEngine([{ ...gistCard }], hashId, customFields);
+
+    engine._updateCard(hashId(gistCard), formDataWithCleared('price', gistCard, {}, customFields));
+    const merged = engine._mergeCardArrays(engine.cards, [gistCard]);
+
+    expect(merged[0].serial).toBe('/99');
+  });
+
+  it('keeps auto and patch when this config declares neither', () => {
+    const customFields = { player: { type: 'text' }, variant: { type: 'text' } };
+    const gistCard = { set: 'Prizm', num: '10', variant: 'Silver', auto: true, patch: true, price: 25 };
+    const engine = makeFlatEngine([{ ...gistCard }], hashId, customFields);
+
+    engine._updateCard(hashId(gistCard), formDataWithCleared('price', gistCard, {}, customFields));
+    const merged = engine._mergeCardArrays(engine.cards, [gistCard]);
+
+    expect(merged[0].auto).toBe(true);
+    expect(merged[0].patch).toBe(true);
+  });
+
+  it('keeps variant when this config has no variant field', () => {
+    // The `washington-qbs` config shape: serial but no variant
+    const customFields = { player: { type: 'text' }, serial: { type: 'text' } };
+    const gistCard = { id: 'abc123', set: 'Prizm', num: '10', variant: 'Silver', price: 25 };
+    const engine = makeFlatEngine([{ ...gistCard }], (c) => c.id || hashId(c), customFields);
+
+    engine._updateCard('abc123', formDataWithCleared('price', gistCard, {}, customFields));
+    const merged = engine._mergeCardArrays(engine.cards, [gistCard]);
+
+    expect(merged[0].variant).toBe('Silver');
+  });
+
+  it('still deletes them from the local card, as before the fix', () => {
+    // Only the recording is gated - the in-session delete is unchanged
+    const customFields = { player: { type: 'text' } };
+    const card = { set: 'Prizm', num: '10', rc: true, serial: '/99' };
+    const engine = makeFlatEngine([card], hashId, customFields);
+
+    engine._updateCard(hashId(card), formDataWithCleared('price', card, {}, customFields));
+
+    expect('rc' in card).toBe(false);
+    expect('serial' in card).toBe(false);
+  });
+});
+
+describe('the marker survives a failed merge', () => {
+  afterEach(() => {
+    delete globalThis.githubSync;
+  });
+
+  it('still clears the field on the next successful merge', async () => {
+    // Only a successful merge resets the marker. If it is dropped when the fetch
+    // fails, the field is already off the card, the next edit has nothing to
+    // record, and the following merge hands the gist's old value back.
+    globalThis.githubSync = {
+      loadCardData: async () => null,
+      loadPublicCardData: async () => null,
+    };
+    const gistCard = { set: 'Prizm', num: '10', variant: 'Silver', price: 25 };
+    const engine = makeFlatEngine([{ ...gistCard }]);
+
+    engine._updateCard(hashId(gistCard), formDataWithCleared('price', gistCard));
+    await engine._mergeWithFreshGistData();
+
+    // A second, unrelated edit - the card no longer has a price to clear
+    engine._updateCard(hashId(gistCard), formDataWithCleared('price', engine.cards[0]));
+    const merged = engine._mergeCardArrays(engine.cards, [gistCard]);
+
+    expect('price' in merged[0]).toBe(false);
+  });
+
+  it('drops a carried key once a later edit sets the field again', () => {
+    const gistCard = { set: 'Prizm', num: '10', variant: 'Silver', price: 25 };
+    const engine = makeFlatEngine([{ ...gistCard }]);
+
+    engine._updateCard(hashId(gistCard), formDataWithCleared('price', gistCard));
+    // No merge ran; now the user types a new price
+    engine._updateCard(hashId(gistCard), { ...formDataWithCleared(null, gistCard), price: 40 });
+    const merged = engine._mergeCardArrays(engine.cards, [gistCard]);
+
+    expect(merged[0].price).toBe(40);
+  });
+});
+
+describe('a hand-edited gist card cannot break the merge', () => {
+  it('ignores a non-array _clearedKeys instead of throwing', () => {
+    // Throwing here would abort _mergeCardArrays for the whole checklist
+    const local = { set: 'Prizm', num: '10', variant: 'Silver', _clearedKeys: 'price' };
+    const engine = makeFlatEngine([local]);
+
+    const merged = engine._mergeCardArrays([local], [{ set: 'Prizm', num: '10', variant: 'Silver', price: 25 }]);
+
+    expect(merged[0].price).toBe(25);
   });
 });
 
