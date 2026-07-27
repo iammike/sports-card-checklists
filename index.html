@@ -672,10 +672,11 @@
                         : await githubSync.loadPublicCardData(entry.id);
                     if (!config || !cardData) continue;
 
-                    // Mirror getCardId(): an explicit card.id always wins
+                    // Mirror getCardId(): an explicit card.id wins, but only if
+                    // it passes isSafeCardId (shared.js, loaded via app.min.js)
                     const includePlayer = config.cardDisplay?.includePlayerInCardId;
                     const computeId = (card) => {
-                        if (card.id) return card.id;
+                        if (isSafeCardId(card.id)) return card.id;
                         if (includePlayer) {
                             return btoa(((card.player || '') + (card.set || '') + (card.num || '') + (card.variant || '')).replace(/[^\x00-\xFF]/g, '_')).replace(/[^a-zA-Z0-9]/g, '');
                         }

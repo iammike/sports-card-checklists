@@ -38,6 +38,23 @@ function buildNoCardId(source, takenIds) {
     return id;
 }
 
+// Whether an explicit card.id may be honored. Card ids are interpolated into
+// HTML attributes and into an inline JS string in the checkbox onchange, and
+// sanitizeText() escapes & < > but not quotes, so a quote in an id would break
+// out of either context. Rather than escape at each sink, ids are validated
+// here at the single point where an explicit id is accepted.
+//
+// This rejects nothing the app itself produces: every hashed id ends in
+// .replace(/[^a-zA-Z0-9]/g, ''), and buildNoCardId emits 'nc' + alphanumerics
+// plus an optional numeric suffix. An id that fails this check is ignored and
+// the caller falls back to hashing. All four id resolvers (checklist-engine,
+// checklist-manager, shopping-list and the index.html inline script) must call
+// this so the same card always resolves to the same id everywhere - disagreeing
+// would silently split ownership accounting.
+function isSafeCardId(id) {
+    return typeof id === 'string' && /^[A-Za-z0-9_-]+$/.test(id);
+}
+
 // Sanitization helpers for XSS prevention
 function sanitizeText(text) {
     const div = document.createElement('div');

@@ -16,7 +16,8 @@ const ShoppingList = {
     },
 
     generateCardId(card, config) {
-        if (card.id) return card.id;
+        // Only a safe-charset id is honored - see isSafeCardId in shared.js
+        if (isSafeCardId(card.id)) return card.id;
         const includePlayer = config?.cardDisplay?.includePlayerInCardId;
         const str = (includePlayer ? (card.player || '') : '')
             + (card.set || '') + (card.num || '') + (card.variant || '');

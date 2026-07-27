@@ -14,8 +14,9 @@ class ChecklistManager {
 
     // Generate unique card ID from card data
     getCardId(card) {
-        // Allow custom ID field, otherwise generate from set+num+variant
-        if (card.id) return card.id;
+        // Allow custom ID field, otherwise generate from set+num+variant.
+        // Only a safe-charset id is honored - see isSafeCardId in shared.js
+        if (isSafeCardId(card.id)) return card.id;
         const str = (card.set || '') + (card.num || '') + (card.variant || '');
         // Replace non-Latin-1 chars (e.g. iOS smart quotes) so btoa doesn't throw.
         // Must NOT use encodeURIComponent here - that changes the encoding and
