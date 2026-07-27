@@ -42,6 +42,21 @@ describe('_mergeCardArrays — noCard deletion marker', () => {
     expect('noCard' in merged[0]).toBe(false);
     expect(merged[0].price).toBe(5);
   });
+
+  it('strips markers on an id-changing edit that has no fresh counterpart', () => {
+    // Editing set/num changes the id derived from them, so the local card no
+    // longer matches anything in the fresh gist copy - it takes the early
+    // "no fresh counterpart" return path, which must get the same cleanup.
+    const engine = makeFlatEngine([]);
+    const merged = engine._mergeCardArrays(
+      [{ id: 'local-new', set: 'Prizm', num: '13', noCard: false, img: '' }],
+      [{ id: 'local-old', set: 'Prizm', num: '12', price: 5 }],
+    );
+
+    expect('noCard' in merged[0]).toBe(false);
+    expect('img' in merged[0]).toBe(false);
+    expect(merged[0].num).toBe('13');
+  });
 });
 
 describe('un-flagging through the full save merge path', () => {

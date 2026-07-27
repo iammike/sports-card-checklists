@@ -390,17 +390,27 @@ class ChecklistEngine {
         return localCards.map(localCard => {
             const id = this.getCardId(localCard);
             const freshCard = freshMap.get(id);
-            if (!freshCard) return localCard;
+            // An edit to set/num/variant changes the id, so the local card may not
+            // have a fresh counterpart at all - it still needs the same marker
+            // cleanup a merged card gets, just with nothing to merge against.
+            if (!freshCard) return this._stripLocalOnlyMarkers({ ...localCard }, localCard);
             // Fresh as base preserves externally-added fields,
             // local overlay preserves user's in-session edits
             const merged = { ...freshCard, ...localCard };
-            // img: '' is a deletion marker set by _updateCard; honor it and strip the empty string
-            if (localCard.img === '') delete merged.img;
-            // noCard: false is the same kind of marker - an un-flagged entry must not
-            // pick the gist's noCard: true back up, and the gist shouldn't store false
-            if (localCard.noCard === false) delete merged.noCard;
-            return merged;
+            return this._stripLocalOnlyMarkers(merged, localCard);
         });
+    }
+
+    // img: '' and noCard: false are deletion markers set by _updateCard, local
+    // to the in-progress edit; honor them and strip so the gist never stores
+    // the empty string / false. Mutates and returns `merged` for convenience.
+    _stripLocalOnlyMarkers(merged, localCard) {
+        // img: '' means the image was removed
+        if (localCard.img === '') delete merged.img;
+        // noCard: false means an un-flagged entry must not pick the gist's
+        // noCard: true back up, and the gist shouldn't store false
+        if (localCard.noCard === false) delete merged.noCard;
+        return merged;
     }
 
     _showSaveError(message, actionLabel, actionFn) {
