@@ -4,6 +4,12 @@
  * Reads ?id= from URL, loads config + card data from gist,
  * and renders a fully functional checklist page.
  */
+
+// Fields the card editor always renders, so an empty one really does mean the
+// user cleared it. Every other clearable field is a custom field and is only
+// trusted when this checklist's config declares it - see _clearEmptyFields.
+const ENGINE_BUILTIN_CLEARABLE = new Set(['price', 'img', 'search', 'priceSearch']);
+
 class ChecklistEngine {
     constructor() {
         this.id = new URLSearchParams(window.location.search).get('id');
@@ -403,10 +409,26 @@ class ChecklistEngine {
         });
     }
 
-    // img: '' and noCard: false are deletion markers set by _updateCard, local
-    // to the in-progress edit; honor them and strip so the gist never stores
-    // the empty string / false. Mutates and returns `merged` for convenience.
+    // Honor the deletion markers _updateCard leaves on the local card - they are
+    // local to the in-progress edit and must not reach the gist. Mutates and
+    // returns `merged` for convenience.
     _stripLocalOnlyMarkers(merged, localCard) {
+        // _clearedKeys is ours and never belongs in the gist. It's non-enumerable
+        // where we set it, so it isn't spread into `merged` in the first place;
+        // deleted unconditionally so a hand-edited gist card that carries an
+        // enumerable one can't round-trip it either.
+        delete merged._clearedKeys;
+        // Keys the edit cleared: the gist copy is the merge base, so its old
+        // value has to be deleted explicitly (#686). Array-checked because a
+        // hand-edited gist card could carry a _clearedKeys of any shape, and
+        // throwing here would skip the merge for the whole checklist. Filtered by
+        // _isManagedField for the same reason recording is: a marker read back from
+        // gist data must not be able to name an arbitrary field for deletion.
+        if (Array.isArray(localCard._clearedKeys)) {
+            localCard._clearedKeys.forEach(key => {
+                if (this._isManagedField(key)) delete merged[key];
+            });
+        }
         // img: '' means the image was removed
         if (localCard.img === '') delete merged.img;
         // noCard: false means an un-flagged entry must not pick the gist's
@@ -1019,7 +1041,6 @@ class ChecklistEngine {
             'winpct': 'Sort: Win %',
             'wins': 'Sort: Games Won',
             'games': 'Sort: Games Played',
-            'superbowl': 'Sort: Super Bowl Winners',
             'scarcity': 'Sort: Scarcity',
         };
         if (labels[key]) return labels[key];
@@ -1159,9 +1180,6 @@ class ChecklistEngine {
                     const bOwned = this.isOwned(this.getCardId(b)) ? 1 : 0;
                     return aOwned - bOwned;
                 });
-                break;
-            case 'superbowl':
-                sorted.sort((a, b) => (b.superBowl ? 1 : 0) - (a.superBowl ? 1 : 0));
                 break;
             default:
                 // Custom field sort (e.g. 'field:years-active')
@@ -1866,18 +1884,10 @@ class ChecklistEngine {
 
         if (this._isFlat()) {
             const card = found.card;
+            const before = { ...card };
             Object.assign(card, cardData);
             if (cardData.ebay) { card.search = cardData.ebay; delete card.ebay; }
-            if (cardData.priceSearch) { card.priceSearch = cardData.priceSearch; } else { delete card.priceSearch; }
-            // Clean up falsy optional fields
-            // img keeps '' and noCard keeps false when explicitly cleared, so
-            // _mergeCardArrays doesn't restore the old value from the gist
-            ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant', 'search'].forEach(key => {
-                if (!(key in cardData) || !cardData[key]) {
-                    if (key === 'img' && key in cardData) { card[key] = ''; } else { delete card[key]; }
-                }
-            });
-            this._cleanupCustomFields(card, cardData);
+            this._clearEmptyFields(card, cardData, before);
             // Re-sort (skip in manual sort so the edited card keeps its position)
             if (!this._isManualSort()) {
                 this.cards.splice(found.index, 1);
@@ -1887,18 +1897,10 @@ class ChecklistEngine {
             const { card, category: oldCategory, index } = found;
             const newCategory = cardData.category || oldCategory;
             delete cardData.category;
+            const before = { ...card };
             Object.assign(card, cardData);
             if (cardData.ebay) { card.search = cardData.ebay; delete card.ebay; }
-            if (cardData.priceSearch) { card.priceSearch = cardData.priceSearch; } else { delete card.priceSearch; }
-            // Clean up falsy optional fields
-            // img keeps '' and noCard keeps false when explicitly cleared, so
-            // _mergeCardArrays doesn't restore the old value from the gist
-            ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant', 'search'].forEach(key => {
-                if (!(key in cardData) || !cardData[key]) {
-                    if (key === 'img' && key in cardData) { card[key] = ''; } else { delete card[key]; }
-                }
-            });
-            this._cleanupCustomFields(card, cardData);
+            this._clearEmptyFields(card, cardData, before);
             if (newCategory === oldCategory) {
                 // Re-sort within category (skip in manual sort to keep position)
                 if (!this._isManualSort()) {
@@ -1918,13 +1920,72 @@ class ChecklistEngine {
         }
     }
 
-    // Remove empty-string custom text fields from saved card data
-    _cleanupCustomFields(card, cardData) {
+    // Is `key` a field this checklist's editor actually renders? An empty form
+    // field only means "the user cleared this" for one that is. auto/patch/serial/
+    // variant are custom fields a config may not enable, and rc isn't in the editor
+    // at all - for those the key is absent from every submission, so treating its
+    // absence as a clear would delete legacy data from the gist.
+    // Used at both ends of the clear-tracking, recording and honoring, so the
+    // invariant "this can only ever delete a field the editor manages" holds even
+    // when the marker arrives as stored gist data rather than from an edit.
+    _isManagedField(key) {
+        return ENGINE_BUILTIN_CLEARABLE.has(key) || key in (this.config?.customFields || {});
+    }
+
+    // Drop the optional fields the form left empty. Deleting them from the local
+    // card isn't enough on its own: _mergeCardArrays merges over the gist copy,
+    // and a key the local card no longer has can't override it, so the old value
+    // would come straight back. Keys the form genuinely cleared are recorded on
+    // the card for the merge to delete (#686).
+    // `before` is the card as it was prior to Object.assign(card, cardData).
+    _clearEmptyFields(card, cardData, before) {
+        const cleared = [];
+        // Only claim a key was cleared if it had a value to clear - otherwise a
+        // field added to the gist externally would be wiped by an unrelated edit
+        const clear = key => {
+            delete card[key];
+            // variant is both in the list below and a custom field, so guard the dup
+            if (before[key] && this._isManagedField(key) && !cleared.includes(key)) cleared.push(key);
+        };
+
+        if (cardData.priceSearch) { card.priceSearch = cardData.priceSearch; } else { clear('priceSearch'); }
+
+        // img keeps '' as its own deletion marker, see _stripLocalOnlyMarkers
+        ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant', 'search'].forEach(key => {
+            if (!(key in cardData) || !cardData[key]) {
+                if (key === 'img' && key in cardData) { card[key] = ''; } else { clear(key); }
+            }
+        });
+
+        // Empty-string custom text fields. Checkboxes are skipped: an unchecked box
+        // is simply absent from the form data, so there's nothing to compare against.
         const customFields = this.config.customFields || {};
         for (const [key, config] of Object.entries(customFields)) {
             if (config.type === 'checkbox') continue;
-            if (key in cardData && !cardData[key]) delete card[key];
+            if (key in cardData && !cardData[key]) clear(key);
         }
+
+        this._recordClearedKeys(card, cleared);
+    }
+
+    // Record the keys this edit cleared so _mergeCardArrays can delete them from
+    // the merged card. Non-enumerable so the marker can never be spread into a
+    // merged copy or serialized into the gist - including when the fresh-data
+    // fetch fails and no merge runs at all.
+    _recordClearedKeys(card, cleared) {
+        // Only a successful merge clears the marker (it returns fresh objects). If
+        // the merge bailed, an earlier edit's cleared key is still missing from the
+        // card and still needs deleting, so carry it forward - otherwise the next
+        // merge restores the gist's old value. Keys this edit repopulated drop out.
+        // A merge that succeeds but whose PATCH then fails still drops the marker,
+        // so a repeat of the same edit loses the clear; the user gets a retry banner
+        // for the failed save, and this is no worse than before the fix.
+        const previous = Array.isArray(card._clearedKeys) ? card._clearedKeys : [];
+        const carried = previous.filter(key => !(key in card) && !cleared.includes(key));
+
+        Object.defineProperty(card, '_clearedKeys', {
+            value: cleared.concat(carried), enumerable: false, writable: true, configurable: true,
+        });
     }
 
     _removeCard(cardId) {
