@@ -237,6 +237,7 @@ class CardEditorModal {
         this.isNewCard = false;
         this.imageProcessor = new ImageProcessor();
         this._initialOwned = false; // Track initial owned state to detect changes
+        this._noCardStash = null; // Owned/price values captured when "no card exists" was ticked
 
         // Schema-driven custom fields
         // Format: { fieldName: { label, type, options?, placeholder?, fullWidth? } }
@@ -659,7 +660,7 @@ class CardEditorModal {
         // No-card checkbox - disables owned/price when this person has no card in existence
         const noCardCheckbox = this.backdrop.querySelector('#editor-no-card');
         if (noCardCheckbox) {
-            noCardCheckbox.addEventListener('change', () => this._applyNoCardState());
+            noCardCheckbox.addEventListener('change', () => this._applyNoCardState({ fromUserToggle: true }));
         }
 
         // Delete button
@@ -1215,6 +1216,7 @@ class CardEditorModal {
         this.backdrop.querySelector('#editor-owned').checked = owned;
         this._updateOwnedToggleVisibility();
 
+        this._noCardStash = null;
         this.backdrop.querySelector('#editor-no-card').checked = !!cardData.noCard;
         this._applyNoCardState();
 
@@ -1270,6 +1272,7 @@ class CardEditorModal {
         this.backdrop.querySelector('#editor-owned').checked = false;
         this._updateOwnedToggleVisibility();
 
+        this._noCardStash = null;
         this.backdrop.querySelector('#editor-no-card').checked = false;
         this._applyNoCardState();
 
@@ -1290,24 +1293,43 @@ class CardEditorModal {
         if (toggle) toggle.style.display = this.onOwnedChange ? '' : 'none';
     }
 
-    // Owned and price do not apply to an entry with no card in existence
-    _applyNoCardState() {
-        const noCard = this.backdrop.querySelector('#editor-no-card')?.checked;
+    // Owned and price do not apply to an entry with no card in existence.
+    //
+    // Ticking the box clears both, so a user toggle first confirms the loss and
+    // stashes the pre-toggle values - unticking restores them, making a misclick
+    // recoverable. The initial sync from open()/openNew() is not a user toggle:
+    // it only updates the disabled state, so an already-flagged card can never
+    // stash cleared values as the thing to restore.
+    _applyNoCardState({ fromUserToggle = false } = {}) {
+        const checkbox = this.backdrop.querySelector('#editor-no-card');
+        const noCard = !!checkbox?.checked;
         const owned = this.backdrop.querySelector('#editor-owned');
         const price = this.backdrop.querySelector('#editor-price');
         const priceWrap = this.backdrop.querySelector('#editor-header-price');
         const ownedWrap = this.backdrop.querySelector('#editor-owned-toggle');
 
-        if (owned) {
-            owned.disabled = !!noCard;
-            if (noCard) owned.checked = false;
+        if (fromUserToggle && noCard && !this._noCardStash) {
+            const hasData = (owned && owned.checked) || (price && price.value.trim() !== '');
+            if (hasData && !confirm('This entry is marked owned or has a price. Flagging it as no card exists clears both. Continue?')) {
+                if (checkbox) checkbox.checked = false;
+                return;
+            }
+            this._noCardStash = {
+                owned: owned ? owned.checked : false,
+                price: price ? price.value : '',
+            };
+            if (owned) owned.checked = false;
+            if (price) price.value = '';
+        } else if (fromUserToggle && !noCard && this._noCardStash) {
+            if (owned) owned.checked = this._noCardStash.owned;
+            if (price) price.value = this._noCardStash.price;
+            this._noCardStash = null;
         }
-        if (price) {
-            price.disabled = !!noCard;
-            if (noCard) price.value = '';
-        }
-        if (priceWrap) priceWrap.classList.toggle('disabled', !!noCard);
-        if (ownedWrap) ownedWrap.classList.toggle('disabled', !!noCard);
+
+        if (owned) owned.disabled = noCard;
+        if (price) price.disabled = noCard;
+        if (priceWrap) priceWrap.classList.toggle('disabled', noCard);
+        if (ownedWrap) ownedWrap.classList.toggle('disabled', noCard);
     }
 
     // Close modal
@@ -1319,6 +1341,7 @@ class CardEditorModal {
         this.currentCard = null;
         this.currentCardId = null;
         this.isNewCard = false;
+        this._noCardStash = null;
         // Close image editor if it was left open
         imageEditor.close();
     }

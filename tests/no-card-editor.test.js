@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 const CardEditorModal = globalThis.CardEditorModal;
 
@@ -10,9 +10,17 @@ function makeEditor() {
 
 describe('CardEditorModal — no card exists toggle', () => {
   let editor;
+  let originalConfirm;
 
   beforeEach(() => {
+    // Ticking the box with owned/price data set asks for confirmation first
+    originalConfirm = window.confirm;
+    window.confirm = vi.fn(() => true);
     editor = makeEditor();
+  });
+
+  afterEach(() => {
+    window.confirm = originalConfirm;
   });
 
   it('emits noCard false when unchecked so the flag can be cleared', () => {
