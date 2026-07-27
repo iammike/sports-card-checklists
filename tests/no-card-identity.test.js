@@ -121,10 +121,11 @@ describe('CardEditorModal — no-card entry id assignment', () => {
     existing.push(first.id);
     const second = flag('Ariel Hukporti');
 
-    expect(second.id).not.toBe(first.id);
+    expect(first.id).toBe('ncArielHukporti2');
+    expect(second.id).toBe('ncArielHukporti3');
   });
 
-  it('generates distinct ids for two entries with no name at all', () => {
+  it('falls back to a stable prefix, disambiguated, when there is no name and no set', () => {
     const existing = [];
     editor = makeEditor({ getExistingIds: () => existing });
     editor.currentCard = {};
@@ -132,7 +133,9 @@ describe('CardEditorModal — no-card entry id assignment', () => {
     existing.push(first.id);
     const second = flag('');
 
-    expect(first.id).toBeTruthy();
-    expect(second.id).not.toBe(first.id);
+    // Confirms the fallback base ('ncEntry') is never empty - an empty base
+    // would put the entire uniqueness burden on the collision counter.
+    expect(first.id).toBe('ncEntry');
+    expect(second.id).toBe('ncEntry2');
   });
 });

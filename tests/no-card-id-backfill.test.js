@@ -33,7 +33,21 @@ describe('_backfillNoCardIds — flat data', () => {
     expect(second.id).toBe('ncRobertBaker');
   });
 
-  it('disambiguates same-name entries with a numeric suffix', () => {
+  it('disambiguates two same-name entries with a numeric suffix', () => {
+    const engine = makeEngine(flatConfig, [
+      { player: 'Ariel Hukporti', noCard: true },
+      { player: 'Ariel Hukporti', noCard: true },
+    ]);
+
+    engine._backfillNoCardIds();
+
+    expect(engine.cards.map(c => c.id)).toEqual([
+      'ncArielHukporti',
+      'ncArielHukporti2',
+    ]);
+  });
+
+  it('disambiguates three same-name entries with sequential suffixes', () => {
     const engine = makeEngine(flatConfig, [
       { player: 'Ariel Hukporti', noCard: true },
       { player: 'Ariel Hukporti', noCard: true },
@@ -61,7 +75,7 @@ describe('_backfillNoCardIds — flat data', () => {
     expect(first.cards[0].id).toBe(second.cards[0].id);
   });
 
-  it('gives two nameless no-card entries distinct ids', () => {
+  it('falls back to a stable prefix, disambiguated, when there is no name and no set', () => {
     const engine = makeEngine(flatConfig, [
       { noCard: true },
       { noCard: true },
@@ -69,9 +83,9 @@ describe('_backfillNoCardIds — flat data', () => {
 
     engine._backfillNoCardIds();
 
-    expect(engine.cards[0].id).toBeTruthy();
-    expect(engine.cards[1].id).toBeTruthy();
-    expect(engine.cards[0].id).not.toBe(engine.cards[1].id);
+    // Confirms the fallback base ('ncEntry') is never empty - an empty base
+    // would put the entire uniqueness burden on the collision counter.
+    expect(engine.cards.map(c => c.id)).toEqual(['ncEntry', 'ncEntry2']);
   });
 
   it('does not collide with an id already in use', () => {
