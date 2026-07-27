@@ -124,7 +124,8 @@ const CardRenderer = {
 
     // Render the "no card exists" placeholder that replaces the card image
     renderNoCardBadge(label) {
-        const text = (label || '').trim() || 'NO CARD';
+        // Coerce: a hand-edited gist can put a number here, which has no .trim()
+        const text = String(label ?? '').trim() || 'NO CARD';
         return `<div class="card-image placeholder no-card-badge">${sanitizeText(text)}</div>`;
     },
 

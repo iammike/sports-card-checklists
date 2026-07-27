@@ -771,7 +771,9 @@ class ChecklistEngine {
         const cardIdx = this._renderedCards.length;
         this._renderedCards.push(card);
 
-        const cardId = card.collectionLink ? null : this.getCardId(card);
+        // noCard wins over collectionLink, matching every other noCard check
+        const isCollectionLink = card.collectionLink && !card.noCard;
+        const cardId = isCollectionLink ? null : this.getCardId(card);
         const owned = cardId ? this.isOwned(cardId) : false;
         const price = this.getPrice(card);
         const showPlayer = this.config.cardDisplay?.showPlayerName !== false && card.player;
@@ -787,11 +789,6 @@ class ChecklistEngine {
         const displayType = (card.type || '').replace(/\s*RC\b/gi, '').replace(/\bBase\b/gi, '').trim();
         const displayVariant = card.variant || '';
 
-        // Collection link cards (special type)
-        if (card.collectionLink) {
-            return this._renderCollectionLinkCard(card, cardIdx);
-        }
-
         // No-card entries: person is on the list but no card exists
         if (card.noCard) {
             const safeId = sanitizeText(cardId);
@@ -806,6 +803,11 @@ class ChecklistEngine {
             noCardHtml += `</div>`;
             noCardHtml += `</div>`;
             return noCardHtml;
+        }
+
+        // Collection link cards (special type)
+        if (isCollectionLink) {
+            return this._renderCollectionLinkCard(card, cardIdx);
         }
 
         const cardClass = `card ${owned ? 'owned' : ''}`.trim();

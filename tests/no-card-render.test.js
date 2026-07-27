@@ -42,6 +42,22 @@ describe('createCardElement — noCard entries', () => {
     expect(html).toContain('eBay');
   });
 
+  it('renders as a no-card entry even when collectionLink is also set', () => {
+    const engine = makeEngine(config);
+    const html = engine.createCardElement({
+      id: 'n1', player: 'X', noCard: true, collectionLink: 'checklist.html?id=other',
+    });
+
+    expect(html).toContain('no-card-badge');
+    expect(html).not.toContain('collection-cta');
+  });
+
+  it('tolerates a non-string noCardLabel', () => {
+    const engine = makeEngine({ ...config, noCardLabel: 123 });
+    const html = engine.createCardElement({ id: 'n1', player: 'X', noCard: true });
+    expect(html).toContain('123');
+  });
+
   it('renders a normal card unchanged', () => {
     const engine = makeEngine(config);
     const html = engine.createCardElement({ id: 'n2', player: 'Y', set: 'Prizm' });
