@@ -41,6 +41,24 @@ describe('_updateCard — noCard merge (flat)', () => {
   });
 });
 
+describe('_addCard — noCard marker', () => {
+  it('drops the noCard: false marker on a brand new card', () => {
+    const engine = makeFlatEngine([]);
+
+    engine._addCard({ id: 'n1', set: 'Prizm', noCard: false });
+
+    expect('noCard' in engine.cards[0]).toBe(false);
+  });
+
+  it('keeps noCard: true on a brand new entry', () => {
+    const engine = makeFlatEngine([]);
+
+    engine._addCard({ id: 'n1', noCard: true });
+
+    expect(engine.cards[0].noCard).toBe(true);
+  });
+});
+
 describe('_updateCard — noCard merge (categories)', () => {
   it('flags a normal card as noCard when the form data includes it', () => {
     const card = { id: 'n1', set: 'Prizm' };

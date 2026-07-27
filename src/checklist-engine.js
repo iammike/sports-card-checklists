@@ -1797,6 +1797,8 @@ class ChecklistEngine {
             cardData.search = cardData.ebay;
             delete cardData.ebay;
         }
+        // A new card has no gist copy to clear, so the noCard: false marker is just noise
+        if (!cardData.noCard) delete cardData.noCard;
 
         if (this._isFlat()) {
             // Extract category-like fields that belong on the card directly
