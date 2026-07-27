@@ -798,15 +798,16 @@ class ChecklistEngine {
         container.addEventListener('change', (e) => {
             const checkbox = e.target.closest?.('input[type="checkbox"][data-card-id]');
             if (!checkbox) return;
-            this.setOwned(checkbox.dataset.cardId, checkbox.checked, checkbox);
+            this.setOwned(checkbox.dataset.cardId, checkbox.checked);
         });
     }
 
-    setOwned(cardId, nowOwned, checkbox = null) {
+    // toggleOwned synchronously calls onOwnedChange, which re-renders the cards
+    // (re-applying the owned class from stored state) and updates the stats. So
+    // there is deliberately nothing to do here beyond delegating - touching the
+    // clicked checkbox afterwards would be operating on a detached node.
+    setOwned(cardId, nowOwned) {
         this.checklistManager.toggleOwned(cardId, nowOwned);
-        const cardEl = checkbox ? checkbox.closest('.card') : null;
-        if (cardEl) cardEl.classList.toggle('owned', nowOwned);
-        this.updateStats();
     }
 
     // ========================================
