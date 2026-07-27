@@ -2247,6 +2247,24 @@ select, input[type="text"] {
     .card-editor-header {
         padding: 16px 20px 12px;
         flex-shrink: 0;
+        /* Price + No Card + Owned + close need ~316px, which squeezes the title
+           to nothing at 375px. Give the title its own row and let the controls
+           sit under it - costs ~6px of header height. */
+        flex-wrap: wrap;
+        position: relative;
+    }
+
+    .card-editor-header-left {
+        flex-basis: 100%;
+        /* Room for the close button pinned in the corner */
+        padding-right: 44px;
+    }
+
+    /* Without this the close button wraps to a third row at 320px */
+    .card-editor-header .card-editor-close {
+        position: absolute;
+        top: 14px;
+        right: 20px;
     }
 
     .card-editor-title {
