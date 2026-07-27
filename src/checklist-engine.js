@@ -53,6 +53,7 @@ class ChecklistEngine {
 
         // Load card data
         await this._loadCardData();
+        this._backfillNoCardIds();
 
         // Load stats for any linked checklists (e.g., collection link cards)
         await this._loadLinkedStats();
@@ -230,6 +231,31 @@ class ChecklistEngine {
         }
 
         throw new Error('Failed to load card data');
+    }
+
+    // A no-card entry has nothing to hash - no set, num or variant - so it needs
+    // an explicit id. The editor assigns one on save, but entries created by
+    // hand-editing the gist have none, and every one of them would hash to the
+    // same empty string, so edit and delete would act on the first match rather
+    // than the row the user picked. Backfill at load; persisted on the next save.
+    _backfillNoCardIds() {
+        const arrays = this._isFlat() ? [this.cards] : Object.values(this.cards || {});
+        const cards = arrays.filter(Array.isArray).flat().filter(Boolean);
+
+        const taken = new Set(cards.map(c => c.id).filter(Boolean));
+        cards.forEach(card => {
+            if (!card.noCard || card.id) return;
+            card.id = buildNoCardId(this._noCardIdSource(card), taken);
+            taken.add(card.id);
+        });
+    }
+
+    // Name to derive a no-card id from: the first top-position custom field
+    // (usually player), matching what the editor uses, then set as a fallback
+    _noCardIdSource(card) {
+        const topField = Object.entries(this.config.customFields || {})
+            .find(([_, c]) => (c.position || 'top') === 'top');
+        return (topField && card[topField[0]]) || card.player || card.set || '';
     }
 
     async _loadLinkedStats() {

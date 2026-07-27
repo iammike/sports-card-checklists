@@ -1410,20 +1410,13 @@ class CardEditorModal {
         return data;
     }
 
-    // Build a stable, human-traceable id for a no-card entry from the player name
-    // (or the first top-position custom field), plus a suffix that keeps entries
-    // sharing a name - or having no name at all - distinct.
+    // Build a stable id for a no-card entry from the player name (or the first
+    // top-position custom field), falling back to the set name.
     generateNoCardId(data) {
         const topField = Object.entries(this.customFields)
             .find(([_, config]) => (config.position || 'top') === 'top');
         const source = (topField && data[topField[0]]) || data.set || '';
-        const base = 'nc' + String(source).replace(/[^a-zA-Z0-9]/g, '').slice(0, 40);
-        const suffix = Date.now().toString(36);
-
-        const taken = new Set(this.getExistingIds());
-        let id = base + suffix;
-        for (let n = 2; taken.has(id); n++) id = base + suffix + n;
-        return id;
+        return buildNoCardId(source, this.getExistingIds());
     }
 
     // Validate form - require set name OR a top-position custom field (e.g. player name)

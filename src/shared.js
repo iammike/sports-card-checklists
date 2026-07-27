@@ -20,6 +20,20 @@ function normalizeQuotes(text) {
         .replace(/[\u201C\u201D\u201E]/g, '"');   // smart double quotes
 }
 
+// Build a stable, human-traceable id for a no-card entry: an "nc" prefix, the
+// alphanumerics of the entry's name, and a suffix that keeps entries sharing a
+// name - or having no name at all - distinct. Shared by the editor (on save)
+// and the engine (backfilling entries added by hand-editing the gist).
+function buildNoCardId(source, takenIds) {
+    const base = 'nc' + String(source || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 40);
+    const suffix = Date.now().toString(36);
+
+    const taken = new Set(takenIds || []);
+    let id = base + suffix;
+    for (let n = 2; taken.has(id); n++) id = base + suffix + n;
+    return id;
+}
+
 // Sanitization helpers for XSS prevention
 function sanitizeText(text) {
     const div = document.createElement('div');
