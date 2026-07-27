@@ -27,9 +27,26 @@ describe('_backfillNoCardIds — flat data', () => {
     engine._backfillNoCardIds();
 
     const [first, second] = engine.cards;
-    expect(first.id).toMatch(/^ncArielHukporti[a-z0-9]*$/);
-    expect(second.id).toMatch(/^ncRobertBaker[a-z0-9]*$/);
-    expect(first.id).not.toBe(second.id);
+    // Exact match, not a pattern: item A made this id deterministic, so a
+    // loose regex would still pass if a stray suffix crept back in.
+    expect(first.id).toBe('ncArielHukporti');
+    expect(second.id).toBe('ncRobertBaker');
+  });
+
+  it('disambiguates same-name entries with a numeric suffix', () => {
+    const engine = makeEngine(flatConfig, [
+      { player: 'Ariel Hukporti', noCard: true },
+      { player: 'Ariel Hukporti', noCard: true },
+      { player: 'Ariel Hukporti', noCard: true },
+    ]);
+
+    engine._backfillNoCardIds();
+
+    expect(engine.cards.map(c => c.id)).toEqual([
+      'ncArielHukporti',
+      'ncArielHukporti2',
+      'ncArielHukporti3',
+    ]);
   });
 
   it('backfills the same input to the same id every time', () => {
@@ -123,8 +140,8 @@ describe('_backfillNoCardIds — category data', () => {
 
     engine._backfillNoCardIds();
 
-    expect(engine.cards.main[0].id).toMatch(/^ncArielHukporti[a-z0-9]*$/);
-    expect(engine.cards.extra[0].id).toMatch(/^ncRobertBaker[a-z0-9]*$/);
+    expect(engine.cards.main[0].id).toBe('ncArielHukporti');
+    expect(engine.cards.extra[0].id).toBe('ncRobertBaker');
   });
 
   it('lets delete remove the entry the user picked', () => {

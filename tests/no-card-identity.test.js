@@ -85,7 +85,9 @@ describe('CardEditorModal — no-card entry id assignment', () => {
 
   it('assigns an id derived from the player name', () => {
     const data = flag('Ariel Hukporti');
-    expect(data.id).toMatch(/^ncArielHukporti[a-z0-9]*$/);
+    // Exact match, not a pattern: item A made this id deterministic, so a
+    // loose regex would still pass if a stray suffix crept back in.
+    expect(data.id).toBe('ncArielHukporti');
   });
 
   it('assigns an id containing only alphanumerics', () => {
