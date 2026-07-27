@@ -244,7 +244,9 @@ class ChecklistEngine {
 
         const taken = new Set(cards.map(c => c.id).filter(Boolean));
         cards.forEach(card => {
-            if (!card.noCard || card.id) return;
+            // An unsafe id is ignored by getCardId, which would leave this entry
+            // hashing to the empty string, so treat it as missing and replace it
+            if (!card.noCard || isSafeCardId(card.id)) return;
             card.id = buildNoCardId(this._noCardIdSource(card), taken);
             taken.add(card.id);
         });
@@ -751,8 +753,9 @@ class ChecklistEngine {
     // ========================================
 
     getCardId(card) {
-        // An explicit id always wins - no-card entries have no set/num/variant to hash
-        if (card.id) return card.id;
+        // An explicit id wins - no-card entries have no set/num/variant to hash -
+        // but only if it's a safe id (see isSafeCardId in shared.js)
+        if (isSafeCardId(card.id)) return card.id;
         if (this.config.cardDisplay?.includePlayerInCardId) {
             // btoa throws on non-Latin-1 input, so replace those characters the
             // same way index.html and shopping-list.js do - all three must agree

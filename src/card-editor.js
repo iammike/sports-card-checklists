@@ -1417,8 +1417,10 @@ class CardEditorModal {
 
         // Identity: a no-card entry has no set/num/variant to hash, so it needs an
         // explicit id. Assigned once and never regenerated, even if the name changes.
+        // An unsafe existing id is not honored anywhere (see isSafeCardId), so
+        // don't carry it forward - drop it and let a no-card entry get a fresh one.
         const existingId = this.currentCard && this.currentCard.id;
-        if (existingId) {
+        if (isSafeCardId(existingId)) {
             data.id = existingId;
         } else if (noCardChecked) {
             data.id = this.generateNoCardId(data);
