@@ -15,10 +15,10 @@ describe('CardEditorModal — no card exists toggle', () => {
     editor = makeEditor();
   });
 
-  it('omits noCard from form data when unchecked', () => {
+  it('emits noCard false when unchecked so the flag can be cleared', () => {
     editor.backdrop.querySelector('#editor-set').value = 'Prizm';
     editor.backdrop.querySelector('#editor-no-card').checked = false;
-    expect('noCard' in editor.getFormData()).toBe(false);
+    expect(editor.getFormData().noCard).toBe(false);
   });
 
   it('sets noCard true when checked', () => {

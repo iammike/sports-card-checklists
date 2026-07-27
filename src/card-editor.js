@@ -1370,9 +1370,10 @@ class CardEditorModal {
         // Add custom field data
         Object.assign(data, this.getCustomFieldData());
 
-        // No-card flag - omit the key entirely when false
+        // No-card flag - always included, like img, so noCard: false acts as a
+        // deletion marker that survives the merge with fresh gist data
         const noCard = !!this.backdrop.querySelector('#editor-no-card')?.checked;
-        if (noCard) data.noCard = true;
+        data.noCard = noCard;
 
         // Identity: a no-card entry has no set/num/variant to hash, so it needs an
         // explicit id. Assigned once and never regenerated, even if the name changes.

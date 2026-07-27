@@ -31,13 +31,13 @@ describe('_updateCard — noCard merge (flat)', () => {
     expect(card.noCard).toBe(true);
   });
 
-  it('un-flags a noCard entry when the form data omits the key', () => {
+  it('keeps noCard: false as a deletion marker for the gist merge', () => {
     const card = { id: 'n1', set: 'Prizm', noCard: true };
     const engine = makeFlatEngine([card]);
 
-    engine._updateCard('n1', { id: 'n1', set: 'Prizm' });
+    engine._updateCard('n1', { id: 'n1', set: 'Prizm', noCard: false });
 
-    expect('noCard' in card).toBe(false);
+    expect(card.noCard).toBe(false);
   });
 });
 
@@ -51,12 +51,12 @@ describe('_updateCard — noCard merge (categories)', () => {
     expect(card.noCard).toBe(true);
   });
 
-  it('un-flags a noCard entry when the form data omits the key', () => {
+  it('keeps noCard: false as a deletion marker for the gist merge', () => {
     const card = { id: 'n1', set: 'Prizm', noCard: true };
     const engine = makeCategoryEngine({ base: [card] });
 
-    engine._updateCard('n1', { id: 'n1', set: 'Prizm', category: 'base' });
+    engine._updateCard('n1', { id: 'n1', set: 'Prizm', category: 'base', noCard: false });
 
-    expect('noCard' in card).toBe(false);
+    expect(card.noCard).toBe(false);
   });
 });

@@ -370,6 +370,9 @@ class ChecklistEngine {
             const merged = { ...freshCard, ...localCard };
             // img: '' is a deletion marker set by _updateCard; honor it and strip the empty string
             if (localCard.img === '') delete merged.img;
+            // noCard: false is the same kind of marker - an un-flagged entry must not
+            // pick the gist's noCard: true back up, and the gist shouldn't store false
+            if (localCard.noCard === false) delete merged.noCard;
             return merged;
         });
     }
@@ -1805,8 +1808,9 @@ class ChecklistEngine {
             if (cardData.ebay) { card.search = cardData.ebay; delete card.ebay; }
             if (cardData.priceSearch) { card.priceSearch = cardData.priceSearch; } else { delete card.priceSearch; }
             // Clean up falsy optional fields
-            // img keeps '' when explicitly cleared so _mergeCardArrays doesn't restore the old URL
-            ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant', 'search', 'noCard'].forEach(key => {
+            // img keeps '' and noCard keeps false when explicitly cleared, so
+            // _mergeCardArrays doesn't restore the old value from the gist
+            ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant', 'search'].forEach(key => {
                 if (!(key in cardData) || !cardData[key]) {
                     if (key === 'img' && key in cardData) { card[key] = ''; } else { delete card[key]; }
                 }
@@ -1825,8 +1829,9 @@ class ChecklistEngine {
             if (cardData.ebay) { card.search = cardData.ebay; delete card.ebay; }
             if (cardData.priceSearch) { card.priceSearch = cardData.priceSearch; } else { delete card.priceSearch; }
             // Clean up falsy optional fields
-            // img keeps '' when explicitly cleared so _mergeCardArrays doesn't restore the old URL
-            ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant', 'search', 'noCard'].forEach(key => {
+            // img keeps '' and noCard keeps false when explicitly cleared, so
+            // _mergeCardArrays doesn't restore the old value from the gist
+            ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant', 'search'].forEach(key => {
                 if (!(key in cardData) || !cardData[key]) {
                     if (key === 'img' && key in cardData) { card[key] = ''; } else { delete card[key]; }
                 }
