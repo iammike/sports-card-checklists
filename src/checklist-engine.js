@@ -102,14 +102,7 @@ class ChecklistEngine {
             this.cardEditor.openNew(defaultCat);
         };
 
-        // Expose global toggleOwned for inline onchange handlers
-        window.toggleOwned = (cardId, checkbox) => {
-            const nowOwned = checkbox ? checkbox.checked : !this.isOwned(cardId);
-            this.checklistManager.toggleOwned(cardId, nowOwned);
-            const cardEl = checkbox ? checkbox.closest('.card') : null;
-            if (cardEl) cardEl.classList.toggle('owned', nowOwned);
-            this.updateStats();
-        };
+        this._initOwnedToggle();
 
         // Render
         this._renderFilters();
@@ -791,6 +784,33 @@ class ChecklistEngine {
     }
 
     // ========================================
+    // Ownership
+    // ========================================
+
+    // One delegated change listener for every owned checkbox. renderCards() only
+    // rewrites #sections-container's innerHTML and never replaces the element, so
+    // this survives re-renders - attaching it per render would stack duplicates.
+    _initOwnedToggle() {
+        if (this._ownedToggleBound) return;
+        const container = document.getElementById('sections-container');
+        if (!container) return;
+        this._ownedToggleBound = true;
+        container.addEventListener('change', (e) => {
+            const checkbox = e.target.closest?.('input[type="checkbox"][data-card-id]');
+            if (!checkbox) return;
+            this.setOwned(checkbox.dataset.cardId, checkbox.checked);
+        });
+    }
+
+    // toggleOwned synchronously calls onOwnedChange, which re-renders the cards
+    // (re-applying the owned class from stored state) and updates the stats. So
+    // there is deliberately nothing to do here beyond delegating - touching the
+    // clicked checkbox afterwards would be operating on a detached node.
+    setOwned(cardId, nowOwned) {
+        this.checklistManager.toggleOwned(cardId, nowOwned);
+    }
+
+    // ========================================
     // Price
     // ========================================
 
@@ -854,7 +874,7 @@ class ChecklistEngine {
 
         // No-card entries: person is on the list but no card exists
         if (card.noCard) {
-            const safeId = sanitizeText(cardId);
+            const safeId = sanitizeAttr(cardId);
             let noCardHtml = `<div class="card no-card" id="card-${safeId}" data-card-id="${safeId}" data-card-idx="${cardIdx}">`;
             noCardHtml += `<div class="card-image-wrapper">`;
             noCardHtml += CardRenderer.renderNoCardBadge(this.config.noCardLabel);
@@ -881,7 +901,7 @@ class ChecklistEngine {
 
         const cardClass = `card ${owned ? 'owned' : ''}`.trim();
 
-        let html = `<div class="${cardClass}" id="card-${cardId}" data-card-idx="${cardIdx}" data-price="${price}"${card.sport ? ` data-sport="${card.sport}"` : ''}${card.era ? ` data-era="${card.era}"` : ''} data-type="${card.type || ''}">`;
+        let html = `<div class="${cardClass}" id="card-${sanitizeAttr(cardId)}" data-card-idx="${cardIdx}" data-price="${price}"${card.sport ? ` data-sport="${card.sport}"` : ''}${card.era ? ` data-era="${card.era}"` : ''} data-type="${card.type || ''}">`;
         html += `<div class="card-image-wrapper">`;
         html += CardRenderer.renderAttributeBadges(card, this.config.customFields);
         html += CardRenderer.renderPriceBadge(price, thresholds);

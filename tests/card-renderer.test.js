@@ -190,6 +190,64 @@ describe('CardRenderer.renderOwnedControl', () => {
   it('returns empty for unowned in read-only mode', () => {
     expect(CardRenderer.renderOwnedControl('card-1', false, true)).toBe('');
   });
+
+  it('carries the card id in data-card-id for the delegated listener', () => {
+    const html = CardRenderer.renderOwnedControl('card-1', false, false);
+    expect(html).toContain('data-card-id="card-1"');
+  });
+
+  it('renders no inline event handler', () => {
+    const html = CardRenderer.renderOwnedControl('card-1', false, false);
+    expect(html).not.toContain('onchange');
+    expect(html).not.toMatch(/\son[a-z]+=/);
+  });
+});
+
+// The id used to be interpolated into an inline onchange="toggleOwned('...')",
+// where one quote closed the JS string and the rest executed. There is no inline
+// handler now, and the id is attribute-escaped where it still lands in markup.
+describe('CardRenderer.renderOwnedControl — a card id cannot break out of the markup', () => {
+  function parse(html) {
+    const host = document.createElement('div');
+    host.innerHTML = html;
+    return host;
+  }
+
+  const HOSTILE = {
+    'double quote': 'x" onmouseover="alert(1)',
+    'single quote': "x' onmouseover='alert(1)",
+    'both quotes and a bracket': `x"'><img src=x onerror=alert(1)>`,
+  };
+
+  for (const [label, cardId] of Object.entries(HOSTILE)) {
+    describe(label, () => {
+      it('renders exactly one input with no injected attribute or element', () => {
+        const host = parse(CardRenderer.renderOwnedControl(cardId, false, false));
+
+        expect(host.querySelectorAll('input')).toHaveLength(1);
+        expect(host.querySelectorAll('img')).toHaveLength(0);
+        const input = host.querySelector('input');
+        expect(input.getAttributeNames().sort()).toEqual(['data-card-id', 'id', 'type']);
+        expect(input.getAttribute('onmouseover')).toBe(null);
+      });
+
+      it('round-trips the id through the DOM unchanged', () => {
+        const input = parse(CardRenderer.renderOwnedControl(cardId, false, false))
+          .querySelector('input');
+        expect(input.dataset.cardId).toBe(cardId);
+      });
+
+      it('keeps the label bound to the checkbox', () => {
+        const host = parse(CardRenderer.renderOwnedControl(cardId, false, false));
+        const input = host.querySelector('input');
+        const label = host.querySelector('label');
+
+        expect(input.id).toBe(cardId);
+        expect(label.htmlFor).toBe(input.id);
+        expect(label.control).toBe(input);
+      });
+    });
+  }
 });
 
 describe('CardRenderer.renderSearchLinks', () => {
