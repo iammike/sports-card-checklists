@@ -657,10 +657,18 @@ class CardEditorModal {
         // Save button
         this.backdrop.querySelector('.card-editor-btn.save').onclick = () => this.save();
 
-        // No-card checkbox - disables owned/price when this person has no card in existence
+        // No-card checkbox - disables owned/price when this person has no card in existence.
+        // Dirty tracking is handled here, not by the generic "input" loop below: a
+        // browser click fires "input" before "change", so the generic handler would
+        // already have marked the form dirty by the time a cancelled confirm (in
+        // _applyNoCardState) reverts the checkbox - leaving the editor dirty for nothing.
         const noCardCheckbox = this.backdrop.querySelector('#editor-no-card');
         if (noCardCheckbox) {
-            noCardCheckbox.addEventListener('change', () => this._applyNoCardState({ fromUserToggle: true }));
+            noCardCheckbox.addEventListener('change', () => {
+                const wasDirty = this.isDirty;
+                const cancelled = this._applyNoCardState({ fromUserToggle: true }) === false;
+                this.setDirty(cancelled ? wasDirty : true);
+            });
         }
 
         // Delete button
@@ -668,6 +676,7 @@ class CardEditorModal {
 
         // Track dirty state on input
         modal.querySelectorAll('input, select').forEach(input => {
+            if (input === noCardCheckbox) return;
             input.oninput = () => this.setDirty(true);
         });
 
@@ -1300,6 +1309,9 @@ class CardEditorModal {
     // recoverable. The initial sync from open()/openNew() is not a user toggle:
     // it only updates the disabled state, so an already-flagged card can never
     // stash cleared values as the thing to restore.
+    //
+    // Returns false when a user toggle was cancelled at the confirm, so the
+    // change handler can leave the dirty flag as it found it.
     _applyNoCardState({ fromUserToggle = false } = {}) {
         const checkbox = this.backdrop.querySelector('#editor-no-card');
         const noCard = !!checkbox?.checked;
@@ -1309,10 +1321,13 @@ class CardEditorModal {
         const ownedWrap = this.backdrop.querySelector('#editor-owned-toggle');
 
         if (fromUserToggle && noCard && !this._noCardStash) {
-            const hasData = (owned && owned.checked) || (price && price.value.trim() !== '');
+            // A price of 0 is the same as no price for this check only - storage
+            // and reads elsewhere are unaffected.
+            const priceHasValue = price && price.value.trim() !== '' && parseFloat(price.value) !== 0;
+            const hasData = (owned && owned.checked) || priceHasValue;
             if (hasData && !confirm('This entry is marked owned or has a price. Flagging it as no card exists clears both. Continue?')) {
                 if (checkbox) checkbox.checked = false;
-                return;
+                return false;
             }
             this._noCardStash = {
                 owned: owned ? owned.checked : false,
@@ -1367,9 +1382,12 @@ class CardEditorModal {
             data.category = categoryField.value;
         }
 
-        // Price - only include if explicitly set (stored as whole number)
+        // Price - only include if explicitly set (stored as whole number). A
+        // no-card entry has no price, even if the (disabled) field still holds
+        // a stale value from before it was flagged - see _applyNoCardState.
+        const noCardChecked = !!this.backdrop.querySelector('#editor-no-card')?.checked;
         const priceVal = this.backdrop.querySelector('#editor-price').value.trim();
-        if (priceVal !== '') {
+        if (priceVal !== '' && !noCardChecked) {
             data.price = Math.round(parseFloat(priceVal)) || 0;
         }
 
@@ -1395,15 +1413,14 @@ class CardEditorModal {
 
         // No-card flag - always included, like img, so noCard: false acts as a
         // deletion marker that survives the merge with fresh gist data
-        const noCard = !!this.backdrop.querySelector('#editor-no-card')?.checked;
-        data.noCard = noCard;
+        data.noCard = noCardChecked;
 
         // Identity: a no-card entry has no set/num/variant to hash, so it needs an
         // explicit id. Assigned once and never regenerated, even if the name changes.
         const existingId = this.currentCard && this.currentCard.id;
         if (existingId) {
             data.id = existingId;
-        } else if (noCard) {
+        } else if (noCardChecked) {
             data.id = this.generateNoCardId(data);
         }
 

@@ -87,6 +87,16 @@ describe('CardEditorModal — no card exists toggle is recoverable', () => {
     expect(window.confirm).not.toHaveBeenCalled();
   });
 
+  it('does not confirm when the price is zero', () => {
+    editor = new CardEditorModal({ customFields: {}, isOwned: () => false, onOwnedChange, onSave });
+    editor.init();
+    editor.open('abc123', { set: 'Prizm', num: '12', price: 0 });
+
+    toggleNoCard(true);
+
+    expect(window.confirm).not.toHaveBeenCalled();
+  });
+
   it('does not treat opening an already-flagged card as a user toggle', () => {
     editor.open('abc123', { set: 'Prizm', noCard: true });
 
@@ -106,5 +116,69 @@ describe('CardEditorModal — no card exists toggle is recoverable', () => {
     editor.open('def456', { set: 'Optic', num: '7' });
 
     expect(editor._noCardStash).toBe(null);
+  });
+});
+
+describe('CardEditorModal — dirty state around the no-card confirm', () => {
+  let editor;
+  let onOwnedChange;
+  let onSave;
+  let originalConfirm;
+
+  beforeEach(() => {
+    originalConfirm = window.confirm;
+    onOwnedChange = vi.fn();
+    onSave = vi.fn();
+    editor = new CardEditorModal({
+      customFields: {},
+      isOwned: () => true,
+      onOwnedChange,
+      onSave,
+    });
+    editor.init();
+  });
+
+  afterEach(() => {
+    window.confirm = originalConfirm;
+  });
+
+  // A real click on the checkbox fires both "input" and "change", in that
+  // order, before the toggle's own change handler runs _applyNoCardState.
+  function clickNoCardCheckbox(checked) {
+    const checkbox = editor.backdrop.querySelector('#editor-no-card');
+    checkbox.checked = checked;
+    checkbox.dispatchEvent(new window.Event('input', { bubbles: true }));
+    checkbox.dispatchEvent(new window.Event('change', { bubbles: true }));
+    return checkbox;
+  }
+
+  it('leaves the editor clean when the confirm is cancelled', () => {
+    window.confirm = vi.fn(() => false);
+    editor.open('abc123', { set: 'Prizm', num: '12', price: 50 });
+    expect(editor.isDirty).toBe(false);
+
+    clickNoCardCheckbox(true);
+
+    expect(editor.isDirty).toBe(false);
+  });
+
+  it('restores a pre-existing dirty state when the confirm is cancelled', () => {
+    window.confirm = vi.fn(() => false);
+    editor.open('abc123', { set: 'Prizm', num: '12', price: 50 });
+    editor.setDirty(true); // an earlier field edit already dirtied the form
+
+    clickNoCardCheckbox(true);
+
+    expect(editor.isDirty).toBe(true);
+  });
+
+  it('still marks the editor dirty when the toggle is accepted', () => {
+    window.confirm = vi.fn(() => true);
+    editor.open('abc123', { set: 'Prizm', num: '12', price: 50 });
+    expect(editor.isDirty).toBe(false);
+
+    clickNoCardCheckbox(true);
+
+    expect(editor.isDirty).toBe(true);
   });
 });

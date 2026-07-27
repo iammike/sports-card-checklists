@@ -63,4 +63,13 @@ describe('CardEditorModal — no card exists toggle', () => {
     expect(editor.backdrop.querySelector('#editor-price').value).toBe('');
     expect('price' in editor.getFormData()).toBe(false);
   });
+
+  it('omits price from form data when noCard is true, even if the disabled field still holds a value', () => {
+    // open() on an already-flagged card populates the price field and only
+    // disables it - it doesn't clear it, since there was nothing to stash.
+    editor.backdrop.querySelector('#editor-price').value = '50';
+    editor.backdrop.querySelector('#editor-no-card').checked = true;
+
+    expect('price' in editor.getFormData()).toBe(false);
+  });
 });
