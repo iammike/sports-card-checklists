@@ -146,12 +146,16 @@ const CardRenderer = {
         return `<a href="${searchUrl}" target="_blank" class="card-image placeholder">No image</a>`;
     },
 
-    // Render owned checkbox or badge based on read-only state
-    renderOwnedControl(cardId, owned, isReadOnly, onchangeFn = 'toggleOwned') {
+    // Render owned checkbox or badge based on read-only state.
+    // The checkbox carries its card id in data-card-id; a single delegated change
+    // listener on #sections-container reads it (ChecklistEngine._initOwnedToggle).
+    // No inline handler, so a quote in the id has no JS string to break out of.
+    renderOwnedControl(cardId, owned, isReadOnly) {
         if (!isReadOnly) {
+            const id = sanitizeAttr(cardId);
             return `<div class="checkbox-wrapper">
-                <input type="checkbox" id="${cardId}" ${owned ? 'checked' : ''} onchange="${onchangeFn}('${cardId}', this)">
-                <label for="${cardId}">Owned</label>
+                <input type="checkbox" id="${id}" ${owned ? 'checked' : ''} data-card-id="${id}">
+                <label for="${id}">Owned</label>
             </div>`;
         }
         return owned ? '<span class="owned-badge">✓ Owned</span>' : '';

@@ -8,11 +8,11 @@ const ShoppingList = globalThis.ShoppingList;
 const CardEditorModal = globalThis.CardEditorModal;
 const isSafeCardId = globalThis.isSafeCardId;
 
-// Card ids are interpolated into HTML attributes and into an inline JS string
-// (card-renderer.js: onchange="...('${cardId}', this)"), and sanitizeText()
-// escapes & < > but not quotes. So an explicit card.id is only honored when it
-// matches a safe charset. The four id resolvers must agree on that decision or
-// the same card gets different ids in different parts of the app.
+// Card ids are interpolated into HTML attributes, so an explicit card.id is only
+// honored when it matches a safe charset. The four id resolvers must agree on that
+// decision or the same card gets different ids in different parts of the app.
+// The render sink escapes ids as well (see card-renderer.js renderOwnedControl and
+// tests/owned-toggle-listener.test.js) - this is the source-validation layer.
 
 const UNSAFE_IDS = {
   'single quote': "nc'x",
@@ -183,6 +183,59 @@ describe('no-card id backfill — unsafe existing id', () => {
     makeEngine(cards)._backfillNoCardIds();
 
     expect(cards[0].id).toBe('ncOldName');
+  });
+});
+
+// Second layer: the resolvers above reject these ids, so this can only be reached
+// by a future code path that produces an id without validating it. Even then the id
+// must land escaped in the markup rather than as new attributes or elements.
+describe('render sink — an unvalidated card id cannot inject', () => {
+  const HOSTILE = `x" onmouseover="alert(1)`;
+
+  function makeEngine() {
+    const engine = Object.create(ChecklistEngine.prototype);
+    engine.config = { dataShape: 'flat', cardDisplay: { showPlayerName: true } };
+    engine.cards = [];
+    engine._renderedCards = [];
+    engine.checklistManager = {
+      // Stands in for a resolver that skipped isSafeCardId
+      getCardId: (card) => card.id,
+      isOwned: () => false,
+      isReadOnly: false,
+    };
+    return engine;
+  }
+
+  function renderCard(card) {
+    const host = document.createElement('div');
+    host.innerHTML = makeEngine().createCardElement(card);
+    return host;
+  }
+
+  it('escapes the id in a regular card element', () => {
+    const host = renderCard({ id: HOSTILE, set: 'Prizm', num: '1' });
+    const cardEl = host.querySelector('.card');
+
+    expect(cardEl.id).toBe(`card-${HOSTILE}`);
+    expect(cardEl.getAttribute('onmouseover')).toBe(null);
+  });
+
+  it('escapes the id in a no-card element', () => {
+    const host = renderCard({ id: HOSTILE, player: 'Adam Smith', noCard: true });
+    const cardEl = host.querySelector('.card');
+
+    expect(cardEl.id).toBe(`card-${HOSTILE}`);
+    expect(cardEl.dataset.cardId).toBe(HOSTILE);
+    expect(cardEl.getAttribute('onmouseover')).toBe(null);
+  });
+
+  it('escapes the id on the owned checkbox and uses no inline handler', () => {
+    const host = renderCard({ id: HOSTILE, set: 'Prizm', num: '1' });
+    const checkbox = host.querySelector('input[type="checkbox"]');
+
+    expect(checkbox.dataset.cardId).toBe(HOSTILE);
+    expect(checkbox.getAttribute('onmouseover')).toBe(null);
+    expect(host.innerHTML).not.toContain('onchange');
   });
 });
 
