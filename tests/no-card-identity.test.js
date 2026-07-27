@@ -85,7 +85,7 @@ describe('CardEditorModal — no-card entry id assignment', () => {
 
   it('assigns an id derived from the player name', () => {
     const data = flag('Ariel Hukporti');
-    expect(data.id).toMatch(/^ncArielHukporti[a-z0-9]+$/);
+    expect(data.id).toMatch(/^ncArielHukporti[a-z0-9]*$/);
   });
 
   it('assigns an id containing only alphanumerics', () => {

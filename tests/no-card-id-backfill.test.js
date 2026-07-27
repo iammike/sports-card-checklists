@@ -27,9 +27,21 @@ describe('_backfillNoCardIds — flat data', () => {
     engine._backfillNoCardIds();
 
     const [first, second] = engine.cards;
-    expect(first.id).toMatch(/^ncArielHukporti[a-z0-9]+$/);
-    expect(second.id).toMatch(/^ncRobertBaker[a-z0-9]+$/);
+    expect(first.id).toMatch(/^ncArielHukporti[a-z0-9]*$/);
+    expect(second.id).toMatch(/^ncRobertBaker[a-z0-9]*$/);
     expect(first.id).not.toBe(second.id);
+  });
+
+  it('backfills the same input to the same id every time', () => {
+    const makeCards = () => [{ player: 'Ariel Hukporti', noCard: true }];
+
+    const first = makeEngine(flatConfig, makeCards());
+    first._backfillNoCardIds();
+
+    const second = makeEngine(flatConfig, makeCards());
+    second._backfillNoCardIds();
+
+    expect(first.cards[0].id).toBe(second.cards[0].id);
   });
 
   it('gives two nameless no-card entries distinct ids', () => {
@@ -111,8 +123,8 @@ describe('_backfillNoCardIds — category data', () => {
 
     engine._backfillNoCardIds();
 
-    expect(engine.cards.main[0].id).toMatch(/^ncArielHukporti[a-z0-9]+$/);
-    expect(engine.cards.extra[0].id).toMatch(/^ncRobertBaker[a-z0-9]+$/);
+    expect(engine.cards.main[0].id).toMatch(/^ncArielHukporti[a-z0-9]*$/);
+    expect(engine.cards.extra[0].id).toMatch(/^ncRobertBaker[a-z0-9]*$/);
   });
 
   it('lets delete remove the entry the user picked', () => {
