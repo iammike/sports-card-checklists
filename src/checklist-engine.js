@@ -413,15 +413,17 @@ class ChecklistEngine {
     // local to the in-progress edit and must not reach the gist. Mutates and
     // returns `merged` for convenience.
     _stripLocalOnlyMarkers(merged, localCard) {
+        // _clearedKeys is ours and never belongs in the gist. It's non-enumerable
+        // where we set it, so it isn't spread into `merged` in the first place;
+        // deleted unconditionally so a hand-edited gist card that carries an
+        // enumerable one can't round-trip it either.
+        delete merged._clearedKeys;
         // Keys the edit cleared: the gist copy is the merge base, so its old
         // value has to be deleted explicitly (#686). Array-checked because a
         // hand-edited gist card could carry a _clearedKeys of any shape, and
         // throwing here would skip the merge for the whole checklist.
         if (Array.isArray(localCard._clearedKeys)) {
             localCard._clearedKeys.forEach(key => delete merged[key]);
-            // Non-enumerable, so it isn't spread into `merged` in the first place -
-            // deleted anyway so the guarantee doesn't rest on the definition site
-            delete merged._clearedKeys;
         }
         // img: '' means the image was removed
         if (localCard.img === '') delete merged.img;
@@ -1971,6 +1973,9 @@ class ChecklistEngine {
         // the merge bailed, an earlier edit's cleared key is still missing from the
         // card and still needs deleting, so carry it forward - otherwise the next
         // merge restores the gist's old value. Keys this edit repopulated drop out.
+        // A merge that succeeds but whose PATCH then fails still drops the marker,
+        // so a repeat of the same edit loses the clear; the user gets a retry banner
+        // for the failed save, and this is no worse than before the fix.
         const previous = Array.isArray(card._clearedKeys) ? card._clearedKeys : [];
         const carried = previous.filter(key => !(key in card) && !cleared.includes(key));
 

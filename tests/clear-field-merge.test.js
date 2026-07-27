@@ -38,17 +38,22 @@ function makeCategoryEngine(cardsByCategory, getCardId = hashId) {
   return engine;
 }
 
-// Build the form data CardEditorModal.getFormData() produces for `card` with
-// only `cleared` emptied. Text fields are always sent (empty string when blank);
-// checkboxes, price, ebay and priceSearch are omitted entirely when unset.
+// Build the object _updateCard actually receives for `card` with only `cleared`
+// emptied - that is CardEditorModal.getFormData() as post-processed by save().
+// img, noCard and text fields are always sent (empty when blank); checkboxes,
+// price and priceSearch are omitted entirely when unset.
+// `search` is the one field whose form key differs from its storage key: the
+// input is #editor-ebay and getFormData emits `ebay`, but save() renames it to
+// `search` and deletes `ebay` before calling onSave, so `ebay` never gets here.
 // `customFields` must be the config the engine was built with: getFormData can
 // only send a field the editor rendered, so a field this config doesn't declare
 // is absent from the submission no matter what the card holds.
 function formDataWithCleared(cleared, card, extra = {}, customFields = CUSTOM_FIELDS) {
   const data = { set: card.set, num: card.num, type: '' };
   data.img = cleared === 'img' ? '' : (card.img || '');
+  data.noCard = !!card.noCard;
   if (cleared !== 'price' && card.price) data.price = card.price;
-  if (cleared !== 'search' && card.search) data.ebay = card.search;
+  if (cleared !== 'search' && card.search) data.search = card.search;
   if (cleared !== 'priceSearch' && card.priceSearch) data.priceSearch = card.priceSearch;
   for (const [name, config] of Object.entries(customFields)) {
     if (config.type === 'checkbox') {
@@ -141,6 +146,22 @@ describe('fields the edit did not touch survive the merge', () => {
     expect(merged[0].grade).toBe('PSA 10');
   });
 
+  it('keeps a stored search term through an unrelated edit', () => {
+    // search is the only ENGINE_BUILTIN_CLEARABLE field whose form key differs
+    // from its storage key, so it is the one most likely to be mis-modelled: a
+    // fixture that sends `ebay` instead of `search` reports this as destroyed.
+    const gistCard = {
+      set: 'Prizm', num: '10', variant: 'Silver', price: 25, search: 'my custom term',
+    };
+    const engine = makeFlatEngine([{ ...gistCard }]);
+
+    engine._updateCard(hashId(gistCard), formDataWithCleared('price', gistCard));
+    const merged = engine._mergeCardArrays(engine.cards, [gistCard]);
+
+    expect('price' in merged[0]).toBe(false);
+    expect(merged[0].search).toBe('my custom term');
+  });
+
   it('keeps an externally-added value for a field the local card never had', () => {
     // The form sends price empty because the local copy has no price - that is
     // not the user clearing anything, so the gist's price must survive
@@ -185,8 +206,10 @@ describe('fields this checklist does not manage are never deleted', () => {
   });
 
   it('keeps serial when this config has no serial field', () => {
-    // The `busts` config shape: customFields are player and variant only
-    const customFields = { player: { type: 'text' }, variant: { type: 'text' } };
+    // The `busts` config shape: player, claim-to-fame and variant, but no serial
+    const customFields = {
+      player: { type: 'text' }, 'claim-to-fame': { type: 'text' }, variant: { type: 'text' },
+    };
     const gistCard = { set: 'Prizm', num: '10', variant: 'Silver', serial: '/99', price: 25 };
     const engine = makeFlatEngine([{ ...gistCard }], hashId, customFields);
 
@@ -281,6 +304,16 @@ describe('a hand-edited gist card cannot break the merge', () => {
     const merged = engine._mergeCardArrays([local], [{ set: 'Prizm', num: '10', variant: 'Silver', price: 25 }]);
 
     expect(merged[0].price).toBe(25);
+  });
+
+  it('strips an enumerable _clearedKeys instead of writing it back to the gist', () => {
+    // The key is ours, so it is dropped whatever shape it arrived in
+    const local = { set: 'Prizm', num: '10', variant: 'Silver', _clearedKeys: 'price' };
+    const engine = makeFlatEngine([local]);
+
+    const merged = engine._mergeCardArrays([local], [{ set: 'Prizm', num: '10', variant: 'Silver' }]);
+
+    expect(JSON.stringify(merged[0]).includes('_clearedKeys')).toBe(false);
   });
 });
 
