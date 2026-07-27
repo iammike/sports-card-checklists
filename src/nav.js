@@ -11,8 +11,9 @@ const AuthUI = {
 
         if (githubSync.isLoggedIn()) {
             const user = githubSync.getUser();
-            const safeAvatarUrl = sanitizeUrl(user.avatar_url);
+            const safeAvatarUrl = sanitizeAttr(sanitizeUrl(user.avatar_url));
             const safeLogin = sanitizeText(user.login);
+            const safeLoginAttr = sanitizeAttr(user.login);
             const isPreview = githubSync.isPreview();
             const syncButton = isPreview ? `
                     <button class="nav-dropdown-item" id="sync-from-prod-btn">
@@ -22,7 +23,7 @@ const AuthUI = {
                     <div class="nav-dropdown-divider"></div>` : '';
             authContent.innerHTML = `
                 <button class="nav-avatar-btn" id="nav-avatar-btn">
-                    <img src="${safeAvatarUrl}" alt="${safeLogin}">
+                    <img src="${safeAvatarUrl}" alt="${safeLoginAttr}">
                 </button>
                 <div class="nav-dropdown" id="nav-dropdown">
                     <div class="nav-dropdown-header">
@@ -87,7 +88,7 @@ const AuthUI = {
             const data = await response.json();
             const el = document.getElementById('commit-hash');
             if (el) {
-                el.innerHTML = `<a href="${data.url}" target="_blank">${data.commit}</a>`;
+                el.innerHTML = `<a href="${sanitizeAttr(sanitizeLinkUrl(data.url))}" target="_blank">${sanitizeText(data.commit)}</a>`;
             }
         } catch (e) {
             // Silently fail - version.json may not exist locally

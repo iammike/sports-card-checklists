@@ -103,6 +103,8 @@ class ChecklistEngine {
         };
 
         this._initOwnedToggle();
+        this._initCollectionLinkNav();
+        this._initImageFallback();
 
         // Render
         this._renderFilters();
@@ -802,6 +804,41 @@ class ChecklistEngine {
         });
     }
 
+    // One delegated click listener for collection-link cards, replacing an inline
+    // onclick that built a JS string from the link. Same re-render reasoning as
+    // _initOwnedToggle.
+    _initCollectionLinkNav() {
+        if (this._collectionLinkNavBound) return;
+        const container = document.getElementById('sections-container');
+        if (!container) return;
+        this._collectionLinkNavBound = true;
+        container.addEventListener('click', (e) => {
+            // The card holds real links (the "View Full Collection" anchor, and the
+            // image's wrapping anchor); let the browser follow those rather than
+            // navigating on top of them.
+            if (e.target.closest?.('a')) return;
+            const card = e.target.closest?.('.card.collection-link[data-collection-link]');
+            if (!card) return;
+            const link = card.dataset.collectionLink;
+            if (link) window.location.href = link;
+        });
+    }
+
+    // Restores what the card image's inline onerror used to do. Image error events
+    // do not bubble, so unlike the other two delegated listeners this one has to
+    // listen in the capture phase to see them from an ancestor.
+    _initImageFallback() {
+        if (this._imageFallbackBound) return;
+        const container = document.getElementById('sections-container');
+        if (!container) return;
+        this._imageFallbackBound = true;
+        container.addEventListener('error', (e) => {
+            const img = e.target;
+            if (img?.tagName !== 'IMG' || !img.classList.contains('card-image')) return;
+            CardRenderer.replaceBrokenImage(img);
+        }, true);
+    }
+
     // toggleOwned synchronously calls onOwnedChange, which re-renders the cards
     // (re-applying the owned class from stored state) and updates the stats. So
     // there is deliberately nothing to do here beyond delegating - touching the
@@ -901,7 +938,9 @@ class ChecklistEngine {
 
         const cardClass = `card ${owned ? 'owned' : ''}`.trim();
 
-        let html = `<div class="${cardClass}" id="card-${sanitizeAttr(cardId)}" data-card-idx="${cardIdx}" data-price="${price}"${card.sport ? ` data-sport="${card.sport}"` : ''}${card.era ? ` data-era="${card.era}"` : ''} data-type="${card.type || ''}">`;
+        // String(price) before escaping: sanitizeAttr falls back to '' for any falsy
+        // input, so a numeric 0 would otherwise render as data-price="".
+        let html = `<div class="${cardClass}" id="card-${sanitizeAttr(cardId)}" data-card-idx="${cardIdx}" data-price="${sanitizeAttr(String(price))}"${card.sport ? ` data-sport="${sanitizeAttr(card.sport)}"` : ''}${card.era ? ` data-era="${sanitizeAttr(card.era)}"` : ''} data-type="${sanitizeAttr(card.type || '')}">`;
         html += `<div class="card-image-wrapper">`;
         html += CardRenderer.renderAttributeBadges(card, this.config.customFields);
         html += CardRenderer.renderPriceBadge(price, thresholds);
@@ -940,7 +979,11 @@ class ChecklistEngine {
     }
 
     _renderCollectionLinkCard(card, cardIdx) {
-        const link = sanitizeText(card.collectionLink);
+        // Scheme-checked so a 'javascript:' link cannot execute from the href or
+        // from the delegated navigation, then attribute-escaped so a quote in it
+        // cannot close the attribute.
+        const link = sanitizeLinkUrl(card.collectionLink);
+        const safeLink = sanitizeAttr(link);
 
         // Badge: show linked checklist stats if available, else cardCount
         let badgeHtml = '';
@@ -957,20 +1000,24 @@ class ChecklistEngine {
         let imageHtml;
         if (card.stackImages && card.stackImages.length > 0) {
             const imgs = card.stackImages.map(src =>
-                `<img src="${sanitizeText(src)}" alt="" loading="lazy">`
+                `<img src="${sanitizeAttr(src)}" alt="" loading="lazy">`
             ).join('');
             imageHtml = `<div class="card-stack">${imgs}</div>`;
         } else {
+            // renderCardImage escapes its own arguments, so pass the unescaped link
             imageHtml = CardRenderer.renderCardImage(card.img, card.player, link);
         }
 
-        return `<div class="card collection-link" data-card-idx="${cardIdx}" onclick="window.location.href='${link}'">
+        // The whole card navigates, but via one delegated click listener
+        // (_initCollectionLinkNav) reading data-collection-link. There is no inline
+        // handler, so a quote in the link has no JS string to break out of.
+        return `<div class="card collection-link" data-card-idx="${cardIdx}" data-collection-link="${safeLink}">
             <div class="card-image-wrapper">
                 ${badgeHtml}
                 ${imageHtml}
             </div>
             <div class="player-name">${sanitizeText(card.player)}</div>
-            <a href="${link}" class="collection-cta">View Full Collection</a>
+            <a href="${safeLink}" class="collection-cta">View Full Collection</a>
         </div>`;
     }
 
@@ -995,17 +1042,17 @@ class ChecklistEngine {
             html += `<select id="sort-filter">`;
             sorts.forEach(s => {
                 const label = this._getSortLabel(s);
-                html += `<option value="${s}">${label}</option>`;
+                html += `<option value="${sanitizeAttr(s)}">${sanitizeText(label)}</option>`;
             });
             html += `</select>`;
         }
 
         // Custom filter dropdowns (sport, era, etc.)
         customFilters.forEach(f => {
-            html += `<select id="${f.id}-filter">`;
+            html += `<select id="${sanitizeAttr(f.id)}-filter">`;
             html += `<option value="all">${sanitizeText(f.allLabel || 'All')}</option>`;
             f.options.forEach(opt => {
-                html += `<option value="${opt.value}">${sanitizeText(opt.label)}</option>`;
+                html += `<option value="${sanitizeAttr(opt.value)}">${sanitizeText(opt.label)}</option>`;
             });
             html += `</select>`;
         });
@@ -1412,7 +1459,9 @@ class ChecklistEngine {
             const complete = progress.owned === progress.total;
             badge = `<span class="section-progress${complete ? ' complete' : ''}">${complete ? '&#10003; ' : ''}${progress.owned}/${progress.total}</span>`;
         }
-        return `<div class="${cssClass}">${sanitizeText(label)}${badge}</div>`;
+        // Escaped at the sink rather than in each caller: callers compose cssClass
+        // from a literal plus a config-supplied category id.
+        return `<div class="${sanitizeAttr(cssClass)}">${sanitizeText(label)}${badge}</div>`;
     }
 
     _renderCategoryCards(container, sortBy) {
@@ -1450,7 +1499,7 @@ class ChecklistEngine {
                     const childSectionClass = cat.isMain !== false ? 'default-section' : '';
                     html += `<div class="section ${childSectionClass}">`;
                     html += this._sectionHeaderHtml(child.label, `section-header cat-${child.id}`, childCards);
-                    html += `<div class="card-grid" id="${child.id}-cards">${sorted.map(c => this.createCardElement(c)).join('')}</div>`;
+                    html += `<div class="card-grid" id="${sanitizeAttr(child.id)}-cards">${sorted.map(c => this.createCardElement(c)).join('')}</div>`;
                     html += `</div>`;
                 });
                 html += `</div>`;
@@ -1464,15 +1513,15 @@ class ChecklistEngine {
                 const headerClass = `section-header cat-${cat.id}`;
 
                 if (cat.note) {
-                    html += `<div class="section ${sectionClass}" id="${cat.id}-section">`;
+                    html += `<div class="section ${sectionClass}" id="${sanitizeAttr(cat.id)}-section">`;
                     html += this._sectionHeaderHtml(cat.label, headerClass, catCards);
                     html += `<div class="inserts-note">${sanitizeText(cat.note)}</div>`;
-                    html += `<div class="card-grid" id="${cat.id}-cards">${sorted.map(c => this.createCardElement(c)).join('')}</div>`;
+                    html += `<div class="card-grid" id="${sanitizeAttr(cat.id)}-cards">${sorted.map(c => this.createCardElement(c)).join('')}</div>`;
                     html += `</div>`;
                 } else {
                     html += `<div class="section ${sectionClass}">`;
                     html += this._sectionHeaderHtml(cat.label, headerClass, catCards);
-                    html += `<div class="card-grid" id="${cat.id}-cards">${sorted.map(c => this.createCardElement(c)).join('')}</div>`;
+                    html += `<div class="card-grid" id="${sanitizeAttr(cat.id)}-cards">${sorted.map(c => this.createCardElement(c)).join('')}</div>`;
                     html += `</div>`;
                 }
             }

@@ -461,8 +461,8 @@ class ChecklistCreatorModal {
 
         row.innerHTML = `
             <div class="creator-row-main">
-                <input type="color" value="${color1}" title="Gradient start color">
-                <input type="color" value="${color2}" title="Gradient end color">
+                <input type="color" value="${this._escAttr(color1)}" title="Gradient start color">
+                <input type="color" value="${this._escAttr(color2)}" title="Gradient end color">
                 <div class="creator-row-label">
                     <input type="text" placeholder="${isParent ? 'Section name' : 'Subsection name'}" value="${this._escAttr(label)}">
                 </div>
@@ -656,7 +656,7 @@ class ChecklistCreatorModal {
         const isExisting = this.editMode && !!data?.key;
 
         row.innerHTML = `
-            <input type="color" value="${color}" title="Text color for this line">
+            <input type="color" value="${this._escAttr(color)}" title="Text color for this line">
             <button type="button" class="creator-pill-toggle ${pill ? 'active' : ''}" title="Toggle pill background">pill</button>
             <div class="creator-row-label">
                 <input type="text" placeholder="Field label (e.g. Years Active)" value="${this._escAttr(label)}">
