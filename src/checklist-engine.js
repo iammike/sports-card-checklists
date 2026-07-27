@@ -1802,7 +1802,7 @@ class ChecklistEngine {
             if (cardData.priceSearch) { card.priceSearch = cardData.priceSearch; } else { delete card.priceSearch; }
             // Clean up falsy optional fields
             // img keeps '' when explicitly cleared so _mergeCardArrays doesn't restore the old URL
-            ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant', 'search'].forEach(key => {
+            ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant', 'search', 'noCard'].forEach(key => {
                 if (!(key in cardData) || !cardData[key]) {
                     if (key === 'img' && key in cardData) { card[key] = ''; } else { delete card[key]; }
                 }
@@ -1822,7 +1822,7 @@ class ChecklistEngine {
             if (cardData.priceSearch) { card.priceSearch = cardData.priceSearch; } else { delete card.priceSearch; }
             // Clean up falsy optional fields
             // img keeps '' when explicitly cleared so _mergeCardArrays doesn't restore the old URL
-            ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant', 'search'].forEach(key => {
+            ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant', 'search', 'noCard'].forEach(key => {
                 if (!(key in cardData) || !cardData[key]) {
                     if (key === 'img' && key in cardData) { card[key] = ''; } else { delete card[key]; }
                 }
