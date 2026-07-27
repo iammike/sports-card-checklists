@@ -229,6 +229,7 @@ class CardEditorModal {
         this.imageFolder = options.imageFolder || 'images'; // folder for processed images
         this.isOwned = options.isOwned || (() => false); // callback to check if card is owned
         this.onOwnedChange = options.onOwnedChange || null; // callback when owned state changes
+        this.getExistingIds = options.getExistingIds || (() => []); // callback listing card ids already in use
         this.currentCard = null;
         this.currentCardId = null;
         this.isDirty = false;
@@ -1361,11 +1362,6 @@ class CardEditorModal {
             data.priceSearch = priceSearchVal;
         }
 
-        // No-card flag - omit the key entirely when false
-        if (this.backdrop.querySelector('#editor-no-card')?.checked) {
-            data.noCard = true;
-        }
-
         // Preserve category if editing and no category dropdown exists
         if (!categoryField && this.currentCard && this.currentCard.category) {
             data.category = this.currentCard.category;
@@ -1374,7 +1370,36 @@ class CardEditorModal {
         // Add custom field data
         Object.assign(data, this.getCustomFieldData());
 
+        // No-card flag - omit the key entirely when false
+        const noCard = !!this.backdrop.querySelector('#editor-no-card')?.checked;
+        if (noCard) data.noCard = true;
+
+        // Identity: a no-card entry has no set/num/variant to hash, so it needs an
+        // explicit id. Assigned once and never regenerated, even if the name changes.
+        const existingId = this.currentCard && this.currentCard.id;
+        if (existingId) {
+            data.id = existingId;
+        } else if (noCard) {
+            data.id = this.generateNoCardId(data);
+        }
+
         return data;
+    }
+
+    // Build a stable, human-traceable id for a no-card entry from the player name
+    // (or the first top-position custom field), plus a suffix that keeps entries
+    // sharing a name - or having no name at all - distinct.
+    generateNoCardId(data) {
+        const topField = Object.entries(this.customFields)
+            .find(([_, config]) => (config.position || 'top') === 'top');
+        const source = (topField && data[topField[0]]) || data.set || '';
+        const base = 'nc' + String(source).replace(/[^a-zA-Z0-9]/g, '').slice(0, 40);
+        const suffix = Date.now().toString(36);
+
+        const taken = new Set(this.getExistingIds());
+        let id = base + suffix;
+        for (let n = 2; taken.has(id); n++) id = base + suffix + n;
+        return id;
     }
 
     // Validate form - require set name OR a top-position custom field (e.g. player name)

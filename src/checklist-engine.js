@@ -712,6 +712,8 @@ class ChecklistEngine {
     // ========================================
 
     getCardId(card) {
+        // An explicit id always wins - no-card entries have no set/num/variant to hash
+        if (card.id) return card.id;
         if (this.config.cardDisplay?.includePlayerInCardId) {
             return btoa((card.player || '') + (card.set || '') + (card.num || '') + (card.variant || '')).replace(/[^a-zA-Z0-9]/g, '');
         }
@@ -789,7 +791,8 @@ class ChecklistEngine {
 
         // No-card entries: person is on the list but no card exists
         if (card.noCard) {
-            let noCardHtml = `<div class="card no-card" data-card-idx="${cardIdx}">`;
+            const safeId = sanitizeText(cardId);
+            let noCardHtml = `<div class="card no-card" id="card-${safeId}" data-card-id="${safeId}" data-card-idx="${cardIdx}">`;
             noCardHtml += `<div class="card-image-wrapper">`;
             noCardHtml += CardRenderer.renderNoCardBadge(this.config.noCardLabel);
             noCardHtml += `</div>`;
@@ -1687,6 +1690,7 @@ class ChecklistEngine {
             categories: editorCategories,
             cardTypes: [],
             isOwned: (cardId) => this.checklistManager.isOwned(cardId),
+            getExistingIds: () => this._getAllCardsFlat().map(c => this.getCardId(c)),
             onOwnedChange: (cardData, nowOwned) => {
                 const id = this.getCardId(cardData);
                 this.checklistManager.toggleOwned(id, nowOwned);
