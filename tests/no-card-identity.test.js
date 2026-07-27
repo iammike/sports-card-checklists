@@ -30,6 +30,22 @@ describe('getCardId — explicit id', () => {
     expect(engine.getCardId({ player: 'Adam Smith', set: 'Prizm', num: '12', variant: 'Silver' }))
       .toBe(expected);
   });
+
+  it('does not throw on a non-Latin-1 player name', () => {
+    const engine = makeEngine({ dataShape: 'flat', cardDisplay: { includePlayerInCardId: true } });
+    const card = { player: 'Alperen Şengün', set: 'Prizm', num: '12' };
+
+    expect(() => engine.getCardId(card)).not.toThrow();
+    expect(engine.getCardId(card)).toBeTruthy();
+  });
+
+  it('matches index.html and shopping-list.js for a non-Latin-1 player name', () => {
+    const engine = makeEngine({ dataShape: 'flat', cardDisplay: { includePlayerInCardId: true } });
+    const expected = btoa('Alperen Şengün'.replace(/[^\x00-\xFF]/g, '_') + 'Prizm12')
+      .replace(/[^a-zA-Z0-9]/g, '');
+
+    expect(engine.getCardId({ player: 'Alperen Şengün', set: 'Prizm', num: '12' })).toBe(expected);
+  });
 });
 
 describe('createCardElement — no-card entry identity', () => {

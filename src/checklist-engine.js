@@ -744,7 +744,9 @@ class ChecklistEngine {
         // An explicit id always wins - no-card entries have no set/num/variant to hash
         if (card.id) return card.id;
         if (this.config.cardDisplay?.includePlayerInCardId) {
-            return btoa((card.player || '') + (card.set || '') + (card.num || '') + (card.variant || '')).replace(/[^a-zA-Z0-9]/g, '');
+            // btoa throws on non-Latin-1 input, so replace those characters the
+            // same way index.html and shopping-list.js do - all three must agree
+            return btoa(((card.player || '') + (card.set || '') + (card.num || '') + (card.variant || '')).replace(/[^\x00-\xFF]/g, '_')).replace(/[^a-zA-Z0-9]/g, '');
         }
         return this.checklistManager.getCardId(card);
     }
