@@ -138,12 +138,31 @@ const CardRenderer = {
         return html;
     },
 
-    // Render card image with fallback
+    // Render card image with fallback.
+    //
+    // The fallback used to be an inline onerror that built an anchor as a JS string
+    // inside an HTML attribute, hand-escaping the quotes around the search URL - one
+    // unescaped quote in that URL broke out of the string. There is no inline handler
+    // now: a broken image is swapped for the placeholder by a delegated capture-phase
+    // listener (ChecklistEngine._initImageFallback). The image is already wrapped in
+    // an anchor to the search, so the placeholder does not need to carry the URL.
     renderCardImage(imgSrc, alt, searchUrl) {
+        const href = sanitizeAttr(searchUrl);
         if (imgSrc) {
-            return `<a href="${searchUrl}" target="_blank"><img class="card-image" src="${imgSrc}" alt="${alt}" loading="lazy" onerror="this.outerHTML='<a href=\\'${searchUrl}\\' target=\\'_blank\\' class=\\'card-image placeholder\\'>No image</a>'"></a>`;
+            return `<a href="${href}" target="_blank" rel="noopener noreferrer"><img class="card-image" src="${sanitizeAttr(imgSrc)}" alt="${sanitizeAttr(alt)}" loading="lazy"></a>`;
         }
-        return `<a href="${searchUrl}" target="_blank" class="card-image placeholder">No image</a>`;
+        return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="card-image placeholder">No image</a>`;
+    },
+
+    // Swap a card image that failed to load for the "No image" placeholder. Only
+    // the <img> is replaced; its wrapping anchor still links to the search, which
+    // is what the old inline onerror rebuilt by hand.
+    replaceBrokenImage(img) {
+        if (!img || !img.parentNode) return;
+        const placeholder = document.createElement('span');
+        placeholder.className = 'card-image placeholder';
+        placeholder.textContent = 'No image';
+        img.replaceWith(placeholder);
     },
 
     // Render owned checkbox or badge based on read-only state.
@@ -163,10 +182,13 @@ const CardRenderer = {
 
     // Render search links (eBay only, or eBay + SCP)
     renderSearchLinks(searchUrl, scpUrl = null) {
+        // Both are built from card fields: getEbayUrl percent-encodes only double
+        // quotes and getScpUrl escapes nothing, so neither arrives attribute-safe.
+        const ebay = sanitizeAttr(searchUrl);
         if (scpUrl) {
-            return `<span class="search-links"><a href="${searchUrl}" target="_blank" class="search-link">eBay</a> · <a href="${scpUrl}" target="_blank" class="search-link">Prices</a></span>`;
+            return `<span class="search-links"><a href="${ebay}" target="_blank" rel="noopener noreferrer" class="search-link">eBay</a> · <a href="${sanitizeAttr(scpUrl)}" target="_blank" rel="noopener noreferrer" class="search-link">Prices</a></span>`;
         }
-        return `<a href="${searchUrl}" target="_blank" class="search-link">eBay</a>`;
+        return `<a href="${ebay}" target="_blank" rel="noopener noreferrer" class="search-link">eBay</a>`;
     },
 
     // Render achievement badges

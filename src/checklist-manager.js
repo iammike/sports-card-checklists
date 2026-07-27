@@ -129,8 +129,9 @@ class ChecklistManager {
 
         if (githubSync.isLoggedIn()) {
             const user = githubSync.getUser();
-            const safeAvatarUrl = sanitizeUrl(user.avatar_url);
+            const safeAvatarUrl = sanitizeAttr(sanitizeUrl(user.avatar_url));
             const safeLogin = sanitizeText(user.login);
+            const safeLoginAttr = sanitizeAttr(user.login);
             const isOwner = this.isOwner();
             const isPreview = githubSync.isPreview();
 
@@ -156,7 +157,7 @@ class ChecklistManager {
 
             authContent.innerHTML = `
                 <button class="nav-avatar-btn" id="nav-avatar-btn">
-                    <img src="${safeAvatarUrl}" alt="${safeLogin}">
+                    <img src="${safeAvatarUrl}" alt="${safeLoginAttr}">
                 </button>
                 <div class="nav-dropdown" id="nav-dropdown">
                     <div class="nav-dropdown-header">
@@ -230,7 +231,7 @@ class ChecklistManager {
             const data = await response.json();
             const el = document.getElementById('commit-hash');
             if (el) {
-                el.innerHTML = `<a href="${data.url}" target="_blank">${data.commit}</a>`;
+                el.innerHTML = `<a href="${sanitizeAttr(sanitizeLinkUrl(data.url))}" target="_blank" rel="noopener noreferrer">${sanitizeText(data.commit)}</a>`;
             }
         } catch (e) {
             // Silently fail - version.json may not exist locally

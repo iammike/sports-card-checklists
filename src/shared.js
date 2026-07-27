@@ -57,7 +57,10 @@ function isSafeCardId(id) {
 // Sanitization helpers for XSS prevention
 function sanitizeText(text) {
     const div = document.createElement('div');
-    div.textContent = text || '';
+    // Only null and undefined become empty. `text || ''` would also swallow 0 and
+    // false, which config values legitimately are - a custom filter option with
+    // value 0 rendered value="" and then matched no card at all.
+    div.textContent = text == null ? '' : String(text);
     return div.innerHTML;
 }
 
@@ -71,6 +74,22 @@ function sanitizeUrl(url) {
     if (!url) return '';
     try {
         const parsed = new URL(url);
+        return ['http:', 'https:'].includes(parsed.protocol) ? url : '';
+    } catch {
+        return '';
+    }
+}
+
+// For values that become a navigation target (an href, or a window.location
+// assignment), where a 'javascript:' scheme executes. sanitizeUrl() only accepts
+// absolute URLs, but collection links are routinely relative
+// ('checklist.html?id=x'), so resolve against the document base before checking
+// the scheme. The original string is returned, not the resolved one, so a
+// relative link stays relative.
+function sanitizeLinkUrl(url) {
+    if (!url) return '';
+    try {
+        const parsed = new URL(url, document.baseURI);
         return ['http:', 'https:'].includes(parsed.protocol) ? url : '';
     } catch {
         return '';

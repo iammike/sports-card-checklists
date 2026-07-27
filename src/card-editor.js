@@ -273,18 +273,18 @@ class CardEditorModal {
             if (rowFields.length === 0) return '';
 
             const innerHtml = rowFields.map(([fieldName, config]) => {
-                const id = `editor-${fieldName}`;
+                const id = sanitizeAttr(`editor-${fieldName}`);
                 if (config.type === 'checkbox') {
                     return `<label class="card-editor-attr-checkbox">
                         <input type="checkbox" id="${id}">
-                        <span>${config.label}</span>
+                        <span>${sanitizeText(config.label)}</span>
                     </label>`;
                 } else {
                     // Text/number field (e.g., serial)
                     const extraAttrs = config.inputType === 'number' ? ' inputmode="numeric"' : '';
                     return `<div class="card-editor-attr-text">
-                        <label for="${id}">${config.label}:</label>
-                        <input type="text" class="card-editor-input" id="${id}" placeholder="${config.placeholder || ''}"${extraAttrs}>
+                        <label for="${id}">${sanitizeText(config.label)}:</label>
+                        <input type="text" class="card-editor-input" id="${id}" placeholder="${sanitizeAttr(config.placeholder || '')}"${extraAttrs}>
                     </div>`;
                 }
             }).join('');
@@ -297,33 +297,33 @@ class CardEditorModal {
         }
 
         const fieldHtml = fields.map(([fieldName, config]) => {
-            const id = `editor-${fieldName}`;
+            const id = sanitizeAttr(`editor-${fieldName}`);
             const fullWidth = config.fullWidth ? ' full-width' : '';
-            const placeholder = config.placeholder || '';
+            const placeholder = sanitizeAttr(config.placeholder || '');
 
             if (config.type === 'select') {
                 const options = (config.options || []).map(opt => {
                     const value = typeof opt === 'string' ? opt : opt.value;
                     const label = typeof opt === 'string' ? opt : opt.label;
-                    return `<option value="${value}">${label}</option>`;
+                    return `<option value="${sanitizeAttr(value)}">${sanitizeText(label)}</option>`;
                 }).join('');
                 return `<div class="card-editor-field${fullWidth}">
-                    <label class="card-editor-label">${config.label}</label>
+                    <label class="card-editor-label">${sanitizeText(config.label)}</label>
                     <select class="card-editor-select" id="${id}">${options}</select>
                 </div>`;
             } else if (config.type === 'checkbox') {
                 return `<div class="card-editor-field${fullWidth}">
-                    <label class="card-editor-label">${config.label}</label>
+                    <label class="card-editor-label">${sanitizeText(config.label)}</label>
                     <label class="card-editor-checkbox">
                         <input type="checkbox" id="${id}">
-                        <span>${config.checkboxLabel || 'Yes'}</span>
+                        <span>${sanitizeText(config.checkboxLabel || 'Yes')}</span>
                     </label>
                 </div>`;
             } else {
                 // Default: text input
-                const colorHint = config.color ? `<span class="card-editor-color-hint" style="background:${config.color}"></span>` : '';
+                const colorHint = config.color ? `<span class="card-editor-color-hint" style="background:${sanitizeAttr(config.color)}"></span>` : '';
                 return `<div class="card-editor-field${fullWidth}">
-                    <label class="card-editor-label">${config.label}${colorHint}</label>
+                    <label class="card-editor-label">${sanitizeText(config.label)}${colorHint}</label>
                     <input type="text" class="card-editor-input" id="${id}" placeholder="${placeholder}">
                 </div>`;
             }
@@ -405,31 +405,31 @@ class CardEditorModal {
 
     // Render a single custom field as HTML
     renderCustomField(name, config) {
-        const id = `editor-${name}`;
-        const placeholder = config.placeholder || '';
+        const id = sanitizeAttr(`editor-${name}`);
+        const placeholder = sanitizeAttr(config.placeholder || '');
 
         if (config.type === 'select') {
             const options = (config.options || []).map(opt => {
                 const value = typeof opt === 'string' ? opt : opt.value;
                 const label = typeof opt === 'string' ? opt : opt.label;
-                return `<option value="${value}">${label}</option>`;
+                return `<option value="${sanitizeAttr(value)}">${sanitizeText(label)}</option>`;
             }).join('');
             return `<div class="card-editor-field">
-                <label class="card-editor-label">${config.label}</label>
+                <label class="card-editor-label">${sanitizeText(config.label)}</label>
                 <select class="card-editor-select" id="${id}">${options}</select>
             </div>`;
         } else if (config.type === 'checkbox') {
             return `<div class="card-editor-field">
-                <label class="card-editor-label">${config.label}</label>
+                <label class="card-editor-label">${sanitizeText(config.label)}</label>
                 <label class="card-editor-checkbox">
                     <input type="checkbox" id="${id}">
-                    <span>${config.checkboxLabel || 'Yes'}</span>
+                    <span>${sanitizeText(config.checkboxLabel || 'Yes')}</span>
                 </label>
             </div>`;
         } else {
-            const colorHint = config.color ? `<span class="card-editor-color-hint" style="background:${config.color}"></span>` : '';
+            const colorHint = config.color ? `<span class="card-editor-color-hint" style="background:${sanitizeAttr(config.color)}"></span>` : '';
             return `<div class="card-editor-field">
-                <label class="card-editor-label">${config.label}${colorHint}</label>
+                <label class="card-editor-label">${sanitizeText(config.label)}${colorHint}</label>
                 <input type="text" class="card-editor-input" id="${id}" placeholder="${placeholder}">
             </div>`;
         }
@@ -468,7 +468,7 @@ class CardEditorModal {
                 html: `<div class="card-editor-field">
                     <label class="card-editor-label">Card Type</label>
                     <select class="card-editor-select" id="editor-type">
-                        ${this.cardTypes.map(t => `<option value="${t}">${t}</option>`).join('')}
+                        ${this.cardTypes.map(t => `<option value="${sanitizeAttr(t)}">${sanitizeText(t)}</option>`).join('')}
                     </select>
                 </div>`,
                 size: 'wide'
@@ -486,8 +486,8 @@ class CardEditorModal {
             if ((config.position || 'top') !== 'attributes' || !config.fullWidth) continue;
             fields.push({
                 html: `<div class="card-editor-field">
-                    <label class="card-editor-label">${config.label}</label>
-                    <input type="text" class="card-editor-input" id="editor-${name}" placeholder="${config.placeholder || ''}">
+                    <label class="card-editor-label">${sanitizeText(config.label)}</label>
+                    <input type="text" class="card-editor-input" id="${sanitizeAttr(`editor-${name}`)}" placeholder="${sanitizeAttr(config.placeholder || '')}">
                 </div>`,
                 size: 'wide'
             });
@@ -497,13 +497,13 @@ class CardEditorModal {
         if (this.categories) {
             const options = this.categories.map(c => {
                 if (c.group) {
-                    return `<optgroup label="${c.group}">${c.children.map(child =>
-                        `<option value="${child.value}">${child.label}</option>`
+                    return `<optgroup label="${sanitizeAttr(c.group)}">${c.children.map(child =>
+                        `<option value="${sanitizeAttr(child.value)}">${sanitizeText(child.label)}</option>`
                     ).join('')}</optgroup>`;
                 }
                 const label = typeof c === 'string' ? c.charAt(0).toUpperCase() + c.slice(1) : c.label;
                 const value = typeof c === 'string' ? c : c.value;
-                return `<option value="${value}">${label}</option>`;
+                return `<option value="${sanitizeAttr(value)}">${sanitizeText(label)}</option>`;
             }).join('');
             fields.push({
                 html: `<div class="card-editor-field">
@@ -834,7 +834,7 @@ class CardEditorModal {
         }
 
         if (src) {
-            preview.innerHTML = `<img src="${src}" alt="Preview" onerror="this.outerHTML='<span class=\\'placeholder\\'>Failed to load</span>'">`;
+            preview.innerHTML = `<img src="${sanitizeAttr(src)}" alt="Preview" onerror="this.outerHTML='<span class=\\'placeholder\\'>Failed to load</span>'">`;
         } else {
             preview.innerHTML = '<span class="placeholder">No image</span>';
         }
