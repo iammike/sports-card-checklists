@@ -222,6 +222,55 @@ describe('section headers are operable without a mouse', () => {
     });
 });
 
+// Left to the browser, the button's name is computed from its contents - which
+// in Chrome includes the ::before disclosure glyph, so every header announced as
+// "black down-pointing triangle, Base Set, 0 of 2 owned". An explicit aria-label
+// overrides that. It has to carry the badge too: a button is a leaf in the
+// accessibility tree, so the badge inside it is never announced on its own.
+describe('section header accessible name', () => {
+    it('names the header with its title and the badge, and nothing else', () => {
+        renderChecklist();
+
+        expect(header('base').getAttribute('aria-label')).toBe('Base Set, 0 of 2 owned');
+        expect(header('inserts').getAttribute('aria-label')).toBe('Inserts, 0 of 1 owned');
+    });
+
+    it('takes the badge\'s spelled-out name rather than its "0/2" text', () => {
+        renderChecklist();
+        const badge = header('base').querySelector('.section-progress');
+
+        expect(badge.textContent).toBe('0/2');
+        expect(header('base').getAttribute('aria-label')).toContain(badge.getAttribute('aria-label'));
+        expect(header('base').getAttribute('aria-label')).not.toContain('0/2');
+    });
+
+    it('follows the owned count when the section re-renders', () => {
+        const engine = renderChecklist();
+
+        engine.checklistManager.ownedCards.push(engine.getCardId(CARDS.base[0]));
+        engine.renderCards();
+
+        expect(header('base').getAttribute('aria-label')).toBe('Base Set, 1 of 2 owned');
+    });
+
+    it('names a header that has no badge to fold in', () => {
+        const engine = makeEngine({ base: [{ set: '2024 Prizm', num: '1', noCard: true }] },
+            { categories: [{ id: 'base', label: 'Base Set' }] });
+        engine.renderCards();
+
+        expect(header('base').querySelectorAll('.section-progress')).toHaveLength(0);
+        expect(header('base').getAttribute('aria-label')).toBe('Base Set');
+    });
+
+    it('leaves the browser to it when there is nothing to name the header with', () => {
+        document.body.innerHTML = '<div id="sections-container"><div class="section">'
+            + '<div class="section-header"></div><div class="card-grid"></div></div></div>';
+        CollapsibleSections.init();
+
+        expect(document.querySelector('.section-header').hasAttribute('aria-label')).toBe(false);
+    });
+});
+
 describe('sectionKey - headers with no category class', () => {
     // The sorted view renders every card under one "All Cards" header carrying
     // no cat- class, so the fallback is a live path, not a defensive one.

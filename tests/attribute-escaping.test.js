@@ -753,7 +753,7 @@ describe('section markup built from config category ids', () => {
     // renderCards runs at the end; nothing else may appear.
     const header = container().querySelector('.section-header');
     expect(header.getAttributeNames().sort())
-      .toEqual(['aria-controls', 'aria-expanded', 'class', 'data-collapsible', 'role', 'tabindex']);
+      .toEqual(['aria-controls', 'aria-expanded', 'aria-label', 'class', 'data-collapsible', 'role', 'tabindex']);
     // The hostile id reaches the generated region id through the category
     // class, so the reference still has to resolve to the region it names.
     expect(document.getElementById(header.getAttribute('aria-controls')))

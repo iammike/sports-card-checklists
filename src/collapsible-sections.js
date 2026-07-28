@@ -47,6 +47,8 @@ const CollapsibleSections = {
             header.setAttribute('role', 'button');
             header.setAttribute('tabindex', '0');
             header.setAttribute('aria-expanded', String(!header.classList.contains('collapsed')));
+            const label = this.headerLabel(header);
+            if (label) header.setAttribute('aria-label', label);
             if (wrapper) {
                 wrapper.id = wrapper.id || this.uniqueId(`collapsible-${sectionId}`);
                 header.setAttribute('aria-controls', wrapper.id);
@@ -97,6 +99,30 @@ const CollapsibleSections = {
         return id;
     },
 
+    // The header's own text, without the progress badge or anything else nested
+    // inside it. Both the storage key and the accessible name start here.
+    headerText(header) {
+        return Array.from(header.childNodes)
+            .filter(node => node.nodeType === Node.TEXT_NODE)
+            .map(node => node.textContent)
+            .join(' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    },
+
+    // The name a screen reader announces. Left to the browser it would include
+    // the ::before disclosure glyph ("black down-pointing triangle, Base Set"),
+    // and a button is a leaf in the accessibility tree - the badge inside it is
+    // not announced separately - so its own name has to be folded in here or it
+    // is lost. Verified in Chrome's accessibility tree, both ways.
+    headerLabel(header) {
+        const parts = [this.headerText(header)];
+        Array.from(header.children).forEach(child => {
+            parts.push((child.getAttribute('aria-label') || child.textContent || '').trim());
+        });
+        return parts.filter(Boolean).join(', ');
+    },
+
     // The key persisted collapse state is stored under. It has to survive a
     // re-render: keying on the header's whole textContent picked up the progress
     // badge, so marking a card owned changed the key and the section silently
@@ -106,17 +132,13 @@ const CollapsibleSections = {
         if (categoryClass) return categoryClass;
 
         // No category class (the single "All Cards" header a sorted view
-        // renders). Fall back to the header's own text nodes, which leaves out
-        // the badge and anything else nested inside it.
-        const label = Array.from(header.childNodes)
-            .filter(node => node.nodeType === Node.TEXT_NODE)
-            .map(node => node.textContent)
-            .join(' ')
-            .trim()
+        // renders). The header's own text is stable where its textContent was
+        // not - the badge is what changes.
+        const slug = this.headerText(header)
             .toLowerCase()
             .replace(/[^a-z0-9]+/g, '-')
             .replace(/^-+|-+$/g, '');
-        return label || `section-${index}`;
+        return slug || `section-${index}`;
     },
 
     wrapContent(header, section) {

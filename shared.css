@@ -1292,7 +1292,9 @@ select, input[type="text"] {
 /* Clipped content keeps its place in the tab order, so a keyboard user tabbing
    past a collapsed section would walk every card in it. Take it out of the tab
    order once the slide has finished - the delay is what keeps the animation
-   visible; expanding restores it immediately. */
+   visible; expanding restores it immediately.
+   The 0.25s delay has to match the grid-template-rows duration on
+   .collapsible-content above: shorten it and content vanishes mid-slide. */
 .collapsible-content.collapsed > * {
     visibility: hidden;
     transition: visibility 0s 0.25s;
