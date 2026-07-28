@@ -1,14 +1,11 @@
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 
-// github-sync.js isn't loaded by the shared setup (it instantiates a singleton
-// and touches the network), so load it here in isolation to exercise its
-// pure-ish error classification logic.
+// The shared setup loads github-sync.js along with the rest of the bundle (#713),
+// so this exercises the real singleton rather than a re-loaded copy. Constructing
+// it touches localStorage but not the network; the tests below stub fetch for the
+// paths that would make a request.
 let sync;
 beforeAll(() => {
-    const code = readFileSync(resolve(import.meta.dirname, '..', 'src', 'github-sync.js'), 'utf-8');
-    (0, eval)(code);
     sync = globalThis.window.githubSync;
 });
 

@@ -2,20 +2,11 @@ const esbuild = require('esbuild');
 const fs = require('fs');
 const path = require('path');
 
-// Shared JS files in load order (globals, not ES modules)
+// Which files go into which bundle, shared with tests/setup.js so the test run
+// loads exactly what the browser gets. See build-manifest.js.
+const { sharedFiles, engineFile } = require('./build-manifest');
+
 const srcDir = path.join(__dirname, 'src');
-const sharedFiles = [
-  'github-sync.js',
-  'shared.js',
-  'collapsible-sections.js',
-  'card-renderer.js',
-  'checklist-manager.js',
-  'image-editor.js',
-  'card-editor.js',
-  'shopping-list.js',
-  'nav.js',
-  'checklist-creator.js',
-];
 
 async function build() {
   const distDir = path.join(__dirname, 'dist');
@@ -34,7 +25,7 @@ async function build() {
   fs.writeFileSync(path.join(distDir, 'app.min.js'), appResult.code);
 
   // Minify checklist-engine.js -> dist/checklist-engine.min.js
-  const engineSrc = fs.readFileSync(path.join(srcDir, 'checklist-engine.js'), 'utf8');
+  const engineSrc = fs.readFileSync(path.join(srcDir, engineFile), 'utf8');
   const engineResult = await esbuild.transform(engineSrc, {
     minify: true,
     target: 'es2020',
