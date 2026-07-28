@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 
-// The shared setup loads github-sync.js along with the rest of the bundle (#713),
+// The shared setup loads github-sync.js along with the rest of the bundle (#719),
 // so this exercises the real singleton rather than a re-loaded copy. Constructing
 // it touches localStorage but not the network; the tests below stub fetch for the
 // paths that would make a request.
@@ -94,13 +94,16 @@ describe('GitHubSync image ops auth handling', () => {
     });
 });
 
-describe('GitHubSync.clearGistCache', () => {
+// These two are the only place the private cache fields are touched from outside
+// github-sync.js. Reading them is the assertion, and seeding them is the only way
+// to tell a real clear from a no-op.
+describe('GitHubSync cache clearing', () => {
     afterEach(() => {
         sync.clearGistCache();
-        sync._cachedData = null;
+        sync.clearDataCache();
     });
 
-    it('drops both raw gist caches, so the next _fetchGist refetches', () => {
+    it('clearGistCache drops both raw gist caches, so the next _fetchGist refetches', () => {
         sync._gistCache = { files: {} };
         sync._publicGistCache = { files: {} };
 
@@ -110,14 +113,33 @@ describe('GitHubSync.clearGistCache', () => {
         expect(sync._publicGistCache).toBeNull();
     });
 
-    it('leaves the card-data cache alone', () => {
-        // Callers that want _cachedData gone clear it themselves; folding it in here
-        // would change what the write paths in this file do.
+    it('clearDataCache drops the collection-data cache, so the next loadData refetches', () => {
+        sync._cachedData = { checklists: {} };
+
+        sync.clearDataCache();
+
+        expect(sync._cachedData).toBeNull();
+    });
+
+    // The two are separate because the callers want different things. Folding
+    // either into the other would make some caller refetch data it did not ask for.
+    it('clearGistCache leaves the collection-data cache alone', () => {
         sync._gistCache = { files: {} };
-        sync._cachedData = { cards: [] };
+        sync._cachedData = { checklists: {} };
 
         sync.clearGistCache();
 
-        expect(sync._cachedData).toEqual({ cards: [] });
+        expect(sync._cachedData).toEqual({ checklists: {} });
+    });
+
+    it('clearDataCache leaves the raw gist caches alone', () => {
+        sync._gistCache = { files: {} };
+        sync._publicGistCache = { files: {} };
+        sync._cachedData = { checklists: {} };
+
+        sync.clearDataCache();
+
+        expect(sync._gistCache).toEqual({ files: {} });
+        expect(sync._publicGistCache).toEqual({ files: {} });
     });
 });
