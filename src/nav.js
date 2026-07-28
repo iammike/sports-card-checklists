@@ -147,6 +147,18 @@ const DynamicNav = {
         return null;
     },
 
+    // The checklists available to link to, read synchronously: the card editor
+    // builds its dropdown while the modal is being created and cannot await the
+    // registry fetch. init() primes _registry, and the sessionStorage cache covers
+    // a page whose fetch hasn't landed yet. Legacy entries are excluded because
+    // their URLs carry no ?id=, which is what a collection link is parsed for.
+    listChecklists() {
+        const registry = this._registry || this._getCached();
+        return (registry?.checklists || [])
+            .filter(e => e.type === 'dynamic' && !e.hidden)
+            .sort((a, b) => (a.navLabel || a.title).localeCompare(b.navLabel || b.title));
+    },
+
     // Get the URL for a checklist entry
     getUrl(entry) {
         if (entry.type === 'legacy') {
