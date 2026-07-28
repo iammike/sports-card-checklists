@@ -803,6 +803,9 @@ class CardEditorModal {
             }
         };
 
+        // Broken preview image falls back to a placeholder
+        this._initPreviewFallback();
+
         // Escape key to close
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && this.backdrop.classList.contains('active')) {
@@ -819,6 +822,23 @@ class CardEditorModal {
                 this.save();
             }
         });
+    }
+
+    // Swap a preview image that fails to load for a placeholder. error does not
+    // bubble, so the listener captures. The preview container is created once in
+    // init() and updateImagePreview only rewrites its innerHTML, so one listener
+    // covers every preview the editor ever renders.
+    _initPreviewFallback() {
+        const preview = this.backdrop.querySelector('.card-editor-image-preview');
+        if (!preview) return;
+        preview.addEventListener('error', (e) => {
+            const img = e.target;
+            if (img?.tagName !== 'IMG' || !img.parentNode) return;
+            const placeholder = document.createElement('span');
+            placeholder.className = 'placeholder';
+            placeholder.textContent = 'Failed to load';
+            img.replaceWith(placeholder);
+        }, true);
     }
 
     // Update image preview
@@ -843,7 +863,9 @@ class CardEditorModal {
         }
 
         if (src) {
-            preview.innerHTML = `<img src="${sanitizeAttr(src)}" alt="Preview" onerror="this.outerHTML='<span class=\\'placeholder\\'>Failed to load</span>'">`;
+            // No inline onerror: _initPreviewFallback's delegated listener swaps
+            // a failed load for the placeholder.
+            preview.innerHTML = `<img src="${sanitizeAttr(src)}" alt="Preview">`;
         } else {
             preview.innerHTML = '<span class="placeholder">No image</span>';
         }

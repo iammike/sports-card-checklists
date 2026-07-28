@@ -25,13 +25,13 @@ function baseEngine(cards = []) {
 // synchronously calls onOwnedChange, which re-renders. Tests that care what a
 // toggle actually does to the page must go through this, not a stub - a stub
 // that skips onOwnedChange cannot show the re-render at all.
+//
+// The options come from engine._managerOptions(), the same call init() makes, so
+// these tests exercise the real wiring. Hand-writing a mirror of that object here
+// would leave them blind to a change in it.
 function makeEngine(ownedIds = [], cards = []) {
   const engine = baseEngine(cards);
-  engine.checklistManager = new ChecklistManager({
-    checklistId: 'test',
-    // Mirrors checklist-engine.js init()
-    onOwnedChange: () => { engine.renderCards(); engine.updateStats(); },
-  });
+  engine.checklistManager = new ChecklistManager(engine._managerOptions());
   engine.checklistManager.ownedCards = [...ownedIds];
   engine.checklistManager.isReadOnly = false;
   return engine;
@@ -122,15 +122,15 @@ describe('ChecklistEngine — toggling a checkbox through the real manager', () 
     expect(container().querySelector('input[type="checkbox"]')).not.toBe(checkbox);
   });
 
-  it('updates the stats once per toggle rather than twice', () => {
-    // The two expected calls both come from the re-render path: renderCards ->
-    // _applyFilters, then onOwnedChange's own call. A third would mean setOwned
+  it('updates the stats exactly once per toggle', () => {
+    // The one expected call comes from the re-render path: renderCards ->
+    // _applyFilters -> updateStats. A second would mean onOwnedChange or setOwned
     // is redundantly updating stats after the render already did.
     const { engine, checkbox } = setUp();
 
     check(checkbox, true);
 
-    expect(engine.updateStats).toHaveBeenCalledTimes(2);
+    expect(engine.updateStats).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -148,6 +148,74 @@ describe('ChecklistEngine.setOwned', () => {
     expect(engine.checklistManager.toggleOwned).toHaveBeenCalledWith('abc123', true);
     expect(container().querySelector('.card').classList.contains('owned')).toBe(false);
     expect(engine.updateStats).not.toHaveBeenCalled();
+  });
+});
+
+// The card editor's owned checkbox goes through the same manager as the card
+// grid's. It used to also hunt for a `.card[data-id="..."]` element and update
+// the stats itself; no renderer has ever emitted data-id, and the re-render
+// triggered by toggleOwned had already done both jobs regardless.
+describe('ChecklistEngine — the card editor owned toggle', () => {
+  function setUp(ownedIds = []) {
+    const engine = makeEngine(ownedIds, [CARD]);
+    engine._initCardEditor();
+    engine.renderCards();
+    engine.updateStats.mockClear();
+    return { engine, cardId: engine.getCardId(CARD) };
+  }
+
+  it('marks the card owned and the re-rendered card carries the owned class', () => {
+    const { engine, cardId } = setUp();
+
+    engine.cardEditor.onOwnedChange(CARD, true);
+
+    expect(engine.checklistManager.isOwned(cardId)).toBe(true);
+    expect(container().querySelector('.card').classList.contains('owned')).toBe(true);
+    expect(container().querySelector('input[type="checkbox"]').checked).toBe(true);
+  });
+
+  it('marks the card unowned and the re-rendered card drops the owned class', () => {
+    const cardId = ChecklistManager.prototype.getCardId(CARD);
+    const { engine } = setUp([cardId]);
+
+    engine.cardEditor.onOwnedChange(CARD, false);
+
+    expect(engine.checklistManager.isOwned(cardId)).toBe(false);
+    expect(container().querySelector('.card').classList.contains('owned')).toBe(false);
+  });
+
+  it('updates the stats exactly once per toggle', () => {
+    // Same single call as the checkbox path: renderCards -> _applyFilters ->
+    // updateStats. A second means the editor callback is redundantly updating
+    // stats after the render already did.
+    const { engine } = setUp();
+
+    engine.cardEditor.onOwnedChange(CARD, true);
+
+    expect(engine.updateStats).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not reach for a data-id element - nothing renders that attribute', () => {
+    // Plant the element the old lookup was written against, outside the
+    // container so the re-render cannot clear it. Anything that happens to it
+    // could only have come from the callback querying for it by hand.
+    const { engine, cardId } = setUp();
+    const stray = document.createElement('div');
+    stray.className = 'card';
+    stray.setAttribute('data-id', cardId);
+    stray.innerHTML = '<input type="checkbox">';
+    document.body.appendChild(stray);
+
+    engine.cardEditor.onOwnedChange(CARD, true);
+
+    expect(stray.classList.contains('owned')).toBe(false);
+    expect(stray.querySelector('input').checked).toBe(false);
+  });
+
+  it('renders no data-id attribute for the old lookup to find', () => {
+    setUp();
+
+    expect(container().querySelector('[data-id]')).toBeNull();
   });
 });
 

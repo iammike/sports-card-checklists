@@ -65,13 +65,7 @@ class ChecklistEngine {
         await this._loadLinkedStats();
 
         // Set up ChecklistManager (re-renders auth UI with add/clear buttons)
-        this.checklistManager = new ChecklistManager({
-            checklistId: this.id,
-            ownerUsername: 'iammike',
-            localStorageKey: `${this.id}-owned`,
-            onOwnedChange: () => { this.renderCards(); this.updateStats(); },
-            getStats: () => this.computeStats(),
-        });
+        this.checklistManager = new ChecklistManager(this._managerOptions());
         await this.checklistManager.init();
 
         // Re-add delete and settings buttons (ChecklistManager.init re-renders the dropdown)
@@ -117,6 +111,20 @@ class ChecklistEngine {
 
         // Refresh saved stats if stale (e.g. linked checklist progress changed)
         this._refreshStatsIfStale();
+    }
+
+    // The ChecklistManager options, factored out so tests can wire a manager the
+    // way init() really does. A test that hand-mirrors this object cannot catch a
+    // change to it. renderCards() ends in _applyFilters(), which calls
+    // updateStats(), so this callback must NOT call updateStats itself.
+    _managerOptions() {
+        return {
+            checklistId: this.id,
+            ownerUsername: 'iammike',
+            localStorageKey: `${this.id}-owned`,
+            onOwnedChange: () => this.renderCards(),
+            getStats: () => this.computeStats(),
+        };
     }
 
     // ========================================
@@ -170,7 +178,6 @@ class ChecklistEngine {
                 this._renderFilters();
                 this._initCardEditor();
                 this.renderCards();
-                this.updateStats();
                 DynamicNav._registry = null;
                 sessionStorage.removeItem(DynamicNav._sessionKey);
                 DynamicNav.init();
@@ -1356,6 +1363,13 @@ class ChecklistEngine {
         });
     }
 
+    // Normalize one side of a custom-filter comparison. Everything present
+    // compares as a string; a missing field keeps the null sentinel so it can
+    // never collide with an option value.
+    static _filterKey(value) {
+        return value == null ? null : String(value);
+    }
+
     _filterCard(card, statusFilter, searchTerm, customFilterValues) {
         // Status filter
         if (statusFilter !== 'all') {
@@ -1381,11 +1395,17 @@ class ChecklistEngine {
             const filterDef = (this.config.customFilters || []).find(f => f.id === filterId);
             if (!filterDef) continue;
             const cardField = filterDef.cardField || filterId;
-            const cardValue = card[cardField];
+            // filterValue always arrives as a string (it is a <select> element's
+            // value), so a card field stored as a number or boolean would never
+            // match its own option under ===. Compare the string forms instead.
+            // A missing field stays the null sentinel rather than becoming
+            // "null"/"undefined", so it never matches a real option value.
+            const cardValue = ChecklistEngine._filterKey(card[cardField]);
 
             // Multi-value match (e.g., sport filter matching "football" to both "nfl" and "usfl")
             if (filterDef.multiMatch && filterDef.multiMatch[filterValue]) {
-                if (!filterDef.multiMatch[filterValue].includes(cardValue)) return false;
+                const allowed = filterDef.multiMatch[filterValue].map(v => ChecklistEngine._filterKey(v));
+                if (!allowed.includes(cardValue)) return false;
             } else {
                 if (cardValue !== filterValue) return false;
             }
@@ -1828,16 +1848,11 @@ class ChecklistEngine {
             cardTypes: [],
             isOwned: (cardId) => this.checklistManager.isOwned(cardId),
             getExistingIds: () => this._getAllCardsFlat().map(c => this.getCardId(c)),
+            // Same story as setOwned: toggleOwned synchronously calls the
+            // manager's onOwnedChange, which re-renders the cards from stored
+            // state and updates the stats. Nothing to do here but delegate.
             onOwnedChange: (cardData, nowOwned) => {
-                const id = this.getCardId(cardData);
-                this.checklistManager.toggleOwned(id, nowOwned);
-                const cardEl = document.querySelector(`.card[data-id="${id}"]`);
-                if (cardEl) {
-                    cardEl.classList.toggle('owned', nowOwned);
-                    const checkbox = cardEl.querySelector(`input[type="checkbox"]`);
-                    if (checkbox) checkbox.checked = nowOwned;
-                }
-                this.updateStats();
+                this.checklistManager.toggleOwned(this.getCardId(cardData), nowOwned);
             },
             onSave: async (cardId, cardData, isNew) => {
                 const newId = this.getCardId(cardData);
@@ -1862,7 +1877,6 @@ class ChecklistEngine {
                     this._updateCard(cardId, cardData);
                 }
                 this.renderCards();
-                this.updateStats();
                 // Scroll to the card (find by matching card ID in rendered cards)
                 const cardIdx = this._renderedCards.findIndex(c => c && this.getCardId(c) === newId);
                 if (cardIdx !== -1) {
@@ -1878,7 +1892,6 @@ class ChecklistEngine {
             onDelete: async (cardId) => {
                 this._removeCard(cardId);
                 this.renderCards();
-                this.updateStats();
                 this.checklistManager.setSyncStatus('syncing', 'Saving...');
                 await this._saveCardData();
             },
