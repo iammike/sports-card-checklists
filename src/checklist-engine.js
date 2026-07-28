@@ -884,7 +884,14 @@ class ChecklistEngine {
         if (subtitleFields.length === 0) return '';
         let html = '';
         subtitleFields.forEach(([key, config]) => {
-            const color = this._ensureContrast(config.color || '#888888', this._cardBg || '#ffffff', 4.5);
+            // Validate before _ensureContrast rather than trusting it to launder
+            // the value: it parses six-digit hex, so anything else comes back as
+            // '#04NaNNaN' and the subtitle loses its colour entirely. Its
+            // returning only toHex() output is also what keeps this style
+            // attribute injection-free today, and an early-out returning fgHex
+            // unchanged would quietly undo that. See isSafeColor in shared.js.
+            const fg = isSafeColor(config.color) ? config.color : '#888888';
+            const color = this._ensureContrast(fg, this._cardBg || '#ffffff', 4.5);
             const r = parseInt(color.slice(1, 3), 16), g = parseInt(color.slice(3, 5), 16), b = parseInt(color.slice(5, 7), 16);
             const pillStyle = config.pill ? `;background:rgba(${r},${g},${b},0.12)` : '';
             const pillClass = config.pill ? ' pill' : '';

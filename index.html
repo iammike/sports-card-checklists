@@ -770,8 +770,11 @@
                 const pct = hasStats && stats.total > 0 ? Math.round((stats.owned / stats.total) * 100) : 0;
                 const offset = PROGRESS_RING_CIRCUMFERENCE - (pct / 100) * PROGRESS_RING_CIRCUMFERENCE;
                 const description = entry.description || '';
-                const accent = entry.accentColor || '#667eea';
-                const borderColor = entry.borderColor || accent;
+                // Both land in a CSS declaration below, so validate rather than
+                // escape - see isSafeColor in shared.js. An invalid border color
+                // falls back to the accent, same as an absent one.
+                const accent = isSafeColor(entry.accentColor) ? entry.accentColor : '#667eea';
+                const borderColor = isSafeColor(entry.borderColor) ? entry.borderColor : accent;
 
                 const isComplete = hasStats && stats.total > 0 && stats.owned >= stats.total;
                 const card = document.createElement('a');
