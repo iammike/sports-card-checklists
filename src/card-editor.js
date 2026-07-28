@@ -918,6 +918,13 @@ class CardEditorModal {
         // - Local relative paths under the image folder used as-is
         // Anything else (partial typing, a pasted non-URL) would resolve against
         // the page origin and fire a doomed request, so we skip it.
+        //
+        // This chain is already a scheme allowlist, and a stricter one than the
+        // sanitizeLinkUrl that guards the other URL sinks - 'javascript:' matches
+        // no branch and lands on the placeholder. sanitizeLinkUrl is deliberately
+        // not used here because it would also blank 'data:', which the image
+        // editor round-trip feeds in to preview a crop before it is uploaded.
+        // sanitizeAttr below is still what stops the value breaking out of src.
         let src = null;
         if (url) {
             if (url.startsWith('data:')) {
