@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { inlineHandlers } from './dom-helpers.js';
 
 const ChecklistEngine = globalThis.ChecklistEngine;
 const ChecklistManager = globalThis.ChecklistManager;
@@ -42,17 +43,6 @@ function makeEngine(cards, config = {}) {
 
 function container() {
   return document.getElementById('sections-container');
-}
-
-// Every on* attribute on every element in a subtree. Asserting this rather than
-// grepping innerHTML matters: a hostile value survives verbatim inside an
-// attribute value, so the serialized markup legitimately contains the text
-// " onerror=alert(1)" even when nothing was injected. Only the parsed DOM can
-// tell an attribute from a string that looks like one.
-function inlineHandlers(root) {
-  return [...root.querySelectorAll('*')]
-    .flatMap(el => el.getAttributeNames())
-    .filter(name => name.startsWith('on'));
 }
 
 // Render and return the sole .card element, whatever kind of card it is.

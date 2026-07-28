@@ -1,8 +1,8 @@
-import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { describe, it, expect, afterEach } from 'vitest';
+import { walk, inlineHandlers } from './dom-helpers.js';
 
 const CardEditorModal = globalThis.CardEditorModal;
+const CardContextMenu = globalThis.CardContextMenu;
 
 // Build a minimal editor whose backdrop has just the preview container,
 // so updateImagePreview can run without the full modal.
@@ -155,22 +155,232 @@ describe('CardEditorModal preview fallback', () => {
     });
 });
 
-describe('CardEditorModal.init — the preview fallback is actually wired', () => {
-    // makeEditor skips init(), so the tests above would still pass if init()
-    // never called _initPreviewFallback. Check the real call site.
-    it('calls _initPreviewFallback from init', () => {
-        const src = readFileSync(
-            resolve(import.meta.dirname, '..', 'src', 'card-editor.js'),
-            'utf-8',
-        );
-        expect(src).toContain('this._initPreviewFallback();');
+// ============================================================================
+// The real editor: built through the constructor and init(), nothing wired by
+// hand. Everything above uses makeEditor, which skips init() entirely, so it
+// would all still pass on an editor that never wired the fallback at all.
+//
+// The two things checked below - that init() wires the fallback, and that the
+// markup it builds carries no inline handler - used to be asserted by grepping
+// src/card-editor.js for a literal string (#699). Text matching proved a line
+// existed, not that it ran: gutting _initPreviewFallback into a no-op, or moving
+// the call somewhere it never executes, left the old test green. And the
+// inline-handler regex required a quote straight after the `=`, so
+// `onerror=${`alert(1)`}` inside a template literal slipped past it. Running the
+// code and reading parsed attribute names has neither problem.
+// ============================================================================
+
+// Mirrors how checklist-engine builds the editor: custom fields at every
+// position, categories and link targets, so the walk below covers the
+// config-driven markup rather than only the static template.
+const RICH_OPTIONS = {
+    cardTypes: [],
+    categories: [{ value: 'inserts', label: 'Inserts' }],
+    getLinkTargets: () => [{ value: 'checklist.html?id=x', label: 'Another checklist' }],
+    customFields: {
+        years: { label: 'Years Active', type: 'text', position: 'top' },
+        grade: {
+            label: 'Grade', type: 'select', position: 'after-num',
+            options: [{ value: 10, label: 'Ten' }],
+        },
+        auto: { label: 'Auto', type: 'checkbox', position: 'attributes' },
+        note: { label: 'Note', type: 'text', position: 'bottom' },
+    },
+};
+
+function makeRealEditor(options = RICH_OPTIONS) {
+    const editor = new CardEditorModal(options);
+    editor.init();
+    return editor;
+}
+
+// Typing into #editor-img is what drives the preview in the real editor, so go
+// through the input's own handler rather than calling updateImagePreview.
+//
+// The URLs typed below are repo-relative rather than R2 ones because the same
+// handler also calls updateImageActions, which compares against R2_IMAGE_BASE - a
+// top-level const in shared.js that the test setup evaluates into its own lexical
+// scope, so card-editor.js cannot see it here the way it can in the browser. A
+// path under imageFolder short-circuits that comparison. Same workaround as
+// tests/collection-link-editor.test.js; the preview treats both kinds of value
+// identically, so nothing under test turns on the choice.
+const IMG_URL = 'images/card.webp';
+
+// bubbles: true because a browser's input event bubbles. The wiring under test
+// reads it off the input's own oninput property, where bubbling makes no
+// difference - but a fixture that dispatched a non-bubbling input would model an
+// event the browser never produces, and would quietly stop exercising anything
+// the day this handler becomes delegated, the direction #690/#692/#706 moved the
+// other handlers.
+function typeImageUrl(editor, url) {
+    const input = editor.backdrop.querySelector('#editor-img');
+    input.value = url;
+    input.dispatchEvent(new window.Event('input', { bubbles: true }));
+    return editor.backdrop.querySelector('.card-editor-image-preview');
+}
+
+// error, unlike input, does NOT bubble when a real image fails to load: the HTML
+// spec fires it at the element non-bubbling and non-cancelable, which is exactly
+// why _initPreviewFallback listens on the container in the capture phase. So the
+// defaults are the faithful options here, and adding bubbles: true would be a
+// fidelity loss, not a fix - it would let the test pass against a listener that
+// had dropped `capture: true` and would therefore never fire in a browser.
+// Verified: flipping capture to false in src turns these tests red.
+function failImageLoad(preview) {
+    const img = preview.querySelector('img');
+    expect(img, 'no preview image to fail').not.toBeNull();
+    img.dispatchEvent(new window.Event('error'));
+    return img;
+}
+
+describe('CardEditorModal.init wires the preview fallback', () => {
+    afterEach(() => {
+        document.querySelectorAll('.card-editor-backdrop').forEach(el => el.remove());
     });
 
-    it('leaves no inline event handler anywhere in the editor markup', () => {
-        const src = readFileSync(
-            resolve(import.meta.dirname, '..', 'src', 'card-editor.js'),
-            'utf-8',
-        );
-        expect(src).not.toMatch(/\son(error|click|change|load)\s*=\s*["']/);
+    it('renders an image for a pasted URL', () => {
+        // Guards the two tests below: they would both pass on an editor whose
+        // preview never rendered an image to break in the first place.
+        const preview = typeImageUrl(makeRealEditor(), IMG_URL);
+
+        expect(preview.querySelectorAll('img')).toHaveLength(1);
+        expect(preview.querySelector('img').getAttribute('src')).toBe(IMG_URL);
+        expect(preview.querySelector('span.placeholder')).toBeNull();
+    });
+
+    it('replaces an image that fails to load with the placeholder', () => {
+        const editor = makeRealEditor();
+        const preview = typeImageUrl(editor, IMG_URL);
+
+        // jsdom runs the full capture path for a non-bubbling event, so this
+        // reaches the container listener exactly as a real failed load would.
+        failImageLoad(preview);
+
+        expect(preview.querySelectorAll('img')).toHaveLength(0);
+        expect(preview.querySelector('span.placeholder').textContent).toBe('Failed to load');
+    });
+
+    it('keeps working for an image rendered by a later preview update', () => {
+        // One listener bound in init() has to cover every preview the editor
+        // renders afterwards, since updateImagePreview rewrites the container's
+        // innerHTML rather than replacing the container.
+        const editor = makeRealEditor();
+        typeImageUrl(editor, 'images/one.webp');
+        typeImageUrl(editor, '');
+        const preview = typeImageUrl(editor, 'images/two.webp');
+
+        failImageLoad(preview);
+
+        expect(preview.querySelector('span.placeholder').textContent).toBe('Failed to load');
+    });
+});
+
+function parse(html) {
+    const host = document.createElement('div');
+    host.innerHTML = html;
+    return host;
+}
+
+describe('the inline-handler guard itself detects a handler', () => {
+    // Without these the walk below could report clean because the helper never
+    // flags anything.
+    it('flags a conventionally quoted handler', () => {
+        expect(inlineHandlers(parse('<button onclick="alert(1)">x</button>'))).toEqual(['onclick']);
+    });
+
+    it('flags a handler the old source-text regex missed', () => {
+        // What `<img src="x" onerror=${`alert(1)`}>` in a template literal
+        // produces: an unquoted attribute value. The old regex required a quote
+        // immediately after the `=`, so neither the source nor this markup
+        // matched it.
+        const html = '<img src="x" onerror=alert(1)>';
+
+        expect(html).not.toMatch(/\son(error|click|change|load)\s*=\s*["']/);
+        expect(inlineHandlers(parse(html))).toEqual(['onerror']);
+    });
+
+    it('ignores an attribute value that merely looks like a handler', () => {
+        // The #692 false positive: nothing is injected here, and a text match on
+        // the serialised markup would report a handler that does not exist.
+        const host = parse(`<img alt='x" onerror="alert(1)'>`);
+
+        expect(host.querySelector('img').getAttributeNames().sort()).toEqual(['alt']);
+        expect(inlineHandlers(host)).toEqual([]);
+    });
+
+    it('flags a handler on the root element it is handed', () => {
+        // querySelectorAll('*') skips the root, so without walk() including it a
+        // handler on the backdrop or the menu container - both elements the
+        // production code builds - would pass this guard silently.
+        const root = parse('<div onclick="alert(1)"><span>x</span></div>').firstElementChild;
+
+        expect(inlineHandlers(root)).toEqual(['onclick']);
+    });
+});
+
+describe('the editor markup carries no inline event handler', () => {
+    afterEach(() => {
+        document.querySelectorAll('.card-editor-backdrop, .card-context-menu')
+            .forEach(el => el.remove());
+    });
+
+    // The elements the walk has to have visited for a clean result to mean
+    // anything: the shell plus the regions at either end of it, one field per
+    // custom-field position, both config-driven selects, and the preview. Asserted
+    // as membership in the walked set rather than as a count of buttons or of
+    // elements - the question is "did we traverse the whole editor", and the
+    // answer to that does not change when the UI gains or loses a control.
+    const MUST_WALK = [
+        '.card-editor-modal',
+        '.card-editor-header',
+        '.card-editor-footer',
+        '#editor-set',
+        '#editor-years',
+        '#editor-grade',
+        '#editor-auto',
+        '#editor-note',
+        '#editor-category',
+        '#editor-collection-link',
+        '#editor-img',
+        '.card-editor-image-preview',
+    ];
+
+    function expectWalkCovers(root, selectors) {
+        const walked = new Set(walk(root));
+        expect(walked.size).toBeGreaterThan(0);
+        for (const selector of selectors) {
+            const el = root.querySelector(selector);
+            expect(el, `${selector} was not rendered`).not.toBeNull();
+            expect(walked.has(el), `${selector} was not visited by the walk`).toBe(true);
+        }
+    }
+
+    it('renders none anywhere in the modal init() builds', () => {
+        const editor = makeRealEditor();
+
+        expectWalkCovers(editor.backdrop, MUST_WALK);
+        expect(inlineHandlers(editor.backdrop)).toEqual([]);
+    });
+
+    it('renders none on the preview image, nor on the placeholder replacing it', () => {
+        const editor = makeRealEditor();
+        const preview = typeImageUrl(editor, IMG_URL);
+        expect(preview.querySelectorAll('img')).toHaveLength(1);
+        expect(inlineHandlers(editor.backdrop)).toEqual([]);
+
+        failImageLoad(preview);
+
+        expect(preview.querySelector('span.placeholder')).not.toBeNull();
+        expect(inlineHandlers(editor.backdrop)).toEqual([]);
+    });
+
+    it('renders none in the card context menu', () => {
+        // The other markup card-editor.js writes, and in scope for the old
+        // whole-file regex, so it stays in scope here.
+        const menu = new CardContextMenu(null);
+        menu.createMenu();
+
+        expect(menu.menu.querySelectorAll('.context-menu-item')).toHaveLength(3);
+        expect(inlineHandlers(menu.menu)).toEqual([]);
     });
 });
