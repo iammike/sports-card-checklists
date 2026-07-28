@@ -161,8 +161,7 @@ class ChecklistEngine {
             if (!confirm(`Delete "${title}"? This will permanently remove the checklist, all its cards, and stats. This cannot be undone.`)) return;
             const success = await githubSync.deleteChecklist(this.id);
             // Always clear nav cache so phantom entries disappear
-            DynamicNav._registry = null;
-            sessionStorage.removeItem(DynamicNav._sessionKey);
+            DynamicNav.clearCache();
             if (success) {
                 window.location.href = 'index.html';
             } else {
@@ -185,8 +184,7 @@ class ChecklistEngine {
                 this._renderFilters();
                 this._initCardEditor();
                 this.renderCards();
-                DynamicNav._registry = null;
-                sessionStorage.removeItem(DynamicNav._sessionKey);
+                DynamicNav.clearCache();
                 DynamicNav.init();
                 if (shapeMigrated) {
                     this.checklistManager.setSyncStatus('syncing', 'Migrating cards...');

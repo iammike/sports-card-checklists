@@ -124,6 +124,16 @@ const DynamicNav = {
         } catch (e) { /* ignore */ }
     },
 
+    // Drop both cache layers so the next read refetches from the gist. Callers on
+    // destructive paths need both: loadRegistry() returns _registry before it ever
+    // looks at sessionStorage, and the sessionStorage copy outlives a page load.
+    clearCache() {
+        this._registry = null;
+        try {
+            sessionStorage.removeItem(this._getSessionKey());
+        } catch (e) { /* ignore */ }
+    },
+
     // Load registry (from cache or gist)
     async loadRegistry() {
         if (this._registry) return this._registry;

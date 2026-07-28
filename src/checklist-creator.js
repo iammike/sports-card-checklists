@@ -1064,8 +1064,7 @@ class ChecklistCreatorModal {
                             await githubSync.saveRegistry(registry);
                         }
                     }
-                    DynamicNav._registry = null;
-                    sessionStorage.removeItem(DynamicNav._getSessionKey());
+                    DynamicNav.clearCache();
                 } catch (regError) {
                     console.warn('Config saved but registry update failed:', regError);
                 }
@@ -1102,8 +1101,7 @@ class ChecklistCreatorModal {
                 if (!success) throw new Error('Failed to create checklist');
 
                 // Clear nav cache
-                DynamicNav._registry = null;
-                sessionStorage.removeItem(DynamicNav._getSessionKey());
+                DynamicNav.clearCache();
             }
 
             this.isDirty = false;
