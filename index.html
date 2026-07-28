@@ -360,6 +360,25 @@
             color: #f39c12;
             margin-bottom: 16px;
             text-align: center;
+            position: relative;
+        }
+        /* Fully collected - mirrors .checklist-card.complete one level up */
+        .aggregate-stats.complete {
+            border-color: rgba(241,196,15,0.45);
+        }
+        .aggregate-complete-check {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.4em;
+            line-height: 1;
+            letter-spacing: normal;
+            color: #f1c40f;
+        }
+        .aggregate-stats.complete .aggregate-complete-check {
+            display: block;
         }
         .aggregate-stats-grid {
             display: grid;
@@ -511,7 +530,7 @@
         </div>
 
         <div class="aggregate-stats" id="aggregate-stats" style="display: none;">
-            <div class="aggregate-stats-label">Collection Totals</div>
+            <div class="aggregate-stats-label">Collection Totals<span class="aggregate-complete-check" title="Collection complete">&#10003;</span></div>
             <div class="aggregate-stats-grid">
                 <div class="aggregate-stat">
                     <div class="aggregate-stat-value" id="agg-owned">0</div>
@@ -605,6 +624,14 @@
             const statsEl = document.getElementById('aggregate-stats');
             statsEl.style.display = 'block';
 
+            // A finished collection suppresses the "to complete" line rather than
+            // reading "$0 to complete", the same way a completed checklist card
+            // drops its own needed-value line.
+            const isComplete = totalCards > 0 && totalOwned >= totalCards;
+            const neededEl = document.getElementById('agg-needed-value');
+            statsEl.classList.toggle('complete', isComplete);
+            neededEl.style.display = isComplete ? 'none' : '';
+
             if (!hasAnimatedStats) {
                 hasAnimatedStats = true;
                 // Animate the main stats with staggered delays
@@ -617,15 +644,19 @@
                 setTimeout(() => {
                     animateValue(document.getElementById('agg-value'), 0, totalOwnedValue, 1400, '$');
                 }, 500);
-                setTimeout(() => {
-                    animateValue(document.getElementById('agg-needed-value'), 0, totalNeededValue, 1000, '$', ' to complete');
-                }, 650);
+                if (!isComplete) {
+                    setTimeout(() => {
+                        animateValue(neededEl, 0, totalNeededValue, 1000, '$', ' to complete');
+                    }, 650);
+                }
             } else {
                 // Just update without animation (e.g., when data changes)
                 document.getElementById('agg-owned').textContent = totalOwned;
                 document.getElementById('agg-total').textContent = totalCards;
                 document.getElementById('agg-value').textContent = '$' + totalOwnedValue;
-                document.getElementById('agg-needed-value').textContent = '$' + totalNeededValue + ' to complete';
+                if (!isComplete) {
+                    neededEl.textContent = '$' + totalNeededValue + ' to complete';
+                }
             }
         }
 
