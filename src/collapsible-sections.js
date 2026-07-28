@@ -9,7 +9,7 @@ const CollapsibleSections = {
         // Find all section and group headers
         const headers = document.querySelectorAll('.section-header, .group-header');
 
-        headers.forEach(header => {
+        headers.forEach((header, index) => {
             // Skip if already initialized or explicitly marked non-collapsible
             if (header.dataset.collapsible || header.dataset.noCollapse) return;
 
@@ -18,7 +18,7 @@ const CollapsibleSections = {
 
             // Find the associated content and wrap it for animation
             const section = header.closest('.section, [class*="-section"]');
-            const sectionId = header.textContent.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+            const sectionId = this.sectionKey(header, index);
             const wrapper = this.wrapContent(header, section);
 
             // Restore collapsed state from localStorage (instant, no animation on load)
@@ -61,6 +61,28 @@ const CollapsibleSections = {
                 }
             });
         });
+    },
+
+    // The key persisted collapse state is stored under. It has to survive a
+    // re-render: keying on the header's whole textContent picked up the progress
+    // badge, so marking a card owned changed the key and the section silently
+    // reverted to its default state (#716).
+    sectionKey(header, index) {
+        const categoryClass = Array.from(header.classList).find(c => c.startsWith('cat-'));
+        if (categoryClass) return categoryClass;
+
+        // No category class (the single "All Cards" header a sorted view
+        // renders). Fall back to the header's own text nodes, which leaves out
+        // the badge and anything else nested inside it.
+        const label = Array.from(header.childNodes)
+            .filter(node => node.nodeType === Node.TEXT_NODE)
+            .map(node => node.textContent)
+            .join(' ')
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+        return label || `section-${index}`;
     },
 
     wrapContent(header, section) {

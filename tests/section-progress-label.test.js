@@ -57,8 +57,9 @@ describe('section progress badge — accessible name', () => {
     });
 
     it('keeps the label out of the section title text', () => {
-        // CollapsibleSections keys its persisted collapse state on the header's
-        // textContent, so the name has to stay in an attribute.
+        // The name has to stay in an attribute: a header's visible title is
+        // what CollapsibleSections falls back to for its persisted collapse key
+        // when a section carries no category class (#716).
         const badge = renderBadge(CARDS, ['a']);
 
         expect(badge.parentElement.textContent).toBe('Rookies1/3');
