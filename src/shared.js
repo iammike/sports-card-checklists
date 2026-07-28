@@ -20,22 +20,43 @@ function normalizeQuotes(text) {
         .replace(/[\u201C\u201D\u201E]/g, '"');   // smart double quotes
 }
 
-// Build a stable, human-traceable id for a no-card entry: an "nc" prefix plus
-// the alphanumerics of the entry's name (falling back to a generic label when
-// there's no name to draw from), with a numeric suffix added only to break a
-// collision with an id already in use. Deterministic and idempotent - the same
-// source and taken set always produce the same id, so a re-derived id (e.g. on
-// page reload, before the first save persists it) matches what was there
-// before. Shared by the editor (on save) and the engine (backfilling entries
-// added by hand-editing the gist).
-function buildNoCardId(source, takenIds) {
+// Build a stable, human-traceable id for an entry with nothing to hash: a short
+// kind prefix plus the alphanumerics of the entry's name (falling back to a
+// generic label when there's no name to draw from), with a numeric suffix added
+// only to break a collision with an id already in use. Deterministic and
+// idempotent - the same prefix, source and taken set always produce the same id,
+// so a re-derived id (e.g. on page reload, before the first save persists it)
+// matches what was there before. Shared by the editor (on save) and the engine
+// (backfilling entries added by hand-editing the gist).
+function buildSyntheticCardId(prefix, source, takenIds) {
     const cleaned = String(source || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 40);
-    const base = 'nc' + (cleaned || 'Entry');
+    const base = prefix + (cleaned || 'Entry');
 
     const taken = new Set(takenIds || []);
     let id = base;
     for (let n = 2; taken.has(id); n++) id = base + n;
     return id;
+}
+
+// A no-card entry has no set, num or variant to hash, so it gets an "nc" id.
+function buildNoCardId(source, takenIds) {
+    return buildSyntheticCardId('nc', source, takenIds);
+}
+
+// A collection link card has none of those either - it stands in for another
+// checklist rather than describing a card - so it gets a "cl" id for the same
+// reason. Without one, every collection link card in a checklist hashes to the
+// same empty string and edit/delete act on whichever one comes first.
+function buildCollectionLinkId(source, takenIds) {
+    return buildSyntheticCardId('cl', source, takenIds);
+}
+
+// The checklist id a collection link points at: 'checklist.html?id=x' -> 'x'.
+// The link is stored as a URL, so every consumer (linked stats, the badge, the
+// derived owned state, the editor's dropdown) has to pull the id back out of it.
+function collectionLinkTargetId(link) {
+    const match = typeof link === 'string' ? link.match(/[?&]id=([^&]+)/) : null;
+    return match ? match[1] : null;
 }
 
 // Whether an explicit card.id may be honored. Card ids are interpolated into HTML

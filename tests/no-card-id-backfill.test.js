@@ -17,14 +17,14 @@ const flatConfig = {
   customFields: { player: { label: 'Player', position: 'top' } },
 };
 
-describe('_backfillNoCardIds — flat data', () => {
+describe('_backfillSyntheticIds — flat data', () => {
   it('gives two id-less no-card entries distinct ids', () => {
     const engine = makeEngine(flatConfig, [
       { player: 'Ariel Hukporti', noCard: true },
       { player: 'Robert Baker', noCard: true },
     ]);
 
-    engine._backfillNoCardIds();
+    engine._backfillSyntheticIds();
 
     const [first, second] = engine.cards;
     // Exact match, not a pattern: item A made this id deterministic, so a
@@ -39,7 +39,7 @@ describe('_backfillNoCardIds — flat data', () => {
       { player: 'Ariel Hukporti', noCard: true },
     ]);
 
-    engine._backfillNoCardIds();
+    engine._backfillSyntheticIds();
 
     expect(engine.cards.map(c => c.id)).toEqual([
       'ncArielHukporti',
@@ -54,7 +54,7 @@ describe('_backfillNoCardIds — flat data', () => {
       { player: 'Ariel Hukporti', noCard: true },
     ]);
 
-    engine._backfillNoCardIds();
+    engine._backfillSyntheticIds();
 
     expect(engine.cards.map(c => c.id)).toEqual([
       'ncArielHukporti',
@@ -67,10 +67,10 @@ describe('_backfillNoCardIds — flat data', () => {
     const makeCards = () => [{ player: 'Ariel Hukporti', noCard: true }];
 
     const first = makeEngine(flatConfig, makeCards());
-    first._backfillNoCardIds();
+    first._backfillSyntheticIds();
 
     const second = makeEngine(flatConfig, makeCards());
-    second._backfillNoCardIds();
+    second._backfillSyntheticIds();
 
     expect(first.cards[0].id).toBe(second.cards[0].id);
   });
@@ -81,7 +81,7 @@ describe('_backfillNoCardIds — flat data', () => {
       { noCard: true },
     ]);
 
-    engine._backfillNoCardIds();
+    engine._backfillSyntheticIds();
 
     // Confirms the fallback base ('ncEntry') is never empty - an empty base
     // would put the entire uniqueness burden on the collision counter.
@@ -94,7 +94,7 @@ describe('_backfillNoCardIds — flat data', () => {
       { player: 'Ariel Hukporti', noCard: true },
     ]);
 
-    engine._backfillNoCardIds();
+    engine._backfillSyntheticIds();
 
     expect(engine.cards[1].id).not.toBe('ncArielHukporti1');
   });
@@ -105,7 +105,7 @@ describe('_backfillNoCardIds — flat data', () => {
       { player: 'Real Card', set: 'Prizm', num: '12' },
     ]);
 
-    engine._backfillNoCardIds();
+    engine._backfillSyntheticIds();
 
     expect(engine.cards[0].id).toBe('ncKept');
     expect('id' in engine.cards[1]).toBe(false);
@@ -116,7 +116,7 @@ describe('_backfillNoCardIds — flat data', () => {
       { player: 'Ariel Hukporti', noCard: true },
       { player: 'Robert Baker', noCard: true },
     ]);
-    engine._backfillNoCardIds();
+    engine._backfillSyntheticIds();
 
     const secondId = engine.cards[1].id;
     const found = engine._findCardWithLocation(secondId);
@@ -131,7 +131,7 @@ describe('_backfillNoCardIds — flat data', () => {
       { player: 'Ariel Hukporti', noCard: true },
       { player: 'Robert Baker', noCard: true },
     ]);
-    engine._backfillNoCardIds();
+    engine._backfillSyntheticIds();
 
     engine._removeCard(engine.cards[1].id);
 
@@ -139,7 +139,7 @@ describe('_backfillNoCardIds — flat data', () => {
   });
 });
 
-describe('_backfillNoCardIds — category data', () => {
+describe('_backfillSyntheticIds — category data', () => {
   const config = {
     dataShape: 'categories',
     categories: [{ id: 'main', label: 'Main' }],
@@ -152,7 +152,7 @@ describe('_backfillNoCardIds — category data', () => {
       extra: [{ player: 'Robert Baker', noCard: true }],
     });
 
-    engine._backfillNoCardIds();
+    engine._backfillSyntheticIds();
 
     expect(engine.cards.main[0].id).toBe('ncArielHukporti');
     expect(engine.cards.extra[0].id).toBe('ncRobertBaker');
@@ -165,7 +165,7 @@ describe('_backfillNoCardIds — category data', () => {
         { player: 'Robert Baker', noCard: true },
       ],
     });
-    engine._backfillNoCardIds();
+    engine._backfillSyntheticIds();
 
     engine._removeCard(engine.cards.main[1].id);
 
