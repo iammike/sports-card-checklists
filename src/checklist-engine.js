@@ -1356,6 +1356,13 @@ class ChecklistEngine {
         });
     }
 
+    // Normalize one side of a custom-filter comparison. Everything present
+    // compares as a string; a missing field keeps the null sentinel so it can
+    // never collide with an option value.
+    static _filterKey(value) {
+        return value == null ? null : String(value);
+    }
+
     _filterCard(card, statusFilter, searchTerm, customFilterValues) {
         // Status filter
         if (statusFilter !== 'all') {
@@ -1381,11 +1388,17 @@ class ChecklistEngine {
             const filterDef = (this.config.customFilters || []).find(f => f.id === filterId);
             if (!filterDef) continue;
             const cardField = filterDef.cardField || filterId;
-            const cardValue = card[cardField];
+            // filterValue always arrives as a string (it is a <select> element's
+            // value), so a card field stored as a number or boolean would never
+            // match its own option under ===. Compare the string forms instead.
+            // A missing field stays the null sentinel rather than becoming
+            // "null"/"undefined", so it never matches a real option value.
+            const cardValue = ChecklistEngine._filterKey(card[cardField]);
 
             // Multi-value match (e.g., sport filter matching "football" to both "nfl" and "usfl")
             if (filterDef.multiMatch && filterDef.multiMatch[filterValue]) {
-                if (!filterDef.multiMatch[filterValue].includes(cardValue)) return false;
+                const allowed = filterDef.multiMatch[filterValue].map(v => ChecklistEngine._filterKey(v));
+                if (!allowed.includes(cardValue)) return false;
             } else {
                 if (cardValue !== filterValue) return false;
             }
