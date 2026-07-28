@@ -1707,6 +1707,24 @@ select, input[type="text"] {
     grid-column: 1 / -1;
 }
 
+/* A label with an action opposite it - the Stack Images suggest button */
+.card-editor-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.card-editor-label-row .card-editor-toggle-btn {
+    padding: 0;
+    font-size: 11px;
+}
+
+.card-editor-label-row .card-editor-toggle-btn:disabled {
+    color: #888;
+    cursor: default;
+}
+
 .card-editor-advanced-toggle {
     display: flex;
     align-items: flex-end;
