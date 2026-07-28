@@ -1235,6 +1235,16 @@ select, input[type="text"] {
     position: relative;
 }
 
+/* Headers sit on per-category gradients that range from near-black to pale, so
+   the focus ring is two-tone: a white gap against dark headers, a dark ring
+   against the page behind them. */
+.section-header.collapsible:focus-visible,
+.group-header.collapsible:focus-visible {
+    outline: 3px solid #1a1a2e;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 2px #fff;
+}
+
 /* Disclosure triangle - use ::before since ::after is used for accent bar */
 .section-header.collapsible::before,
 .group-header.collapsible::before {
@@ -1277,6 +1287,17 @@ select, input[type="text"] {
 
 .collapsible-content.collapsed {
     grid-template-rows: 0fr;
+}
+
+/* Clipped content keeps its place in the tab order, so a keyboard user tabbing
+   past a collapsed section would walk every card in it. Take it out of the tab
+   order once the slide has finished - the delay is what keeps the animation
+   visible; expanding restores it immediately.
+   The 0.25s delay has to match the grid-template-rows duration on
+   .collapsible-content above: shorten it and content vanishes mid-slide. */
+.collapsible-content.collapsed > * {
+    visibility: hidden;
+    transition: visibility 0s 0.25s;
 }
 
 /* ============================================

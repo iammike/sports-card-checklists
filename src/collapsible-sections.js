@@ -1,5 +1,6 @@
 /**
- * Collapsible Sections - Makes section headers clickable to expand/collapse
+ * Collapsible Sections - Turns section headers into buttons that expand/collapse
+ * their content, by mouse or keyboard
  * Usage: CollapsibleSections.init() or CollapsibleSections.init({ persist: true, storageKey: 'myPage' })
  */
 const CollapsibleSections = {
@@ -9,7 +10,7 @@ const CollapsibleSections = {
         // Find all section and group headers
         const headers = document.querySelectorAll('.section-header, .group-header');
 
-        headers.forEach(header => {
+        headers.forEach((header, index) => {
             // Skip if already initialized or explicitly marked non-collapsible
             if (header.dataset.collapsible || header.dataset.noCollapse) return;
 
@@ -18,7 +19,7 @@ const CollapsibleSections = {
 
             // Find the associated content and wrap it for animation
             const section = header.closest('.section, [class*="-section"]');
-            const sectionId = header.textContent.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+            const sectionId = this.sectionKey(header, index);
             const wrapper = this.wrapContent(header, section);
 
             // Restore collapsed state from localStorage (instant, no animation on load)
@@ -28,23 +29,47 @@ const CollapsibleSections = {
                     header.classList.add('collapsed');
                     if (section) section.classList.remove('expanded');
                     if (wrapper) {
+                        // Suppress the slide and the delayed visibility flip that
+                        // takes restored content out of the tab order. The delay
+                        // is timed to a slide that is not running here, and a
+                        // section restored collapsed must not be focusable even
+                        // briefly. Both are cleared on the next frame so the next
+                        // toggle animates normally.
+                        const inner = wrapper.firstElementChild;
                         wrapper.style.transition = 'none';
+                        if (inner) inner.style.transition = 'none';
                         wrapper.classList.add('collapsed');
                         // Re-enable transition after layout
                         requestAnimationFrame(() => {
                             wrapper.style.transition = '';
+                            if (inner) inner.style.transition = '';
                         });
                     }
                 }
             }
 
+            // A div with a click handler is unreachable by keyboard and reads as
+            // plain text to a screen reader. The markup comes from the caller, so
+            // the tag is not ours to change - give it button semantics instead.
+            // aria-expanded is set from the state restored above, not from the
+            // default, so it is right before anyone clicks anything.
+            header.setAttribute('role', 'button');
+            header.setAttribute('tabindex', '0');
+            header.setAttribute('aria-expanded', String(!header.classList.contains('collapsed')));
+            const label = this.headerLabel(header);
+            if (label) header.setAttribute('aria-label', label);
+            if (wrapper) {
+                wrapper.id = wrapper.id || this.uniqueId(`collapsible-${sectionId}`);
+                header.setAttribute('aria-controls', wrapper.id);
+            }
+
             // Mark as initialized to prevent duplicate listeners on re-init
             header.dataset.collapsible = 'true';
 
-            // Add click handler
-            header.addEventListener('click', () => {
+            const toggle = () => {
                 const isCollapsing = !header.classList.contains('collapsed');
                 header.classList.toggle('collapsed');
+                header.setAttribute('aria-expanded', String(!isCollapsing));
 
                 if (section) {
                     section.classList.toggle('expanded', !isCollapsing);
@@ -59,8 +84,70 @@ const CollapsibleSections = {
                 if (persist) {
                     this.saveCollapsedState(storageKey, sectionId, isCollapsing);
                 }
+            };
+
+            header.addEventListener('click', toggle);
+
+            // A real button would do this for free; role="button" does not, and
+            // Space scrolls the page unless the default is cancelled.
+            header.addEventListener('keydown', e => {
+                if (e.key !== 'Enter' && e.key !== ' ') return;
+                e.preventDefault();
+                toggle();
             });
         });
+    },
+
+    // Ids have to be unique for aria-controls to resolve, and a category id can
+    // contain anything the config author typed.
+    uniqueId(base) {
+        const safe = base.replace(/[^A-Za-z0-9_-]+/g, '-');
+        let id = safe;
+        let n = 2;
+        while (document.getElementById(id)) id = `${safe}-${n++}`;
+        return id;
+    },
+
+    // The header's own text, without the progress badge or anything else nested
+    // inside it. Both the storage key and the accessible name start here.
+    headerText(header) {
+        return Array.from(header.childNodes)
+            .filter(node => node.nodeType === Node.TEXT_NODE)
+            .map(node => node.textContent)
+            .join(' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    },
+
+    // The name a screen reader announces. Left to the browser it would include
+    // the ::before disclosure glyph ("black down-pointing triangle, Base Set"),
+    // and a button is a leaf in the accessibility tree - the badge inside it is
+    // not announced separately - so its own name has to be folded in here or it
+    // is lost. Verified in Chrome's accessibility tree, both ways.
+    headerLabel(header) {
+        const parts = [this.headerText(header)];
+        Array.from(header.children).forEach(child => {
+            parts.push((child.getAttribute('aria-label') || child.textContent || '').trim());
+        });
+        return parts.filter(Boolean).join(', ');
+    },
+
+    // The key persisted collapse state is stored under. It has to survive a
+    // re-render: keying on the header's whole textContent picked up the progress
+    // badge, so marking a card owned changed the key and the section silently
+    // reverted to its default state (#716).
+    sectionKey(header, index) {
+        const categoryClass = Array.from(header.classList).find(c => c.startsWith('cat-'));
+        if (categoryClass) return categoryClass;
+
+        // No category class (the single "All Cards" header a sorted view
+        // renders). The header's own text is stable where its textContent was
+        // not - the badge is what changes.
+        const slug = this.headerText(header)
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+        return slug || `section-${index}`;
     },
 
     wrapContent(header, section) {
