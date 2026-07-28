@@ -178,7 +178,6 @@ class ChecklistEngine {
                 this._renderFilters();
                 this._initCardEditor();
                 this.renderCards();
-                this.updateStats();
                 DynamicNav._registry = null;
                 sessionStorage.removeItem(DynamicNav._sessionKey);
                 DynamicNav.init();
@@ -1878,7 +1877,6 @@ class ChecklistEngine {
                     this._updateCard(cardId, cardData);
                 }
                 this.renderCards();
-                this.updateStats();
                 // Scroll to the card (find by matching card ID in rendered cards)
                 const cardIdx = this._renderedCards.findIndex(c => c && this.getCardId(c) === newId);
                 if (cardIdx !== -1) {
@@ -1894,7 +1892,6 @@ class ChecklistEngine {
             onDelete: async (cardId) => {
                 this._removeCard(cardId);
                 this.renderCards();
-                this.updateStats();
                 this.checklistManager.setSyncStatus('syncing', 'Saving...');
                 await this._saveCardData();
             },
