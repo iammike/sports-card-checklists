@@ -1,5 +1,6 @@
 /**
- * Collapsible Sections - Makes section headers clickable to expand/collapse
+ * Collapsible Sections - Turns section headers into buttons that expand/collapse
+ * their content, by mouse or keyboard
  * Usage: CollapsibleSections.init() or CollapsibleSections.init({ persist: true, storageKey: 'myPage' })
  */
 const CollapsibleSections = {
@@ -38,13 +39,26 @@ const CollapsibleSections = {
                 }
             }
 
+            // A div with a click handler is unreachable by keyboard and reads as
+            // plain text to a screen reader. The markup comes from the caller, so
+            // the tag is not ours to change - give it button semantics instead.
+            // aria-expanded is set from the state restored above, not from the
+            // default, so it is right before anyone clicks anything.
+            header.setAttribute('role', 'button');
+            header.setAttribute('tabindex', '0');
+            header.setAttribute('aria-expanded', String(!header.classList.contains('collapsed')));
+            if (wrapper) {
+                wrapper.id = wrapper.id || this.uniqueId(`collapsible-${sectionId}`);
+                header.setAttribute('aria-controls', wrapper.id);
+            }
+
             // Mark as initialized to prevent duplicate listeners on re-init
             header.dataset.collapsible = 'true';
 
-            // Add click handler
-            header.addEventListener('click', () => {
+            const toggle = () => {
                 const isCollapsing = !header.classList.contains('collapsed');
                 header.classList.toggle('collapsed');
+                header.setAttribute('aria-expanded', String(!isCollapsing));
 
                 if (section) {
                     section.classList.toggle('expanded', !isCollapsing);
@@ -59,8 +73,28 @@ const CollapsibleSections = {
                 if (persist) {
                     this.saveCollapsedState(storageKey, sectionId, isCollapsing);
                 }
+            };
+
+            header.addEventListener('click', toggle);
+
+            // A real button would do this for free; role="button" does not, and
+            // Space scrolls the page unless the default is cancelled.
+            header.addEventListener('keydown', e => {
+                if (e.key !== 'Enter' && e.key !== ' ') return;
+                e.preventDefault();
+                toggle();
             });
         });
+    },
+
+    // Ids have to be unique for aria-controls to resolve, and a category id can
+    // contain anything the config author typed.
+    uniqueId(base) {
+        const safe = base.replace(/[^A-Za-z0-9_-]+/g, '-');
+        let id = safe;
+        let n = 2;
+        while (document.getElementById(id)) id = `${safe}-${n++}`;
+        return id;
     },
 
     // The key persisted collapse state is stored under. It has to survive a

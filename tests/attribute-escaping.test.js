@@ -749,10 +749,15 @@ describe('section markup built from config category ids', () => {
     expect(inlineHandlers(container())).toEqual([]);
     expect(container().querySelector('.section').id).toBe(`${HOSTILE}-section`);
     expect(container().querySelector('.card-grid').id).toBe(`${HOSTILE}-cards`);
-    // data-collapsible is added by CollapsibleSections.init(), which renderCards
-    // runs at the end; nothing else may appear.
-    expect(container().querySelector('.section-header').getAttributeNames().sort())
-      .toEqual(['class', 'data-collapsible']);
+    // Everything but class is added by CollapsibleSections.init(), which
+    // renderCards runs at the end; nothing else may appear.
+    const header = container().querySelector('.section-header');
+    expect(header.getAttributeNames().sort())
+      .toEqual(['aria-controls', 'aria-expanded', 'class', 'data-collapsible', 'role', 'tabindex']);
+    // The hostile id reaches the generated region id through the category
+    // class, so the reference still has to resolve to the region it names.
+    expect(document.getElementById(header.getAttribute('aria-controls')))
+      .toBe(container().querySelector('.collapsible-content'));
   });
 });
 

@@ -127,6 +127,101 @@ describe('collapse state survives a change to the section\'s owned count', () =>
     });
 });
 
+// A section header was a plain div with a click handler: no way to reach it
+// with a keyboard, and nothing telling a screen reader it was a control or
+// which state it was in (#715). jsdom can confirm the attributes and that the
+// key handlers fire; it cannot confirm focus lands anywhere or that the ring is
+// visible, which is why this was also walked through in a browser.
+describe('section headers are operable without a mouse', () => {
+    function press(el, key) {
+        const event = new window.KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+        el.dispatchEvent(event);
+        return event;
+    }
+
+    it('exposes the header as a focusable button', () => {
+        renderChecklist();
+
+        expect(header('base').getAttribute('role')).toBe('button');
+        expect(header('base').getAttribute('tabindex')).toBe('0');
+    });
+
+    it('toggles on Enter', () => {
+        renderChecklist();
+
+        press(header('base'), 'Enter');
+        expect(header('base').classList.contains('collapsed')).toBe(true);
+
+        press(header('base'), 'Enter');
+        expect(header('base').classList.contains('collapsed')).toBe(false);
+    });
+
+    it('toggles on Space without letting the page scroll', () => {
+        renderChecklist();
+
+        const event = press(header('base'), ' ');
+
+        expect(header('base').classList.contains('collapsed')).toBe(true);
+        expect(event.defaultPrevented).toBe(true);
+    });
+
+    it('leaves other keys alone', () => {
+        renderChecklist();
+
+        const event = press(header('base'), 'a');
+
+        expect(header('base').classList.contains('collapsed')).toBe(false);
+        expect(event.defaultPrevented).toBe(false);
+    });
+
+    it('reports the expanded state and keeps it in step with the toggle', () => {
+        renderChecklist();
+        expect(header('base').getAttribute('aria-expanded')).toBe('true');
+
+        header('base').click();
+        expect(header('base').getAttribute('aria-expanded')).toBe('false');
+
+        press(header('base'), 'Enter');
+        expect(header('base').getAttribute('aria-expanded')).toBe('true');
+    });
+
+    it('reports the restored state on first render, before anything is clicked', () => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(['cat-base']));
+        renderChecklist();
+
+        expect(header('base').getAttribute('aria-expanded')).toBe('false');
+        expect(header('inserts').getAttribute('aria-expanded')).toBe('true');
+    });
+
+    it('points aria-controls at the region it collapses', () => {
+        renderChecklist();
+
+        const region = document.getElementById(header('base').getAttribute('aria-controls'));
+        expect(region).not.toBeNull();
+        expect(region.classList.contains('collapsible-content')).toBe(true);
+        expect(region.querySelectorAll('.card')).toHaveLength(CARDS.base.length);
+
+        header('base').click();
+        expect(region.classList.contains('collapsed')).toBe(true);
+    });
+
+    it('gives each header its own region id', () => {
+        renderChecklist();
+
+        const ids = [...container().querySelectorAll('[aria-controls]')]
+            .map(el => el.getAttribute('aria-controls'));
+        expect(ids).toHaveLength(2);
+        expect(new Set(ids).size).toBe(2);
+    });
+
+    it('does not put the state into the header text, where the card filter reads', () => {
+        renderChecklist();
+        header('base').click();
+
+        expect(header('base').textContent).toBe('Base Set0/2');
+    });
+});
+
 describe('sectionKey - headers with no category class', () => {
     // The sorted view renders every card under one "All Cards" header carrying
     // no cat- class, so the fallback is a live path, not a defensive one.
