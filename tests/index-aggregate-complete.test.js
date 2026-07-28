@@ -134,6 +134,18 @@ describe('index.html aggregate stats — animated first render', () => {
         expect(check.textContent).toBe('✓');
     });
 
+    it('gives the checkmark an accessible name, since the glyph carries meaning', () => {
+        // A bare ✓ announces as nothing useful, so it needs a name and a role
+        // saying it stands for something. The display:none rule keeps it out of
+        // the accessibility tree until the collection really is complete
+        // (verified in Chrome - jsdom builds no accessibility tree to assert on).
+        update({ a: { owned: 400, total: 400, ownedValue: 9000, neededValue: 0 } });
+
+        const check = bar().querySelector('.aggregate-complete-check');
+        expect(check.getAttribute('role')).toBe('img');
+        expect(check.getAttribute('aria-label')).toBe('Collection complete');
+    });
+
     it('uses the de-duplicated owned count when deciding completeness', () => {
         // The summed stats look short, but the live figure says everything is owned.
         update(
