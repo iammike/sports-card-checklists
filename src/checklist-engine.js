@@ -1841,16 +1841,11 @@ class ChecklistEngine {
             cardTypes: [],
             isOwned: (cardId) => this.checklistManager.isOwned(cardId),
             getExistingIds: () => this._getAllCardsFlat().map(c => this.getCardId(c)),
+            // Same story as setOwned: toggleOwned synchronously calls the
+            // manager's onOwnedChange, which re-renders the cards from stored
+            // state and updates the stats. Nothing to do here but delegate.
             onOwnedChange: (cardData, nowOwned) => {
-                const id = this.getCardId(cardData);
-                this.checklistManager.toggleOwned(id, nowOwned);
-                const cardEl = document.querySelector(`.card[data-id="${id}"]`);
-                if (cardEl) {
-                    cardEl.classList.toggle('owned', nowOwned);
-                    const checkbox = cardEl.querySelector(`input[type="checkbox"]`);
-                    if (checkbox) checkbox.checked = nowOwned;
-                }
-                this.updateStats();
+                this.checklistManager.toggleOwned(this.getCardId(cardData), nowOwned);
             },
             onSave: async (cardId, cardData, isNew) => {
                 const newId = this.getCardId(cardData);
