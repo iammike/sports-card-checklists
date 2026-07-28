@@ -211,7 +211,7 @@ const ShoppingList = {
         }
 
         // Force fresh load (page-load cache may be stale)
-        githubSync._cachedData = null;
+        githubSync.clearDataCache();
         const data = await githubSync.loadData() || await githubSync.loadPublicData();
         const ownedByChecklist = data?.checklists || {};
 

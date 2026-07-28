@@ -272,6 +272,7 @@ describe('the marker survives a failed merge', () => {
     // fails, the field is already off the card, the next edit has nothing to
     // record, and the following merge hands the gist's old value back.
     globalThis.githubSync = {
+      clearGistCache: () => {},
       loadCardData: async () => null,
       loadPublicCardData: async () => null,
     };
@@ -388,6 +389,7 @@ describe('the cleared-keys marker never reaches the gist', () => {
 
   it('is not serialized when the fresh-data fetch returns nothing', async () => {
     globalThis.githubSync = {
+      clearGistCache: () => {},
       loadCardData: async () => null,
       loadPublicCardData: async () => null,
     };
@@ -402,6 +404,7 @@ describe('the cleared-keys marker never reaches the gist', () => {
 
   it('is not serialized when the fresh-data fetch throws', async () => {
     globalThis.githubSync = {
+      clearGistCache: () => {},
       loadCardData: async () => { throw new Error('network'); },
       loadPublicCardData: async () => null,
     };
@@ -416,6 +419,7 @@ describe('the cleared-keys marker never reaches the gist', () => {
 
   it('is not serialized for a category the fresh copy does not have', async () => {
     globalThis.githubSync = {
+      clearGistCache: () => {},
       loadCardData: async () => ({ categories: {} }),
       loadPublicCardData: async () => null,
     };

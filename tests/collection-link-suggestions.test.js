@@ -461,8 +461,9 @@ describe('what the linked checklist reports about itself', () => {
   it('reports nothing at all when the sync module was never loaded', async () => {
     // Not hypothetical: every githubSync call in _loadLinkSuggestions is a bare
     // reference, so without a guard this is a ReferenceError rather than a quiet
-    // undefined. The test environment is the one place the module really is absent
-    // - setup.js does not load github-sync.js - so this exercises it for real.
+    // undefined. setup.js does load github-sync.js (#719), so the delete below is
+    // what makes the module genuinely absent - the assertion after it is the proof,
+    // and nothing here is stubbed to merely look absent.
     delete window.githubSync;
     expect(typeof globalThis.githubSync).toBe('undefined');
 

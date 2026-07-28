@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 const ShoppingList = globalThis.ShoppingList;
 
@@ -116,5 +116,57 @@ describe('ShoppingList.generateCardId', () => {
         const withPlayer = ShoppingList.generateCardId(card, config);
         const withoutPlayer = ShoppingList.generateCardId(card, {});
         expect(withPlayer).not.toBe(withoutPlayer);
+    });
+});
+
+describe('ShoppingList.generate', () => {
+    let realSync;
+    let realLoadRegistry;
+    let realLoadJsPDF;
+    let realBuildPDF;
+
+    beforeEach(() => {
+        realSync = window.githubSync;
+        realLoadRegistry = DynamicNav.loadRegistry;
+        realLoadJsPDF = ShoppingList.loadJsPDF;
+        realBuildPDF = ShoppingList.buildPDF;
+
+        DynamicNav.loadRegistry = async () => ({ checklists: [{ id: 'jayden-daniels' }] });
+        ShoppingList.loadJsPDF = async () => {};
+        ShoppingList.buildPDF = vi.fn();
+    });
+
+    afterEach(() => {
+        window.githubSync = realSync;
+        DynamicNav.loadRegistry = realLoadRegistry;
+        ShoppingList.loadJsPDF = realLoadJsPDF;
+        ShoppingList.buildPDF = realBuildPDF;
+    });
+
+    it('drops the collection-data cache before reading owned cards', async () => {
+        // _cachedData is populated at page load and kept across saves, so by the
+        // time someone opens the shopping list it can be older than their last
+        // edit - every card they just marked owned would print as still needed.
+        // The order is the assertion: clearing after the read buys nothing.
+        const clearDataCache = vi.fn();
+        const loadData = vi.fn(async () => {
+            expect(clearDataCache).toHaveBeenCalled();
+            return { checklists: {} };
+        });
+        window.githubSync = {
+            clearDataCache,
+            loadData,
+            loadPublicData: async () => null,
+            loadChecklistConfig: async () => null,
+            loadPublicChecklistConfig: async () => null,
+        };
+
+        await ShoppingList.generate();
+
+        expect(clearDataCache).toHaveBeenCalledTimes(1);
+        expect(loadData).toHaveBeenCalled();
+        // Reaching the PDF proves generate() ran to the end rather than dying
+        // somewhere after the cache call.
+        expect(ShoppingList.buildPDF).toHaveBeenCalled();
     });
 });
