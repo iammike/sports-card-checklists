@@ -1518,10 +1518,10 @@ class ChecklistEngine {
             // The checkmark a complete section picks up is a bare glyph, and the
             // "9/9" beside it reads as "9 slash 9". Name the badge so it announces
             // as figures instead; the role hides the glyph behind that name.
-            const label = complete
+            const badgeLabel = complete
                 ? `all ${progress.total} owned`
                 : `${progress.owned} of ${progress.total} owned`;
-            badge = `<span class="section-progress${complete ? ' complete' : ''}" role="img" aria-label="${sanitizeAttr(label)}">${complete ? '&#10003; ' : ''}${progress.owned}/${progress.total}</span>`;
+            badge = `<span class="section-progress${complete ? ' complete' : ''}" role="img" aria-label="${sanitizeAttr(badgeLabel)}">${complete ? '&#10003; ' : ''}${progress.owned}/${progress.total}</span>`;
         }
         // Escaped at the sink rather than in each caller: callers compose cssClass
         // from a literal plus a config-supplied category id.
