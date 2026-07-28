@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
+import { walk, inlineHandlers } from './dom-helpers.js';
 
 const CardEditorModal = globalThis.CardEditorModal;
 const CardContextMenu = globalThis.CardContextMenu;
@@ -273,32 +274,6 @@ describe('CardEditorModal.init wires the preview fallback', () => {
         expect(preview.querySelector('span.placeholder').textContent).toBe('Failed to load');
     });
 });
-
-// Every element in a subtree, the root included. querySelectorAll('*') leaves the
-// root out, and the roots walked below are themselves rendered markup - init()
-// sets className and innerHTML on the backdrop, createMenu() on the menu
-// container - so a handler landing on one of those would be invisible to a guard
-// whose entire job is to see it.
-function walk(root) {
-    return [root, ...root.querySelectorAll('*')];
-}
-
-// Every on* attribute on every walked element. Asserting parsed attribute names
-// is what closes the backtick hole: how the markup was written stops mattering,
-// only what it parses to. It is also the only level that can tell an attribute
-// from a value that looks like one - #692 tried an innerHTML regex and failed 13
-// tests against correct code, because a hostile card value survives verbatim
-// inside an attribute and serialises as text containing ` onerror="`.
-//
-// Handlers assigned as properties (dropzone.ondrop = fn, btn.onclick = fn) set no
-// attribute and are deliberately not covered: they take a function rather than a
-// string, so no card or config value can be executed through one. The old regex
-// did not flag them either.
-function inlineHandlers(root) {
-    return walk(root)
-        .flatMap(el => el.getAttributeNames())
-        .filter(name => name.startsWith('on'));
-}
 
 function parse(html) {
     const host = document.createElement('div');
