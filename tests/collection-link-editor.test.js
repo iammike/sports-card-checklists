@@ -182,15 +182,15 @@ describe('the fields that describe a physical card', () => {
     // A hand-written collection link card can use a plain `img` rather than a
     // stack; opening the editor on it must not delete the image.
     //
-    // A repo-relative path rather than an R2 URL: updateImageActions compares
-    // against R2_IMAGE_BASE, a top-level const in shared.js that the test setup
-    // evaluates into its own lexical scope, so card-editor.js cannot see it here
-    // the way it can in the browser. A local path short-circuits that comparison.
-    const localImg = 'images/washington-qbs/jayden.webp';
-    editor.open('clSomeone', { player: 'Someone', collectionLink: LINK, img: localImg });
+    // An R2 URL, the shape production cards actually store. open() routes it
+    // through updateImageActions, which compares against R2_IMAGE_BASE - a
+    // top-level const in shared.js, so it only resolves here because shared.js
+    // exports it onto window (#704). Before that export this had to use a
+    // repo-relative path to short-circuit the comparison.
+    editor.open('clSomeone', { player: 'Someone', collectionLink: LINK, img: IMG_A });
 
     expect(isHidden(editor, '.card-editor-image-section')).toBe(true);
-    expect(editor.getFormData().img).toBe(localImg);
+    expect(editor.getFormData().img).toBe(IMG_A);
   });
 });
 
