@@ -7,14 +7,14 @@
 
 // Fields whose absence from a submission really does mean the user cleared them.
 // The first four because the card editor always renders them, so an empty one is
-// a deliberate blank. The collection link trio is not always rendered, but earns
-// the same treatment for a different reason: getFormData omits all three together
+// a deliberate blank. The collection link pair is not always rendered, but earns
+// the same treatment for a different reason: getFormData omits both together
 // whenever no link is selected, which is exactly when they should be gone. Every
 // other clearable field is a custom field and is only trusted when this
 // checklist's config declares it - see _clearEmptyFields.
 const ENGINE_BUILTIN_CLEARABLE = new Set([
     'price', 'img', 'search', 'priceSearch',
-    'collectionLink', 'stackImages', 'cardCount',
+    'collectionLink', 'stackImages',
 ]);
 
 class ChecklistEngine {
@@ -318,9 +318,8 @@ class ChecklistEngine {
         });
     }
 
-    // The two fields on a collection link card that describe the linked checklist
-    // rather than this card, filled in from the linked checklist itself. See the
-    // editor's _refreshLinkedCardCount and _suggestStackImages for when each is used.
+    // What a collection link card's target can offer it, filled in from the linked
+    // checklist itself. See the editor's _suggestStackImages for how it is used.
     //
     // No cache of its own: githubSync keeps the whole fetched gist in memory and
     // every file below comes out of it, so a repeat call is a JSON parse rather
@@ -337,26 +336,10 @@ class ChecklistEngine {
         if (!linkedId) return null;
 
         const loggedIn = !!githubSync.isLoggedIn();
-
-        // The count comes from the linked checklist's saved stats, not from
-        // counting its cards. `total` there is the number the badge shows whenever
-        // it can read those stats (see _renderCollectionLinkCard), so the stored
-        // cardCount stays a faithful snapshot of the value it stands in for - it
-        // cannot disagree with the live badge about what "N CARDS" means. Every
-        // save to a checklist rewrites its stats, so the snapshot is current as of
-        // that checklist's last edit.
-        const allStats = loggedIn
-            ? await githubSync.loadAllStats()
-            : await githubSync.loadPublicStats();
-        const linkedTotal = (allStats || {})[linkedId]?.total;
-
         const cardData = (loggedIn ? await githubSync.loadCardData(linkedId) : null)
             || await githubSync.loadPublicCardData(linkedId);
 
-        return {
-            cardCount: typeof linkedTotal === 'number' ? linkedTotal : null,
-            stackImages: this._pickStackImages(cardData),
-        };
+        return { stackImages: this._pickStackImages(cardData) };
     }
 
     // A starting point for the card stack: the first few of the linked checklist's
@@ -1109,18 +1092,17 @@ class ChecklistEngine {
         const safeId = sanitizeAttr(cardId);
         const idAttrs = cardId ? ` id="card-${safeId}" data-card-id="${safeId}"` : '';
 
-        // Badge: show linked checklist stats if available, else cardCount.
-        // All three values land in a text node and all three come from the gist -
-        // the counts from the stats file, cardCount from the card - so all three
-        // are escaped. The editor now writes cardCount through parseInt, but a
-        // hand-edited gist can still put anything there.
+        // Badge: the linked checklist's live stats, or nothing. Both counts come
+        // out of the gist's stats file and land in a text node, so both are
+        // escaped. No stored fallback: every checklist gets a stats entry when it
+        // is created and rewrites it on every save, so a missing entry means the
+        // target is gone, and a count for a checklist that no longer exists is
+        // worse than no badge at all.
         let badgeHtml = '';
         const linkedId = collectionLinkTargetId(card.collectionLink);
         const linkedStats = linkedId ? (this._linkedStats || {})[linkedId] : null;
         if (linkedStats && typeof linkedStats.owned === 'number') {
             badgeHtml = `<span class="collection-badge">${sanitizeText(linkedStats.owned)} / ${sanitizeText(linkedStats.total)} CARDS</span>`;
-        } else if (card.cardCount) {
-            badgeHtml = `<span class="collection-badge">${sanitizeText(card.cardCount)} CARDS</span>`;
         }
 
         // Image: card stack, or a single image when there is no usable stack.
@@ -2183,10 +2165,10 @@ class ChecklistEngine {
         if (cardData.priceSearch) { card.priceSearch = cardData.priceSearch; } else { clear('priceSearch'); }
 
         // img keeps '' as its own deletion marker, see _stripLocalOnlyMarkers.
-        // The collection link trio is absent from the form data whenever no link is
+        // The collection link pair is absent from the form data whenever no link is
         // selected, which is exactly when it should be gone from the card too.
         ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant', 'search',
-            'collectionLink', 'stackImages', 'cardCount'].forEach(key => {
+            'collectionLink', 'stackImages'].forEach(key => {
             if (!(key in cardData) || !cardData[key]) {
                 if (key === 'img' && key in cardData) { card[key] = ''; } else { clear(key); }
             }

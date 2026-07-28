@@ -3,11 +3,10 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 const CardEditorModal = globalThis.CardEditorModal;
 const ChecklistEngine = globalThis.ChecklistEngine;
 
-// A collection link card carries two values that describe the checklist it points
-// at rather than the card itself: how many cards that checklist holds, and a few
-// of its images for the tile's stack. Both were typed by hand. These tests cover
-// the editor filling them in from the linked checklist, and the engine side that
-// answers the question.
+// A collection link card's tile shows a stack of images that belong to the
+// checklist it points at rather than to the card itself. They were typed by hand.
+// These tests cover the editor offering them from the linked checklist, and the
+// engine side that answers the question.
 //
 // Nothing here touches the network: the editor is handed a suggestion callback,
 // and the engine is handed a stubbed githubSync. Every card fixture below - both
@@ -61,8 +60,8 @@ function pressSuggest(editor) {
   return field(editor, '#editor-suggest-stack').click();
 }
 
-// The suggestion fetch is deliberately not awaited by open() or by the dropdown
-// handler, so let its microtasks drain before asserting.
+// The suggestion fetch is deliberately not awaited by the button handler, so let
+// its microtasks drain before asserting.
 const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 
 function deferred() {
@@ -78,215 +77,18 @@ function editorAnswering(suggestion, options = {}) {
 }
 
 // A collection link card as the editor really produces one, for reopening
-function savedLinkCard({ cardCount, stackImages }) {
+function savedLinkCard({ stackImages } = {}) {
   const editor = makeEditor();
   editor.openNew();
   typeInto(editor, '#editor-player', 'Jayden Daniels');
   chooseLink(editor, LINK);
-  if (cardCount != null) typeInto(editor, '#editor-card-count', String(cardCount));
   if (stackImages) typeInto(editor, '#editor-stack-images', stackImages.join('\n'));
   return editor.getFormData();
 }
 
-describe('the card count on a collection link card', () => {
-  it('fills itself in when a checklist is chosen', async () => {
-    const { editor } = editorAnswering({ cardCount: 43, stackImages: [] });
-    editor.openNew();
-    chooseLink(editor, LINK);
-    expect(valueOf(editor, '#editor-card-count')).toBe('');
-
-    await flush();
-
-    expect(valueOf(editor, '#editor-card-count')).toBe('43');
-    expect(editor.getFormData().cardCount).toBe(43);
-  });
-
-  it('reports the count the linked checklist gave, not a fixed one', async () => {
-    const { editor } = editorAnswering({ cardCount: 7, stackImages: [] });
-    editor.openNew();
-    chooseLink(editor, LINK);
-    await flush();
-
-    expect(valueOf(editor, '#editor-card-count')).toBe('7');
-  });
-
-  it('refreshes a stored count that went stale as the linked checklist grew', async () => {
-    const stored = savedLinkCard({ cardCount: 40 });
-    const { editor } = editorAnswering({ cardCount: 43, stackImages: [] });
-
-    editor.open(stored.id, stored);
-    expect(valueOf(editor, '#editor-card-count')).toBe('40');
-
-    await flush();
-
-    expect(valueOf(editor, '#editor-card-count')).toBe('43');
-  });
-
-  it('leaves a stored count that is still right exactly as it was', async () => {
-    const stored = savedLinkCard({ cardCount: 40 });
-    const { editor } = editorAnswering({ cardCount: 40, stackImages: [] });
-
-    editor.open(stored.id, stored);
-    await flush();
-
-    expect(valueOf(editor, '#editor-card-count')).toBe('40');
-    expect(editor.getFormData().cardCount).toBe(40);
-  });
-
-  it('does not mark the form dirty just for reopening a card', async () => {
-    // A confirm-on-close prompt for an edit the user did not make is worse than a
-    // count that stays stale one more save
-    const stored = savedLinkCard({ cardCount: 40 });
-    const { editor } = editorAnswering({ cardCount: 43, stackImages: [] });
-
-    editor.open(stored.id, stored);
-    await flush();
-
-    expect(valueOf(editor, '#editor-card-count')).toBe('43');
-    expect(editor.isDirty).toBe(false);
-  });
-
-  it('asks nothing of a card that links nowhere', async () => {
-    const { editor, getLinkSuggestions } = editorAnswering({ cardCount: 43, stackImages: [] });
-    const ordinary = (() => {
-      const e = makeEditor();
-      e.openNew();
-      e.backdrop.querySelector('#editor-set').value = '2024 Panini Prizm';
-      return e.getFormData();
-    })();
-
-    editor.open(ordinary.id, ordinary);
-    await flush();
-
-    expect(getLinkSuggestions).not.toHaveBeenCalled();
-  });
-
-  it('stops asking once the card is un-linked', async () => {
-    const { editor, getLinkSuggestions } = editorAnswering({ cardCount: 43, stackImages: [] });
-    editor.openNew();
-    chooseLink(editor, LINK);
-    await flush();
-    expect(getLinkSuggestions).toHaveBeenCalledTimes(1);
-
-    chooseLink(editor, '');
-    await flush();
-
-    expect(getLinkSuggestions).toHaveBeenCalledTimes(1);
-  });
-
-  it('keeps a count the user typed while the answer was in flight', async () => {
-    const pending = deferred();
-    const editor = makeEditor({ getLinkSuggestions: () => pending.promise });
-    editor.openNew();
-    chooseLink(editor, LINK);
-
-    typeInto(editor, '#editor-card-count', '12');
-    pending.resolve({ cardCount: 43, stackImages: [] });
-    await flush();
-
-    expect(valueOf(editor, '#editor-card-count')).toBe('12');
-    expect(editor.getFormData().cardCount).toBe(12);
-  });
-
-  it('ignores a late answer about a checklist the card no longer points at', async () => {
-    const answers = { [LINK]: deferred(), [OTHER_LINK]: deferred() };
-    const editor = makeEditor({ getLinkSuggestions: (link) => answers[link].promise });
-
-    editor.openNew();
-    chooseLink(editor, LINK);
-    chooseLink(editor, OTHER_LINK);
-
-    answers[OTHER_LINK].resolve({ cardCount: 7, stackImages: [] });
-    await flush();
-    // The first checklist finally answers, long after the user moved on
-    answers[LINK].resolve({ cardCount: 43, stackImages: [] });
-    await flush();
-
-    expect(valueOf(editor, '#editor-card-count')).toBe('7');
-  });
-
-  it('ignores it even when the newer checklist left the field untouched', async () => {
-    // The sharp case: the checklist the user settled on is new enough to have no
-    // saved total, so the box is still empty and looks free to fill when the
-    // previous checklist's answer turns up
-    const answers = { [LINK]: deferred(), [OTHER_LINK]: deferred() };
-    const editor = makeEditor({ getLinkSuggestions: (link) => answers[link].promise });
-
-    editor.openNew();
-    chooseLink(editor, LINK);
-    chooseLink(editor, OTHER_LINK);
-
-    answers[OTHER_LINK].resolve({ cardCount: null, stackImages: [] });
-    await flush();
-    answers[LINK].resolve({ cardCount: 43, stackImages: [] });
-    await flush();
-
-    expect(valueOf(editor, '#editor-card-count')).toBe('');
-    expect('cardCount' in editor.getFormData()).toBe(false);
-  });
-
-  it('ignores an answer meant for a card the editor has since moved off', async () => {
-    // Both cards happen to store the same count, so the field looks untouched -
-    // only knowing which card the answer was for keeps it off the second one
-    const first = savedLinkCard({ cardCount: 40 });
-    const second = savedLinkCard({ cardCount: 40 });
-    const pending = [deferred(), deferred()];
-    let asked = 0;
-    const editor = makeEditor({ getLinkSuggestions: () => pending[asked++].promise });
-
-    editor.open(first.id, first);
-    // Reopening rebuilds the modal - the answer in flight is about the old form
-    editor.open(second.id, second);
-    expect(asked).toBe(2);
-    pending[0].resolve({ cardCount: 43, stackImages: [] });
-    await flush();
-
-    expect(valueOf(editor, '#editor-card-count')).toBe('40');
-  });
-
-  it('leaves the count alone when the linked checklist cannot be read', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const stored = savedLinkCard({ cardCount: 40 });
-    const editor = makeEditor({
-      getLinkSuggestions: async () => { throw new Error('gist unreachable'); },
-    });
-
-    editor.open(stored.id, stored);
-    await flush();
-
-    expect(valueOf(editor, '#editor-card-count')).toBe('40');
-    expect(editor.getFormData().cardCount).toBe(40);
-    warn.mockRestore();
-  });
-
-  it('leaves both fields alone when there is no answer at all', async () => {
-    // What the engine hands back when it cannot reach the gist, or when the link
-    // holds no checklist id
-    const stored = savedLinkCard({ cardCount: 40, stackImages: [IMG_A] });
-    const { editor } = editorAnswering(null);
-
-    editor.open(stored.id, stored);
-    pressSuggest(editor);
-    await flush();
-
-    expect(valueOf(editor, '#editor-card-count')).toBe('40');
-    expect(editor.getFormData().stackImages).toEqual([IMG_A]);
-  });
-
-  it('leaves the count alone when the linked checklist has no saved total', async () => {
-    const stored = savedLinkCard({ cardCount: 40 });
-    const { editor } = editorAnswering({ cardCount: null, stackImages: [IMG_A] });
-
-    editor.open(stored.id, stored);
-    await flush();
-
-    expect(valueOf(editor, '#editor-card-count')).toBe('40');
-  });
-});
-
 describe('suggesting stack images', () => {
   it('fills the box from the linked checklist when the button is pressed', async () => {
-    const { editor } = editorAnswering({ cardCount: 43, stackImages: [IMG_A, IMG_B, IMG_C] });
+    const { editor } = editorAnswering({ stackImages: [IMG_A, IMG_B, IMG_C] });
     editor.openNew();
     chooseLink(editor, LINK);
     await flush();
@@ -300,8 +102,8 @@ describe('suggesting stack images', () => {
   });
 
   it('marks the form dirty, so a suggestion the user asked for gets saved', async () => {
-    const { editor } = editorAnswering({ cardCount: 43, stackImages: [IMG_A] });
-    const stored = savedLinkCard({ cardCount: 43 });
+    const { editor } = editorAnswering({ stackImages: [IMG_A] });
+    const stored = savedLinkCard();
     editor.open(stored.id, stored);
     await flush();
     expect(editor.isDirty).toBe(false);
@@ -313,22 +115,23 @@ describe('suggesting stack images', () => {
   });
 
   it('leaves a hand-picked stack alone until the button is pressed', async () => {
-    // Choosing a checklist refreshes the count on its own, but three chosen images
-    // are a curation, not a derived value
-    const stored = savedLinkCard({ cardCount: 40, stackImages: [IMG_A, IMG_B] });
-    const { editor } = editorAnswering({ cardCount: 43, stackImages: [IMG_C, IMG_D] });
+    // Three chosen images are a curation, not a derived value: nothing replaces
+    // them but the button - not opening the card, and not pointing it at a
+    // different checklist, neither of which asks the linked checklist anything
+    const stored = savedLinkCard({ stackImages: [IMG_A, IMG_B] });
+    const { editor, getLinkSuggestions } = editorAnswering({ stackImages: [IMG_C, IMG_D] });
 
     editor.open(stored.id, stored);
     chooseLink(editor, OTHER_LINK);
     await flush();
 
-    expect(valueOf(editor, '#editor-card-count')).toBe('43');
+    expect(getLinkSuggestions).not.toHaveBeenCalled();
     expect(editor.getFormData().stackImages).toEqual([IMG_A, IMG_B]);
   });
 
   it('replaces a hand-picked stack once the button is pressed', async () => {
-    const stored = savedLinkCard({ cardCount: 40, stackImages: [IMG_A, IMG_B] });
-    const { editor } = editorAnswering({ cardCount: 40, stackImages: [IMG_C, IMG_D] });
+    const stored = savedLinkCard({ stackImages: [IMG_A, IMG_B] });
+    const { editor } = editorAnswering({ stackImages: [IMG_C, IMG_D] });
 
     editor.open(stored.id, stored);
     pressSuggest(editor);
@@ -338,7 +141,7 @@ describe('suggesting stack images', () => {
   });
 
   it('says so when the linked checklist has no images to offer', async () => {
-    const { editor } = editorAnswering({ cardCount: 43, stackImages: [] });
+    const { editor } = editorAnswering({ stackImages: [] });
     editor.openNew();
     chooseLink(editor, LINK);
     await flush();
@@ -353,7 +156,7 @@ describe('suggesting stack images', () => {
 
   it('says so when the linked checklist cannot be read', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const stored = savedLinkCard({ cardCount: 40, stackImages: [IMG_A] });
+    const stored = savedLinkCard({ stackImages: [IMG_A] });
     const editor = makeEditor({
       getLinkSuggestions: async () => { throw new Error('gist unreachable'); },
     });
@@ -368,7 +171,7 @@ describe('suggesting stack images', () => {
   });
 
   it('re-enables the button whatever the answer was', async () => {
-    const { editor } = editorAnswering({ cardCount: 43, stackImages: [IMG_A] });
+    const { editor } = editorAnswering({ stackImages: [IMG_A] });
     editor.openNew();
     chooseLink(editor, LINK);
     await flush();
@@ -382,27 +185,57 @@ describe('suggesting stack images', () => {
   });
 
   it('drops images that arrive after the card is pointed somewhere else', async () => {
-    const answers = { [LINK]: deferred(), [OTHER_LINK]: deferred() };
-    const editor = makeEditor({ getLinkSuggestions: (link) => answers[link].promise });
+    const pending = deferred();
+    const editor = makeEditor({ getLinkSuggestions: () => pending.promise });
 
     editor.openNew();
     chooseLink(editor, LINK);
     pressSuggest(editor);
     // The user changes their mind while the images are still on their way
     chooseLink(editor, OTHER_LINK);
-    answers[OTHER_LINK].resolve({ cardCount: 7, stackImages: [] });
-    await flush();
-    answers[LINK].resolve({ cardCount: 43, stackImages: [IMG_A, IMG_B] });
+    pending.resolve({ stackImages: [IMG_A, IMG_B] });
     await flush();
 
     expect(valueOf(editor, '#editor-stack-images')).toBe('');
+    // Someone else's request now, so the button says nothing about its outcome
     expect(field(editor, '#editor-suggest-stack').disabled).toBe(false);
-    expect(valueOf(editor, '#editor-card-count')).toBe('7');
+    expect(field(editor, '#editor-suggest-stack').textContent).toBe(SUGGEST_LABEL);
+  });
+
+  it('drops images meant for a card the editor has since moved off', async () => {
+    // Both cards happen to store the same stack, so the box looks untouched -
+    // only knowing which card the answer was for keeps it off the second one
+    const first = savedLinkCard({ stackImages: [IMG_A] });
+    const second = savedLinkCard({ stackImages: [IMG_A] });
+    const pending = deferred();
+    const editor = makeEditor({ getLinkSuggestions: () => pending.promise });
+
+    editor.open(first.id, first);
+    pressSuggest(editor);
+    // Reopening rebuilds the modal - the answer in flight is about the old form
+    editor.open(second.id, second);
+    pending.resolve({ stackImages: [IMG_C, IMG_D] });
+    await flush();
+
+    expect(editor.getFormData().stackImages).toEqual([IMG_A]);
+  });
+
+  it('asks nothing at all when the card links nowhere', async () => {
+    const { editor, getLinkSuggestions } = editorAnswering({ stackImages: [IMG_A] });
+    editor.openNew();
+
+    pressSuggest(editor);
+    await flush();
+
+    expect(getLinkSuggestions).not.toHaveBeenCalled();
+    expect(valueOf(editor, '#editor-stack-images')).toBe('');
   });
 });
 
-// What the checklist page answers with when the editor asks. Both halves come out
-// of the gist, so githubSync is stubbed - no test here reaches the network.
+// What the checklist page answers with when the editor asks. The images come out
+// of the gist, so githubSync is stubbed - no test here reaches the network. The
+// stats readers are stubbed too, purely so the tests below can assert nothing
+// consults them: the answer is drawn from the linked checklist's cards alone.
 describe('what the linked checklist reports about itself', () => {
   let engine;
   let sync;
@@ -440,22 +273,21 @@ describe('what the linked checklist reports about itself', () => {
     document.body.innerHTML = '';
   });
 
-  it('reports the total the badge would show for that checklist', async () => {
+  it('offers images and nothing else', async () => {
+    sync.loadCardData = vi.fn(async () => ({ cards: [linkedCard({ set: 'One', img: IMG_A })] }));
+
     const suggestion = await engine._loadLinkSuggestions(LINK);
 
-    expect(suggestion.cardCount).toBe(43);
-  });
-
-  it('reports no count for a checklist with no saved stats', async () => {
-    const suggestion = await engine._loadLinkSuggestions('checklist.html?id=brand-new');
-
-    expect(suggestion.cardCount).toBeNull();
+    expect(suggestion).toEqual({ stackImages: [IMG_A] });
+    // No count is offered, so the saved stats are never read for one
+    expect(sync.loadAllStats).not.toHaveBeenCalled();
+    expect(sync.loadPublicStats).not.toHaveBeenCalled();
   });
 
   it('reports nothing at all for a link with no checklist id in it', async () => {
     expect(await engine._loadLinkSuggestions('index.html')).toBeNull();
-    expect(sync.loadAllStats).not.toHaveBeenCalled();
     expect(sync.loadCardData).not.toHaveBeenCalled();
+    expect(sync.loadPublicCardData).not.toHaveBeenCalled();
   });
 
   it('reports nothing at all when the sync module was never loaded', async () => {
@@ -544,9 +376,8 @@ describe('what the linked checklist reports about itself', () => {
 
     const suggestion = await engine._loadLinkSuggestions(LINK);
 
-    expect(sync.loadAllStats).not.toHaveBeenCalled();
     expect(sync.loadCardData).not.toHaveBeenCalled();
-    expect(suggestion).toEqual({ cardCount: 40, stackImages: [IMG_C] });
+    expect(suggestion).toEqual({ stackImages: [IMG_C] });
   });
 });
 
