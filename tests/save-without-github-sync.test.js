@@ -5,9 +5,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 // _saveCardData and _mergeWithFreshGistData is a bare identifier, so without a
 // guard an absent module is a ReferenceError, not a quiet undefined.
 //
-// setup.js does load github-sync.js, so window.githubSync starts out real. These
-// tests delete it and assert it is genuinely gone before calling - nothing here is
-// stubbed to look absent.
+// setup.js does load github-sync.js (#719), so window.githubSync starts out real.
+// These tests delete it and assert it is genuinely gone before calling - nothing
+// here is stubbed to merely look absent.
 
 const ChecklistEngine = globalThis.ChecklistEngine;
 
