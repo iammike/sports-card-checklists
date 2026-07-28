@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 
 const ChecklistEngine = globalThis.ChecklistEngine;
 
@@ -67,8 +67,7 @@ describe('un-flagging through the full save merge path', () => {
   it('does not resurrect noCard from the gist copy', async () => {
     // Gist still has the entry flagged; the user just un-checked "No card exists".
     globalThis.githubSync = {
-      _gistCache: {},
-      _publicGistCache: {},
+      clearGistCache: () => {},
       loadCardData: async () => ({ cards: [{ id: 'n1', set: 'Prizm', noCard: true }] }),
       loadPublicCardData: async () => null,
     };
@@ -84,8 +83,7 @@ describe('un-flagging through the full save merge path', () => {
 
   it('keeps a newly flagged entry flagged through the merge', async () => {
     globalThis.githubSync = {
-      _gistCache: {},
-      _publicGistCache: {},
+      clearGistCache: () => {},
       loadCardData: async () => ({ cards: [{ id: 'n1', set: 'Prizm' }] }),
       loadPublicCardData: async () => null,
     };
@@ -96,5 +94,23 @@ describe('un-flagging through the full save merge path', () => {
     await engine._mergeWithFreshGistData();
 
     expect(engine.cards[0].noCard).toBe(true);
+  });
+
+  it('drops the gist cache before reading, so the merge sees fresh data', async () => {
+    // The whole point of the merge is that the copy it reads is newer than
+    // anything cached, so the order matters as much as the call.
+    const clearGistCache = vi.fn();
+    globalThis.githubSync = {
+      clearGistCache,
+      loadCardData: async () => {
+        expect(clearGistCache).toHaveBeenCalled();
+        return { cards: [] };
+      },
+      loadPublicCardData: async () => null,
+    };
+
+    await makeFlatEngine([{ id: 'n1', set: 'Prizm' }])._mergeWithFreshGistData();
+
+    expect(clearGistCache).toHaveBeenCalledTimes(1);
   });
 });

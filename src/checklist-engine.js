@@ -474,8 +474,7 @@ class ChecklistEngine {
 
         try {
             // Clear cache to get truly fresh data
-            githubSync._gistCache = null;
-            githubSync._publicGistCache = null;
+            githubSync.clearGistCache();
 
             const freshData = await githubSync.loadCardData(this.id)
                 || await githubSync.loadPublicCardData(this.id);

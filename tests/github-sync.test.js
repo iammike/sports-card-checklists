@@ -93,3 +93,31 @@ describe('GitHubSync image ops auth handling', () => {
         await expect(sync.deleteImage('images/x.webp')).rejects.toMatchObject({ authExpired: true });
     });
 });
+
+describe('GitHubSync.clearGistCache', () => {
+    afterEach(() => {
+        sync.clearGistCache();
+        sync._cachedData = null;
+    });
+
+    it('drops both raw gist caches, so the next _fetchGist refetches', () => {
+        sync._gistCache = { files: {} };
+        sync._publicGistCache = { files: {} };
+
+        sync.clearGistCache();
+
+        expect(sync._gistCache).toBeNull();
+        expect(sync._publicGistCache).toBeNull();
+    });
+
+    it('leaves the card-data cache alone', () => {
+        // Callers that want _cachedData gone clear it themselves; folding it in here
+        // would change what the write paths in this file do.
+        sync._gistCache = { files: {} };
+        sync._cachedData = { cards: [] };
+
+        sync.clearGistCache();
+
+        expect(sync._cachedData).toEqual({ cards: [] });
+    });
+});
