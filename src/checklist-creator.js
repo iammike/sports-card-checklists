@@ -50,6 +50,10 @@ class ChecklistCreatorModal {
                             <label class="card-editor-label">Checklist Title</label>
                             <input type="text" class="card-editor-input" id="creator-title" placeholder="My Card Collection" title="The main heading displayed at the top of your checklist page">
                         </div>
+                        <div class="card-editor-field full-width" id="creator-search-prefix-field">
+                            <label class="card-editor-label">Search Prefix</label>
+                            <input type="text" class="card-editor-input" id="creator-search-prefix" placeholder="e.g. Jayden Daniels" title="Used instead of the title when building default eBay search terms. Only applies when player names are hidden.">
+                        </div>
                         <div class="card-editor-field">
                             <label class="card-editor-label">Subtitle</label>
                             <input type="text" class="card-editor-input" id="creator-subtitle" placeholder="Optional subtitle" title="Smaller text shown below the title on the checklist page">
@@ -205,15 +209,17 @@ class ChecklistCreatorModal {
             backdrop.querySelector('#creator-accent-hex').textContent = e.target.value;
         });
 
-        // Position requires player name
+        // Position requires player name; the search prefix only applies without it
         const playerCheck = backdrop.querySelector('#creator-show-player');
         const posCheck = backdrop.querySelector('#creator-show-position');
-        const syncPos = () => {
+        const prefixField = backdrop.querySelector('#creator-search-prefix-field');
+        const syncPlayerFields = () => {
             posCheck.disabled = !playerCheck.checked;
             if (!playerCheck.checked) posCheck.checked = false;
+            prefixField.style.display = playerCheck.checked ? 'none' : '';
         };
-        playerCheck.addEventListener('change', syncPos);
-        syncPos();
+        playerCheck.addEventListener('change', syncPlayerFields);
+        syncPlayerFields();
 
         // Update green hint when mid threshold changes
         // Price threshold validation
@@ -748,6 +754,7 @@ class ChecklistCreatorModal {
 
     _clearForm() {
         this.backdrop.querySelector('#creator-title').value = '';
+        this.backdrop.querySelector('#creator-search-prefix').value = '';
         this.backdrop.querySelector('#creator-subtitle').value = '';
         this.backdrop.querySelector('#creator-nav-label').value = '';
         this.backdrop.querySelector('#creator-primary-color').value = '#667eea';
@@ -791,6 +798,7 @@ class ChecklistCreatorModal {
         const primaryColor = config.theme?.primaryColor || '#667eea';
         const accentColor = config.theme?.accentColor || '#f39c12';
         this.backdrop.querySelector('#creator-title').value = config.title || '';
+        this.backdrop.querySelector('#creator-search-prefix').value = config.searchPrefix || '';
         this.backdrop.querySelector('#creator-subtitle').value = config.subtitle || '';
         this.backdrop.querySelector('#creator-nav-label').value = config.navLabel || '';
         this.backdrop.querySelector('#creator-primary-color').value = primaryColor;
@@ -889,6 +897,9 @@ class ChecklistCreatorModal {
         config.title = title;
         const subtitleVal = this.backdrop.querySelector('#creator-subtitle').value.trim();
         if (subtitleVal) config.subtitle = subtitleVal; else delete config.subtitle;
+        // Kept even while hidden so toggling player names off and on doesn't discard it.
+        const searchPrefixVal = this.backdrop.querySelector('#creator-search-prefix').value.trim();
+        if (searchPrefixVal) config.searchPrefix = searchPrefixVal; else delete config.searchPrefix;
         config.navLabel = navLabel;
         const primaryColor = this.backdrop.querySelector('#creator-primary-color').value;
         config.theme = {
