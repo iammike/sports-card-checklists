@@ -142,12 +142,24 @@ function topLevelDeclarations() {
     return declared;
 }
 
+// A JS identifier may contain `$`, which is a regex anchor, so a name cannot go
+// into a pattern raw: `FOO$BAR` would compile to "FOO, end of input, BAR" and match
+// nothing at all. The scanner would then read the symbol as file-local and skip it -
+// under-reporting, the same silent-weakening shape as a stripper desync.
+function escapeForRegExp(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function crossFileSymbols() {
     return [...topLevelDeclarations()]
         .map(([name, declaredIn]) => {
-            // Not preceded by `.` or a word character: skips `window.CardRenderer`
-            // and any longer identifier that merely contains the name.
-            const ref = new RegExp(`(?<![.\\w$])${name}\\b`);
+            // Bounded by lookarounds on both sides rather than \b, so that a name
+            // ending in `$` still works: \b is a word-boundary assertion and `$` is
+            // not a word character, so `FOO$\b` demands a word character *after* the
+            // `$` and misses `FOO$;`, while `CardRenderer\b` would match inside
+            // `CardRenderer$extra`. The lookahead mirrors the lookbehind, which also
+            // skips `window.CardRenderer` and any longer identifier containing the name.
+            const ref = new RegExp(`(?<![.\\w$])${escapeForRegExp(name)}(?![\\w$])`);
             const readers = files.filter(f => f !== declaredIn && ref.test(sources.get(f)));
             return { name, declaredIn, readers };
         })
