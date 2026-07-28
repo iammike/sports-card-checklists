@@ -8,6 +8,7 @@
 - **No per-checklist HTML files** - Checklists are added via gist registry, not by creating new HTML pages
 - Config stored in gist: `checklists-registry.json`, `{id}-config.json`, `{id}-cards.json`
 - Images stored in Cloudflare R2, served via Worker - no git-based image flow
+- `dist/` bundles (`app.min.js`, `checklist-engine.min.js`, `shared.min.css`) are built in CI, not committed - `deploy.yml` builds them for production, `deploy-preview.yml` builds them for PR previews (`wrangler pages deploy`). After editing `src/*.js` or `shared.css`, just push - do not run `npm run build` and commit `dist/` yourself
 
 ## Data Storage
 - **The GitHub Gist is the source of truth** for all collection data (owned cards, stats)
