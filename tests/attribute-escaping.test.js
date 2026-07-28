@@ -752,7 +752,10 @@ describe('CardEditorModal.updateImagePreview', () => {
 
     const preview = editor.backdrop.querySelector('.card-editor-image-preview');
     expect(preview.querySelectorAll('img')).toHaveLength(1);
+    // Still the exact attribute set, so an attribute injected through src fails
+    // here. onerror left the list when the inline handler became a delegated
+    // listener (#693), so this now also fails if any inline handler comes back.
     expect(preview.querySelector('img').getAttributeNames().sort())
-      .toEqual(['alt', 'onerror', 'src']);
+      .toEqual(['alt', 'src']);
   });
 });
