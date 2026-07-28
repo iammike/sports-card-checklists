@@ -229,6 +229,11 @@ describe('suggesting stack images', () => {
 
     expect(getLinkSuggestions).not.toHaveBeenCalled();
     expect(valueOf(editor, '#editor-stack-images')).toBe('');
+    // Nothing was attempted, so the button reports neither success nor failure.
+    // It said "Could not load" before, which was a lie about a fetch that never
+    // happened - only ever visible to a test, since the UI hides the field.
+    expect(field(editor, '#editor-suggest-stack').textContent).toBe(SUGGEST_LABEL);
+    expect(field(editor, '#editor-suggest-stack').disabled).toBe(false);
   });
 });
 

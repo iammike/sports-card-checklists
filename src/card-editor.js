@@ -1620,6 +1620,12 @@ class CardEditorModal {
     // a convenience feature is out of proportion. It resets to its resting label on
     // the next open, since init() rebuilds the modal.
     async _suggestStackImages() {
+        // No checklist selected, so there is nothing to ask and nothing to report:
+        // leaving the button alone is the honest answer, where falling through
+        // would announce a failure for a fetch that never happened. Not reachable
+        // from the UI, which hides the whole stack field until a link is chosen.
+        if (!this.backdrop.querySelector('#editor-collection-link')?.value.trim()) return;
+
         const button = this.backdrop.querySelector('#editor-suggest-stack');
         const resting = button ? button.textContent : SUGGEST_STACK_LABEL;
         if (button) {
