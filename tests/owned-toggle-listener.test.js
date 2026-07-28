@@ -25,13 +25,13 @@ function baseEngine(cards = []) {
 // synchronously calls onOwnedChange, which re-renders. Tests that care what a
 // toggle actually does to the page must go through this, not a stub - a stub
 // that skips onOwnedChange cannot show the re-render at all.
+//
+// The options come from engine._managerOptions(), the same call init() makes, so
+// these tests exercise the real wiring. Hand-writing a mirror of that object here
+// would leave them blind to a change in it.
 function makeEngine(ownedIds = [], cards = []) {
   const engine = baseEngine(cards);
-  engine.checklistManager = new ChecklistManager({
-    checklistId: 'test',
-    // Mirrors checklist-engine.js init()
-    onOwnedChange: () => { engine.renderCards(); engine.updateStats(); },
-  });
+  engine.checklistManager = new ChecklistManager(engine._managerOptions());
   engine.checklistManager.ownedCards = [...ownedIds];
   engine.checklistManager.isReadOnly = false;
   return engine;
@@ -122,15 +122,15 @@ describe('ChecklistEngine — toggling a checkbox through the real manager', () 
     expect(container().querySelector('input[type="checkbox"]')).not.toBe(checkbox);
   });
 
-  it('updates the stats once per toggle rather than twice', () => {
-    // The two expected calls both come from the re-render path: renderCards ->
-    // _applyFilters, then onOwnedChange's own call. A third would mean setOwned
+  it('updates the stats exactly once per toggle', () => {
+    // The one expected call comes from the re-render path: renderCards ->
+    // _applyFilters -> updateStats. A second would mean onOwnedChange or setOwned
     // is redundantly updating stats after the render already did.
     const { engine, checkbox } = setUp();
 
     check(checkbox, true);
 
-    expect(engine.updateStats).toHaveBeenCalledTimes(2);
+    expect(engine.updateStats).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -184,15 +184,15 @@ describe('ChecklistEngine — the card editor owned toggle', () => {
     expect(container().querySelector('.card').classList.contains('owned')).toBe(false);
   });
 
-  it('updates the stats once per toggle rather than twice', () => {
-    // Same two calls as the checkbox path: renderCards -> _applyFilters, then
-    // onOwnedChange's own call. A third means the editor callback is redundantly
-    // updating stats after the render already did.
+  it('updates the stats exactly once per toggle', () => {
+    // Same single call as the checkbox path: renderCards -> _applyFilters ->
+    // updateStats. A second means the editor callback is redundantly updating
+    // stats after the render already did.
     const { engine } = setUp();
 
     engine.cardEditor.onOwnedChange(CARD, true);
 
-    expect(engine.updateStats).toHaveBeenCalledTimes(2);
+    expect(engine.updateStats).toHaveBeenCalledTimes(1);
   });
 
   it('does not reach for a data-id element - nothing renders that attribute', () => {

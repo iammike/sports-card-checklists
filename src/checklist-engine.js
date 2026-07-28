@@ -65,13 +65,7 @@ class ChecklistEngine {
         await this._loadLinkedStats();
 
         // Set up ChecklistManager (re-renders auth UI with add/clear buttons)
-        this.checklistManager = new ChecklistManager({
-            checklistId: this.id,
-            ownerUsername: 'iammike',
-            localStorageKey: `${this.id}-owned`,
-            onOwnedChange: () => { this.renderCards(); this.updateStats(); },
-            getStats: () => this.computeStats(),
-        });
+        this.checklistManager = new ChecklistManager(this._managerOptions());
         await this.checklistManager.init();
 
         // Re-add delete and settings buttons (ChecklistManager.init re-renders the dropdown)
@@ -117,6 +111,20 @@ class ChecklistEngine {
 
         // Refresh saved stats if stale (e.g. linked checklist progress changed)
         this._refreshStatsIfStale();
+    }
+
+    // The ChecklistManager options, factored out so tests can wire a manager the
+    // way init() really does. A test that hand-mirrors this object cannot catch a
+    // change to it. renderCards() ends in _applyFilters(), which calls
+    // updateStats(), so this callback must NOT call updateStats itself.
+    _managerOptions() {
+        return {
+            checklistId: this.id,
+            ownerUsername: 'iammike',
+            localStorageKey: `${this.id}-owned`,
+            onOwnedChange: () => this.renderCards(),
+            getStats: () => this.computeStats(),
+        };
     }
 
     // ========================================
