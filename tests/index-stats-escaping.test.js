@@ -3,6 +3,7 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
 const sanitizeText = globalThis.sanitizeText;
+const isSafeColor = globalThis.isSafeColor;
 
 // index.html builds each checklist card as an innerHTML string from stats that
 // live in the gist. They land in text nodes rather than attributes, so they were
@@ -41,6 +42,7 @@ function loadRenderCard() {
         'grid',
         'dynamicStats',
         'sanitizeText',
+        'isSafeColor',
         `return (entry) => ${body};`,
     );
 }
@@ -57,6 +59,7 @@ function renderCard(entry, stats) {
         grid,
         {},
         sanitizeText,
+        isSafeColor,
     )(entry);
     return grid.querySelector('.checklist-card');
 }

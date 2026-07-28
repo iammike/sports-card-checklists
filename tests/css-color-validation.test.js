@@ -1,10 +1,12 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
 const isSafeColor = globalThis.isSafeColor;
 const sanitizeText = globalThis.sanitizeText;
 const CardEditorModal = globalThis.CardEditorModal;
+const ChecklistEngine = globalThis.ChecklistEngine;
+const ChecklistManager = globalThis.ChecklistManager;
 
 // Colors out of the gist used to be interpolated straight into a CSS
 // declaration. style.cssText cannot execute script, but a value carrying a
@@ -221,5 +223,89 @@ describe('card editor custom field color hint', () => {
         });
 
         expect(editor.backdrop.querySelector('.card-editor-color-hint')).toBeNull();
+    });
+});
+
+// The third sink for the same config.color field. It is safe today only because
+// _ensureContrast launders every input through toHex(), so nothing but hex
+// digits reaches the style attribute - but that also means a non-hex color comes
+// back as '#04NaNNaN' and the subtitle renders with no usable color at all.
+// Validating at the call site fixes the visible bug and stops the safety
+// depending on an implementation detail of _ensureContrast.
+describe('checklist engine card subtitle color', () => {
+    // Mirrors the makeEngine fixture in tests/attribute-escaping.test.js: a real
+    // ChecklistManager and a real renderCards(), so the markup asserted on is
+    // what a visitor's page contains.
+    function renderSubtitle(color, pill = false) {
+        const engine = Object.create(ChecklistEngine.prototype);
+        engine.id = 'test';
+        engine.config = {
+            dataShape: 'flat',
+            cardDisplay: {},
+            customFields: { years: { label: 'Years', position: 'bottom', color, pill } },
+        };
+        engine.cards = [{ player: 'Test Player', set: 'Test Set', years: '1999-2004' }];
+        engine._renderedCards = [];
+        engine._reorderMode = false;
+        engine.updateStats = () => {};
+        engine.checklistManager = new ChecklistManager({ checklistId: 'test' });
+        engine.checklistManager.ownedCards = [];
+        engine.checklistManager.isReadOnly = false;
+        engine.renderCards();
+        return document.querySelector('.card-subtitle-line');
+    }
+
+    // A color no fallback could produce, so honouring it is distinguishable from
+    // falling back. _ensureContrast may darken it against the card background,
+    // hence the comparisons below are against the fallback rather than a literal.
+    const FIELD_COLOR = '#c8102e';
+
+    beforeEach(() => {
+        document.body.innerHTML = '<div id="sections-container"></div>';
+    });
+
+    it('honours a valid color rather than falling back', () => {
+        const line = renderSubtitle(FIELD_COLOR);
+        const fallback = renderSubtitle(undefined);
+
+        expect(line.style.getPropertyValue('color')).toMatch(/^rgb\(\d+, \d+, \d+\)$/);
+        expect(line.style.getPropertyValue('color'))
+            .not.toBe(fallback.style.getPropertyValue('color'));
+    });
+
+    it.each([
+        ['a named color', 'red'],
+        ['an empty string', ''],
+        ['three-digit hex', '#fff'],
+        ['an rgb() function', 'rgb(1,2,3)'],
+        ['a declaration-injecting payload', HOSTILE],
+    ])('falls back to the default gray for %s', (_label, color) => {
+        const line = renderSubtitle(color);
+        const fallback = renderSubtitle(undefined);
+
+        // Unpatched these produce '#04NaNNaN' and the like, which jsdom drops -
+        // so the subtitle renders with no color at all rather than the gray.
+        expect(line.style.getPropertyValue('color')).toBe(fallback.style.getPropertyValue('color'));
+        expect(line.style.getPropertyValue('color')).not.toBe('');
+        expect(line.getAttribute('style')).not.toContain('NaN');
+    });
+
+    it('injects no declaration through a hostile color', () => {
+        const line = renderSubtitle(HOSTILE);
+
+        expect(line.getAttribute('style')).not.toContain('evil.test');
+        expect(document.querySelectorAll('#sections-container [style*="url("]')).toHaveLength(0);
+    });
+
+    it('keeps the pill background in step with the validated color', () => {
+        // The pill background is parseInt'd back out of the same value, so a
+        // fallback that produced NaN would surface here as rgba(NaN,...).
+        const line = renderSubtitle(FIELD_COLOR, true);
+        const fallbackPill = renderSubtitle('red', true);
+
+        expect(line.style.getPropertyValue('background-color'))
+            .toMatch(/^rgba\(\d+, \d+, \d+, 0\.12\)$/);
+        expect(fallbackPill.style.getPropertyValue('background-color'))
+            .toMatch(/^rgba\(\d+, \d+, \d+, 0\.12\)$/);
     });
 });
