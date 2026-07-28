@@ -241,12 +241,13 @@ class CardEditorModal {
         // returning whatever it already has rather than fetching on demand.
         this.getLinkTargets = options.getLinkTargets || (() => []);
         // Async counterpart to getLinkTargets: what the checklist a card links to
-        // can say about itself, as { cardCount, stackImages }. Optional - without
-        // it both fields stay hand-entered, which is all they ever were.
+        // can say about itself, as { stackImages }. Optional - without it the stack
+        // stays hand-entered, which is all it ever was.
         this.getLinkSuggestions = options.getLinkSuggestions || null;
-        // Bumped by every request and by init(), so an answer that arrives after
-        // the selection moved on - or after the modal was rebuilt on a different
-        // card - is recognized as being about the wrong checklist and dropped.
+        // Bumped by every request, by init(), and by the link dropdown, so an
+        // answer that arrives after the selection moved on - or after the modal
+        // was rebuilt on a different card - is recognized as being about the
+        // wrong checklist and dropped.
         this._linkSuggestToken = 0;
         this.currentCard = null;
         this.currentCardId = null;
@@ -570,8 +571,8 @@ class CardEditorModal {
     }
 
     // The rows that turn a card into a collection link: which checklist it stands
-    // in for, and the two things the tile shows in place of a real card's image
-    // and set - a stack of images and a card count.
+    // in for, and the stack of images the tile shows in place of the image and set
+    // a real card would have.
     //
     // A dropdown rather than a free-text field: the stored value is a URL that
     // every consumer parses an id back out of (see collectionLinkTargetId), so a
@@ -600,17 +601,13 @@ class CardEditorModal {
                     <select class="card-editor-select" id="editor-collection-link">${options}</select>
                 </div>
             </div>
-            <div class="card-editor-row" style="grid-template-columns:3fr 1fr">
+            <div class="card-editor-row" style="grid-template-columns:1fr">
                 <div class="card-editor-field" id="editor-stack-images-field">
                     <div class="card-editor-label-row">
                         <label class="card-editor-label" for="editor-stack-images">Stack Images</label>
                         <button type="button" class="card-editor-toggle-btn" id="editor-suggest-stack">${SUGGEST_STACK_LABEL}</button>
                     </div>
                     <textarea class="card-editor-input" id="editor-stack-images" rows="3" placeholder="One image URL per line"></textarea>
-                </div>
-                <div class="card-editor-field" id="editor-card-count-field">
-                    <label class="card-editor-label" for="editor-card-count">Card Count</label>
-                    <input type="text" class="card-editor-input" id="editor-card-count" placeholder="40" inputmode="numeric">
                 </div>
             </div>`;
     }
@@ -766,10 +763,10 @@ class CardEditorModal {
             linkSelect.addEventListener('change', () => {
                 this._applyCollectionLinkState();
                 this.setDirty(true);
-                // Not awaited: the form is already usable and the count is only one
-                // of its fields. Picking a different checklist also cancels a
-                // suggestion still in flight for the previous one.
-                this._refreshLinkedCardCount();
+                // Pointing the card at a different checklist cancels a stack
+                // suggestion still in flight for the previous one: those images
+                // describe a checklist this card no longer stands in for.
+                this._linkSuggestToken++;
             });
         }
 
@@ -1363,9 +1360,6 @@ class CardEditorModal {
 
         this._populateCollectionLink(cardData);
         this._applyCollectionLinkState();
-        // Not awaited - the modal opens on the stored count and corrects it if and
-        // when the linked checklist answers
-        if (cardData.collectionLink) this._refreshLinkedCardCount();
 
         // Show modal
         this.backdrop.classList.add('active');
@@ -1512,7 +1506,6 @@ class CardEditorModal {
 
         this._setFieldVisible('#editor-collection-link-field', offerLink);
         this._setFieldVisible('#editor-stack-images-field', isLink);
-        this._setFieldVisible('#editor-card-count-field', isLink);
 
         this._setFieldVisible('#editor-set-field', !isLink);
         this._setFieldVisible('#editor-num-field', !isLink);
@@ -1590,8 +1583,6 @@ class CardEditorModal {
         }
         select.value = link;
 
-        const count = this.backdrop.querySelector('#editor-card-count');
-        if (count) count.value = cardData.cardCount != null ? cardData.cardCount : '';
         const stack = this.backdrop.querySelector('#editor-stack-images');
         if (stack) stack.value = (Array.isArray(cardData.stackImages) ? cardData.stackImages : []).join('\n');
     }
@@ -1602,7 +1593,7 @@ class CardEditorModal {
     // reopened modal - has taken over since this one went out, and the answer
     // describes a checklist the form may no longer point at; the only correct
     // response is to touch nothing. A failed fetch resolves as a plain absent
-    // suggestion: the fields are hand-editable and keep whatever they hold, so
+    // suggestion: the stack box is hand-editable and keeps whatever it holds, so
     // there is nothing to recover from beyond not writing anything.
     async _requestLinkSuggestions() {
         const token = ++this._linkSuggestToken;
@@ -1619,30 +1610,6 @@ class CardEditorModal {
         return { stale: false, suggestion: suggestion || null };
     }
 
-    // How many cards the linked checklist holds is a fact about that checklist, not
-    // a choice about this card, and it goes out of date on its own as the target
-    // grows. So it refreshes itself: on opening a card that already links somewhere,
-    // and on pointing a card at a different checklist.
-    //
-    // Opening deliberately does not mark the form dirty. The user may have opened
-    // the card only to look at it, and a confirm-on-close prompt for an edit they
-    // did not make is worse than a count that stays stale one more save; the fresh
-    // value is in the field and goes out with whatever they do save. On the
-    // dropdown path the change handler has already marked the form dirty, so the
-    // corrected count is saved along with the new link.
-    async _refreshLinkedCardCount() {
-        const before = this.backdrop.querySelector('#editor-card-count')?.value;
-        if (before === undefined) return;
-
-        const { stale, suggestion } = await this._requestLinkSuggestions();
-        if (stale || !suggestion || typeof suggestion.cardCount !== 'number') return;
-
-        const field = this.backdrop.querySelector('#editor-card-count');
-        // A count the user typed while the answer was in flight is theirs to keep
-        if (!field || field.value !== before) return;
-        field.value = String(suggestion.cardCount);
-    }
-
     // Fill the stack box with images from the linked checklist. Behind a button
     // rather than automatic, because three hand-picked images are a legitimate
     // choice and this replaces the lot - and because a button is the only trigger
@@ -1653,6 +1620,12 @@ class CardEditorModal {
     // a convenience feature is out of proportion. It resets to its resting label on
     // the next open, since init() rebuilds the modal.
     async _suggestStackImages() {
+        // No checklist selected, so there is nothing to ask and nothing to report:
+        // leaving the button alone is the honest answer, where falling through
+        // would announce a failure for a fetch that never happened. Not reachable
+        // from the UI, which hides the whole stack field until a link is chosen.
+        if (!this.backdrop.querySelector('#editor-collection-link')?.value.trim()) return;
+
         const button = this.backdrop.querySelector('#editor-suggest-stack');
         const resting = button ? button.textContent : SUGGEST_STACK_LABEL;
         if (button) {
@@ -1773,8 +1746,6 @@ class CardEditorModal {
         // image, and [] is truthy so it would never be recognized as cleared.
         if (link && !noCardChecked) {
             data.collectionLink = link;
-            const count = parseInt(this.backdrop.querySelector('#editor-card-count').value.trim(), 10);
-            if (count > 0) data.cardCount = count;
             const stack = this.parseStackImages(this.backdrop.querySelector('#editor-stack-images').value);
             if (stack.length > 0) data.stackImages = stack;
         }
