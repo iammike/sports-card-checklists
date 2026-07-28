@@ -5,9 +5,13 @@
  * and renders a fully functional checklist page.
  */
 
-// Fields the card editor always renders, so an empty one really does mean the
-// user cleared it. Every other clearable field is a custom field and is only
-// trusted when this checklist's config declares it - see _clearEmptyFields.
+// Fields whose absence from a submission really does mean the user cleared them.
+// The first four because the card editor always renders them, so an empty one is
+// a deliberate blank. The collection link trio is not always rendered, but earns
+// the same treatment for a different reason: getFormData omits all three together
+// whenever no link is selected, which is exactly when they should be gone. Every
+// other clearable field is a custom field and is only trusted when this
+// checklist's config declares it - see _clearEmptyFields.
 const ENGINE_BUILTIN_CLEARABLE = new Set([
     'price', 'img', 'search', 'priceSearch',
     'collectionLink', 'stackImages', 'cardCount',

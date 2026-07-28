@@ -1289,11 +1289,7 @@ class CardEditorModal {
         this.backdrop.querySelector('#editor-price-search').value = priceSearchValue;
 
         // Show advanced section if either search field has a custom value
-        const hasCustomSearch = ebayValue !== '' || priceSearchValue !== '';
-        const advancedFields = this.backdrop.querySelector('.card-editor-advanced-fields');
-        const advancedToggle = this.backdrop.querySelector('#editor-toggle-advanced');
-        advancedFields.style.display = hasCustomSearch ? 'flex' : 'none';
-        advancedToggle.textContent = hasCustomSearch ? 'Hide advanced' : 'Advanced';
+        this._syncAdvancedVisibility();
 
         this.updateImagePreview(cardData.img);
         this.updateProcessButton(cardData.img);
@@ -1466,6 +1462,12 @@ class CardEditorModal {
         this._setFieldVisible('.card-editor-image-section', !isLink);
         this._setFieldVisible('#editor-header-price', !isLink);
         this._setFieldVisible('#editor-no-card-field', !isLink);
+        // Advanced holds the eBay and price search overrides, and a collection
+        // link tile renders neither search link. Its own display carries the
+        // expanded state, so collapse it here and re-derive it on the way out.
+        this._setFieldVisible('.card-editor-advanced-toggle', !isLink);
+        if (isLink) this._setFieldVisible('.card-editor-advanced-fields', false);
+        else this._syncAdvancedVisibility();
         // Restoring the owned toggle is _updateOwnedToggleVisibility's call, not
         // ours - it stays hidden when no ownership callback is wired up at all.
         if (isLink) this._setFieldVisible('#editor-owned-toggle', false);
@@ -1477,6 +1479,19 @@ class CardEditorModal {
     _setFieldVisible(selector, visible) {
         const el = this.backdrop.querySelector(selector);
         if (el) el.style.display = visible ? '' : 'none';
+    }
+
+    // Expand the advanced section when either search term is set, collapse it
+    // otherwise. The section's own display doubles as its expanded state (the
+    // toggle button reads it back), so re-deriving it from the fields is how a
+    // card whose link was just removed gets its section back in the right state.
+    _syncAdvancedVisibility() {
+        const hasCustomSearch = this.backdrop.querySelector('#editor-ebay').value !== ''
+            || this.backdrop.querySelector('#editor-price-search').value !== '';
+        const fields = this.backdrop.querySelector('.card-editor-advanced-fields');
+        const toggle = this.backdrop.querySelector('#editor-toggle-advanced');
+        if (fields) fields.style.display = hasCustomSearch ? 'flex' : 'none';
+        if (toggle) toggle.textContent = hasCustomSearch ? 'Hide advanced' : 'Advanced';
     }
 
     // Rows are laid out as grids of paired fields, so a row whose fields are all
@@ -1556,12 +1571,19 @@ class CardEditorModal {
             data.category = categoryField.value;
         }
 
-        // Price - only include if explicitly set (stored as whole number). A
-        // no-card entry has no price, even if the (disabled) field still holds
-        // a stale value from before it was flagged - see _applyNoCardState.
         const noCardChecked = !!this.backdrop.querySelector('#editor-no-card')?.checked;
+        const link = this.backdrop.querySelector('#editor-collection-link')?.value.trim() || '';
+
+        // Price - only include if explicitly set (stored as whole number). Neither
+        // a no-card entry nor a collection link card has one, even if the field
+        // still holds a stale value from before it was flagged or linked - see
+        // _applyNoCardState and _applyCollectionLinkState, which hide it in both
+        // states. A price stranded on a linked card would be unreachable without
+        // un-linking first, and price-low/price-high sort still reads it, so the
+        // tile would silently move under those sorts. Un-linking brings it back:
+        // the input is hidden, never cleared.
         const priceVal = this.backdrop.querySelector('#editor-price').value.trim();
-        if (priceVal !== '' && !noCardChecked) {
+        if (priceVal !== '' && !noCardChecked && !link) {
             data.price = Math.round(parseFloat(priceVal)) || 0;
         }
 
@@ -1593,7 +1615,6 @@ class CardEditorModal {
         // the link records a deletion the gist merge honors (see _clearEmptyFields).
         // An empty stack must store nothing at all: [''] would render a broken
         // image, and [] is truthy so it would never be recognized as cleared.
-        const link = this.backdrop.querySelector('#editor-collection-link')?.value.trim() || '';
         if (link && !noCardChecked) {
             data.collectionLink = link;
             const count = parseInt(this.backdrop.querySelector('#editor-card-count').value.trim(), 10);

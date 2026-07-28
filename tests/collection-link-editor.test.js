@@ -194,6 +194,89 @@ describe('the fields that describe a physical card', () => {
   });
 });
 
+describe('a price does not survive being linked', () => {
+  // The price field is hidden on a linked card, so a price left on one is
+  // unreachable without un-linking first - and price-low/price-high sort still
+  // reads card.price, so the tile silently moves under those sorts.
+  const PRICED = { id: 'clJaydenDaniels', player: 'Jayden Daniels', price: 250 };
+
+  it('is dropped from the form data once a link is chosen', () => {
+    const editor = makeEditor();
+    editor.open(PRICED.id, { ...PRICED });
+    expect(editor.getFormData().price).toBe(250);
+
+    chooseLink(editor, LINK);
+
+    expect('price' in editor.getFormData()).toBe(false);
+  });
+
+  it('is deleted from the merged card, not just the local one', () => {
+    const engine = makeFlatEngine([{ ...PRICED }]);
+    const editor = makeEditor();
+    editor.open(PRICED.id, { ...PRICED });
+    chooseLink(editor, LINK);
+
+    engine._updateCard(PRICED.id, editor.getFormData());
+    const merged = engine._mergeCardArrays(engine.cards, [PRICED]);
+
+    expect('price' in merged[0]).toBe(false);
+    expect(merged[0].collectionLink).toBe(LINK);
+  });
+
+  it('comes back when the link is removed again', () => {
+    // Hidden, not cleared - so un-linking is not a destructive round trip
+    const editor = makeEditor();
+    editor.open(PRICED.id, { ...PRICED });
+    chooseLink(editor, LINK);
+    chooseLink(editor, '');
+
+    expect(editor.getFormData().price).toBe(250);
+  });
+});
+
+describe('the advanced search overrides', () => {
+  // A collection link tile renders neither an eBay nor a price search link
+  const SEARCHY = { id: 'clJaydenDaniels', player: 'Jayden Daniels', search: 'custom ebay term' };
+
+  it('are visible on an ordinary card with a stored term', () => {
+    const editor = makeEditor();
+    editor.open(SEARCHY.id, { ...SEARCHY });
+
+    expect(isHidden(editor, '.card-editor-advanced-toggle')).toBe(false);
+    expect(field(editor, '.card-editor-advanced-fields').style.display).toBe('flex');
+  });
+
+  it('are hidden once a link is chosen', () => {
+    const editor = makeEditor();
+    editor.open(SEARCHY.id, { ...SEARCHY });
+    chooseLink(editor, LINK);
+
+    expect(isHidden(editor, '.card-editor-advanced-toggle')).toBe(true);
+    expect(isHidden(editor, '.card-editor-advanced-fields')).toBe(true);
+  });
+
+  it('are restored, still expanded, when the link is removed again', () => {
+    const editor = makeEditor();
+    editor.open(SEARCHY.id, { ...SEARCHY });
+    chooseLink(editor, LINK);
+    chooseLink(editor, '');
+
+    expect(isHidden(editor, '.card-editor-advanced-toggle')).toBe(false);
+    expect(field(editor, '.card-editor-advanced-fields').style.display).toBe('flex');
+  });
+
+  it('stay collapsed on a card that never had a term', () => {
+    const editor = makeEditor();
+    editor.openNew();
+    chooseLink(editor, LINK);
+    chooseLink(editor, '');
+
+    expect(isHidden(editor, '.card-editor-advanced-toggle')).toBe(false);
+    expect(isHidden(editor, '.card-editor-advanced-fields')).toBe(true);
+    expect(field(editor, '#editor-toggle-advanced').textContent).toBe('Advanced');
+  });
+});
+
 describe('the fields that only a collection link card has', () => {
   let editor;
   beforeEach(() => { editor = makeEditor(); editor.openNew(); });
