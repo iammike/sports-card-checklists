@@ -205,11 +205,31 @@ function makeRealEditor(options = RICH_OPTIONS) {
 // identically, so nothing under test turns on the choice.
 const IMG_URL = 'images/card.webp';
 
+// bubbles: true because a browser's input event bubbles. The wiring under test
+// reads it off the input's own oninput property, where bubbling makes no
+// difference - but a fixture that dispatched a non-bubbling input would model an
+// event the browser never produces, and would quietly stop exercising anything
+// the day this handler becomes delegated, the direction #690/#692/#706 moved the
+// other handlers.
 function typeImageUrl(editor, url) {
     const input = editor.backdrop.querySelector('#editor-img');
     input.value = url;
-    input.dispatchEvent(new window.Event('input'));
+    input.dispatchEvent(new window.Event('input', { bubbles: true }));
     return editor.backdrop.querySelector('.card-editor-image-preview');
+}
+
+// error, unlike input, does NOT bubble when a real image fails to load: the HTML
+// spec fires it at the element non-bubbling and non-cancelable, which is exactly
+// why _initPreviewFallback listens on the container in the capture phase. So the
+// defaults are the faithful options here, and adding bubbles: true would be a
+// fidelity loss, not a fix - it would let the test pass against a listener that
+// had dropped `capture: true` and would therefore never fire in a browser.
+// Verified: flipping capture to false in src turns these tests red.
+function failImageLoad(preview) {
+    const img = preview.querySelector('img');
+    expect(img, 'no preview image to fail').not.toBeNull();
+    img.dispatchEvent(new window.Event('error'));
+    return img;
 }
 
 describe('CardEditorModal.init wires the preview fallback', () => {
@@ -231,12 +251,9 @@ describe('CardEditorModal.init wires the preview fallback', () => {
         const editor = makeRealEditor();
         const preview = typeImageUrl(editor, IMG_URL);
 
-        // error does not bubble, so this only ever reaches a capturing listener -
-        // which is what _initPreviewFallback attaches to the preview container.
-        // jsdom runs the full capture path for a non-bubbling event, so an error
-        // dispatched on the img propagates down through the container exactly as
-        // a real failed load would.
-        preview.querySelector('img').dispatchEvent(new window.Event('error'));
+        // jsdom runs the full capture path for a non-bubbling event, so this
+        // reaches the container listener exactly as a real failed load would.
+        failImageLoad(preview);
 
         expect(preview.querySelectorAll('img')).toHaveLength(0);
         expect(preview.querySelector('span.placeholder').textContent).toBe('Failed to load');
@@ -251,25 +268,34 @@ describe('CardEditorModal.init wires the preview fallback', () => {
         typeImageUrl(editor, '');
         const preview = typeImageUrl(editor, 'images/two.webp');
 
-        preview.querySelector('img').dispatchEvent(new window.Event('error'));
+        failImageLoad(preview);
 
         expect(preview.querySelector('span.placeholder').textContent).toBe('Failed to load');
     });
 });
 
-// Every on* attribute on every element in a subtree. Asserting parsed attribute
-// names is what closes the backtick hole: how the markup was written stops
-// mattering, only what it parses to. It is also the only level that can tell an
-// attribute from a value that looks like one - #692 tried an innerHTML regex and
-// failed 13 tests against correct code, because a hostile card value survives
-// verbatim inside an attribute and serialises as text containing ` onerror="`.
+// Every element in a subtree, the root included. querySelectorAll('*') leaves the
+// root out, and the roots walked below are themselves rendered markup - init()
+// sets className and innerHTML on the backdrop, createMenu() on the menu
+// container - so a handler landing on one of those would be invisible to a guard
+// whose entire job is to see it.
+function walk(root) {
+    return [root, ...root.querySelectorAll('*')];
+}
+
+// Every on* attribute on every walked element. Asserting parsed attribute names
+// is what closes the backtick hole: how the markup was written stops mattering,
+// only what it parses to. It is also the only level that can tell an attribute
+// from a value that looks like one - #692 tried an innerHTML regex and failed 13
+// tests against correct code, because a hostile card value survives verbatim
+// inside an attribute and serialises as text containing ` onerror="`.
 //
 // Handlers assigned as properties (dropzone.ondrop = fn, btn.onclick = fn) set no
 // attribute and are deliberately not covered: they take a function rather than a
 // string, so no card or config value can be executed through one. The old regex
 // did not flag them either.
 function inlineHandlers(root) {
-    return [...root.querySelectorAll('*')]
+    return walk(root)
         .flatMap(el => el.getAttributeNames())
         .filter(name => name.startsWith('on'));
 }
@@ -306,6 +332,15 @@ describe('the inline-handler guard itself detects a handler', () => {
         expect(host.querySelector('img').getAttributeNames().sort()).toEqual(['alt']);
         expect(inlineHandlers(host)).toEqual([]);
     });
+
+    it('flags a handler on the root element it is handed', () => {
+        // querySelectorAll('*') skips the root, so without walk() including it a
+        // handler on the backdrop or the menu container - both elements the
+        // production code builds - would pass this guard silently.
+        const root = parse('<div onclick="alert(1)"><span>x</span></div>').firstElementChild;
+
+        expect(inlineHandlers(root)).toEqual(['onclick']);
+    });
 });
 
 describe('the editor markup carries no inline event handler', () => {
@@ -314,24 +349,41 @@ describe('the editor markup carries no inline event handler', () => {
             .forEach(el => el.remove());
     });
 
-    // Pins that the fixture really built the whole editor, so an empty handler
-    // list means "walked the markup and found none" rather than "walked nothing".
-    function expectWholeEditorWalked(editor) {
-        const el = editor.backdrop;
-        expect(el.querySelectorAll('.card-editor-modal')).toHaveLength(1);
-        expect(el.querySelectorAll('button').length).toBeGreaterThanOrEqual(8);
-        // One per custom field position, plus the two config-driven selects.
-        for (const id of ['#editor-years', '#editor-grade', '#editor-auto', '#editor-note',
-            '#editor-category', '#editor-collection-link', '#editor-img']) {
-            expect(el.querySelector(id), id).not.toBeNull();
+    // The elements the walk has to have visited for a clean result to mean
+    // anything: the shell plus the regions at either end of it, one field per
+    // custom-field position, both config-driven selects, and the preview. Asserted
+    // as membership in the walked set rather than as a count of buttons or of
+    // elements - the question is "did we traverse the whole editor", and the
+    // answer to that does not change when the UI gains or loses a control.
+    const MUST_WALK = [
+        '.card-editor-modal',
+        '.card-editor-header',
+        '.card-editor-footer',
+        '#editor-set',
+        '#editor-years',
+        '#editor-grade',
+        '#editor-auto',
+        '#editor-note',
+        '#editor-category',
+        '#editor-collection-link',
+        '#editor-img',
+        '.card-editor-image-preview',
+    ];
+
+    function expectWalkCovers(root, selectors) {
+        const walked = new Set(walk(root));
+        expect(walked.size).toBeGreaterThan(0);
+        for (const selector of selectors) {
+            const el = root.querySelector(selector);
+            expect(el, `${selector} was not rendered`).not.toBeNull();
+            expect(walked.has(el), `${selector} was not visited by the walk`).toBe(true);
         }
-        expect(el.querySelectorAll('*').length).toBeGreaterThan(60);
     }
 
     it('renders none anywhere in the modal init() builds', () => {
         const editor = makeRealEditor();
 
-        expectWholeEditorWalked(editor);
+        expectWalkCovers(editor.backdrop, MUST_WALK);
         expect(inlineHandlers(editor.backdrop)).toEqual([]);
     });
 
@@ -341,7 +393,7 @@ describe('the editor markup carries no inline event handler', () => {
         expect(preview.querySelectorAll('img')).toHaveLength(1);
         expect(inlineHandlers(editor.backdrop)).toEqual([]);
 
-        preview.querySelector('img').dispatchEvent(new window.Event('error'));
+        failImageLoad(preview);
 
         expect(preview.querySelector('span.placeholder')).not.toBeNull();
         expect(inlineHandlers(editor.backdrop)).toEqual([]);
