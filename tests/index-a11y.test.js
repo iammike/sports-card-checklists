@@ -1,94 +1,22 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-
-const sanitizeText = globalThis.sanitizeText;
-const isSafeColor = globalThis.isSafeColor;
+import {
+    CIRCUMFERENCE,
+    FILTER_BAR_MARKUP,
+    GRID_MARKUP,
+    loadInitChecklistFilters,
+    renderCard,
+} from './index-source.js';
 
 // index.html conveyed several states with a glyph and a colour and nothing else
 // (#703). The convention chosen for the whole page is ARIA roles and names on the
 // existing element - never visually-hidden text, because both this page and the
 // card grid filter on textContent, so hidden words would leak into search matches
-// and into the "N of M" parse in applyFilters below.
+// and into the "N of M" parse applyFilters does.
 
-// The markup and the two functions under test are all inline in index.html, which
-// tests/setup.js does not load (it only evals src/*.js). Extract the real source
-// and evaluate it so this asserts the shipped page rather than a copy. Same trick
-// as tests/index-stats-escaping.test.js and tests/index-aggregate-complete.test.js.
-const INDEX_HTML = readFileSync(resolve(import.meta.dirname, '..', 'index.html'), 'utf-8');
-
-// Bounds of the balanced {...} block opening at or after `from`.
-function balancedBlock(from) {
-    const bodyStart = INDEX_HTML.indexOf('{', from);
-    let depth = 0;
-    for (let i = bodyStart; i < INDEX_HTML.length; i++) {
-        if (INDEX_HTML[i] === '{') depth++;
-        else if (INDEX_HTML[i] === '}' && --depth === 0) return { bodyStart, end: i + 1 };
-    }
-    throw new Error('unbalanced block in index.html');
-}
-
-function sourceOf(marker) {
-    const start = INDEX_HTML.indexOf(marker);
-    if (start === -1) throw new Error(`${marker} not found in index.html`);
-    return { start, ...balancedBlock(start + marker.length - 1) };
-}
-
-// The element opened by `startTag`, up to its matching </div>.
-function markupOf(startTag) {
-    const start = INDEX_HTML.indexOf(startTag);
-    if (start === -1) throw new Error(`${startTag} not found in index.html`);
-
-    const tags = /<div\b|<\/div>/g;
-    tags.lastIndex = start;
-    let depth = 0;
-    let match;
-    while ((match = tags.exec(INDEX_HTML)) !== null) {
-        if (match[0] === '</div>') {
-            if (--depth === 0) return INDEX_HTML.slice(start, match.index + '</div>'.length);
-        } else {
-            depth++;
-        }
-    }
-    throw new Error(`unbalanced ${startTag} markup in index.html`);
-}
-
-const FILTER_BAR_MARKUP = markupOf('<div class="checklist-filter-bar"');
-const GRID_MARKUP = markupOf('<div class="checklist-grid">');
-
-const buildRenderCard = (() => {
-    const { bodyStart, end } = sourceOf('dynamicEntries.forEach(entry => {');
-    return new Function(
-        'allGistStats',
-        'PROGRESS_RING_CIRCUMFERENCE',
-        'grid',
-        'dynamicStats',
-        'sanitizeText',
-        'isSafeColor',
-        `return (entry) => ${INDEX_HTML.slice(bodyStart, end)};`,
-    );
-})();
-
-const loadInitChecklistFilters = () => {
-    const { start, end } = sourceOf('function initChecklistFilters() {');
-    return new Function(`${INDEX_HTML.slice(start, end)}; return initChecklistFilters;`)();
-};
-
-// Matches the r="20" circle in the card's SVG, as index.html's own constant does.
-const CIRCUMFERENCE = 2 * Math.PI * 20;
-
-// Render one registry entry through the real card builder and hand back the card.
-function renderCard(entry, stats, grid = document.createElement('div')) {
-    buildRenderCard(
-        { [entry.id]: stats },
-        CIRCUMFERENCE,
-        grid,
-        {},
-        sanitizeText,
-        isSafeColor,
-    )(entry);
-    return grid.querySelector('.checklist-card:last-of-type');
-}
+// The markup and the functions under test are all inline in index.html, which
+// tests/setup.js does not load (it only evals src/*.js). The imports above slice
+// the real source out and evaluate it, so this asserts the shipped page rather
+// than a copy - see tests/index-source.js.
 
 // How much of the ring is dashed out, i.e. the unfilled part of the arc.
 const ringOffset = (card) =>

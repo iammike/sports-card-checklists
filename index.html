@@ -912,7 +912,15 @@
                         const total = match ? parseInt(match[2]) : 0;
                         const hasCards = total > 0;
 
-                        if (activeFilter === 'complete') matchesFilter = hasCards && owned === total;
+                        // Complete is owned >= total, matching the card's own test above,
+                        // not owned === total. A stale gist total can leave more cards
+                        // owned than the checklist lists, and on 12 of 10 the strict
+                        // equality matched none of the three filters - not Complete, not
+                        // In Progress, not Not Started - so a card the page was styling as
+                        // complete could only be found under All (#717). The three states
+                        // have to partition every owned/total pair; the hasCards guard is
+                        // what keeps an empty checklist out of Complete, since 0 >= 0.
+                        if (activeFilter === 'complete') matchesFilter = hasCards && owned >= total;
                         else if (activeFilter === 'in-progress') matchesFilter = hasCards && owned > 0 && owned < total;
                         else if (activeFilter === 'not-started') matchesFilter = !hasCards || owned === 0;
                     }
