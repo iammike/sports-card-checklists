@@ -1,3 +1,4 @@
+import { afterEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { createRequire } from 'module';
@@ -6,6 +7,41 @@ import { createRequire } from 'module';
 // Stub APIs that jsdom doesn't provide.
 globalThis.navigator.vibrate = () => {};
 globalThis.performance = globalThis.performance || { now: () => Date.now() };
+
+// No test may reach the network. This matters more now that github-sync.js is in the
+// list below: window.githubSync is a real GitHubSync, and loadPublicData /
+// loadPublicStats fetch the *production* gist without needing a token. A stray path
+// that used to die on `!window.githubSync` would otherwise quietly hit api.github.com.
+//
+// Throwing alone would not be enough, which is what the array is for: every fetch in
+// github-sync.js sits inside a try/catch that logs and returns null, so the thrown
+// error is swallowed and the call just looks like an empty response. Recording the
+// attempt and failing afterEach makes it unswallowable.
+//
+// A test that legitimately needs fetch assigns its own globalThis.fetch and never
+// reaches this one; restoring the previous value afterwards puts the tripwire back.
+const attemptedRequests = [];
+globalThis.fetch = (input) => {
+    const url = String(input && input.url ? input.url : input);
+    attemptedRequests.push(url);
+    throw new Error(`tests must not make network calls (attempted ${url})`);
+};
+
+// Returns the attempts since the last call, and clears them. Exported so
+// no-network.test.js can assert the tripwire is armed without tripping it.
+export function takeAttemptedRequests() {
+    return attemptedRequests.splice(0);
+}
+
+afterEach(() => {
+    const attempted = takeAttemptedRequests();
+    if (attempted.length) {
+        throw new Error(
+            'test attempted a network call; stub fetch for this path instead:\n  '
+            + attempted.join('\n  '),
+        );
+    }
+});
 
 // Load all shared modules into the jsdom global context so tests can access
 // CardRenderer, sanitizeText, sanitizeUrl, etc.
