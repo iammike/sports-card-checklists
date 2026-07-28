@@ -183,6 +183,9 @@ describe('ChecklistCreatorModal — search prefix round trip', () => {
         creator.open();
 
         expect(creator.backdrop.querySelector('#creator-search-prefix').value).toBe('');
+        // The reset restores visibility too, not just the value: show-player goes
+        // back to checked, so the field has to hide again.
+        expect(creator.backdrop.querySelector('#creator-search-prefix-field').style.display).toBe('none');
         fillRequired(creator, 'Washington QBs');
         toggleShowPlayer(creator);
         expect('searchPrefix' in creator._buildConfig()).toBe(false);
