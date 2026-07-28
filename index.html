@@ -810,7 +810,16 @@
                 const hasStats = stats && typeof stats.owned === 'number' && stats.total > 0;
                 dynamicStats[entry.id] = hasStats ? stats : null;
 
-                const pct = hasStats && stats.total > 0 ? Math.round((stats.owned / stats.total) * 100) : 0;
+                // Clamped here at the source rather than at each use: a stale gist
+                // total can leave more cards owned than the checklist lists, and
+                // both consumers below need the figure bounded. Unclamped it drives
+                // stroke-dashoffset negative, which renders the ring as a broken arc
+                // instead of a full one, and puts aria-valuenow above aria-valuemax.
+                // Completeness is decided from owned/total further down, not from
+                // this, so nothing wants the raw figure.
+                const pct = hasStats && stats.total > 0
+                    ? Math.min(Math.round((stats.owned / stats.total) * 100), 100)
+                    : 0;
                 const offset = PROGRESS_RING_CIRCUMFERENCE - (pct / 100) * PROGRESS_RING_CIRCUMFERENCE;
                 const description = entry.description || '';
                 // Both land in a CSS declaration below, so validate rather than
@@ -823,9 +832,7 @@
                 // The ring draws a checkmark instead of the percentage once complete,
                 // and a bare checkmark announces as nothing useful. The meaning lives
                 // on the ring's own role/value instead, so the glyph can stay
-                // decorative. aria-valuenow is clamped because owning more cards than
-                // the checklist lists (a stale total) pushes pct past 100.
-                const ringValue = Math.min(pct, 100);
+                // decorative.
                 const ringText = isComplete ? 'Complete' : pct + '% collected';
                 const card = document.createElement('a');
                 card.href = `checklist.html?id=${entry.id}`;
@@ -839,7 +846,7 @@
                     <div class="progress-section" style="display:block">
                         <div class="main-progress">
                             <div class="progress-ring" role="progressbar" aria-label="Cards collected"
-                                aria-valuemin="0" aria-valuemax="100" aria-valuenow="${ringValue}" aria-valuetext="${ringText}">
+                                aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-valuetext="${ringText}">
                                 <svg viewBox="0 0 48 48" aria-hidden="true">
                                     <circle class="bg" cx="24" cy="24" r="20"/>
                                     <circle class="fill" cx="24" cy="24" r="20"

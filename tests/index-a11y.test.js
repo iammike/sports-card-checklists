@@ -74,11 +74,14 @@ const loadInitChecklistFilters = () => {
     return new Function(`${INDEX_HTML.slice(start, end)}; return initChecklistFilters;`)();
 };
 
+// Matches the r="20" circle in the card's SVG, as index.html's own constant does.
+const CIRCUMFERENCE = 2 * Math.PI * 20;
+
 // Render one registry entry through the real card builder and hand back the card.
 function renderCard(entry, stats, grid = document.createElement('div')) {
     buildRenderCard(
         { [entry.id]: stats },
-        2 * Math.PI * 20,
+        CIRCUMFERENCE,
         grid,
         {},
         sanitizeText,
@@ -86,6 +89,10 @@ function renderCard(entry, stats, grid = document.createElement('div')) {
     )(entry);
     return grid.querySelector('.checklist-card:last-of-type');
 }
+
+// How much of the ring is dashed out, i.e. the unfilled part of the arc.
+const ringOffset = (card) =>
+    parseFloat(card.querySelector('.progress-ring .fill').getAttribute('stroke-dashoffset'));
 
 // What a screen reader would use to name the control: an explicit name wins,
 // otherwise the rendered text. Deliberately not the placeholder, which is only a
@@ -139,14 +146,27 @@ describe('index.html progress ring — role and value', () => {
         expect(card.querySelector('.progress-ring svg').getAttribute('aria-hidden')).toBe('true');
     });
 
-    it('clamps aria-valuenow when a stale total leaves more cards owned than listed', () => {
-        // aria-valuenow above aria-valuemax is invalid, and owning 12 of 10 is a
-        // state the gist can really hold while a checklist is being trimmed.
+    it('clamps the drawn arc and aria-valuenow together when a stale total leaves more cards owned than listed', () => {
+        // Owning 12 of 10 is a state the gist can really hold while a checklist is
+        // being trimmed. The percentage is clamped once at its source so both
+        // consumers are covered: unclamped, aria-valuenow lands above
+        // aria-valuemax and stroke-dashoffset goes negative, which shifts the dash
+        // pattern and draws the ring as a broken arc rather than a closed one.
         const card = renderCard(ENTRY, { ...STATS, owned: 12, total: 10 });
 
         const ring = card.querySelector('[role="progressbar"]');
         expect(ring.getAttribute('aria-valuenow')).toBe('100');
         expect(ring.getAttribute('aria-valuetext')).toBe('Complete');
+        expect(ringOffset(card)).toBe(0);
+    });
+
+    it('still draws the arc from the owned percentage in the ordinary case', () => {
+        // Pins the geometry the clamp must not flatten: 3 of 10 owned leaves 70% of
+        // the circumference dashed out. Without this, clamping to a constant would
+        // satisfy the test above.
+        const card = renderCard(ENTRY, STATS);
+
+        expect(ringOffset(card)).toBeCloseTo(0.7 * CIRCUMFERENCE, 6);
     });
 
     it('leaves no progressbar on a checklist with no cards to report', () => {
