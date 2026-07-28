@@ -411,6 +411,14 @@ class ChecklistEngine {
     }
 
     async _saveCardData() {
+        // githubSync is a page-loaded global, not an import, so guard it the way
+        // _loadConfig() does. Callers have already set the "Saving..." status, so
+        // report this through the same path as any other failed save rather than
+        // returning bare and leaving the status hanging.
+        if (typeof githubSync === 'undefined') {
+            return this._applySaveResult({ ok: false, reason: 'unavailable' });
+        }
+
         // Merge with latest gist data to prevent overwriting external changes (#560)
         await this._mergeWithFreshGistData();
 
@@ -433,6 +441,12 @@ class ChecklistEngine {
             result = await githubSync.saveCardData(this.id, this.cardData, stats);
         }
 
+        return this._applySaveResult(result);
+    }
+
+    // Reflect a { ok, reason } save result in the sync status and error banner.
+    // Returns whether the save succeeded, which is _saveCardData's return value.
+    _applySaveResult(result) {
         if (result.ok) {
             this.checklistManager.setSyncStatus('synced', 'Saved');
         } else if (result.reason === 'auth_expired') {
@@ -453,6 +467,11 @@ class ChecklistEngine {
 
     // Merge local cards with fresh gist data so external field additions aren't lost
     async _mergeWithFreshGistData() {
+        // Guard outside the try: the catch below only warns and lets the save
+        // proceed with local data, so a ReferenceError here would silently defeat
+        // the overwrite protection this function exists to provide (#560).
+        if (typeof githubSync === 'undefined') return;
+
         try {
             // Clear cache to get truly fresh data
             githubSync._gistCache = null;
