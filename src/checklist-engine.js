@@ -1111,7 +1111,7 @@ class ChecklistEngine {
         </select>`;
 
         // Search
-        html += `<span class="search-wrapper"><input type="text" id="search" placeholder="Search cards..."><button class="search-clear" type="button">&times;</button></span>`;
+        html += `<span class="search-wrapper"><input type="text" id="search" placeholder="Search cards..." aria-label="Search cards"><button class="search-clear" type="button" aria-label="Clear search">&times;</button></span>`;
 
         // Reorder button (visible when sort=Manual and user is owner)
         html += `<button id="reorder-btn" class="filter-btn" style="display:none">Reorder</button>`;
@@ -1515,7 +1515,13 @@ class ChecklistEngine {
         let badge = '';
         if (progress) {
             const complete = progress.owned === progress.total;
-            badge = `<span class="section-progress${complete ? ' complete' : ''}">${complete ? '&#10003; ' : ''}${progress.owned}/${progress.total}</span>`;
+            // The checkmark a complete section picks up is a bare glyph, and the
+            // "9/9" beside it reads as "9 slash 9". Name the badge so it announces
+            // as figures instead; the role hides the glyph behind that name.
+            const label = complete
+                ? `all ${progress.total} owned`
+                : `${progress.owned} of ${progress.total} owned`;
+            badge = `<span class="section-progress${complete ? ' complete' : ''}" role="img" aria-label="${sanitizeAttr(label)}">${complete ? '&#10003; ' : ''}${progress.owned}/${progress.total}</span>`;
         }
         // Escaped at the sink rather than in each caller: callers compose cssClass
         // from a literal plus a config-supplied category id.
