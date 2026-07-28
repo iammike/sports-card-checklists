@@ -571,8 +571,8 @@ class CardEditorModal {
     }
 
     // The rows that turn a card into a collection link: which checklist it stands
-    // in for, and the two things the tile shows in place of a real card's image
-    // and set - a stack of images and a card count.
+    // in for, and the stack of images the tile shows in place of the image and set
+    // a real card would have.
     //
     // A dropdown rather than a free-text field: the stored value is a URL that
     // every consumer parses an id back out of (see collectionLinkTargetId), so a
