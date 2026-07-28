@@ -135,3 +135,4 @@ function isSafeColor(value) {
 
 // Export for use in pages
 window.CARD_TYPES = CARD_TYPES;
+window.R2_IMAGE_BASE = R2_IMAGE_BASE;
