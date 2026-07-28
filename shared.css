@@ -1154,6 +1154,9 @@ select, input[type="text"] {
     height: 16px;
     cursor: pointer;
     margin: 0;
+    /* Otherwise this renders as a bare native checkbox, whose look varies
+       by OS - accent-color keeps it themed and consistent everywhere. */
+    accent-color: var(--card-owned-border);
 }
 
 .checkbox-wrapper label {
