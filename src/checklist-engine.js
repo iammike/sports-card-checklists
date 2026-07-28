@@ -5,10 +5,17 @@
  * and renders a fully functional checklist page.
  */
 
-// Fields the card editor always renders, so an empty one really does mean the
-// user cleared it. Every other clearable field is a custom field and is only
-// trusted when this checklist's config declares it - see _clearEmptyFields.
-const ENGINE_BUILTIN_CLEARABLE = new Set(['price', 'img', 'search', 'priceSearch']);
+// Fields whose absence from a submission really does mean the user cleared them.
+// The first four because the card editor always renders them, so an empty one is
+// a deliberate blank. The collection link trio is not always rendered, but earns
+// the same treatment for a different reason: getFormData omits all three together
+// whenever no link is selected, which is exactly when they should be gone. Every
+// other clearable field is a custom field and is only trusted when this
+// checklist's config declares it - see _clearEmptyFields.
+const ENGINE_BUILTIN_CLEARABLE = new Set([
+    'price', 'img', 'search', 'priceSearch',
+    'collectionLink', 'stackImages', 'cardCount',
+]);
 
 class ChecklistEngine {
     constructor() {
@@ -59,7 +66,7 @@ class ChecklistEngine {
 
         // Load card data
         await this._loadCardData();
-        this._backfillNoCardIds();
+        this._backfillSyntheticIds();
 
         // Load stats for any linked checklists (e.g., collection link cards)
         await this._loadLinkedStats();
@@ -242,11 +249,12 @@ class ChecklistEngine {
     }
 
     // A no-card entry has nothing to hash - no set, num or variant - so it needs
-    // an explicit id. The editor assigns one on save, but entries created by
-    // hand-editing the gist have none, and every one of them would hash to the
-    // same empty string, so edit and delete would act on the first match rather
-    // than the row the user picked. Backfill at load; persisted on the next save.
-    _backfillNoCardIds() {
+    // an explicit id. A collection link card has nothing to hash either. The editor
+    // assigns one on save, but entries created by hand-editing the gist have none,
+    // and every one of them would hash to the same empty string, so edit and delete
+    // would act on the first match rather than the row the user picked. Backfill at
+    // load; persisted on the next save.
+    _backfillSyntheticIds() {
         const arrays = this._isFlat() ? [this.cards] : Object.values(this.cards || {});
         const cards = arrays.filter(Array.isArray).flat().filter(Boolean);
 
@@ -254,18 +262,23 @@ class ChecklistEngine {
         cards.forEach(card => {
             // An unsafe id is ignored by getCardId, which would leave this entry
             // hashing to the empty string, so treat it as missing and replace it
-            if (!card.noCard || isSafeCardId(card.id)) return;
-            card.id = buildNoCardId(this._noCardIdSource(card), taken);
+            if (isSafeCardId(card.id)) return;
+            // noCard wins over collectionLink, matching every other noCard check
+            const build = card.noCard ? buildNoCardId : (card.collectionLink ? buildCollectionLinkId : null);
+            if (!build) return;
+            card.id = build(this._syntheticIdSource(card), taken);
             taken.add(card.id);
         });
     }
 
-    // Name to derive a no-card id from: the first top-position custom field
-    // (usually player), matching what the editor uses, then set as a fallback
-    _noCardIdSource(card) {
+    // Name to derive a synthetic id from: the first top-position custom field
+    // (usually player), matching what the editor uses, then set as a fallback, and
+    // for a collection link card the id of the checklist it stands in for.
+    _syntheticIdSource(card) {
         const topField = Object.entries(this.config.customFields || {})
             .find(([_, c]) => (c.position || 'top') === 'top');
-        return (topField && card[topField[0]]) || card.player || card.set || '';
+        const named = (topField && card[topField[0]]) || card.player || card.set || '';
+        return named || collectionLinkTargetId(card.collectionLink) || '';
     }
 
     async _loadLinkedStats() {
@@ -273,10 +286,7 @@ class ChecklistEngine {
         const allCards = this._isFlat() ? this.cards : this._getAllCardsFlat();
         const linkedIds = allCards
             .filter(c => c.collectionLink)
-            .map(c => {
-                const match = c.collectionLink.match(/[?&]id=([^&]+)/);
-                return match ? match[1] : null;
-            })
+            .map(c => collectionLinkTargetId(c.collectionLink))
             .filter(Boolean);
 
         if (linkedIds.length === 0) {
@@ -907,8 +917,10 @@ class ChecklistEngine {
 
         // noCard wins over collectionLink, matching every other noCard check
         const isCollectionLink = card.collectionLink && !card.noCard;
-        const cardId = isCollectionLink ? null : this.getCardId(card);
-        const owned = cardId ? this.isOwned(cardId) : false;
+        // A collection link card gets an id too, so the context menu can tell one
+        // from another; its ownership is still derived, never stored.
+        const cardId = this.getCardId(card);
+        const owned = !isCollectionLink && cardId ? this.isOwned(cardId) : false;
         const price = this.getPrice(card);
         const showPlayer = this.config.cardDisplay?.showPlayerName !== false && card.player;
         const searchPrefix = card.player ? card.player :
@@ -947,7 +959,7 @@ class ChecklistEngine {
 
         // Collection link cards (special type)
         if (isCollectionLink) {
-            return this._renderCollectionLinkCard(card, cardIdx);
+            return this._renderCollectionLinkCard(card, cardIdx, cardId);
         }
 
         const cardClass = `card ${owned ? 'owned' : ''}`.trim();
@@ -990,28 +1002,49 @@ class ChecklistEngine {
         return html;
     }
 
-    _renderCollectionLinkCard(card, cardIdx) {
+    _renderCollectionLinkCard(card, cardIdx, cardId) {
         // Scheme-checked so a 'javascript:' link cannot execute from the href or
         // from the delegated navigation, then attribute-escaped so a quote in it
         // cannot close the attribute.
         const link = sanitizeLinkUrl(card.collectionLink);
         const safeLink = sanitizeAttr(link);
+        // Omitted rather than emitted empty when the card has yet to be backfilled:
+        // two id-less cards would otherwise share one document id.
+        const safeId = sanitizeAttr(cardId);
+        const idAttrs = cardId ? ` id="card-${safeId}" data-card-id="${safeId}"` : '';
 
-        // Badge: show linked checklist stats if available, else cardCount
+        // Badge: show linked checklist stats if available, else cardCount.
+        // All three values land in a text node and all three come from the gist -
+        // the counts from the stats file, cardCount from the card - so all three
+        // are escaped. The editor now writes cardCount through parseInt, but a
+        // hand-edited gist can still put anything there.
         let badgeHtml = '';
-        const linkedMatch = card.collectionLink.match(/[?&]id=([^&]+)/);
-        const linkedId = linkedMatch ? linkedMatch[1] : null;
+        const linkedId = collectionLinkTargetId(card.collectionLink);
         const linkedStats = linkedId ? (this._linkedStats || {})[linkedId] : null;
         if (linkedStats && typeof linkedStats.owned === 'number') {
-            badgeHtml = `<span class="collection-badge">${linkedStats.owned} / ${linkedStats.total} CARDS</span>`;
+            badgeHtml = `<span class="collection-badge">${sanitizeText(linkedStats.owned)} / ${sanitizeText(linkedStats.total)} CARDS</span>`;
         } else if (card.cardCount) {
-            badgeHtml = `<span class="collection-badge">${card.cardCount} CARDS</span>`;
+            badgeHtml = `<span class="collection-badge">${sanitizeText(card.cardCount)} CARDS</span>`;
         }
 
-        // Image: card stack (multiple images) or single image
+        // Image: card stack, or a single image when there is no usable stack.
+        //
+        // Each stack entry becomes a fetch target, so it gets the same scheme
+        // check every other URL in the render path gets. This field is editable
+        // from the card editor's Stack Images box, so the values are no longer
+        // only ever hand-written gist JSON. An entry that fails the check is
+        // dropped rather than emitted as src="", which renders a broken-image
+        // icon; a stack left empty by that filter falls through to the
+        // single-image path, exactly as a card with no stack at all does.
+        // Array-checked because a hand-edited gist could hold a bare string,
+        // which has a length but no map.
+        const stackSrcs = (Array.isArray(card.stackImages) ? card.stackImages : [])
+            .map(src => sanitizeLinkUrl(src))
+            .filter(Boolean);
+
         let imageHtml;
-        if (card.stackImages && card.stackImages.length > 0) {
-            const imgs = card.stackImages.map(src =>
+        if (stackSrcs.length > 0) {
+            const imgs = stackSrcs.map(src =>
                 `<img src="${sanitizeAttr(src)}" alt="" loading="lazy">`
             ).join('');
             imageHtml = `<div class="card-stack">${imgs}</div>`;
@@ -1023,7 +1056,10 @@ class ChecklistEngine {
         // The whole card navigates, but via one delegated click listener
         // (_initCollectionLinkNav) reading data-collection-link. There is no inline
         // handler, so a quote in the link has no JS string to break out of.
-        return `<div class="card collection-link" data-card-idx="${cardIdx}" data-collection-link="${safeLink}">
+        // data-card-id is what the context menu reads to know which card was
+        // right-clicked; without it, Edit resolves to the empty id and finds
+        // nothing, which is why these cards were previously gist-only to edit.
+        return `<div class="card collection-link"${idAttrs} data-card-idx="${cardIdx}" data-collection-link="${safeLink}">
             <div class="card-image-wrapper">
                 ${badgeHtml}
                 ${imageHtml}
@@ -1456,8 +1492,7 @@ class ChecklistEngine {
 
     _collectionLinkOwned(card) {
         if (!card.collectionLink) return false;
-        const match = card.collectionLink.match(/[?&]id=([^&]+)/);
-        const linkedId = match ? match[1] : null;
+        const linkedId = collectionLinkTargetId(card.collectionLink);
         const stats = linkedId ? (this._linkedStats || {})[linkedId] : null;
         return !!(stats && stats.owned > 0);
     }
@@ -1855,6 +1890,13 @@ class ChecklistEngine {
             cardTypes: [],
             isOwned: (cardId) => this.checklistManager.isOwned(cardId),
             getExistingIds: () => this._getAllCardsFlat().map(c => this.getCardId(c)),
+            // Registry entries this card may stand in for. Read from whatever
+            // DynamicNav already has - init() kicks the fetch off without awaiting
+            // it, and the session cache covers the rest. A checklist cannot link to
+            // itself, so it is never offered.
+            getLinkTargets: () => DynamicNav.listChecklists()
+                .filter(entry => entry.id !== this.id)
+                .map(entry => ({ value: DynamicNav.getUrl(entry), label: entry.navLabel || entry.title })),
             // Same story as setOwned: toggleOwned synchronously calls the
             // manager's onOwnedChange, which re-renders the cards from stored
             // state and updates the stats. Nothing to do here but delegate.
@@ -1865,9 +1907,10 @@ class ChecklistEngine {
                 const newId = this.getCardId(cardData);
                 if (isNew) {
                     this._addCard(cardData);
-                } else if (cardData.noCard) {
-                    // A no-card entry can never be owned: drop any stored ownership
-                    // instead of transferring it to the new id
+                } else if (cardData.noCard || cardData.collectionLink) {
+                    // Neither carries stored ownership - a no-card entry can never be
+                    // owned, and a collection link card derives it from the linked
+                    // checklist - so drop it rather than transferring it to the new id
                     if (this.checklistManager.isOwned(cardId)) {
                         this.checklistManager.toggleOwned(cardId, false);
                     }
@@ -2036,8 +2079,11 @@ class ChecklistEngine {
 
         if (cardData.priceSearch) { card.priceSearch = cardData.priceSearch; } else { clear('priceSearch'); }
 
-        // img keeps '' as its own deletion marker, see _stripLocalOnlyMarkers
-        ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant', 'search'].forEach(key => {
+        // img keeps '' as its own deletion marker, see _stripLocalOnlyMarkers.
+        // The collection link trio is absent from the form data whenever no link is
+        // selected, which is exactly when it should be gone from the card too.
+        ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant', 'search',
+            'collectionLink', 'stackImages', 'cardCount'].forEach(key => {
             if (!(key in cardData) || !cardData[key]) {
                 if (key === 'img' && key in cardData) { card[key] = ''; } else { clear(key); }
             }

@@ -1751,6 +1751,13 @@ select, input[type="text"] {
     opacity: 0.7;
 }
 
+/* Stack images: one URL per line, so it grows downward rather than sideways */
+.card-editor-modal textarea.card-editor-input {
+    resize: vertical;
+    min-height: 76px;
+    line-height: 1.5;
+}
+
 .card-editor-select {
     cursor: pointer;
     appearance: none;

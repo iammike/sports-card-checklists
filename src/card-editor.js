@@ -230,6 +230,10 @@ class CardEditorModal {
         this.isOwned = options.isOwned || (() => false); // callback to check if card is owned
         this.onOwnedChange = options.onOwnedChange || null; // callback when owned state changes
         this.getExistingIds = options.getExistingIds || (() => []); // callback listing card ids already in use
+        // Checklists this card may link to, as [{ value: url, label }]. Read
+        // synchronously while building the modal, so the caller is responsible for
+        // returning whatever it already has rather than fetching on demand.
+        this.getLinkTargets = options.getLinkTargets || (() => []);
         this.currentCard = null;
         this.currentCardId = null;
         this.isDirty = false;
@@ -456,15 +460,17 @@ class CardEditorModal {
         }
 
         // 2. Set Name (wide) + Card Number (narrow)
+        // The wrappers carry ids so _applyCollectionLinkState can hide the fields
+        // that describe a physical card without hiding the row they share.
         fields.push({
-            html: `<div class="card-editor-field">
+            html: `<div class="card-editor-field" id="editor-set-field">
                 <label class="card-editor-label">Set Name</label>
                 <input type="text" class="card-editor-input" id="editor-set" placeholder="2024 Panini Prizm">
             </div>`,
             size: 'wide'
         });
         fields.push({
-            html: `<div class="card-editor-field">
+            html: `<div class="card-editor-field" id="editor-num-field">
                 <label class="card-editor-label">Card Number</label>
                 <input type="text" class="card-editor-input" id="editor-num" placeholder="123">
             </div>`,
@@ -474,7 +480,7 @@ class CardEditorModal {
         // 3. Card Type (wide, conditional)
         if (this.cardTypes.length > 0) {
             fields.push({
-                html: `<div class="card-editor-field">
+                html: `<div class="card-editor-field" id="editor-type-field">
                     <label class="card-editor-label">Card Type</label>
                     <select class="card-editor-select" id="editor-type">
                         ${this.cardTypes.map(t => `<option value="${sanitizeAttr(t)}">${sanitizeText(t)}</option>`).join('')}
@@ -549,6 +555,49 @@ class CardEditorModal {
         return rows.join('');
     }
 
+    // The rows that turn a card into a collection link: which checklist it stands
+    // in for, and the two things the tile shows in place of a real card's image
+    // and set - a stack of images and a card count.
+    //
+    // A dropdown rather than a free-text field: the stored value is a URL that
+    // every consumer parses an id back out of (see collectionLinkTargetId), so a
+    // typo silently costs the card its linked stats, and only the registry knows
+    // which ids exist. The caller filters out the checklist being edited, since a
+    // checklist linking to itself is nonsense.
+    //
+    // These live inside the Advanced disclosure, out of mis-click range: this is
+    // the only control in the editor that converts an ordinary card into
+    // something else entirely, hiding half the form and dropping the card's
+    // stored ownership on save. Opening a card that is already a collection link
+    // expands Advanced (see _applyCollectionLinkState), so nothing about an
+    // existing one is hidden behind a disclosure - only creating a new one asks
+    // for the extra click.
+    collectionLinkHtml() {
+        const targets = this.getLinkTargets() || [];
+        const options = ['<option value="">Not a collection link</option>']
+            .concat(targets.map(t =>
+                `<option value="${sanitizeAttr(t.value)}">${sanitizeText(t.label)}</option>`
+            ))
+            .join('');
+
+        return `<div class="card-editor-row" style="grid-template-columns:1fr">
+                <div class="card-editor-field" id="editor-collection-link-field">
+                    <label class="card-editor-label" for="editor-collection-link">Links To Checklist</label>
+                    <select class="card-editor-select" id="editor-collection-link">${options}</select>
+                </div>
+            </div>
+            <div class="card-editor-row" style="grid-template-columns:3fr 1fr">
+                <div class="card-editor-field" id="editor-stack-images-field">
+                    <label class="card-editor-label" for="editor-stack-images">Stack Images</label>
+                    <textarea class="card-editor-input" id="editor-stack-images" rows="3" placeholder="One image URL per line"></textarea>
+                </div>
+                <div class="card-editor-field" id="editor-card-count-field">
+                    <label class="card-editor-label" for="editor-card-count">Card Count</label>
+                    <input type="text" class="card-editor-input" id="editor-card-count" placeholder="40" inputmode="numeric">
+                </div>
+            </div>`;
+    }
+
     // Initialize - create modal DOM
     init() {
         // Remove existing card editor backdrop so re-init works after settings changes
@@ -588,11 +637,12 @@ class CardEditorModal {
                             <button type="button" class="card-editor-toggle-btn" id="editor-toggle-advanced">Advanced</button>
                         </div>
                         <div class="card-editor-advanced-fields" style="display: none;">
-                            <div class="card-editor-field full-width">
+                            ${this.collectionLinkHtml()}
+                            <div class="card-editor-field full-width" id="editor-ebay-field">
                                 <label class="card-editor-label">eBay Search Term</label>
                                 <input type="text" class="card-editor-input" id="editor-ebay" placeholder="Defaults to player + set + number">
                             </div>
-                            <div class="card-editor-field full-width">
+                            <div class="card-editor-field full-width" id="editor-price-search-field">
                                 <label class="card-editor-label">Price Search Term</label>
                                 <input type="text" class="card-editor-input" id="editor-price-search" placeholder="Defaults to player + set + number">
                             </div>
@@ -676,7 +726,24 @@ class CardEditorModal {
             noCardCheckbox.addEventListener('change', () => {
                 const wasDirty = this.isDirty;
                 const cancelled = this._applyNoCardState({ fromUserToggle: true }) === false;
+                this._applyCollectionLinkState();
                 this.setDirty(cancelled ? wasDirty : true);
+            });
+        }
+
+        // Choosing a checklist to link to switches the form between describing a
+        // physical card and standing in for a collection. Dirty tracking is set
+        // here rather than left to the generic "input" loop below: change is the
+        // canonical event for a select, and this restructures the entire form, so
+        // it must not depend on browsers also firing input alongside it - if that
+        // assumption ever failed, closing the modal would discard the change with
+        // no prompt. Assigning .value in _populateCollectionLink fires neither
+        // event, so opening a card never starts out dirty.
+        const linkSelect = this.backdrop.querySelector('#editor-collection-link');
+        if (linkSelect) {
+            linkSelect.addEventListener('change', () => {
+                this._applyCollectionLinkState();
+                this.setDirty(true);
             });
         }
 
@@ -684,18 +751,18 @@ class CardEditorModal {
         this.backdrop.querySelector('.card-editor-btn.delete').onclick = () => this.delete();
 
         // Track dirty state on input
-        modal.querySelectorAll('input, select').forEach(input => {
+        modal.querySelectorAll('input, select, textarea').forEach(input => {
             if (input === noCardCheckbox) return;
             input.oninput = () => this.setDirty(true);
         });
 
-        // Toggle advanced fields visibility
+        // Toggle advanced fields visibility. The section's own display is the
+        // expanded state, so read it back and let _setAdvancedExpanded own both
+        // it and the button label - there is one place that can disagree.
         const advancedToggle = this.backdrop.querySelector('#editor-toggle-advanced');
         const advancedFields = this.backdrop.querySelector('.card-editor-advanced-fields');
         advancedToggle.onclick = () => {
-            const isHidden = advancedFields.style.display === 'none';
-            advancedFields.style.display = isHidden ? 'flex' : 'none';
-            advancedToggle.textContent = isHidden ? 'Hide advanced' : 'Advanced';
+            this._setAdvancedExpanded(advancedFields.style.display === 'none');
         };
 
         this.backdrop.querySelector('#editor-ebay').oninput = () => {
@@ -1239,11 +1306,7 @@ class CardEditorModal {
         this.backdrop.querySelector('#editor-price-search').value = priceSearchValue;
 
         // Show advanced section if either search field has a custom value
-        const hasCustomSearch = ebayValue !== '' || priceSearchValue !== '';
-        const advancedFields = this.backdrop.querySelector('.card-editor-advanced-fields');
-        const advancedToggle = this.backdrop.querySelector('#editor-toggle-advanced');
-        advancedFields.style.display = hasCustomSearch ? 'flex' : 'none';
-        advancedToggle.textContent = hasCustomSearch ? 'Hide advanced' : 'Advanced';
+        this._syncAdvancedVisibility();
 
         this.updateImagePreview(cardData.img);
         this.updateProcessButton(cardData.img);
@@ -1259,6 +1322,9 @@ class CardEditorModal {
         this._noCardStash = null;
         this.backdrop.querySelector('#editor-no-card').checked = !!cardData.noCard;
         this._applyNoCardState();
+
+        this._populateCollectionLink(cardData);
+        this._applyCollectionLinkState();
 
         // Show modal
         this.backdrop.classList.add('active');
@@ -1289,10 +1355,10 @@ class CardEditorModal {
         this.backdrop.querySelector('#editor-ebay').value = '';
         this.backdrop.querySelector('#editor-img').value = '';
 
-        // Hide advanced section by default for new cards
+        // Hide advanced section by default for new cards - which is also what
+        // keeps the link dropdown inside it out of mis-click range
         this.backdrop.querySelector('#editor-price-search').value = '';
-        this.backdrop.querySelector('.card-editor-advanced-fields').style.display = 'none';
-        this.backdrop.querySelector('#editor-toggle-advanced').textContent = 'Advanced';
+        this._setAdvancedExpanded(false);
 
         // Clear custom fields
         this.clearCustomFields();
@@ -1315,6 +1381,9 @@ class CardEditorModal {
         this._noCardStash = null;
         this.backdrop.querySelector('#editor-no-card').checked = false;
         this._applyNoCardState();
+
+        this._populateCollectionLink({});
+        this._applyCollectionLinkState();
 
         // Show modal
         this.backdrop.classList.add('active');
@@ -1378,6 +1447,123 @@ class CardEditorModal {
         if (ownedWrap) ownedWrap.classList.toggle('disabled', noCard);
     }
 
+    // A collection link card stands in for another checklist instead of describing
+    // a physical card, so set name, card number, type, image, price and the owned
+    // toggle do not apply and are hidden while a link is selected. Its owned state
+    // is derived from the linked checklist's stats, not stored, so leaving a live
+    // toggle would show the wrong value and write a card id nothing reads.
+    //
+    // Hidden, never cleared: the inputs keep whatever the card already held, so a
+    // hand-written collection link card that uses a plain `img` instead of
+    // stackImages doesn't lose it just because the editor was opened on it.
+    //
+    // noCard wins over collectionLink everywhere else (see createCardElement), so
+    // the two are offered as alternatives here: setting either hides the other.
+    _applyCollectionLinkState() {
+        const select = this.backdrop.querySelector('#editor-collection-link');
+        if (!select) return;
+
+        const noCard = !!this.backdrop.querySelector('#editor-no-card')?.checked;
+        const link = select.value;
+        const isLink = !!link && !noCard;
+        // Nothing to link to and nothing already linked - the row is just noise
+        const offerLink = !noCard && (select.options.length > 1 || !!link);
+
+        this._setFieldVisible('#editor-collection-link-field', offerLink);
+        this._setFieldVisible('#editor-stack-images-field', isLink);
+        this._setFieldVisible('#editor-card-count-field', isLink);
+
+        this._setFieldVisible('#editor-set-field', !isLink);
+        this._setFieldVisible('#editor-num-field', !isLink);
+        this._setFieldVisible('#editor-type-field', !isLink);
+        this._setFieldVisible('.card-editor-image-section', !isLink);
+        this._setFieldVisible('#editor-header-price', !isLink);
+        this._setFieldVisible('#editor-no-card-field', !isLink);
+        // The eBay and price search overrides share Advanced with the link
+        // dropdown, and a collection link tile renders neither search link - so
+        // they hide, while the section around them stays open and usable.
+        this._setFieldVisible('#editor-ebay-field', !isLink);
+        this._setFieldVisible('#editor-price-search-field', !isLink);
+        // A link card's defining control lives in Advanced, so the section has to
+        // be open for the card to show what it is. Expand only, never collapse:
+        // un-linking would otherwise slam the section shut the instant the user
+        // used the dropdown inside it.
+        if (isLink) this._setAdvancedExpanded(true);
+        // Restoring the owned toggle is _updateOwnedToggleVisibility's call, not
+        // ours - it stays hidden when no ownership callback is wired up at all.
+        if (isLink) this._setFieldVisible('#editor-owned-toggle', false);
+        else this._updateOwnedToggleVisibility();
+
+        this._collapseEmptyRows();
+    }
+
+    _setFieldVisible(selector, visible) {
+        const el = this.backdrop.querySelector(selector);
+        if (el) el.style.display = visible ? '' : 'none';
+    }
+
+    // Expand or collapse Advanced, keeping the button label with it. The section's
+    // own display doubles as its expanded state, so this is the single writer -
+    // a caller that set one without the other would leave the label lying.
+    _setAdvancedExpanded(expanded) {
+        const fields = this.backdrop.querySelector('.card-editor-advanced-fields');
+        const toggle = this.backdrop.querySelector('#editor-toggle-advanced');
+        if (fields) fields.style.display = expanded ? 'flex' : 'none';
+        if (toggle) toggle.textContent = expanded ? 'Hide advanced' : 'Advanced';
+    }
+
+    // Open Advanced on a card that has something to show there. Called from
+    // open() for a stored search term; _applyCollectionLinkState adds the link
+    // case, which it has to do itself because open() runs this before the
+    // dropdown has been populated.
+    _syncAdvancedVisibility() {
+        const hasCustomSearch = this.backdrop.querySelector('#editor-ebay').value !== ''
+            || this.backdrop.querySelector('#editor-price-search').value !== '';
+        this._setAdvancedExpanded(hasCustomSearch);
+    }
+
+    // Rows are laid out as grids of paired fields, so a row whose fields are all
+    // hidden still contributes its gap. Hide the row itself once it holds nothing.
+    _collapseEmptyRows() {
+        this.backdrop.querySelectorAll('.card-editor-row').forEach(row => {
+            const fields = row.querySelectorAll('.card-editor-field');
+            const anyVisible = Array.from(fields).some(f => f.style.display !== 'none');
+            row.style.display = anyVisible ? '' : 'none';
+        });
+    }
+
+    // Populate the collection link fields from card data
+    _populateCollectionLink(cardData) {
+        const select = this.backdrop.querySelector('#editor-collection-link');
+        if (!select) return;
+
+        const link = cardData.collectionLink || '';
+        // A link the registry doesn't offer - it hasn't loaded, the target was
+        // renamed, or the URL was written by hand - still has to round-trip, so
+        // give it an option of its own rather than silently resetting the field.
+        if (link && !Array.from(select.options).some(o => o.value === link)) {
+            const option = document.createElement('option');
+            option.value = link;
+            option.textContent = link;
+            select.appendChild(option);
+        }
+        select.value = link;
+
+        const count = this.backdrop.querySelector('#editor-card-count');
+        if (count) count.value = cardData.cardCount != null ? cardData.cardCount : '';
+        const stack = this.backdrop.querySelector('#editor-stack-images');
+        if (stack) stack.value = (Array.isArray(cardData.stackImages) ? cardData.stackImages : []).join('\n');
+    }
+
+    // One image URL per line. Blank lines are dropped so an empty box yields an
+    // empty list - storing [''] would render a broken image in the card stack.
+    parseStackImages(value) {
+        return String(value || '')
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => line !== '');
+    }
+
     // Close modal
     close() {
         if (this.isDirty) {
@@ -1413,12 +1599,19 @@ class CardEditorModal {
             data.category = categoryField.value;
         }
 
-        // Price - only include if explicitly set (stored as whole number). A
-        // no-card entry has no price, even if the (disabled) field still holds
-        // a stale value from before it was flagged - see _applyNoCardState.
         const noCardChecked = !!this.backdrop.querySelector('#editor-no-card')?.checked;
+        const link = this.backdrop.querySelector('#editor-collection-link')?.value.trim() || '';
+
+        // Price - only include if explicitly set (stored as whole number). Neither
+        // a no-card entry nor a collection link card has one, even if the field
+        // still holds a stale value from before it was flagged or linked - see
+        // _applyNoCardState and _applyCollectionLinkState, which hide it in both
+        // states. A price stranded on a linked card would be unreachable without
+        // un-linking first, and price-low/price-high sort still reads it, so the
+        // tile would silently move under those sorts. Un-linking brings it back:
+        // the input is hidden, never cleared.
         const priceVal = this.backdrop.querySelector('#editor-price').value.trim();
-        if (priceVal !== '' && !noCardChecked) {
+        if (priceVal !== '' && !noCardChecked && !link) {
             data.price = Math.round(parseFloat(priceVal)) || 0;
         }
 
@@ -1446,15 +1639,30 @@ class CardEditorModal {
         // deletion marker that survives the merge with fresh gist data
         data.noCard = noCardChecked;
 
-        // Identity: a no-card entry has no set/num/variant to hash, so it needs an
-        // explicit id. Assigned once and never regenerated, even if the name changes.
-        // An unsafe existing id is not honored anywhere (see isSafeCardId), so
-        // don't carry it forward - drop it and let a no-card entry get a fresh one.
+        // Collection link fields. Omitted rather than sent empty, so that clearing
+        // the link records a deletion the gist merge honors (see _clearEmptyFields).
+        // An empty stack must store nothing at all: [''] would render a broken
+        // image, and [] is truthy so it would never be recognized as cleared.
+        if (link && !noCardChecked) {
+            data.collectionLink = link;
+            const count = parseInt(this.backdrop.querySelector('#editor-card-count').value.trim(), 10);
+            if (count > 0) data.cardCount = count;
+            const stack = this.parseStackImages(this.backdrop.querySelector('#editor-stack-images').value);
+            if (stack.length > 0) data.stackImages = stack;
+        }
+
+        // Identity: neither a no-card entry nor a collection link card has a
+        // set/num/variant to hash, so both need an explicit id. Assigned once and
+        // never regenerated, even if the name changes. An unsafe existing id is not
+        // honored anywhere (see isSafeCardId), so don't carry it forward - drop it
+        // and let the entry get a fresh one.
         const existingId = this.currentCard && this.currentCard.id;
         if (isSafeCardId(existingId)) {
             data.id = existingId;
         } else if (noCardChecked) {
             data.id = this.generateNoCardId(data);
+        } else if (data.collectionLink) {
+            data.id = this.generateCollectionLinkId(data);
         }
 
         return data;
@@ -1463,16 +1671,33 @@ class CardEditorModal {
     // Build a stable id for a no-card entry from the player name (or the first
     // top-position custom field), falling back to the set name.
     generateNoCardId(data) {
+        return buildNoCardId(this.entryName(data) || data.set || '', this.getExistingIds());
+    }
+
+    // Same for a collection link card, falling back to the id of the checklist it
+    // links to - a link is the one thing such a card always has.
+    generateCollectionLinkId(data) {
+        const source = this.entryName(data) || collectionLinkTargetId(data.collectionLink) || '';
+        return buildCollectionLinkId(source, this.getExistingIds());
+    }
+
+    // What this checklist calls an entry: the first top-position custom field,
+    // which is the player name on every config that has one.
+    entryName(data) {
         const topField = Object.entries(this.customFields)
             .find(([_, config]) => (config.position || 'top') === 'top');
-        const source = (topField && data[topField[0]]) || data.set || '';
-        return buildNoCardId(source, this.getExistingIds());
+        return (topField && data[topField[0]]) || '';
     }
 
     // Validate form - require set name OR a top-position custom field (e.g. player name)
     validate() {
         const data = this.getFormData();
         if (data.set) return true;
+
+        // A collection link card is identified by the checklist it stands in for,
+        // and the set name field is hidden while a link is selected - so a config
+        // with no top-position custom field would have nothing left to fill in.
+        if (data.collectionLink) return true;
 
         // Check if any top-position custom field has a value
         const hasTopField = Object.entries(this.customFields)

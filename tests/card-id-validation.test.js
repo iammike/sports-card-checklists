@@ -172,7 +172,7 @@ describe('no-card id backfill — unsafe existing id', () => {
     const cards = [{ noCard: true, player: 'Adam Smith', id: "nc'x" }];
     const engine = makeEngine(cards);
 
-    engine._backfillNoCardIds();
+    engine._backfillSyntheticIds();
 
     expect(cards[0].id).toBe('ncAdamSmith');
     expect(isSafeCardId(cards[0].id)).toBe(true);
@@ -180,7 +180,7 @@ describe('no-card id backfill — unsafe existing id', () => {
 
   it('leaves a safe existing id alone', () => {
     const cards = [{ noCard: true, player: 'Adam Smith', id: 'ncOldName' }];
-    makeEngine(cards)._backfillNoCardIds();
+    makeEngine(cards)._backfillSyntheticIds();
 
     expect(cards[0].id).toBe('ncOldName');
   });
