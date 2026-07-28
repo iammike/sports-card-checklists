@@ -146,10 +146,28 @@ const CardRenderer = {
     // now: a broken image is swapped for the placeholder by a delegated capture-phase
     // listener (ChecklistEngine._initImageFallback). The image is already wrapped in
     // an anchor to the search, so the placeholder does not need to carry the URL.
+    //
+    // imgSrc passes through two helpers and neither one replaces the other:
+    //
+    //   sanitizeAttr is what actually contains a hostile value. It escapes the
+    //   quotes, so nothing can close the src attribute and add a sibling one.
+    //   Do not drop it on the belief that the scheme check covers this - a payload
+    //   like `x"'><img src=x onerror=alert(1)>` resolves against document.baseURI
+    //   to a valid relative http: URL and sails straight through sanitizeLinkUrl.
+    //
+    //   sanitizeLinkUrl only rejects the scheme, i.e. 'javascript:' and 'data:'.
+    //   Neither executes in an <img src> in any current browser, so this buys
+    //   consistency with every other URL sink (#692, #701, #706) rather than
+    //   closing a live hole.
+    //
+    // A rejected scheme falls through to the same "No image" placeholder an empty
+    // card.img gets. Emitting src="" instead would render a broken-image icon, and
+    // emitting nothing would drop the anchor to the search along with the image.
     renderCardImage(imgSrc, alt, searchUrl) {
         const href = sanitizeAttr(searchUrl);
-        if (imgSrc) {
-            return `<a href="${href}" target="_blank" rel="noopener noreferrer"><img class="card-image" src="${sanitizeAttr(imgSrc)}" alt="${sanitizeAttr(alt)}" loading="lazy"></a>`;
+        const safeSrc = sanitizeLinkUrl(imgSrc);
+        if (safeSrc) {
+            return `<a href="${href}" target="_blank" rel="noopener noreferrer"><img class="card-image" src="${sanitizeAttr(safeSrc)}" alt="${sanitizeAttr(alt)}" loading="lazy"></a>`;
         }
         return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="card-image placeholder">No image</a>`;
     },
