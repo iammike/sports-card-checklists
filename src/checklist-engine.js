@@ -312,10 +312,16 @@ class ChecklistEngine {
     // than a round trip - and the page has already paid for that fetch loading its
     // own cards.
     async _loadLinkSuggestions(link) {
+        // Same guard, and for the same reason, as _loadConfig: every githubSync
+        // call below is a bare reference, which throws rather than reading as
+        // undefined when the module was never loaded. Guarding once up here is why
+        // they can stay bare.
+        if (typeof githubSync === 'undefined') return null;
+
         const linkedId = collectionLinkTargetId(link);
         if (!linkedId) return null;
 
-        const loggedIn = !!window.githubSync?.isLoggedIn();
+        const loggedIn = !!githubSync.isLoggedIn();
 
         // The count comes from the linked checklist's saved stats, not from
         // counting its cards. `total` there is the number the badge shows whenever

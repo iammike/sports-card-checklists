@@ -259,6 +259,20 @@ describe('the card count on a collection link card', () => {
     warn.mockRestore();
   });
 
+  it('leaves both fields alone when there is no answer at all', async () => {
+    // What the engine hands back when it cannot reach the gist, or when the link
+    // holds no checklist id
+    const stored = savedLinkCard({ cardCount: 40, stackImages: [IMG_A] });
+    const { editor } = editorAnswering(null);
+
+    editor.open(stored.id, stored);
+    pressSuggest(editor);
+    await flush();
+
+    expect(valueOf(editor, '#editor-card-count')).toBe('40');
+    expect(editor.getFormData().stackImages).toEqual([IMG_A]);
+  });
+
   it('leaves the count alone when the linked checklist has no saved total', async () => {
     const stored = savedLinkCard({ cardCount: 40 });
     const { editor } = editorAnswering({ cardCount: null, stackImages: [IMG_A] });
@@ -442,6 +456,17 @@ describe('what the linked checklist reports about itself', () => {
     expect(await engine._loadLinkSuggestions('index.html')).toBeNull();
     expect(sync.loadAllStats).not.toHaveBeenCalled();
     expect(sync.loadCardData).not.toHaveBeenCalled();
+  });
+
+  it('reports nothing at all when the sync module was never loaded', async () => {
+    // Not hypothetical: every githubSync call in _loadLinkSuggestions is a bare
+    // reference, so without a guard this is a ReferenceError rather than a quiet
+    // undefined. The test environment is the one place the module really is absent
+    // - setup.js does not load github-sync.js - so this exercises it for real.
+    delete window.githubSync;
+    expect(typeof globalThis.githubSync).toBe('undefined');
+
+    expect(await engine._loadLinkSuggestions(LINK)).toBeNull();
   });
 
   it('offers the first three cards that have an image', async () => {
