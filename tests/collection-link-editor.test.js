@@ -231,6 +231,21 @@ describe('dirty tracking on the link dropdown', () => {
     expect(editor.isDirty).toBe(true);
   });
 
+  it('marks dirty and restructures the form when chosen from an open Advanced', () => {
+    // The realistic creation flow now that the dropdown lives behind the
+    // disclosure: open Advanced, then choose.
+    const editor = makeEditor();
+    editor.openNew();
+    field(editor, '#editor-toggle-advanced').click();
+
+    chooseLink(editor, LINK);
+
+    expect(editor.isDirty).toBe(true);
+    expect(isHidden(editor, '#editor-ebay-field')).toBe(true);
+    expect(isHidden(editor, '#editor-set-field')).toBe(true);
+    expect(isHidden(editor, '#editor-stack-images-field')).toBe(false);
+  });
+
   it('leaves a freshly opened collection link card clean', () => {
     // _populateCollectionLink assigns .value, which fires no events. A card that
     // opened already dirty would prompt on every close.
@@ -295,16 +310,99 @@ describe('a price does not survive being linked', () => {
   });
 });
 
+describe('the link dropdown lives behind Advanced', () => {
+  // It is the only control that converts an ordinary card into something else,
+  // hiding half the form and dropping stored ownership on save, so it is kept
+  // out of mis-click range - but never hidden on a card that is already a link.
+  const expanded = (editor) => field(editor, '.card-editor-advanced-fields').style.display === 'flex';
+  const label = (editor) => field(editor, '#editor-toggle-advanced').textContent;
+
+  const LINKED = {
+    id: 'clJaydenDaniels', player: 'Jayden Daniels', collectionLink: LINK, cardCount: 40,
+  };
+  const PLAIN = { id: 'abc', player: 'Someone', set: '2024 Panini Prizm', num: '12' };
+  const SEARCHY = { id: 'abc', player: 'Someone', set: 'Prizm', search: 'custom ebay term' };
+
+  it('is inside the advanced section, not the main form', () => {
+    // The structural half of the mis-click fix: the field-level visibility tests
+    // elsewhere would still pass with the dropdown sitting in the main grid.
+    const editor = makeEditor();
+    editor.openNew();
+
+    const advanced = field(editor, '.card-editor-advanced-fields');
+    expect(advanced.contains(field(editor, '#editor-collection-link'))).toBe(true);
+    expect(advanced.contains(field(editor, '#editor-stack-images'))).toBe(true);
+    expect(advanced.contains(field(editor, '#editor-card-count'))).toBe(true);
+  });
+
+  it('stays collapsed on an ordinary card', () => {
+    const editor = makeEditor();
+    editor.open(PLAIN.id, { ...PLAIN });
+
+    expect(expanded(editor)).toBe(false);
+    expect(label(editor)).toBe('Advanced');
+  });
+
+  it('stays collapsed on a new card', () => {
+    const editor = makeEditor();
+    editor.openNew();
+
+    expect(expanded(editor)).toBe(false);
+    expect(label(editor)).toBe('Advanced');
+  });
+
+  it('is expanded and visible when the card is already a collection link', () => {
+    const editor = makeEditor();
+    editor.open(LINKED.id, { ...LINKED });
+
+    expect(expanded(editor)).toBe(true);
+    expect(isHidden(editor, '#editor-collection-link-field')).toBe(false);
+    expect(field(editor, '#editor-collection-link').value).toBe(LINK);
+  });
+
+  it('labels the toggle correctly after an auto-expand', () => {
+    const editor = makeEditor();
+    editor.open(LINKED.id, { ...LINKED });
+
+    expect(label(editor)).toBe('Hide advanced');
+  });
+
+  it('still auto-expands for a stored search term, with no link involved', () => {
+    // Pre-existing behaviour this change must not regress
+    const editor = makeEditor();
+    editor.open(SEARCHY.id, { ...SEARCHY });
+
+    expect(expanded(editor)).toBe(true);
+    expect(label(editor)).toBe('Hide advanced');
+  });
+
+  it('collapses and expands on the toggle button, keeping its label', () => {
+    const editor = makeEditor();
+    editor.openNew();
+    const toggle = field(editor, '#editor-toggle-advanced');
+
+    toggle.click();
+    expect(expanded(editor)).toBe(true);
+    expect(label(editor)).toBe('Hide advanced');
+
+    toggle.click();
+    expect(expanded(editor)).toBe(false);
+    expect(label(editor)).toBe('Advanced');
+  });
+});
+
 describe('the advanced search overrides', () => {
-  // A collection link tile renders neither an eBay nor a price search link
+  // A collection link tile renders neither an eBay nor a price search link, but
+  // they now share the disclosure with the link dropdown - so the fields hide
+  // while the section around them stays open.
   const SEARCHY = { id: 'clJaydenDaniels', player: 'Jayden Daniels', search: 'custom ebay term' };
+  const FIELDS = ['#editor-ebay-field', '#editor-price-search-field'];
 
   it('are visible on an ordinary card with a stored term', () => {
     const editor = makeEditor();
     editor.open(SEARCHY.id, { ...SEARCHY });
 
-    expect(isHidden(editor, '.card-editor-advanced-toggle')).toBe(false);
-    expect(field(editor, '.card-editor-advanced-fields').style.display).toBe('flex');
+    expect(FIELDS.filter(sel => isHidden(editor, sel))).toEqual([]);
   });
 
   it('are hidden once a link is chosen', () => {
@@ -312,29 +410,36 @@ describe('the advanced search overrides', () => {
     editor.open(SEARCHY.id, { ...SEARCHY });
     chooseLink(editor, LINK);
 
-    expect(isHidden(editor, '.card-editor-advanced-toggle')).toBe(true);
-    expect(isHidden(editor, '.card-editor-advanced-fields')).toBe(true);
+    expect(FIELDS.filter(sel => !isHidden(editor, sel))).toEqual([]);
   });
 
-  it('are restored, still expanded, when the link is removed again', () => {
+  it('leave the section itself open, since it holds the link dropdown', () => {
+    const editor = makeEditor();
+    editor.open(SEARCHY.id, { ...SEARCHY });
+    chooseLink(editor, LINK);
+
+    expect(field(editor, '.card-editor-advanced-fields').style.display).toBe('flex');
+    expect(isHidden(editor, '.card-editor-advanced-toggle')).toBe(false);
+    expect(isHidden(editor, '#editor-collection-link-field')).toBe(false);
+  });
+
+  it('come back when the link is removed again', () => {
     const editor = makeEditor();
     editor.open(SEARCHY.id, { ...SEARCHY });
     chooseLink(editor, LINK);
     chooseLink(editor, '');
 
-    expect(isHidden(editor, '.card-editor-advanced-toggle')).toBe(false);
-    expect(field(editor, '.card-editor-advanced-fields').style.display).toBe('flex');
+    expect(FIELDS.filter(sel => isHidden(editor, sel))).toEqual([]);
   });
 
-  it('stay collapsed on a card that never had a term', () => {
+  it('leave the section open after un-linking, rather than shutting under the user', () => {
     const editor = makeEditor();
     editor.openNew();
+    field(editor, '#editor-toggle-advanced').click();
     chooseLink(editor, LINK);
     chooseLink(editor, '');
 
-    expect(isHidden(editor, '.card-editor-advanced-toggle')).toBe(false);
-    expect(isHidden(editor, '.card-editor-advanced-fields')).toBe(true);
-    expect(field(editor, '#editor-toggle-advanced').textContent).toBe('Advanced');
+    expect(field(editor, '.card-editor-advanced-fields').style.display).toBe('flex');
   });
 });
 

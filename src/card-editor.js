@@ -564,6 +564,14 @@ class CardEditorModal {
     // typo silently costs the card its linked stats, and only the registry knows
     // which ids exist. The caller filters out the checklist being edited, since a
     // checklist linking to itself is nonsense.
+    //
+    // These live inside the Advanced disclosure, out of mis-click range: this is
+    // the only control in the editor that converts an ordinary card into
+    // something else entirely, hiding half the form and dropping the card's
+    // stored ownership on save. Opening a card that is already a collection link
+    // expands Advanced (see _applyCollectionLinkState), so nothing about an
+    // existing one is hidden behind a disclosure - only creating a new one asks
+    // for the extra click.
     collectionLinkHtml() {
         const targets = this.getLinkTargets() || [];
         const options = ['<option value="">Not a collection link</option>']
@@ -623,18 +631,18 @@ class CardEditorModal {
                 <div class="card-editor-body">
                     <div class="card-editor-grid">
                         ${this.buildEditorRows()}
-                        ${this.collectionLinkHtml()}
                         ${this.generateCustomFieldsHtml('attributes')}
                         ${this.generateCustomFieldsHtml('bottom')}
                         <div class="card-editor-field full-width card-editor-advanced-toggle">
                             <button type="button" class="card-editor-toggle-btn" id="editor-toggle-advanced">Advanced</button>
                         </div>
                         <div class="card-editor-advanced-fields" style="display: none;">
-                            <div class="card-editor-field full-width">
+                            ${this.collectionLinkHtml()}
+                            <div class="card-editor-field full-width" id="editor-ebay-field">
                                 <label class="card-editor-label">eBay Search Term</label>
                                 <input type="text" class="card-editor-input" id="editor-ebay" placeholder="Defaults to player + set + number">
                             </div>
-                            <div class="card-editor-field full-width">
+                            <div class="card-editor-field full-width" id="editor-price-search-field">
                                 <label class="card-editor-label">Price Search Term</label>
                                 <input type="text" class="card-editor-input" id="editor-price-search" placeholder="Defaults to player + set + number">
                             </div>
@@ -748,13 +756,13 @@ class CardEditorModal {
             input.oninput = () => this.setDirty(true);
         });
 
-        // Toggle advanced fields visibility
+        // Toggle advanced fields visibility. The section's own display is the
+        // expanded state, so read it back and let _setAdvancedExpanded own both
+        // it and the button label - there is one place that can disagree.
         const advancedToggle = this.backdrop.querySelector('#editor-toggle-advanced');
         const advancedFields = this.backdrop.querySelector('.card-editor-advanced-fields');
         advancedToggle.onclick = () => {
-            const isHidden = advancedFields.style.display === 'none';
-            advancedFields.style.display = isHidden ? 'flex' : 'none';
-            advancedToggle.textContent = isHidden ? 'Hide advanced' : 'Advanced';
+            this._setAdvancedExpanded(advancedFields.style.display === 'none');
         };
 
         this.backdrop.querySelector('#editor-ebay').oninput = () => {
@@ -1347,10 +1355,10 @@ class CardEditorModal {
         this.backdrop.querySelector('#editor-ebay').value = '';
         this.backdrop.querySelector('#editor-img').value = '';
 
-        // Hide advanced section by default for new cards
+        // Hide advanced section by default for new cards - which is also what
+        // keeps the link dropdown inside it out of mis-click range
         this.backdrop.querySelector('#editor-price-search').value = '';
-        this.backdrop.querySelector('.card-editor-advanced-fields').style.display = 'none';
-        this.backdrop.querySelector('#editor-toggle-advanced').textContent = 'Advanced';
+        this._setAdvancedExpanded(false);
 
         // Clear custom fields
         this.clearCustomFields();
@@ -1471,12 +1479,16 @@ class CardEditorModal {
         this._setFieldVisible('.card-editor-image-section', !isLink);
         this._setFieldVisible('#editor-header-price', !isLink);
         this._setFieldVisible('#editor-no-card-field', !isLink);
-        // Advanced holds the eBay and price search overrides, and a collection
-        // link tile renders neither search link. Its own display carries the
-        // expanded state, so collapse it here and re-derive it on the way out.
-        this._setFieldVisible('.card-editor-advanced-toggle', !isLink);
-        if (isLink) this._setFieldVisible('.card-editor-advanced-fields', false);
-        else this._syncAdvancedVisibility();
+        // The eBay and price search overrides share Advanced with the link
+        // dropdown, and a collection link tile renders neither search link - so
+        // they hide, while the section around them stays open and usable.
+        this._setFieldVisible('#editor-ebay-field', !isLink);
+        this._setFieldVisible('#editor-price-search-field', !isLink);
+        // A link card's defining control lives in Advanced, so the section has to
+        // be open for the card to show what it is. Expand only, never collapse:
+        // un-linking would otherwise slam the section shut the instant the user
+        // used the dropdown inside it.
+        if (isLink) this._setAdvancedExpanded(true);
         // Restoring the owned toggle is _updateOwnedToggleVisibility's call, not
         // ours - it stays hidden when no ownership callback is wired up at all.
         if (isLink) this._setFieldVisible('#editor-owned-toggle', false);
@@ -1490,17 +1502,24 @@ class CardEditorModal {
         if (el) el.style.display = visible ? '' : 'none';
     }
 
-    // Expand the advanced section when either search term is set, collapse it
-    // otherwise. The section's own display doubles as its expanded state (the
-    // toggle button reads it back), so re-deriving it from the fields is how a
-    // card whose link was just removed gets its section back in the right state.
+    // Expand or collapse Advanced, keeping the button label with it. The section's
+    // own display doubles as its expanded state, so this is the single writer -
+    // a caller that set one without the other would leave the label lying.
+    _setAdvancedExpanded(expanded) {
+        const fields = this.backdrop.querySelector('.card-editor-advanced-fields');
+        const toggle = this.backdrop.querySelector('#editor-toggle-advanced');
+        if (fields) fields.style.display = expanded ? 'flex' : 'none';
+        if (toggle) toggle.textContent = expanded ? 'Hide advanced' : 'Advanced';
+    }
+
+    // Open Advanced on a card that has something to show there. Called from
+    // open() for a stored search term; _applyCollectionLinkState adds the link
+    // case, which it has to do itself because open() runs this before the
+    // dropdown has been populated.
     _syncAdvancedVisibility() {
         const hasCustomSearch = this.backdrop.querySelector('#editor-ebay').value !== ''
             || this.backdrop.querySelector('#editor-price-search').value !== '';
-        const fields = this.backdrop.querySelector('.card-editor-advanced-fields');
-        const toggle = this.backdrop.querySelector('#editor-toggle-advanced');
-        if (fields) fields.style.display = hasCustomSearch ? 'flex' : 'none';
-        if (toggle) toggle.textContent = hasCustomSearch ? 'Hide advanced' : 'Advanced';
+        this._setAdvancedExpanded(hasCustomSearch);
     }
 
     // Rows are laid out as grids of paired fields, so a row whose fields are all
