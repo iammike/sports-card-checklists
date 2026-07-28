@@ -193,6 +193,40 @@ describe('section headers are operable without a mouse', () => {
         expect(header('inserts').getAttribute('aria-expanded')).toBe('true');
     });
 
+    // Restoring a collapsed section suppresses both the slide and the delayed
+    // visibility flip that takes its content out of the tab order - the delay is
+    // timed to a slide that is not running, and restored-collapsed content must
+    // not be focusable even briefly. jsdom has no transitions or visibility, so
+    // this pins the mechanism; the focus behaviour itself was checked in Chrome.
+    it('suppresses the region\'s transitions while restoring it collapsed', () => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(['cat-base']));
+        renderChecklist();
+
+        const region = document.getElementById(header('base').getAttribute('aria-controls'));
+        expect(region.style.transition).toBe('none');
+        expect(region.firstElementChild.style.transition).toBe('none');
+    });
+
+    it('hands the transitions back on the next frame, so the next toggle animates', async () => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(['cat-base']));
+        renderChecklist();
+        const region = document.getElementById(header('base').getAttribute('aria-controls'));
+
+        await new Promise(resolve => requestAnimationFrame(resolve));
+
+        expect(region.style.transition).toBe('');
+        expect(region.firstElementChild.style.transition).toBe('');
+    });
+
+    it('leaves transitions alone for a section that renders expanded', () => {
+        renderChecklist();
+
+        const region = document.getElementById(header('base').getAttribute('aria-controls'));
+        expect(region.classList.contains('collapsed')).toBe(false);
+        expect(region.style.transition).toBe('');
+        expect(region.firstElementChild.style.transition).toBe('');
+    });
+
     it('points aria-controls at the region it collapses', () => {
         renderChecklist();
 

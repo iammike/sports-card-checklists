@@ -29,11 +29,20 @@ const CollapsibleSections = {
                     header.classList.add('collapsed');
                     if (section) section.classList.remove('expanded');
                     if (wrapper) {
+                        // Suppress the slide and the delayed visibility flip that
+                        // takes restored content out of the tab order. The delay
+                        // is timed to a slide that is not running here, and a
+                        // section restored collapsed must not be focusable even
+                        // briefly. Both are cleared on the next frame so the next
+                        // toggle animates normally.
+                        const inner = wrapper.firstElementChild;
                         wrapper.style.transition = 'none';
+                        if (inner) inner.style.transition = 'none';
                         wrapper.classList.add('collapsed');
                         // Re-enable transition after layout
                         requestAnimationFrame(() => {
                             wrapper.style.transition = '';
+                            if (inner) inner.style.transition = '';
                         });
                     }
                 }
