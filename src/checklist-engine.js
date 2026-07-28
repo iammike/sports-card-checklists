@@ -338,6 +338,13 @@ class ChecklistEngine {
         const loggedIn = !!githubSync.isLoggedIn();
         const cardData = (loggedIn ? await githubSync.loadCardData(linkedId) : null)
             || await githubSync.loadPublicCardData(linkedId);
+        // No cards file means the read failed or the checklist is gone - not that
+        // it holds no images. The two are worth telling apart because the editor
+        // shows a different message for each, and they are reliably distinct: both
+        // reads answer null only for a file that is missing or unreachable, while a
+        // checklist that exists but holds nothing still answers with an object,
+        // since createChecklist writes {cards: []} or {categories: {}} up front.
+        if (!cardData) return null;
 
         return { stackImages: this._pickStackImages(cardData) };
     }

@@ -353,12 +353,34 @@ describe('what the linked checklist reports about itself', () => {
     expect(suggestion.stackImages).toEqual([IMG_A]);
   });
 
+  // The two halves of one distinction, kept adjacent because the difference
+  // between them is the whole point: an empty answer and no answer at all reach
+  // the editor as different messages ("No images found" vs "Could not load").
+
   it('offers no images when the linked checklist has none', async () => {
     sync.loadCardData = vi.fn(async () => ({ cards: [linkedCard({ set: 'One' })] }));
 
     const suggestion = await engine._loadLinkSuggestions(LINK);
 
-    expect(suggestion.stackImages).toEqual([]);
+    // An answer, and an empty one - not the absence of an answer
+    expect(suggestion).toEqual({ stackImages: [] });
+  });
+
+  it('reports nothing at all when the linked checklist cannot be read', async () => {
+    // A deleted checklist, or a gist the reads could not reach. Both card reads
+    // answer null only for a file that is missing or unreachable - a checklist
+    // that exists but holds nothing still answers with an object, as above.
+    sync.loadCardData = vi.fn(async () => null);
+    sync.loadPublicCardData = vi.fn(async () => null);
+
+    expect(await engine._loadLinkSuggestions(LINK)).toBeNull();
+  });
+
+  it('offers no images for a checklist created but never filled in', async () => {
+    // What createChecklist writes up front. Present, so it is not a failure
+    sync.loadCardData = vi.fn(async () => ({ cards: [] }));
+
+    expect(await engine._loadLinkSuggestions(LINK)).toEqual({ stackImages: [] });
   });
 
   it('falls back to the public copy when the private read comes back empty', async () => {
