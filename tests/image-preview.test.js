@@ -61,6 +61,19 @@ describe('CardEditorModal.updateImagePreview', () => {
         expect(previewHtml(editor)).not.toContain('<img');
     });
 
+    it('does NOT load a javascript: value as an image', () => {
+        // This branch chain is already the scheme check for this sink, and a
+        // stricter one than the sanitizeLinkUrl used elsewhere: it is an allowlist,
+        // so anything that is not data:, http(s): or an image-folder path lands on
+        // the placeholder. Pinned so a refactor to one shared sanitize call cannot
+        // quietly loosen it.
+        const editor = makeEditor();
+        editor.updateImagePreview('javascript:alert(1)');
+        expect(previewHtml(editor)).not.toContain('<img');
+        expect(previewHtml(editor)).not.toContain('javascript:');
+        expect(previewHtml(editor)).toContain('No image');
+    });
+
     it('writes no inline event handler onto the preview image', () => {
         // The last inline handler in src/. Behaviour moved to a delegated
         // listener; the attribute must not come back.

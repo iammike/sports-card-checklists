@@ -349,6 +349,84 @@ describe('CardRenderer.renderCardImage — no value can break out', () => {
   });
 });
 
+// card.img is editable on every card of every checklist, so it reaches <img src>
+// straight from the gist. It goes through sanitizeLinkUrl as well as sanitizeAttr,
+// matching every other URL sink. These pin down what each helper is actually
+// responsible for, because the division is not the obvious one.
+describe('CardRenderer.renderCardImage — the image src scheme is checked', () => {
+  function parse(html) {
+    const host = document.createElement('div');
+    host.innerHTML = html;
+    return host;
+  }
+
+  function imgIn(imgSrc) {
+    return parse(CardRenderer.renderCardImage(imgSrc, 'Card', 'https://ebay.com/x'))
+      .querySelector('img');
+  }
+
+  it('passes an absolute https URL through untouched', () => {
+    // The ordinary case: every R2 image on the site.
+    const R2 = 'https://cards-oauth.iammikec.workers.dev/images/set/card.webp';
+    expect(imgIn(R2).getAttribute('src')).toBe(R2);
+  });
+
+  it('passes a relative path through untouched', () => {
+    // Local images are relative. sanitizeUrl would blank these outright, which is
+    // the whole reason sanitizeLinkUrl resolves against the base first.
+    expect(imgIn('images/jayden-daniels/card.webp').getAttribute('src'))
+      .toBe('images/jayden-daniels/card.webp');
+  });
+
+  it('falls back to the "No image" placeholder for a javascript: src', () => {
+    const host = parse(
+      CardRenderer.renderCardImage('javascript:alert(1)', 'Card', 'https://ebay.com/x')
+    );
+
+    expect(host.querySelectorAll('img')).toHaveLength(0);
+    // Not src="" (a broken-image icon) and not nothing (no link to the search):
+    // the same placeholder a card with no image at all gets.
+    const link = host.querySelector('a');
+    expect(link.className).toBe('card-image placeholder');
+    expect(link.textContent).toBe('No image');
+    expect(link.getAttribute('href')).toBe('https://ebay.com/x');
+  });
+
+  it('falls back to the placeholder for a data: src', () => {
+    const host = parse(
+      CardRenderer.renderCardImage('data:text/html,<script>alert(1)</script>', 'Card', 'https://ebay.com/x')
+    );
+
+    expect(host.querySelectorAll('img')).toHaveLength(0);
+    expect(host.querySelectorAll('script')).toHaveLength(0);
+    expect(host.querySelector('a').textContent).toBe('No image');
+  });
+
+  it('leaves the no-image path alone', () => {
+    for (const empty of [null, undefined, '']) {
+      const host = parse(CardRenderer.renderCardImage(empty, 'Card', 'https://ebay.com/x'));
+      expect(host.querySelectorAll('img')).toHaveLength(0);
+      expect(host.querySelector('a').textContent).toBe('No image');
+    }
+  });
+
+  it('does NOT rely on the scheme check to contain a quote-bearing payload', () => {
+    // The invariant that matters, stated the way it actually holds. HOSTILE
+    // resolves against document.baseURI to a valid relative http: URL, so
+    // sanitizeLinkUrl returns it unchanged - it is emitted, not dropped.
+    // sanitizeAttr escaping the quotes is the only thing keeping it inside the
+    // attribute. Anyone tempted to delete that escaping because "the scheme is
+    // validated now" should fail here.
+    const host = parse(CardRenderer.renderCardImage(HOSTILE, 'Card', 'https://ebay.com/x'));
+
+    expect(host.querySelectorAll('img')).toHaveLength(1);
+    expect(host.querySelector('img').getAttribute('src')).toBe(HOSTILE);
+    expect(host.querySelector('img').getAttribute('onerror')).toBe(null);
+    expect(host.querySelector('img').getAttributeNames().sort())
+      .toEqual(['alt', 'class', 'loading', 'src']);
+  });
+});
+
 describe('CardRenderer.renderSearchLinks — neither URL can break out', () => {
   // Real call site: createCardElement() passes getEbayUrl(card.search || default)
   // and getScpUrl(card.priceSearch || default). getEbayUrl percent-encodes double
