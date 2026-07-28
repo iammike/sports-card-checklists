@@ -7,14 +7,14 @@
 
 // Fields whose absence from a submission really does mean the user cleared them.
 // The first four because the card editor always renders them, so an empty one is
-// a deliberate blank. The collection link trio is not always rendered, but earns
-// the same treatment for a different reason: getFormData omits all three together
+// a deliberate blank. The collection link pair is not always rendered, but earns
+// the same treatment for a different reason: getFormData omits both together
 // whenever no link is selected, which is exactly when they should be gone. Every
 // other clearable field is a custom field and is only trusted when this
 // checklist's config declares it - see _clearEmptyFields.
 const ENGINE_BUILTIN_CLEARABLE = new Set([
     'price', 'img', 'search', 'priceSearch',
-    'collectionLink', 'stackImages', 'cardCount',
+    'collectionLink', 'stackImages',
 ]);
 
 class ChecklistEngine {
@@ -318,9 +318,8 @@ class ChecklistEngine {
         });
     }
 
-    // The two fields on a collection link card that describe the linked checklist
-    // rather than this card, filled in from the linked checklist itself. See the
-    // editor's _refreshLinkedCardCount and _suggestStackImages for when each is used.
+    // What a collection link card's target can offer it, filled in from the linked
+    // checklist itself. See the editor's _suggestStackImages for how it is used.
     //
     // No cache of its own: githubSync keeps the whole fetched gist in memory and
     // every file below comes out of it, so a repeat call is a JSON parse rather
@@ -337,26 +336,17 @@ class ChecklistEngine {
         if (!linkedId) return null;
 
         const loggedIn = !!githubSync.isLoggedIn();
-
-        // The count comes from the linked checklist's saved stats, not from
-        // counting its cards. `total` there is the number the badge shows whenever
-        // it can read those stats (see _renderCollectionLinkCard), so the stored
-        // cardCount stays a faithful snapshot of the value it stands in for - it
-        // cannot disagree with the live badge about what "N CARDS" means. Every
-        // save to a checklist rewrites its stats, so the snapshot is current as of
-        // that checklist's last edit.
-        const allStats = loggedIn
-            ? await githubSync.loadAllStats()
-            : await githubSync.loadPublicStats();
-        const linkedTotal = (allStats || {})[linkedId]?.total;
-
         const cardData = (loggedIn ? await githubSync.loadCardData(linkedId) : null)
             || await githubSync.loadPublicCardData(linkedId);
+        // No cards file means the read failed or the checklist is gone - not that
+        // it holds no images. The two are worth telling apart because the editor
+        // shows a different message for each, and they are reliably distinct: both
+        // reads answer null only for a file that is missing or unreachable, while a
+        // checklist that exists but holds nothing still answers with an object,
+        // since createChecklist writes {cards: []} or {categories: {}} up front.
+        if (!cardData) return null;
 
-        return {
-            cardCount: typeof linkedTotal === 'number' ? linkedTotal : null,
-            stackImages: this._pickStackImages(cardData),
-        };
+        return { stackImages: this._pickStackImages(cardData) };
     }
 
     // A starting point for the card stack: the first few of the linked checklist's
@@ -411,6 +401,14 @@ class ChecklistEngine {
     }
 
     async _saveCardData() {
+        // githubSync is a page-loaded global, not an import, so guard it the way
+        // _loadConfig() does. Callers have already set the "Saving..." status, so
+        // report this through the same path as any other failed save rather than
+        // returning bare and leaving the status hanging.
+        if (typeof githubSync === 'undefined') {
+            return this._applySaveResult({ ok: false, reason: 'unavailable' });
+        }
+
         // Merge with latest gist data to prevent overwriting external changes (#560)
         await this._mergeWithFreshGistData();
 
@@ -433,6 +431,12 @@ class ChecklistEngine {
             result = await githubSync.saveCardData(this.id, this.cardData, stats);
         }
 
+        return this._applySaveResult(result);
+    }
+
+    // Reflect a { ok, reason } save result in the sync status and error banner.
+    // Returns whether the save succeeded, which is _saveCardData's return value.
+    _applySaveResult(result) {
         if (result.ok) {
             this.checklistManager.setSyncStatus('synced', 'Saved');
         } else if (result.reason === 'auth_expired') {
@@ -453,10 +457,14 @@ class ChecklistEngine {
 
     // Merge local cards with fresh gist data so external field additions aren't lost
     async _mergeWithFreshGistData() {
+        // Guard outside the try: the catch below only warns and lets the save
+        // proceed with local data, so a ReferenceError here would silently defeat
+        // the overwrite protection this function exists to provide (#560).
+        if (typeof githubSync === 'undefined') return;
+
         try {
             // Clear cache to get truly fresh data
-            githubSync._gistCache = null;
-            githubSync._publicGistCache = null;
+            githubSync.clearGistCache();
 
             const freshData = await githubSync.loadCardData(this.id)
                 || await githubSync.loadPublicCardData(this.id);
@@ -1091,18 +1099,17 @@ class ChecklistEngine {
         const safeId = sanitizeAttr(cardId);
         const idAttrs = cardId ? ` id="card-${safeId}" data-card-id="${safeId}"` : '';
 
-        // Badge: show linked checklist stats if available, else cardCount.
-        // All three values land in a text node and all three come from the gist -
-        // the counts from the stats file, cardCount from the card - so all three
-        // are escaped. The editor now writes cardCount through parseInt, but a
-        // hand-edited gist can still put anything there.
+        // Badge: the linked checklist's live stats, or nothing. Both counts come
+        // out of the gist's stats file and land in a text node, so both are
+        // escaped. No stored fallback: every checklist gets a stats entry when it
+        // is created and rewrites it on every save, so a missing entry means the
+        // target is gone, and a count for a checklist that no longer exists is
+        // worse than no badge at all.
         let badgeHtml = '';
         const linkedId = collectionLinkTargetId(card.collectionLink);
         const linkedStats = linkedId ? (this._linkedStats || {})[linkedId] : null;
         if (linkedStats && typeof linkedStats.owned === 'number') {
             badgeHtml = `<span class="collection-badge">${sanitizeText(linkedStats.owned)} / ${sanitizeText(linkedStats.total)} CARDS</span>`;
-        } else if (card.cardCount) {
-            badgeHtml = `<span class="collection-badge">${sanitizeText(card.cardCount)} CARDS</span>`;
         }
 
         // Image: card stack, or a single image when there is no usable stack.
@@ -2165,10 +2172,10 @@ class ChecklistEngine {
         if (cardData.priceSearch) { card.priceSearch = cardData.priceSearch; } else { clear('priceSearch'); }
 
         // img keeps '' as its own deletion marker, see _stripLocalOnlyMarkers.
-        // The collection link trio is absent from the form data whenever no link is
+        // The collection link pair is absent from the form data whenever no link is
         // selected, which is exactly when it should be gone from the card too.
         ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant', 'search',
-            'collectionLink', 'stackImages', 'cardCount'].forEach(key => {
+            'collectionLink', 'stackImages'].forEach(key => {
             if (!(key in cardData) || !cardData[key]) {
                 if (key === 'img' && key in cardData) { card[key] = ''; } else { clear(key); }
             }

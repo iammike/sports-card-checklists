@@ -49,9 +49,8 @@ class GitHubSync {
         // Clear cache when tab becomes visible (handles multi-tab edits)
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
-                this._cachedData = null;
-                this._gistCache = null;
-                this._publicGistCache = null;
+                this.clearDataCache();
+                this.clearGistCache();
             }
         });
     }
@@ -257,9 +256,8 @@ class GitHubSync {
         }
 
         // Clear cache so next load gets fresh data
-        this._cachedData = null;
-        this._gistCache = null;
-        this._publicGistCache = null;
+        this.clearDataCache();
+        this.clearGistCache();
 
         // Clear DynamicNav sessionStorage cache so registry reloads fresh
         try {
@@ -457,8 +455,7 @@ class GitHubSync {
                 });
 
                 if (response.ok) {
-                    this._gistCache = null;
-                    this._publicGistCache = null;
+                    this.clearGistCache();
                     return { done: true, value: { ok: true } };
                 }
                 if (await this._isRateLimited(response)) {
@@ -755,6 +752,31 @@ class GitHubSync {
     // Registry & Config Operations (stored in gist)
     // ========================================
 
+    // The two caches this object keeps are cleared independently, because the
+    // callers genuinely want different things: the checklist engine needs a fresh
+    // gist before merging, the shopping list needs fresh collection data. Both are
+    // public so nothing outside this file has to reach into the private fields.
+
+    // Drop both raw gist caches so the next _fetchGist() refetches.
+    //
+    // Deliberately leaves _cachedData alone: that is the card-data cache, and only
+    // some of the callers here want it cleared as well. They say so explicitly.
+    clearGistCache() {
+        this._gistCache = null;
+        this._publicGistCache = null;
+    }
+
+    // Drop the collection-data cache so the next loadData() refetches. That cache
+    // exists to keep reads stable across a save, so it outlives a page load and
+    // goes stale for anything reading the collection well after startup.
+    //
+    // Deliberately leaves the gist caches alone: loadData() and loadPublicData()
+    // fetch directly and never consult them, so clearing them here would be a
+    // wasted refetch for the callers that only want collection data.
+    clearDataCache() {
+        this._cachedData = null;
+    }
+
     // Fetch raw gist data with caching (avoids duplicate API calls)
     async _fetchGist(forcePublic = false) {
         const cacheKey = forcePublic ? '_publicGistCache' : '_gistCache';
@@ -816,8 +838,7 @@ class GitHubSync {
                     }),
                 });
                 if (response.ok) {
-                    this._gistCache = null;
-                    this._publicGistCache = null;
+                    this.clearGistCache();
                     return { done: true, value: true };
                 }
                 return { done: false, status: response.status, value: false };
@@ -850,8 +871,7 @@ class GitHubSync {
                     body: JSON.stringify({ files }),
                 });
                 if (response.ok) {
-                    this._gistCache = null;
-                    this._publicGistCache = null;
+                    this.clearGistCache();
                     return { done: true, value: true };
                 }
                 return { done: false, status: response.status, value: false };
@@ -969,8 +989,7 @@ class GitHubSync {
 
             // If nothing to update, the checklist data is already gone
             if (Object.keys(files).length === 0) {
-                this._gistCache = null;
-                this._publicGistCache = null;
+                this.clearGistCache();
                 return true;
             }
 
@@ -983,9 +1002,8 @@ class GitHubSync {
                 body: JSON.stringify({ files }),
             });
             if (response.ok) {
-                this._gistCache = null;
-                this._publicGistCache = null;
-                this._cachedData = null;
+                this.clearGistCache();
+                this.clearDataCache();
             } else {
                 const err = await response.text();
                 console.error('Gist PATCH failed:', response.status, err);

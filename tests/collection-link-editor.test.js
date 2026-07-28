@@ -64,7 +64,6 @@ function buildCollectionLinkCard(editor) {
   editor.openNew();
   typeInto(editor, '#editor-player', 'Jayden Daniels');
   chooseLink(editor, LINK);
-  typeInto(editor, '#editor-card-count', '40');
   typeInto(editor, '#editor-stack-images', `${IMG_A}\n${IMG_B}`);
   return editor.getFormData();
 }
@@ -111,7 +110,6 @@ describe('marking a card as a collection link', () => {
     const data = editor.getFormData();
 
     expect('collectionLink' in data).toBe(false);
-    expect('cardCount' in data).toBe(false);
     expect('stackImages' in data).toBe(false);
   });
 
@@ -254,7 +252,6 @@ describe('dirty tracking on the link dropdown', () => {
       id: 'clJaydenDaniels',
       player: 'Jayden Daniels',
       collectionLink: LINK,
-      cardCount: 40,
       stackImages: [IMG_A, IMG_B],
     });
 
@@ -318,7 +315,7 @@ describe('the link dropdown lives behind Advanced', () => {
   const label = (editor) => field(editor, '#editor-toggle-advanced').textContent;
 
   const LINKED = {
-    id: 'clJaydenDaniels', player: 'Jayden Daniels', collectionLink: LINK, cardCount: 40,
+    id: 'clJaydenDaniels', player: 'Jayden Daniels', collectionLink: LINK,
   };
   const PLAIN = { id: 'abc', player: 'Someone', set: '2024 Panini Prizm', num: '12' };
   const SEARCHY = { id: 'abc', player: 'Someone', set: 'Prizm', search: 'custom ebay term' };
@@ -332,7 +329,6 @@ describe('the link dropdown lives behind Advanced', () => {
     const advanced = field(editor, '.card-editor-advanced-fields');
     expect(advanced.contains(field(editor, '#editor-collection-link'))).toBe(true);
     expect(advanced.contains(field(editor, '#editor-stack-images'))).toBe(true);
-    expect(advanced.contains(field(editor, '#editor-card-count'))).toBe(true);
   });
 
   it('stays collapsed on an ordinary card', () => {
@@ -443,20 +439,18 @@ describe('the advanced search overrides', () => {
   });
 });
 
-describe('the fields that only a collection link card has', () => {
+describe('the stack box, which only a collection link card has', () => {
   let editor;
   beforeEach(() => { editor = makeEditor(); editor.openNew(); });
 
-  it('are hidden until a link is chosen', () => {
+  it('is hidden until a link is chosen', () => {
     expect(isHidden(editor, '#editor-stack-images-field')).toBe(true);
-    expect(isHidden(editor, '#editor-card-count-field')).toBe(true);
   });
 
-  it('appear once a link is chosen', () => {
+  it('appears once a link is chosen', () => {
     chooseLink(editor, LINK);
 
     expect(isHidden(editor, '#editor-stack-images-field')).toBe(false);
-    expect(isHidden(editor, '#editor-card-count-field')).toBe(false);
   });
 });
 
@@ -515,21 +509,6 @@ describe('stack images', () => {
   });
 });
 
-describe('card count', () => {
-  let editor;
-  beforeEach(() => { editor = makeEditor(); editor.openNew(); chooseLink(editor, LINK); });
-
-  it('is stored as a number, the way the badge renders it', () => {
-    typeInto(editor, '#editor-card-count', '40');
-
-    expect(editor.getFormData().cardCount).toBe(40);
-  });
-
-  it('is omitted when left blank', () => {
-    expect('cardCount' in editor.getFormData()).toBe(false);
-  });
-});
-
 describe('saving and reopening a collection link card', () => {
   it('hands the engine a card the renderer can already use', async () => {
     let saved = null;
@@ -541,7 +520,6 @@ describe('saving and reopening a collection link card', () => {
     expect(saved).toMatchObject({
       player: 'Jayden Daniels',
       collectionLink: LINK,
-      cardCount: 40,
       stackImages: [IMG_A, IMG_B],
     });
   });
@@ -555,7 +533,6 @@ describe('saving and reopening a collection link card', () => {
     editor.open(saved.id, saved);
 
     expect(field(editor, '#editor-collection-link').value).toBe(LINK);
-    expect(field(editor, '#editor-card-count').value).toBe('40');
     expect(field(editor, '#editor-stack-images').value).toBe(`${IMG_A}\n${IMG_B}`);
     expect(isHidden(editor, '#editor-set-field')).toBe(true);
   });
@@ -631,8 +608,8 @@ describe('collection link card identity', () => {
 
   it('backfills an id onto a card that was added by hand-editing the gist', () => {
     const engine = makeFlatEngine([
-      { player: 'Jayden Daniels', collectionLink: LINK, cardCount: 40 },
-      { player: 'Sam Howell', collectionLink: 'checklist.html?id=busts', cardCount: 4 },
+      { player: 'Jayden Daniels', collectionLink: LINK },
+      { player: 'Sam Howell', collectionLink: 'checklist.html?id=busts' },
     ]);
 
     engine._backfillSyntheticIds();
@@ -674,7 +651,6 @@ describe('clearing a collection link', () => {
     id: 'clJaydenDaniels',
     player: 'Jayden Daniels',
     collectionLink: LINK,
-    cardCount: 40,
     stackImages: [IMG_A, IMG_B],
   });
 
@@ -687,7 +663,7 @@ describe('clearing a collection link', () => {
     return engine._mergeCardArrays(engine.cards, [gistCard]);
   }
 
-  it('deletes the link, count and stack from the merged card', () => {
+  it('deletes the link and the stack from the merged card', () => {
     const gistCard = gistShape();
     const engine = makeFlatEngine([{ ...gistCard }]);
 
@@ -696,7 +672,6 @@ describe('clearing a collection link', () => {
     });
 
     expect('collectionLink' in merged[0]).toBe(false);
-    expect('cardCount' in merged[0]).toBe(false);
     expect('stackImages' in merged[0]).toBe(false);
     expect(merged[0].set).toBe('2024 Panini Prizm');
   });
@@ -726,7 +701,6 @@ describe('clearing a collection link', () => {
 
     expect('stackImages' in merged[0]).toBe(false);
     expect(merged[0].collectionLink).toBe(LINK);
-    expect(merged[0].cardCount).toBe(40);
   });
 
   it('does not touch a collection link on a card the user never edited', () => {
