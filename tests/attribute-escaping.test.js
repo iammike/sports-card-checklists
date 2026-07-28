@@ -132,6 +132,95 @@ describe('collection-link cards — the link cannot inject markup or execute', (
   });
 });
 
+// ============================================================================
+// Sink: the collection-link card's stack images and count badge
+// ============================================================================
+
+describe('collection-link cards — stack images', () => {
+  // stackImages became user-editable with the card editor's Stack Images box,
+  // so these values are no longer only ever hand-written gist JSON.
+  const CARD = { player: 'Someone', collectionLink: 'checklist.html?id=x' };
+  const GOOD = 'https://cards-oauth.iammikec.workers.dev/images/x/a.webp';
+
+  const stackSrcs = (el) => [...el.querySelectorAll('.card-stack img')].map(i => i.getAttribute('src'));
+
+  it('renders the images a safe stack asks for', () => {
+    // Guards the drops below: they would pass trivially if nothing ever rendered
+    const { el } = renderOne({ ...CARD, stackImages: [GOOD, 'images/x/b.webp'] });
+
+    expect(stackSrcs(el)).toEqual([GOOD, 'images/x/b.webp']);
+  });
+
+  it('drops a javascript: entry rather than emitting an empty src', () => {
+    // src="" re-requests the page and renders a broken-image icon
+    const { el } = renderOne({ ...CARD, stackImages: [GOOD, 'javascript:alert(1)'] });
+
+    expect(stackSrcs(el)).toEqual([GOOD]);
+  });
+
+  it('falls back to the single-image path when every entry is dropped', () => {
+    const { el } = renderOne({ ...CARD, stackImages: ['javascript:alert(1)'], img: GOOD });
+
+    expect(el.querySelectorAll('.card-stack')).toHaveLength(0);
+    expect(el.querySelector('img.card-image').getAttribute('src')).toBe(GOOD);
+  });
+
+  it('injects nothing for a hostile entry', () => {
+    // The scheme check is not what stops this one: HOSTILE resolves against the
+    // base URI to an http: URL, so it is a legitimate relative path as far as
+    // sanitizeLinkUrl is concerned. sanitizeAttr is what keeps it inside the
+    // attribute - it stays one img with a nonsense src, not two with a handler.
+    const { el } = renderOne({ ...CARD, stackImages: [HOSTILE] });
+
+    const imgs = el.querySelectorAll('.card-stack img');
+    expect(imgs).toHaveLength(1);
+    expect(imgs[0].getAttribute('src')).toBe(HOSTILE);
+    expect(imgs[0].getAttributeNames().sort()).toEqual(['alt', 'loading', 'src']);
+    expect(inlineHandlers(container())).toEqual([]);
+  });
+
+  it('renders rather than throwing when the gist holds a bare string', () => {
+    // A string has a length but no map - the old guard would have thrown here
+    // and taken the whole render down with it
+    const { el } = renderOne({ ...CARD, stackImages: GOOD, img: GOOD });
+
+    expect(el).not.toBe(null);
+    expect(el.querySelectorAll('.card-stack')).toHaveLength(0);
+  });
+});
+
+describe('collection-link cards — the count badge', () => {
+  const CARD = { player: 'Someone', collectionLink: 'checklist.html?id=x' };
+  const badge = (el) => el.querySelector('.collection-badge');
+
+  it('renders a real count', () => {
+    const { el } = renderOne({ ...CARD, cardCount: 40 });
+
+    expect(badge(el).textContent).toBe('40 CARDS');
+  });
+
+  it('escapes a hand-edited cardCount instead of parsing it as markup', () => {
+    // The editor writes cardCount through parseInt, but the gist can hold anything
+    const { el } = renderOne({ ...CARD, cardCount: HOSTILE });
+
+    expect(badge(el).querySelectorAll('img')).toHaveLength(0);
+    expect(badge(el).textContent).toBe(`${HOSTILE} CARDS`);
+    expect(inlineHandlers(container())).toEqual([]);
+  });
+
+  it('escapes linked stats, which come from the gist too', () => {
+    const engine = makeEngine([{ ...CARD, cardCount: 3 }]);
+    engine._linkedStats = { x: { owned: 2, total: HOSTILE } };
+    engine._initOwnedToggle();
+    engine.renderCards();
+    const el = container().querySelector('.card');
+
+    expect(badge(el).querySelectorAll('img')).toHaveLength(0);
+    expect(badge(el).textContent).toBe(`2 / ${HOSTILE} CARDS`);
+    expect(inlineHandlers(container())).toEqual([]);
+  });
+});
+
 describe('collection-link cards — clicking still navigates', () => {
   const CARD = { player: 'Someone', collectionLink: 'checklist.html?id=x', cardCount: 3 };
   let nav;

@@ -194,6 +194,67 @@ describe('the fields that describe a physical card', () => {
   });
 });
 
+describe('dirty tracking on the link dropdown', () => {
+  // Choosing a link restructures the whole form. If it did not mark the editor
+  // dirty, close() would skip its confirm and discard the change silently.
+  it('marks the editor dirty when a link is chosen', () => {
+    const editor = makeEditor();
+    editor.openNew();
+    expect(editor.isDirty).toBe(false);
+
+    chooseLink(editor, LINK);
+
+    expect(editor.isDirty).toBe(true);
+  });
+
+  it('marks the editor dirty when a link is removed', () => {
+    const editor = makeEditor();
+    editor.open('clJaydenDaniels', { id: 'clJaydenDaniels', player: 'Jayden Daniels', collectionLink: LINK });
+    expect(editor.isDirty).toBe(false);
+
+    chooseLink(editor, '');
+
+    expect(editor.isDirty).toBe(true);
+  });
+
+  it('does not depend on the select also firing input', () => {
+    // The generic dirty loop binds oninput, and browsers do fire input on a
+    // select today - but change is the canonical event, so dispatching only
+    // change has to be enough on its own.
+    const editor = makeEditor();
+    editor.openNew();
+    const select = field(editor, '#editor-collection-link');
+    select.oninput = null;
+    select.value = LINK;
+    select.dispatchEvent(new window.Event('change'));
+
+    expect(editor.isDirty).toBe(true);
+  });
+
+  it('leaves a freshly opened collection link card clean', () => {
+    // _populateCollectionLink assigns .value, which fires no events. A card that
+    // opened already dirty would prompt on every close.
+    const editor = makeEditor();
+    editor.open('clJaydenDaniels', {
+      id: 'clJaydenDaniels',
+      player: 'Jayden Daniels',
+      collectionLink: LINK,
+      cardCount: 40,
+      stackImages: [IMG_A, IMG_B],
+    });
+
+    expect(editor.isDirty).toBe(false);
+  });
+
+  it('leaves a freshly opened card clean even when its link is not in the registry', () => {
+    // This path appends an <option> and then selects it - still no events
+    const editor = makeEditor();
+    editor.open('clGone', { player: 'Someone', collectionLink: 'checklist.html?id=gone' });
+
+    expect(editor.isDirty).toBe(false);
+  });
+});
+
 describe('a price does not survive being linked', () => {
   // The price field is hidden on a linked card, so a price left on one is
   // unreachable without un-linking first - and price-low/price-high sort still

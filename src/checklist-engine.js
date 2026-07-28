@@ -1013,20 +1013,38 @@ class ChecklistEngine {
         const safeId = sanitizeAttr(cardId);
         const idAttrs = cardId ? ` id="card-${safeId}" data-card-id="${safeId}"` : '';
 
-        // Badge: show linked checklist stats if available, else cardCount
+        // Badge: show linked checklist stats if available, else cardCount.
+        // All three values land in a text node and all three come from the gist -
+        // the counts from the stats file, cardCount from the card - so all three
+        // are escaped. The editor now writes cardCount through parseInt, but a
+        // hand-edited gist can still put anything there.
         let badgeHtml = '';
         const linkedId = collectionLinkTargetId(card.collectionLink);
         const linkedStats = linkedId ? (this._linkedStats || {})[linkedId] : null;
         if (linkedStats && typeof linkedStats.owned === 'number') {
-            badgeHtml = `<span class="collection-badge">${linkedStats.owned} / ${linkedStats.total} CARDS</span>`;
+            badgeHtml = `<span class="collection-badge">${sanitizeText(linkedStats.owned)} / ${sanitizeText(linkedStats.total)} CARDS</span>`;
         } else if (card.cardCount) {
-            badgeHtml = `<span class="collection-badge">${card.cardCount} CARDS</span>`;
+            badgeHtml = `<span class="collection-badge">${sanitizeText(card.cardCount)} CARDS</span>`;
         }
 
-        // Image: card stack (multiple images) or single image
+        // Image: card stack, or a single image when there is no usable stack.
+        //
+        // Each stack entry becomes a fetch target, so it gets the same scheme
+        // check every other URL in the render path gets. This field is editable
+        // from the card editor's Stack Images box, so the values are no longer
+        // only ever hand-written gist JSON. An entry that fails the check is
+        // dropped rather than emitted as src="", which renders a broken-image
+        // icon; a stack left empty by that filter falls through to the
+        // single-image path, exactly as a card with no stack at all does.
+        // Array-checked because a hand-edited gist could hold a bare string,
+        // which has a length but no map.
+        const stackSrcs = (Array.isArray(card.stackImages) ? card.stackImages : [])
+            .map(src => sanitizeLinkUrl(src))
+            .filter(Boolean);
+
         let imageHtml;
-        if (card.stackImages && card.stackImages.length > 0) {
-            const imgs = card.stackImages.map(src =>
+        if (stackSrcs.length > 0) {
+            const imgs = stackSrcs.map(src =>
                 `<img src="${sanitizeAttr(src)}" alt="" loading="lazy">`
             ).join('');
             imageHtml = `<div class="card-stack">${imgs}</div>`;

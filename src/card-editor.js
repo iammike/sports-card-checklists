@@ -724,10 +724,19 @@ class CardEditorModal {
         }
 
         // Choosing a checklist to link to switches the form between describing a
-        // physical card and standing in for a collection
+        // physical card and standing in for a collection. Dirty tracking is set
+        // here rather than left to the generic "input" loop below: change is the
+        // canonical event for a select, and this restructures the entire form, so
+        // it must not depend on browsers also firing input alongside it - if that
+        // assumption ever failed, closing the modal would discard the change with
+        // no prompt. Assigning .value in _populateCollectionLink fires neither
+        // event, so opening a card never starts out dirty.
         const linkSelect = this.backdrop.querySelector('#editor-collection-link');
         if (linkSelect) {
-            linkSelect.addEventListener('change', () => this._applyCollectionLinkState());
+            linkSelect.addEventListener('change', () => {
+                this._applyCollectionLinkState();
+                this.setDirty(true);
+            });
         }
 
         // Delete button
