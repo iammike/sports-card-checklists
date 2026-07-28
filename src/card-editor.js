@@ -256,6 +256,15 @@ class CardEditorModal {
         return false;
     }
 
+    // The swatch next to a custom field's label. Its color comes from the
+    // checklist config and lands in a CSS declaration, so it is validated rather
+    // than escaped - see isSafeColor in shared.js. A color that fails renders no
+    // swatch, same as a field that defines none.
+    colorHintHtml(config) {
+        if (!isSafeColor(config.color)) return '';
+        return `<span class="card-editor-color-hint" style="background:${sanitizeAttr(config.color)}"></span>`;
+    }
+
     // Generate HTML for custom fields based on schema
     // position: 'top' (before set), 'after-num' (after card number), 'attributes' (horizontal row), 'bottom' (after attributes)
     generateCustomFieldsHtml(position = 'top') {
@@ -321,7 +330,7 @@ class CardEditorModal {
                 </div>`;
             } else {
                 // Default: text input
-                const colorHint = config.color ? `<span class="card-editor-color-hint" style="background:${sanitizeAttr(config.color)}"></span>` : '';
+                const colorHint = this.colorHintHtml(config);
                 return `<div class="card-editor-field${fullWidth}">
                     <label class="card-editor-label">${sanitizeText(config.label)}${colorHint}</label>
                     <input type="text" class="card-editor-input" id="${id}" placeholder="${placeholder}">
@@ -427,7 +436,7 @@ class CardEditorModal {
                 </label>
             </div>`;
         } else {
-            const colorHint = config.color ? `<span class="card-editor-color-hint" style="background:${sanitizeAttr(config.color)}"></span>` : '';
+            const colorHint = this.colorHintHtml(config);
             return `<div class="card-editor-field">
                 <label class="card-editor-label">${sanitizeText(config.label)}${colorHint}</label>
                 <input type="text" class="card-editor-input" id="${id}" placeholder="${placeholder}">

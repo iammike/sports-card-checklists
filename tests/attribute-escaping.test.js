@@ -664,8 +664,11 @@ describe('CardEditorModal — config-driven custom fields', () => {
 
     expect(editor.backdrop.querySelectorAll('img')).toHaveLength(0);
     expect(inlineHandlers(editor.backdrop)).toEqual([]);
-    const hint = editor.backdrop.querySelector('.card-editor-color-hint');
-    expect(hint.getAttributeNames().sort()).toEqual(['class', 'style']);
+    // The hint used to render with the hostile value escaped into its style
+    // attribute, which stopped attribute breakout but not CSS declaration
+    // injection. #698 validates the colour instead, so a value that is not a hex
+    // colour renders no swatch at all - see tests/css-color-validation.test.js.
+    expect(editor.backdrop.querySelector('.card-editor-color-hint')).toBeNull();
   });
 
   it('still binds a plain field id so the form can be read back', () => {

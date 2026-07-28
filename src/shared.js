@@ -96,5 +96,21 @@ function sanitizeLinkUrl(url) {
     }
 }
 
+// Colors from the gist (registry accent/border colors, custom field colors) are
+// interpolated into CSS declarations, where escaping is awkward and a value like
+// 'red; background:url(https://evil.test/x.png)' would inject a second
+// declaration and make an outbound request. Validate instead: these are colors,
+// so an allowlist is simpler and stronger than escaping.
+//
+// Six-digit hex is the only accepted form because the sinks already require it:
+// index.html appends hex alpha to build an 8-digit value ('${accent}0d'), and
+// checklist-engine's _ensureContrast slices characters 1-7 back off. A named
+// color like 'red' yields 'red0d' in the first and NaN in the second, so it was
+// never usable. Every color in the production registry and in every checklist
+// config is already #rrggbb, so this rejects nothing real.
+function isSafeColor(value) {
+    return typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value);
+}
+
 // Export for use in pages
 window.CARD_TYPES = CARD_TYPES;
