@@ -227,7 +227,13 @@ class ChecklistEngine {
     }
 
     async _loadCardData() {
-        if (window.githubSync?.isLoggedIn()) {
+        // The optional chaining below guards only its own branch: with no module at
+        // all the condition is false and the bare public read after the block still
+        // runs. Failing to load is what that read failing already means here, so it
+        // takes the existing exit rather than a ReferenceError.
+        if (typeof githubSync === 'undefined') throw new Error('Failed to load card data');
+
+        if (githubSync.isLoggedIn()) {
             const data = await githubSync.loadCardData(this.id);
             if (data) {
                 this.cardData = data;
@@ -280,6 +286,15 @@ class ChecklistEngine {
     }
 
     async _loadLinkedStats() {
+        // Same guard as _loadConfig: the stats reads below are bare references,
+        // which throw rather than reading as undefined when the module was never
+        // loaded. No stats to show is the same answer as no linked cards at all,
+        // so it takes the same exit.
+        if (typeof githubSync === 'undefined') {
+            this._linkedStats = {};
+            return;
+        }
+
         // Find collection link cards that reference other checklists
         const allCards = this._isFlat() ? this.cards : this._getAllCardsFlat();
         const linkedIds = allCards
@@ -292,7 +307,7 @@ class ChecklistEngine {
             return;
         }
 
-        const allStats = window.githubSync?.isLoggedIn()
+        const allStats = githubSync.isLoggedIn()
             ? await githubSync.loadAllStats()
             : await githubSync.loadPublicStats();
 
@@ -301,6 +316,71 @@ class ChecklistEngine {
         linkedIds.forEach(id => {
             if (allStats[id]) this._linkedStats[id] = allStats[id];
         });
+    }
+
+    // The two fields on a collection link card that describe the linked checklist
+    // rather than this card, filled in from the linked checklist itself. See the
+    // editor's _refreshLinkedCardCount and _suggestStackImages for when each is used.
+    //
+    // No cache of its own: githubSync keeps the whole fetched gist in memory and
+    // every file below comes out of it, so a repeat call is a JSON parse rather
+    // than a round trip - and the page has already paid for that fetch loading its
+    // own cards.
+    async _loadLinkSuggestions(link) {
+        // Same guard, and for the same reason, as _loadConfig: every githubSync
+        // call below is a bare reference, which throws rather than reading as
+        // undefined when the module was never loaded. Guarding once up here is why
+        // they can stay bare.
+        if (typeof githubSync === 'undefined') return null;
+
+        const linkedId = collectionLinkTargetId(link);
+        if (!linkedId) return null;
+
+        const loggedIn = !!githubSync.isLoggedIn();
+
+        // The count comes from the linked checklist's saved stats, not from
+        // counting its cards. `total` there is the number the badge shows whenever
+        // it can read those stats (see _renderCollectionLinkCard), so the stored
+        // cardCount stays a faithful snapshot of the value it stands in for - it
+        // cannot disagree with the live badge about what "N CARDS" means. Every
+        // save to a checklist rewrites its stats, so the snapshot is current as of
+        // that checklist's last edit.
+        const allStats = loggedIn
+            ? await githubSync.loadAllStats()
+            : await githubSync.loadPublicStats();
+        const linkedTotal = (allStats || {})[linkedId]?.total;
+
+        const cardData = (loggedIn ? await githubSync.loadCardData(linkedId) : null)
+            || await githubSync.loadPublicCardData(linkedId);
+
+        return {
+            cardCount: typeof linkedTotal === 'number' ? linkedTotal : null,
+            stackImages: this._pickStackImages(cardData),
+        };
+    }
+
+    // A starting point for the card stack: the first few of the linked checklist's
+    // cards that have an image. Three, because that is how many the stack lays out
+    // (.card-stack img:nth-child, in shared.css) - a fourth would sit unstyled on
+    // top of the third.
+    //
+    // The linked checklist's config isn't read, so its data shape is worked out
+    // from the file: a flat checklist stores `cards`, a categorized one stores
+    // `categories`. Its own link cards are skipped - a stack of collection tiles is
+    // not what this is for - as are noCard entries, which have nothing to show.
+    _pickStackImages(cardData, limit = 3) {
+        if (!cardData) return [];
+        const lists = Array.isArray(cardData.cards)
+            ? [cardData.cards]
+            : Object.values(cardData.categories || {});
+
+        return lists
+            .filter(Array.isArray)
+            .flat()
+            .filter(card => card && !card.noCard && !card.collectionLink
+                && typeof card.img === 'string' && card.img.trim() !== '')
+            .slice(0, limit)
+            .map(card => card.img.trim());
     }
 
     // Refresh saved stats if they're stale vs. computed (e.g. linked checklist progress changed).
@@ -1901,6 +1981,7 @@ class ChecklistEngine {
             getLinkTargets: () => DynamicNav.listChecklists()
                 .filter(entry => entry.id !== this.id)
                 .map(entry => ({ value: DynamicNav.getUrl(entry), label: entry.navLabel || entry.title })),
+            getLinkSuggestions: (link) => this._loadLinkSuggestions(link),
             // Same story as setOwned: toggleOwned synchronously calls the
             // manager's onOwnedChange, which re-renders the cards from stored
             // state and updates the stats. Nothing to do here but delegate.

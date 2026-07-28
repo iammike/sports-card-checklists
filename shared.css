@@ -1707,6 +1707,33 @@ select, input[type="text"] {
     grid-column: 1 / -1;
 }
 
+/* A label with an action opposite it - the Stack Images suggest button */
+.card-editor-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+/* Padded out to a usable tap target - a bare 11px text button is only ~12px tall,
+   well under the 24px minimum. The negative margins cancel the padding exactly, so
+   the row keeps its height and nothing below it moves; only the hit area grows.
+   The two vertical numbers differ on purpose: 10px above spends part of the 16px
+   gap between advanced rows, while 6px below is the field's own gap, so the box
+   stops precisely at the top of the textarea and cannot swallow a click meant for
+   it. Left padding only - a negative right margin would push the button past the
+   textarea's right edge. */
+.card-editor-label-row .card-editor-toggle-btn {
+    padding: 10px 0 6px 12px;
+    margin: -10px 0 -6px;
+    font-size: 11px;
+}
+
+.card-editor-label-row .card-editor-toggle-btn:disabled {
+    color: #888;
+    cursor: default;
+}
+
 .card-editor-advanced-toggle {
     display: flex;
     align-items: flex-end;
