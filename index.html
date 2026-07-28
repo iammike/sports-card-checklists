@@ -147,6 +147,14 @@
             font-family: 'Barlow', sans-serif;
             font-size: 0.9em;
         }
+        /* The message is a live region, so it stays in the DOM (and the
+           accessibility tree) even with nothing to say - a region inserted at the
+           same moment as its text is not reliably announced. Taking the empty one
+           out of flow keeps it from claiming a grid row. */
+        .checklist-no-results:empty {
+            position: absolute;
+            padding: 0;
+        }
         .checklist-card {
             --card-accent: #f39c12;
             --card-accent-rgb: 243, 156, 18;
@@ -551,15 +559,19 @@
         </div>
 
         <div class="checklist-filter-bar" id="checklist-filter-bar" style="display: none;">
-            <span class="search-wrapper"><input type="text" class="checklist-search" id="checklist-search" placeholder="Search checklists..." autocomplete="off"><button class="search-clear" type="button">&times;</button></span>
-            <div class="checklist-filter-pills">
-                <button class="filter-pill active" data-filter="all">All</button>
-                <button class="filter-pill" data-filter="in-progress">In Progress</button>
-                <button class="filter-pill" data-filter="complete">Complete</button>
-                <button class="filter-pill" data-filter="not-started">Not Started</button>
+            <span class="search-wrapper"><input type="text" class="checklist-search" id="checklist-search" placeholder="Search checklists..." autocomplete="off" aria-label="Search checklists"><button class="search-clear" type="button" aria-label="Clear search">&times;</button></span>
+            <div class="checklist-filter-pills" role="group" aria-label="Filter checklists by progress">
+                <button class="filter-pill active" data-filter="all" aria-pressed="true">All</button>
+                <button class="filter-pill" data-filter="in-progress" aria-pressed="false">In Progress</button>
+                <button class="filter-pill" data-filter="complete" aria-pressed="false">Complete</button>
+                <button class="filter-pill" data-filter="not-started" aria-pressed="false">Not Started</button>
             </div>
         </div>
-        <div class="checklist-grid"></div>
+        <div class="checklist-grid">
+            <!-- Always present, so the live region is in the accessibility tree
+                 before its text is set - see the :empty rule above. -->
+            <div class="checklist-no-results" id="checklist-no-results" role="status"></div>
+        </div>
     </div>
 
     <footer class="site-footer">
@@ -798,7 +810,16 @@
                 const hasStats = stats && typeof stats.owned === 'number' && stats.total > 0;
                 dynamicStats[entry.id] = hasStats ? stats : null;
 
-                const pct = hasStats && stats.total > 0 ? Math.round((stats.owned / stats.total) * 100) : 0;
+                // Clamped here at the source rather than at each use: a stale gist
+                // total can leave more cards owned than the checklist lists, and
+                // both consumers below need the figure bounded. Unclamped it drives
+                // stroke-dashoffset negative, which renders the ring as a broken arc
+                // instead of a full one, and puts aria-valuenow above aria-valuemax.
+                // Completeness is decided from owned/total further down, not from
+                // this, so nothing wants the raw figure.
+                const pct = hasStats && stats.total > 0
+                    ? Math.min(Math.round((stats.owned / stats.total) * 100), 100)
+                    : 0;
                 const offset = PROGRESS_RING_CIRCUMFERENCE - (pct / 100) * PROGRESS_RING_CIRCUMFERENCE;
                 const description = entry.description || '';
                 // Both land in a CSS declaration below, so validate rather than
@@ -808,6 +829,11 @@
                 const borderColor = isSafeColor(entry.borderColor) ? entry.borderColor : accent;
 
                 const isComplete = hasStats && stats.total > 0 && stats.owned >= stats.total;
+                // The ring draws a checkmark instead of the percentage once complete,
+                // and a bare checkmark announces as nothing useful. The meaning lives
+                // on the ring's own role/value instead, so the glyph can stay
+                // decorative.
+                const ringText = isComplete ? 'Complete' : pct + '% collected';
                 const card = document.createElement('a');
                 card.href = `checklist.html?id=${entry.id}`;
                 card.className = 'checklist-card' + (isComplete ? ' complete' : '');
@@ -819,13 +845,14 @@
                     ${entry.hideMainCount ? '' : hasStats ? `
                     <div class="progress-section" style="display:block">
                         <div class="main-progress">
-                            <div class="progress-ring">
-                                <svg viewBox="0 0 48 48">
+                            <div class="progress-ring" role="progressbar" aria-label="Cards collected"
+                                aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-valuetext="${ringText}">
+                                <svg viewBox="0 0 48 48" aria-hidden="true">
                                     <circle class="bg" cx="24" cy="24" r="20"/>
                                     <circle class="fill" cx="24" cy="24" r="20"
                                         stroke-dasharray="${PROGRESS_RING_CIRCUMFERENCE}" stroke-dashoffset="${offset}"/>
                                 </svg>
-                                <span class="percentage">${isComplete ? '&#10003;' : pct + '%'}</span>
+                                <span class="percentage" aria-hidden="true">${isComplete ? '&#10003;' : pct + '%'}</span>
                             </div>
                             <div class="progress-details">
                                 <div class="progress-main-text">
@@ -844,7 +871,12 @@
                                 if (total === 0) return '';
                                 const pillPct = Math.round((owned / total) * 100);
                                 const isComplete = owned === total;
-                                return `<span class="stat-pill${isComplete ? ' complete' : ''}" style="--pill-pct: ${pillPct}%">${sanitizeText(pill.label)} <span class="count">${isComplete ? '\u2713' : `${sanitizeText(owned)}/${sanitizeText(total)}`}</span></span>`;
+                                // Same problem as the ring: the count collapses to a
+                                // bare checkmark once complete. Naming the count spells
+                                // out the figures either way, which also spares the
+                                // incomplete case being read as "4 slash 9".
+                                const countLabel = isComplete ? `all ${total} owned` : `${owned} of ${total} owned`;
+                                return `<span class="stat-pill${isComplete ? ' complete' : ''}" style="--pill-pct: ${pillPct}%">${sanitizeText(pill.label)} <span class="count" role="img" aria-label="${sanitizeAttr(countLabel)}">${isComplete ? '\u2713' : `${sanitizeText(owned)}/${sanitizeText(total)}`}</span></span>`;
                             }).join('')}
                         </div>` : ''}
                     </div>` : '<div class="progress-section" style="display:block"><p style="font-size:12px;color:#666;">No cards yet</p></div>'}
@@ -890,14 +922,14 @@
                     if (visible) visibleCount++;
                 });
 
-                // Show/remove "no results" message
-                const existing = grid.querySelector('.checklist-no-results');
-                if (existing) existing.remove();
-                if (visibleCount === 0 && cards.length > 0) {
-                    const msg = document.createElement('div');
-                    msg.className = 'checklist-no-results';
-                    msg.textContent = 'No checklists match your search.';
-                    grid.appendChild(msg);
+                // Show/hide "no results" message. The element is permanent and only
+                // its text changes, so the announcement lands in a live region that
+                // was already there rather than in one appearing alongside its text.
+                const noResults = document.getElementById('checklist-no-results');
+                if (noResults) {
+                    noResults.textContent = visibleCount === 0 && cards.length > 0
+                        ? 'No checklists match your search.'
+                        : '';
                 }
             }
 
@@ -910,8 +942,12 @@
 
             pills.forEach(pill => {
                 pill.addEventListener('click', () => {
-                    pills.forEach(p => p.classList.remove('active'));
+                    pills.forEach(p => {
+                        p.classList.remove('active');
+                        p.setAttribute('aria-pressed', 'false');
+                    });
                     pill.classList.add('active');
+                    pill.setAttribute('aria-pressed', 'true');
                     activeFilter = pill.dataset.filter;
                     applyFilters();
                 });
