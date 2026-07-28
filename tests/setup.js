@@ -19,13 +19,19 @@ globalThis.performance = globalThis.performance || { now: () => Date.now() };
 // attempt and failing afterEach makes it unswallowable.
 //
 // A test that legitimately needs fetch assigns its own globalThis.fetch and never
-// reaches this one; restoring the previous value afterwards puts the tripwire back.
+// reaches this one. It does not have to restore it: afterEach re-arms unconditionally,
+// so a test that forgets cannot leave every later test in the file unprotected.
+//
+// The cost of re-arming every time is that a stub installed in beforeAll, meant to
+// span several tests, is torn down after the first one. Nothing does that today;
+// install fetch stubs in beforeEach.
 const attemptedRequests = [];
-globalThis.fetch = (input) => {
+const tripwireFetch = (input) => {
     const url = String(input && input.url ? input.url : input);
     attemptedRequests.push(url);
     throw new Error(`tests must not make network calls (attempted ${url})`);
 };
+globalThis.fetch = tripwireFetch;
 
 // Returns the attempts since the last call, and clears them. Exported so
 // no-network.test.js can assert the tripwire is armed without tripping it.
@@ -34,6 +40,12 @@ export function takeAttemptedRequests() {
 }
 
 afterEach(() => {
+    // Re-arm before the check below, which throws: otherwise a test that both
+    // clobbered fetch and attempted a request would report the attempt and leave the
+    // tripwire disarmed. Re-arming does not touch the record, so an attempt is still
+    // reported exactly once.
+    globalThis.fetch = tripwireFetch;
+
     const attempted = takeAttemptedRequests();
     if (attempted.length) {
         throw new Error(

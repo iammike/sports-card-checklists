@@ -29,14 +29,25 @@ describe('the no-network tripwire', () => {
         expect(takeAttemptedRequests()).toHaveLength(1);
     });
 
-    it('lets a test install its own fetch, and restores the tripwire after', () => {
-        const tripwire = globalThis.fetch;
-        globalThis.fetch = async () => ({ ok: true });
-        expect(() => fetch('https://example.test/allowed')).not.toThrow();
+    // These two run in order and are a pair: the first deliberately leaves fetch
+    // clobbered so the second can prove setup.js re-arms it. Keep them adjacent, and
+    // keep the first one's missing restore - it is the point, not an oversight.
+    it('lets a test install its own fetch', async () => {
+        globalThis.fetch = async () => ({ ok: true, json: async () => ({ hello: 'world' }) });
+
+        // Awaited rather than `expect(() => fetch(...)).not.toThrow()`, which only
+        // catches a synchronous throw: an async stub always returns a Promise, so that
+        // form passes even when the stub rejects and proves nothing.
+        await expect(fetch('https://example.test/allowed')).resolves.toMatchObject({ ok: true });
         expect(takeAttemptedRequests()).toEqual([]);
 
-        globalThis.fetch = tripwire;
-        expect(() => fetch('https://example.test/blocked')).toThrow();
+        // Deliberately not restoring globalThis.fetch.
+    });
+
+    it('re-arms itself after a test that clobbered fetch without restoring', () => {
+        expect(() => fetch('https://example.test/blocked'))
+            .toThrow(/must not make network calls/);
+
         takeAttemptedRequests();
     });
 });
