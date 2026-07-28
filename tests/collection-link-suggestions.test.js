@@ -548,3 +548,48 @@ describe('what the linked checklist reports about itself', () => {
     expect(suggestion).toEqual({ cardCount: 40, stackImages: [IMG_C] });
   });
 });
+
+// _loadLinkSuggestions was not the only place in this file reading githubSync
+// through an optional-chained check and then dereferencing it bare. Two others had
+// the same shape, both pre-existing, and both are covered here so the class stays
+// fixed rather than the one instance.
+//
+// No page can currently reach either: init() calls _loadConfig first, which returns
+// null with no module and makes init throw before anything below runs. These drive
+// the methods directly, which is what makes the guards testable at all.
+describe('the engine with no sync module loaded at all', () => {
+  let engine;
+
+  beforeEach(() => {
+    delete window.githubSync;
+    engine = Object.create(ChecklistEngine.prototype);
+    engine.id = 'washington-qbs';
+    engine.config = { dataShape: 'flat', customFields: CUSTOM_FIELDS, cardDisplay: {} };
+  });
+
+  afterEach(() => {
+    delete window.githubSync;
+    document.body.innerHTML = '';
+  });
+
+  it('reports no linked stats rather than throwing', async () => {
+    // A collection link card, so the linkedIds.length === 0 early return cannot be
+    // what makes this pass - the method has to reach the stats read to be tested
+    const editor = makeEditor();
+    editor.openNew();
+    typeInto(editor, '#editor-player', 'Jayden Daniels');
+    chooseLink(editor, LINK);
+    engine.cards = [editor.getFormData()];
+    expect(engine.cards[0].collectionLink).toBe(LINK);
+
+    await engine._loadLinkedStats();
+
+    expect(engine._linkedStats).toEqual({});
+  });
+
+  it('fails to load card data with the error that already means that', async () => {
+    // The optional-chained isLoggedIn check guards only its own branch; the public
+    // read after it is bare, so this reached it and threw a ReferenceError
+    await expect(engine._loadCardData()).rejects.toThrow('Failed to load card data');
+  });
+});

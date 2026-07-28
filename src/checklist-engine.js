@@ -227,7 +227,13 @@ class ChecklistEngine {
     }
 
     async _loadCardData() {
-        if (window.githubSync?.isLoggedIn()) {
+        // The optional chaining below guards only its own branch: with no module at
+        // all the condition is false and the bare public read after the block still
+        // runs. Failing to load is what that read failing already means here, so it
+        // takes the existing exit rather than a ReferenceError.
+        if (typeof githubSync === 'undefined') throw new Error('Failed to load card data');
+
+        if (githubSync.isLoggedIn()) {
             const data = await githubSync.loadCardData(this.id);
             if (data) {
                 this.cardData = data;
@@ -280,6 +286,15 @@ class ChecklistEngine {
     }
 
     async _loadLinkedStats() {
+        // Same guard as _loadConfig: the stats reads below are bare references,
+        // which throw rather than reading as undefined when the module was never
+        // loaded. No stats to show is the same answer as no linked cards at all,
+        // so it takes the same exit.
+        if (typeof githubSync === 'undefined') {
+            this._linkedStats = {};
+            return;
+        }
+
         // Find collection link cards that reference other checklists
         const allCards = this._isFlat() ? this.cards : this._getAllCardsFlat();
         const linkedIds = allCards
@@ -292,7 +307,7 @@ class ChecklistEngine {
             return;
         }
 
-        const allStats = window.githubSync?.isLoggedIn()
+        const allStats = githubSync.isLoggedIn()
             ? await githubSync.loadAllStats()
             : await githubSync.loadPublicStats();
 
