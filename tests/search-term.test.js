@@ -40,4 +40,16 @@ describe('CardRenderer.buildDefaultSearch', () => {
     it('handles a completely empty card', () => {
         expect(CardRenderer.buildDefaultSearch({}, '')).toBe('');
     });
+
+    it('appends Auto for an autographed card', () => {
+        const card = { set: '2024 Donruss', num: '#101', variant: 'Silver', auto: true };
+        expect(CardRenderer.buildDefaultSearch(card, 'Jayden Daniels'))
+            .toBe('Jayden Daniels 2024 Donruss #101 Silver Auto');
+    });
+
+    it('omits Auto when the card is not autographed', () => {
+        const card = { set: '2024 Donruss', num: '#101', auto: false };
+        expect(CardRenderer.buildDefaultSearch(card, 'Jayden Daniels'))
+            .toBe('Jayden Daniels 2024 Donruss #101');
+    });
 });

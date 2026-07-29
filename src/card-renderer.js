@@ -61,10 +61,12 @@ const CardRenderer = {
 
     // Build the default (unencoded) search string from card fields.
     // prefix is the resolved player name or configured fallback (may be empty).
-    // Includes the variant unless it is the "Base" variant.
+    // Includes the variant unless it is the "Base" variant, and "Auto" for
+    // autographed cards so eBay/price search results favor autographed listings.
     buildDefaultSearch(card, prefix = '') {
         const variant = (card.variant && card.variant !== 'Base') ? card.variant : '';
-        return `${prefix} ${card.set || ''} ${card.num || ''} ${variant}`.replace(/\s+/g, ' ').trim();
+        const auto = card.auto ? 'Auto' : '';
+        return `${prefix} ${card.set || ''} ${card.num || ''} ${variant} ${auto}`.replace(/\s+/g, ' ').trim();
     },
 
     // Generate eBay search URL
