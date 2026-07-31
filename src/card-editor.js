@@ -659,11 +659,11 @@ class CardEditorModal {
                             ${this.collectionLinkHtml()}
                             <div class="card-editor-field full-width" id="editor-ebay-field">
                                 <label class="card-editor-label">eBay Search Term</label>
-                                <input type="text" class="card-editor-input" id="editor-ebay" placeholder="Defaults to player + set + number">
+                                <input type="text" class="card-editor-input" id="editor-ebay" placeholder="Defaults to player + set + number + variant/auto">
                             </div>
                             <div class="card-editor-field full-width" id="editor-price-search-field">
                                 <label class="card-editor-label">Price Search Term</label>
-                                <input type="text" class="card-editor-input" id="editor-price-search" placeholder="Defaults to player + set + number">
+                                <input type="text" class="card-editor-input" id="editor-price-search" placeholder="Defaults to player + set + number + variant/auto">
                             </div>
                         </div>
                         <div class="card-editor-field full-width card-editor-image-section">

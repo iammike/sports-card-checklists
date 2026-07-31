@@ -40,4 +40,34 @@ describe('CardRenderer.buildDefaultSearch', () => {
     it('handles a completely empty card', () => {
         expect(CardRenderer.buildDefaultSearch({}, '')).toBe('');
     });
+
+    it('appends Auto for an autographed card', () => {
+        const card = { set: '2024 Donruss', num: '#101', variant: 'Silver', auto: true };
+        expect(CardRenderer.buildDefaultSearch(card, 'Jayden Daniels'))
+            .toBe('Jayden Daniels 2024 Donruss #101 Silver Auto');
+    });
+
+    it('omits Auto when the card is not autographed', () => {
+        // The editor never submits auto: false - unchecked checkboxes are
+        // omitted entirely (see .claude/CLAUDE.md) - so this models the real shape.
+        const card = { set: '2024 Donruss', num: '#101' };
+        expect(CardRenderer.buildDefaultSearch(card, 'Jayden Daniels'))
+            .toBe('Jayden Daniels 2024 Donruss #101');
+    });
+
+    it('does not double up when the variant already says Auto', () => {
+        const card = { set: '2020 Panini Contenders', num: '#217', variant: 'Rookie Ticket Auto', auto: true };
+        expect(CardRenderer.buildDefaultSearch(card, 'Ben DiNucci'))
+            .toBe('Ben DiNucci 2020 Panini Contenders #217 Rookie Ticket Auto');
+    });
+
+    it('does not append Auto when the variant already says Autographs/Signatures', () => {
+        expect(CardRenderer.buildDefaultSearch(
+            { set: '2000 Sage', num: '#A23', variant: 'Autographs Red', auto: true }, 'Curtis Keaton'
+        )).toBe('Curtis Keaton 2000 Sage #A23 Autographs Red');
+
+        expect(CardRenderer.buildDefaultSearch(
+            { set: '2019 Panini National Treasures', num: '#185', variant: 'Rookie Signatures', auto: true }, 'Jimmy Moreland'
+        )).toBe('Jimmy Moreland 2019 Panini National Treasures #185 Rookie Signatures');
+    });
 });
