@@ -2168,6 +2168,12 @@ select, input[type="text"] {
     box-shadow: 0 4px 12px rgba(233, 67, 67, 0.4);
 }
 
+.card-editor-remove-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
 .card-editor-edit-btn:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(67, 233, 123, 0.4);

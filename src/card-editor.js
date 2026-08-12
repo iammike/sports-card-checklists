@@ -262,6 +262,15 @@ class CardEditorModal {
         // second action (e.g. clicking Edit while Process is still uploading)
         // can't race the first and overwrite #editor-img mid-flight.
         this._imageOpInProgress = false;
+        // Bumped by init(), same idea as _linkSuggestToken just below: an op holds
+        // `this`, not the backdrop, so if it's still in flight when the modal is
+        // closed and reopened, its result belongs to a card that's no longer
+        // open. Each op captures this at the start and compares before writing
+        // to the DOM or clearing the guard, so a stale op can't stomp the new
+        // card's in-progress state. Only one op can be in flight at a time
+        // (_imageOpInProgress enforces that), so a per-reopen value is enough -
+        // no need to also bump it per op.
+        this._imageOpToken = 0;
 
         // Schema-driven custom fields
         // Format: { fieldName: { label, type, options?, placeholder?, fullWidth? } }
@@ -627,7 +636,10 @@ class CardEditorModal {
         // buttons it disables belong to the backdrop being replaced below, so a
         // stale true (e.g. from a promise that never settled) would silently
         // brick every image control in the fresh modal instead of just this one.
+        // Bumping the token additionally invalidates any op still in flight from
+        // before this reopen, so its eventual result can't land on this card.
         this._imageOpInProgress = false;
+        this._imageOpToken++;
 
         // Remove existing card editor backdrop so re-init works after settings changes
         // Use :not(.checklist-creator-backdrop) to avoid removing the creator modal
@@ -833,9 +845,8 @@ class CardEditorModal {
         // Image tab switching
         this.backdrop.querySelectorAll('.card-editor-image-tab').forEach(tab => {
             tab.onclick = () => {
-                // Block switching while processing
-                const saveBtn = this.backdrop.querySelector('.card-editor-btn.save');
-                if (saveBtn && saveBtn.disabled) return;
+                // Block switching while an image op is in flight
+                if (this._imageOpInProgress) return;
 
                 this.backdrop.querySelectorAll('.card-editor-image-tab').forEach(t => t.classList.remove('active'));
                 tab.classList.add('active');
@@ -1086,6 +1097,7 @@ class CardEditorModal {
             return;
         }
 
+        const opToken = this._imageOpToken;
         btn.classList.add('processing');
         btn.disabled = true;
         this.setImageProcessing(true);
@@ -1120,6 +1132,11 @@ class CardEditorModal {
                 githubSync.deleteImage(oldKey).catch(() => {});
             }
 
+            // The modal may have been closed and reopened on another card while
+            // this was in flight - its result no longer belongs to what's on
+            // screen, so leave the (now different) DOM alone.
+            if (opToken !== this._imageOpToken) return;
+
             // Update the input field with the R2 URL
             imgInput.value = r2Url;
             this.updateImagePreview(`data:image/webp;base64,${base64Data}`);
@@ -1134,7 +1151,10 @@ class CardEditorModal {
         } finally {
             btn.classList.remove('processing');
             btn.disabled = false;
-            this.setImageProcessing(false);
+            // Same staleness check: a stale op's finally must not clear the
+            // guard/re-enable controls for whatever op the fresh modal has
+            // running now.
+            if (opToken === this._imageOpToken) this.setImageProcessing(false);
         }
     }
 
@@ -1156,6 +1176,8 @@ class CardEditorModal {
 
         // Capture old R2 key before upload replaces the URL
         const oldKey = r2KeyFromUrl(url);
+
+        const opToken = this._imageOpToken;
 
         // Show loading state
         btn.classList.add('processing');
@@ -1210,6 +1232,10 @@ class CardEditorModal {
                 githubSync.deleteImage(oldKey).catch(() => {});
             }
 
+            // The modal may have been closed and reopened on another card while
+            // this was in flight - leave the (now different) DOM alone.
+            if (opToken !== this._imageOpToken) return;
+
             // Update the input field with the R2 URL
             imgInput.value = r2Url;
             this.updateImagePreview(`data:image/webp;base64,${base64Content}`);
@@ -1224,7 +1250,7 @@ class CardEditorModal {
         } finally {
             btn.classList.remove('processing');
             btn.disabled = false;
-            this.setImageProcessing(false);
+            if (opToken === this._imageOpToken) this.setImageProcessing(false);
         }
     }
 
@@ -1249,6 +1275,8 @@ class CardEditorModal {
 
         // Capture old R2 key before upload replaces the URL
         const oldKey = r2KeyFromUrl(imgInput.value.trim());
+
+        const opToken = this._imageOpToken;
 
         // Show loading state
         zone.classList.add('processing');
@@ -1297,6 +1325,10 @@ class CardEditorModal {
                 githubSync.deleteImage(oldKey).catch(() => {});
             }
 
+            // The modal may have been closed and reopened on another card while
+            // this was in flight - leave the (now different) DOM alone.
+            if (opToken !== this._imageOpToken) return;
+
             // Update the input field with the R2 URL
             imgInput.value = r2Url;
             this.updateImagePreview(`data:image/webp;base64,${base64Content}`);
@@ -1311,7 +1343,7 @@ class CardEditorModal {
             this._handleImageError(error, 'Image upload failed:', 'Failed to upload image: ');
         } finally {
             zone.classList.remove('processing');
-            this.setImageProcessing(false);
+            if (opToken === this._imageOpToken) this.setImageProcessing(false);
         }
     }
 
@@ -1867,6 +1899,11 @@ class CardEditorModal {
 
     // Save card (auto-processes image if needed)
     async save() {
+        // The Save button is disabled while an image op is in flight, but the
+        // Enter-to-save shortcut calls save() directly and isn't gated by that -
+        // without this, it would race processImage below and skip straight to
+        // persisting the pre-upload URL.
+        if (this._imageOpInProgress) return;
         if (!this.validate()) return;
 
         const imgUrl = this.backdrop.querySelector('#editor-img').value.trim();
