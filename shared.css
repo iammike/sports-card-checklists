@@ -2227,6 +2227,12 @@ select, input[type="text"] {
     background: rgba(67, 233, 123, 0.1);
 }
 
+/* Another image action is in flight - block drops on the preview area too. */
+.card-editor-image-preview.disabled {
+    pointer-events: none;
+    opacity: 0.6;
+}
+
 /* Footer with actions */
 .card-editor-footer {
     padding: 16px 24px 20px;

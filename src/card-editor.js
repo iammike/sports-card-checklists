@@ -623,6 +623,11 @@ class CardEditorModal {
         // the card that was open before this one. Retire it here rather than letting
         // it write into the fresh form.
         this._linkSuggestToken++;
+        // Same reasoning for the image-op guard: it lives on the instance but the
+        // buttons it disables belong to the backdrop being replaced below, so a
+        // stale true (e.g. from a promise that never settled) would silently
+        // brick every image control in the fresh modal instead of just this one.
+        this._imageOpInProgress = false;
 
         // Remove existing card editor backdrop so re-init works after settings changes
         // Use :not(.checklist-creator-backdrop) to avoid removing the creator modal
@@ -1051,12 +1056,18 @@ class CardEditorModal {
         const processBtn = this.backdrop.querySelector('#editor-process-img');
         const editBtn = this.backdrop.querySelector('#editor-edit-img');
         const removeBtn = this.backdrop.querySelector('#editor-remove-img');
-        [processBtn, editBtn, removeBtn].forEach(btn => {
-            if (btn) btn.disabled = isProcessing;
+        const imgInput = this.backdrop.querySelector('#editor-img');
+        [processBtn, editBtn, removeBtn, imgInput].forEach(el => {
+            if (el) el.disabled = isProcessing;
         });
 
+        // Both drop targets accept a dropped file via processLocalFile - both need
+        // the same disabled treatment or one silently no-ops with zero feedback.
         const uploadZone = this.backdrop.querySelector('#editor-upload-zone');
-        if (uploadZone) uploadZone.classList.toggle('disabled', isProcessing);
+        const dropzone = this.backdrop.querySelector('#editor-img-dropzone');
+        [uploadZone, dropzone].forEach(el => {
+            if (el) el.classList.toggle('disabled', isProcessing);
+        });
     }
 
     // Edit existing image: load into editor, save new version
@@ -1700,8 +1711,11 @@ class CardEditorModal {
         this.currentCardId = null;
         this.isNewCard = false;
         this._noCardStash = null;
-        // Close image editor if it was left open
-        imageEditor.close();
+        // Cancel image editor if it was left open - cancel() (not close()) rejects
+        // the open() promise so any pending processImage/editExistingImage/
+        // processLocalFile await resolves and clears _imageOpInProgress instead
+        // of hanging forever.
+        imageEditor.cancel();
     }
 
     // Gather form data
