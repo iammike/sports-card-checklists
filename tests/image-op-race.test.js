@@ -20,6 +20,8 @@ function makeEditor() {
 describe('CardEditorModal — image operation guard', () => {
   let editor;
   let originalIsLoggedIn;
+  let originalUploadImage;
+  let originalDeleteImage;
   let originalImageEditorOpen;
   let originalImageEditorCancel;
 
@@ -27,12 +29,16 @@ describe('CardEditorModal — image operation guard', () => {
     editor = makeEditor();
     originalIsLoggedIn = window.githubSync.isLoggedIn;
     window.githubSync.isLoggedIn = () => true;
+    originalUploadImage = window.githubSync.uploadImage;
+    originalDeleteImage = window.githubSync.deleteImage;
     originalImageEditorOpen = window.imageEditor.open;
     originalImageEditorCancel = window.imageEditor.cancel;
   });
 
   afterEach(() => {
     window.githubSync.isLoggedIn = originalIsLoggedIn;
+    window.githubSync.uploadImage = originalUploadImage;
+    window.githubSync.deleteImage = originalDeleteImage;
     window.imageEditor.open = originalImageEditorOpen;
     window.imageEditor.cancel = originalImageEditorCancel;
   });
@@ -121,8 +127,7 @@ describe('CardEditorModal — image operation guard', () => {
 
     const imgInputA = editor.backdrop.querySelector('#editor-img');
     imgInputA.value = 'images/card-a.webp';
-    const uploadImageSpy = vi.fn(() => Promise.resolve('https://cards.example/images/card-a_stale.webp'));
-    window.githubSync.uploadImage = uploadImageSpy;
+    window.githubSync.uploadImage = vi.fn(() => Promise.resolve('https://cards.example/images/card-a_stale.webp'));
     window.githubSync.deleteImage = vi.fn(() => Promise.resolve());
 
     const editPromiseA = editor.editExistingImage(); // card A's op, left hanging
