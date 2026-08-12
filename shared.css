@@ -2056,6 +2056,13 @@ select, input[type="text"] {
     display: block;
 }
 
+/* Another image action (process/edit/remove) is in flight - block drops/clicks
+   without swapping in the upload spinner, since this zone isn't the one working. */
+.card-editor-upload-zone.disabled:not(.processing) {
+    pointer-events: none;
+    opacity: 0.5;
+}
+
 /* Process button - conditionally visible */
 .card-editor-process-btn {
     display: none;
@@ -2161,6 +2168,12 @@ select, input[type="text"] {
     box-shadow: 0 4px 12px rgba(233, 67, 67, 0.4);
 }
 
+.card-editor-remove-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
 .card-editor-edit-btn:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(67, 233, 123, 0.4);
@@ -2218,6 +2231,12 @@ select, input[type="text"] {
 .card-editor-image-preview.dragover {
     border-color: #43e97b;
     background: rgba(67, 233, 123, 0.1);
+}
+
+/* Another image action is in flight - block drops on the preview area too. */
+.card-editor-image-preview.disabled {
+    pointer-events: none;
+    opacity: 0.6;
 }
 
 /* Footer with actions */
