@@ -2056,6 +2056,13 @@ select, input[type="text"] {
     display: block;
 }
 
+/* Another image action (process/edit/remove) is in flight - block drops/clicks
+   without swapping in the upload spinner, since this zone isn't the one working. */
+.card-editor-upload-zone.disabled:not(.processing) {
+    pointer-events: none;
+    opacity: 0.5;
+}
+
 /* Process button - conditionally visible */
 .card-editor-process-btn {
     display: none;

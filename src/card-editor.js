@@ -257,6 +257,11 @@ class CardEditorModal {
         this.imageProcessor = new ImageProcessor();
         this._initialOwned = false; // Track initial owned state to detect changes
         this._noCardStash = null; // Owned/price values captured when "no card exists" was ticked
+        // True while processImage/editExistingImage/processLocalFile is fetching,
+        // editing, or uploading. All four image entry points check this so a
+        // second action (e.g. clicking Edit while Process is still uploading)
+        // can't race the first and overwrite #editor-img mid-flight.
+        this._imageOpInProgress = false;
 
         // Schema-driven custom fields
         // Format: { fieldName: { label, type, options?, placeholder?, fullWidth? } }
@@ -999,6 +1004,7 @@ class CardEditorModal {
 
     // Remove image from card
     removeImage() {
+        if (this._imageOpInProgress) return;
         if (!confirm('Remove this image?')) return;
 
         const imgInput = this.backdrop.querySelector('#editor-img');
@@ -1026,8 +1032,11 @@ class CardEditorModal {
         });
     }
 
-    // Set image processing state - disables Save button while processing
+    // Set image processing state - disables Save and every other image entry
+    // point (process/edit/upload/remove) so they can't race the in-flight one.
     setImageProcessing(isProcessing) {
+        this._imageOpInProgress = isProcessing;
+
         const saveBtn = this.backdrop.querySelector('.card-editor-btn.save');
         if (saveBtn) {
             saveBtn.disabled = isProcessing;
@@ -1038,10 +1047,22 @@ class CardEditorModal {
                 saveBtn.textContent = saveBtn.dataset.originalText;
             }
         }
+
+        const processBtn = this.backdrop.querySelector('#editor-process-img');
+        const editBtn = this.backdrop.querySelector('#editor-edit-img');
+        const removeBtn = this.backdrop.querySelector('#editor-remove-img');
+        [processBtn, editBtn, removeBtn].forEach(btn => {
+            if (btn) btn.disabled = isProcessing;
+        });
+
+        const uploadZone = this.backdrop.querySelector('#editor-upload-zone');
+        if (uploadZone) uploadZone.classList.toggle('disabled', isProcessing);
     }
 
     // Edit existing image: load into editor, save new version
     async editExistingImage() {
+        if (this._imageOpInProgress) return;
+
         const imgInput = this.backdrop.querySelector('#editor-img');
         const url = imgInput.value.trim();
         const btn = this.backdrop.querySelector('#editor-edit-img');
@@ -1108,6 +1129,8 @@ class CardEditorModal {
 
     // Process image: fetch, optionally show editor, resize, upload to R2, update field with URL
     async processImage({ skipEditor = false } = {}) {
+        if (this._imageOpInProgress) return;
+
         const imgInput = this.backdrop.querySelector('#editor-img');
         const url = imgInput.value.trim();
         const btn = this.backdrop.querySelector('#editor-process-img');
@@ -1196,6 +1219,8 @@ class CardEditorModal {
 
     // Process a local file: read, show editor, resize, upload to R2, update field with URL
     async processLocalFile(file) {
+        if (this._imageOpInProgress) return;
+
         const imgInput = this.backdrop.querySelector('#editor-img');
         const zone = this.backdrop.querySelector('#editor-upload-zone');
 
