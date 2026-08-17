@@ -8,6 +8,7 @@ function makeFlatEngine(cards) {
   engine.config = { dataShape: 'flat' };
   engine.cards = cards;
   engine.checklistManager = { getCardId: (c) => c.id };
+  engine._lastFreshMergeAt = 0; // matches a freshly constructed engine (#733)
   return engine;
 }
 
@@ -112,5 +113,93 @@ describe('un-flagging through the full save merge path', () => {
     await makeFlatEngine([{ id: 'n1', set: 'Prizm' }])._mergeWithFreshGistData();
 
     expect(clearGistCache).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('the freshness-window skip (#733)', () => {
+  afterEach(() => {
+    delete globalThis.githubSync;
+  });
+
+  it('skips the gist refetch within the window, but still strips local-only markers', async () => {
+    const loadCardData = vi.fn();
+    globalThis.githubSync = {
+      clearGistCache: vi.fn(),
+      loadCardData,
+      loadPublicCardData: async () => null,
+    };
+
+    const engine = makeFlatEngine([{ id: 'n1', set: 'Prizm', noCard: false, img: '' }]);
+    engine._lastFreshMergeAt = Date.now(); // just merged - inside the 30s window
+
+    await engine._mergeWithFreshGistData();
+
+    expect(loadCardData).not.toHaveBeenCalled();
+    expect('noCard' in engine.cards[0]).toBe(false);
+    expect('img' in engine.cards[0]).toBe(false);
+    expect(engine.cards[0].set).toBe('Prizm');
+  });
+
+  it('does the full fetch+merge again once the window has elapsed', async () => {
+    const loadCardData = vi.fn(async () => ({ cards: [{ id: 'n1', set: 'Prizm' }] }));
+    globalThis.githubSync = { clearGistCache: vi.fn(), loadCardData, loadPublicCardData: async () => null };
+
+    const engine = makeFlatEngine([{ id: 'n1', set: 'Prizm', price: 5 }]);
+    engine._lastFreshMergeAt = Date.now() - 30001; // just past FRESH_MERGE_WINDOW_MS
+
+    await engine._mergeWithFreshGistData();
+
+    expect(loadCardData).toHaveBeenCalledTimes(1);
+    expect(engine.cards[0].price).toBe(5); // local edit still wins the merge
+  });
+
+  it('does the full fetch+merge on a category-shaped checklist too', async () => {
+    const loadCardData = vi.fn(async () => ({ categories: { base: [{ id: 'n1', set: 'Prizm' }] } }));
+    globalThis.githubSync = { clearGistCache: vi.fn(), loadCardData, loadPublicCardData: async () => null };
+
+    const engine = Object.create(ChecklistEngine.prototype);
+    engine.id = 'test';
+    engine.config = { dataShape: 'categories' };
+    engine.cards = { base: [{ id: 'n1', set: 'Prizm', noCard: false }] };
+    engine.checklistManager = { getCardId: (c) => c.id };
+    engine._lastFreshMergeAt = 0;
+
+    await engine._mergeWithFreshGistData();
+
+    expect(loadCardData).toHaveBeenCalledTimes(1);
+    expect('noCard' in engine.cards.base[0]).toBe(false);
+  });
+
+  it('_onBecameVisible resets the window so the next save re-fetches', () => {
+    const engine = makeFlatEngine([]);
+    engine._lastFreshMergeAt = Date.now();
+
+    const originalGet = Object.getOwnPropertyDescriptor(Document.prototype, 'visibilityState');
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+    try {
+      engine._onBecameVisible();
+    } finally {
+      if (originalGet) Object.defineProperty(Document.prototype, 'visibilityState', originalGet);
+      else delete document.visibilityState;
+    }
+
+    expect(engine._lastFreshMergeAt).toBe(0);
+  });
+
+  it('_onBecameVisible does nothing while the tab is hidden', () => {
+    const engine = makeFlatEngine([]);
+    const staleAt = Date.now() - 1000;
+    engine._lastFreshMergeAt = staleAt;
+
+    const originalGet = Object.getOwnPropertyDescriptor(Document.prototype, 'visibilityState');
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+    try {
+      engine._onBecameVisible();
+    } finally {
+      if (originalGet) Object.defineProperty(Document.prototype, 'visibilityState', originalGet);
+      else delete document.visibilityState;
+    }
+
+    expect(engine._lastFreshMergeAt).toBe(staleAt);
   });
 });

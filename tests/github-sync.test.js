@@ -94,6 +94,59 @@ describe('GitHubSync image ops auth handling', () => {
     });
 });
 
+describe('GitHubSync write spacing (#733)', () => {
+    // sync isn't assigned until beforeAll, so "real" values are captured per-test
+    // (in afterEach below) rather than here at describe-body collection time.
+    const realFetch = globalThis.fetch;
+
+    afterEach(() => {
+        globalThis.fetch = realFetch;
+        sync.gistId = null;
+        sync.token = null;
+        sync._lastWriteAt = 0;
+    });
+
+    it('lets the first write through immediately, then makes the next one wait out the minimum gap', async () => {
+        sync.token = 'good-token';
+        sync.gistId = 'gist123';
+        sync._lastWriteAt = 0;
+        globalThis.fetch = async () => ({ ok: true, json: async () => ({}) });
+
+        const t0 = Date.now();
+        await sync._writeGistFile('a.json', { a: 1 });
+        const t1 = Date.now();
+        await sync._writeGistFile('a.json', { a: 2 });
+        const t2 = Date.now();
+
+        expect(t1 - t0).toBeLessThan(300);
+        expect(t2 - t1).toBeGreaterThanOrEqual(950); // mirrors MIN_WRITE_SPACING_MS (1000ms)
+    }, 10000);
+
+    it('spaces out a 409 retry by the full minimum gap, not just the shorter conflict backoff', async () => {
+        // A 409-conflict retry backs off only 300ms on its own (_patchGist's
+        // existing retry logic) - well under the 1s write-spacing gap. The retry
+        // has to go through the same spacing check as any other write, otherwise
+        // it fires far sooner than every other consecutive write does (#733).
+        sync.token = 'good-token';
+        sync.gistId = 'gist123';
+        sync._lastWriteAt = 0;
+
+        const fetchTimestamps = [];
+        let call = 0;
+        globalThis.fetch = async () => {
+            fetchTimestamps.push(Date.now());
+            call++;
+            if (call === 1) return { ok: false, status: 409, json: async () => ({}) };
+            return { ok: true, json: async () => ({}) };
+        };
+
+        await sync._writeGistFile('a.json', { a: 1 });
+
+        expect(fetchTimestamps).toHaveLength(2);
+        expect(fetchTimestamps[1] - fetchTimestamps[0]).toBeGreaterThanOrEqual(950);
+    }, 10000);
+});
+
 // These two are the only place the private cache fields are touched from outside
 // github-sync.js. Reading them is the assertion, and seeding them is the only way
 // to tell a real clear from a no-op.

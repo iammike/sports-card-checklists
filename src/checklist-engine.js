@@ -46,9 +46,13 @@ class ChecklistEngine {
         // regaining focus after editing there. Force the next save back onto the
         // full fetch+merge path in that case, matching github-sync.js's own
         // visibilitychange cache clear for the same reason.
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') this._lastFreshMergeAt = 0;
-        });
+        document.addEventListener('visibilitychange', () => this._onBecameVisible());
+    }
+
+    // Broken out from the listener above so it's callable directly in tests
+    // without going through the constructor + a real visibilitychange event.
+    _onBecameVisible() {
+        if (document.visibilityState === 'visible') this._lastFreshMergeAt = 0;
     }
 
     // ========================================
@@ -481,8 +485,14 @@ class ChecklistEngine {
         if (typeof githubSync === 'undefined') return;
 
         // Within the freshness window, trust the merge we already did rather than
-        // spending another GET - see FRESH_MERGE_WINDOW_MS above.
-        if (Date.now() - this._lastFreshMergeAt < FRESH_MERGE_WINDOW_MS) return;
+        // spending another GET - see FRESH_MERGE_WINDOW_MS above. The deletion-marker
+        // stripping below is normally a side effect of the merge, so it still has to
+        // run here on its own - skipping it would write raw `img: ''` / `noCard: false`
+        // sentinels into the gist instead of consuming them (#733).
+        if (Date.now() - this._lastFreshMergeAt < FRESH_MERGE_WINDOW_MS) {
+            this._stripLocalOnlyMarkersFromAll();
+            return;
+        }
 
         try {
             // Clear cache to get truly fresh data
@@ -508,6 +518,19 @@ class ChecklistEngine {
         } catch (e) {
             // Non-fatal: proceed with save using local data if merge fails
             console.warn('Failed to merge with fresh gist data:', e);
+        }
+    }
+
+    // Strip local-only deletion markers from every card without a fresh gist fetch
+    // to merge against - the no-freshCard branch of _mergeCardArrays, applied to
+    // the whole collection. See the freshness-window skip in _mergeWithFreshGistData.
+    _stripLocalOnlyMarkersFromAll() {
+        if (this._isFlat()) {
+            this.cards = this.cards.map(c => this._stripLocalOnlyMarkers({ ...c }, c));
+        } else {
+            for (const catId of Object.keys(this.cards)) {
+                this.cards[catId] = this.cards[catId].map(c => this._stripLocalOnlyMarkers({ ...c }, c));
+            }
         }
     }
 

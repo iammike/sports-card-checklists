@@ -18,7 +18,9 @@ const CONFIG = {
 };
 
 // Minimum gap enforced between consecutive gist PATCHes (see _patchGist, #733).
-const MIN_WRITE_SPACING_MS = 600;
+// 1s errs conservative - GitHub doesn't publish an exact figure for the gist
+// secondary limit, and a save is not latency-sensitive enough to shave this down.
+const MIN_WRITE_SPACING_MS = 1000;
 
 // Storage keys
 const TOKEN_KEY = 'github_token';
@@ -410,19 +412,20 @@ class GitHubSync {
             const gistId = this.getActiveGistId();
             if (!gistId) return false;
 
-            // GitHub's gist secondary rate limit reacts to write *rate*, not just
-            // volume - a minimum gap between PATCHes here costs a save queued right
-            // after another one a few hundred ms, but keeps a burst of saves during
-            // an editing session from tripping it (#733).
-            const elapsed = Date.now() - this._lastWriteAt;
-            if (elapsed < MIN_WRITE_SPACING_MS) {
-                await new Promise(r => setTimeout(r, MIN_WRITE_SPACING_MS - elapsed));
-            }
-            this._lastWriteAt = Date.now();
-
             const maxRetries = 3;
             for (let attempt = 0; attempt < maxRetries; attempt++) {
+                // GitHub's gist secondary rate limit reacts to write *rate*, not
+                // just volume - wait out the minimum gap before every attempt,
+                // including 409 retries, so a request can't fire right on the
+                // heels of the previous one completing (#733).
+                const elapsed = Date.now() - this._lastWriteAt;
+                if (elapsed < MIN_WRITE_SPACING_MS) {
+                    await new Promise(r => setTimeout(r, MIN_WRITE_SPACING_MS - elapsed));
+                }
+
                 const result = await fn(gistId);
+                this._lastWriteAt = Date.now();
+
                 if (result.done) return result.value;
                 if (result.status === 409 && attempt < maxRetries - 1) {
                     await new Promise(r => setTimeout(r, 300 * (attempt + 1)));
