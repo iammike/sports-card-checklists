@@ -203,3 +203,76 @@ describe('the freshness-window skip (#733)', () => {
     expect(engine._lastFreshMergeAt).toBe(staleAt);
   });
 });
+
+// Every early exit from _mergeWithFreshGistData - not just the freshness-window
+// skip - was writing raw local-only markers verbatim, since only a completed
+// merge ran _mergeCardArrays (the only place that stripped them). Fixed by class
+// per CLAUDE.md rather than only at the freshness-window site that was found first.
+describe('marker stripping on every _mergeWithFreshGistData exit path (#733)', () => {
+  afterEach(() => {
+    delete globalThis.githubSync;
+  });
+
+  it('strips markers when the gist has no card data for this checklist yet', async () => {
+    globalThis.githubSync = {
+      clearGistCache: vi.fn(),
+      loadCardData: async () => null,
+      loadPublicCardData: async () => null,
+    };
+
+    const engine = makeFlatEngine([{ id: 'n1', set: 'Prizm', noCard: false, img: '' }]);
+    await engine._mergeWithFreshGistData();
+
+    expect('noCard' in engine.cards[0]).toBe(false);
+    expect('img' in engine.cards[0]).toBe(false);
+  });
+
+  it('strips markers when the fetched gist data has no cards/categories key', async () => {
+    globalThis.githubSync = {
+      clearGistCache: vi.fn(),
+      loadCardData: async () => ({}), // truthy response, but no `cards` key
+      loadPublicCardData: async () => null,
+    };
+
+    const engine = makeFlatEngine([{ id: 'n1', set: 'Prizm', noCard: false }]);
+    await engine._mergeWithFreshGistData();
+
+    expect('noCard' in engine.cards[0]).toBe(false);
+  });
+
+  it('strips markers when the fetch throws', async () => {
+    globalThis.githubSync = {
+      clearGistCache: vi.fn(),
+      loadCardData: async () => { throw new Error('network'); },
+      loadPublicCardData: async () => null,
+    };
+
+    const engine = makeFlatEngine([{ id: 'n1', set: 'Prizm', img: '' }]);
+    await engine._mergeWithFreshGistData();
+
+    expect('img' in engine.cards[0]).toBe(false);
+  });
+
+  it('strips markers for just the category missing from the fresh copy, and merges the rest normally', async () => {
+    globalThis.githubSync = {
+      clearGistCache: vi.fn(),
+      loadCardData: async () => ({ categories: { base: [{ id: 'n1', set: 'Prizm', price: 9 }] } }), // no "inserts" key
+      loadPublicCardData: async () => null,
+    };
+
+    const engine = Object.create(ChecklistEngine.prototype);
+    engine.id = 'test';
+    engine.config = { dataShape: 'categories' };
+    engine.cards = {
+      base: [{ id: 'n1', set: 'Prizm', price: 5 }],
+      inserts: [{ id: 'n2', set: 'Optic', noCard: false }],
+    };
+    engine.checklistManager = { getCardId: (c) => c.id };
+    engine._lastFreshMergeAt = 0;
+
+    await engine._mergeWithFreshGistData();
+
+    expect(engine.cards.base[0].price).toBe(5); // merged normally against the fresh copy
+    expect('noCard' in engine.cards.inserts[0]).toBe(false); // stripped, not skipped
+  });
+});

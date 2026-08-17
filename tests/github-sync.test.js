@@ -95,8 +95,11 @@ describe('GitHubSync image ops auth handling', () => {
 });
 
 describe('GitHubSync write spacing (#733)', () => {
-    // sync isn't assigned until beforeAll, so "real" values are captured per-test
-    // (in afterEach below) rather than here at describe-body collection time.
+    // globalThis.fetch already exists at describe-body collection time (setup.js
+    // installs the tripwire before any test file loads), so capturing it here is
+    // fine. sync.gistId/sync.token are not: `sync` itself isn't assigned until
+    // beforeAll runs, well after this describe body executes - so those two are
+    // just reset to null in afterEach rather than captured-and-restored.
     const realFetch = globalThis.fetch;
 
     afterEach(() => {
@@ -121,6 +124,31 @@ describe('GitHubSync write spacing (#733)', () => {
         expect(t1 - t0).toBeLessThan(300);
         expect(t2 - t1).toBeGreaterThanOrEqual(950); // mirrors MIN_WRITE_SPACING_MS (1000ms)
     }, 10000);
+
+    it('measures the gap from when the previous PATCH finished, not when it started', async () => {
+        // A synchronous fetch stub can't tell "stamped before fn()" apart from
+        // "stamped after fn()" - both look instantaneous. This needs a slow
+        // request to separate the two: with the bug (stamped at call start),
+        // a 700ms request leaves only ~300ms of the 1000ms gap enforced before
+        // the next write fires.
+        sync.token = 'good-token';
+        sync.gistId = 'gist123';
+        sync._lastWriteAt = 0;
+
+        const starts = [];
+        const ends = [];
+        globalThis.fetch = async () => {
+            starts.push(Date.now());
+            await new Promise(r => setTimeout(r, 700));
+            ends.push(Date.now());
+            return { ok: true, json: async () => ({}) };
+        };
+
+        await sync._writeGistFile('a.json', { a: 1 });
+        await sync._writeGistFile('a.json', { a: 2 });
+
+        expect(starts[1] - ends[0]).toBeGreaterThanOrEqual(950);
+    }, 15000);
 
     it('spaces out a 409 retry by the full minimum gap, not just the shorter conflict backoff', async () => {
         // A 409-conflict retry backs off only 300ms on its own (_patchGist's

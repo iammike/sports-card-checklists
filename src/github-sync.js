@@ -428,6 +428,10 @@ class GitHubSync {
 
                 if (result.done) return result.value;
                 if (result.status === 409 && attempt < maxRetries - 1) {
+                    // This backoff is for spreading out concurrent-edit conflicts,
+                    // not rate-limit spacing - it's shorter than MIN_WRITE_SPACING_MS
+                    // and the loop-top wait above tops it up to the full gap on the
+                    // next iteration, so it's additive with that wait, not instead of it.
                     await new Promise(r => setTimeout(r, 300 * (attempt + 1)));
                     continue;
                 }
