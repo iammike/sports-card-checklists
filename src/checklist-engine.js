@@ -17,6 +17,14 @@ const ENGINE_BUILTIN_CLEARABLE = new Set([
     'collectionLink', 'stackImages',
 ]);
 
+// _mergeWithFreshGistData() forces a GET before every save so a save can't clobber
+// changes made elsewhere (#560) - but that doubles request volume, and a burst of
+// saves in one editing session was enough to trip GitHub's gist secondary rate
+// limit (#733). Skipping the re-fetch when the last one is still this fresh keeps
+// the protection for the case it exists for (another device/tab writing in
+// parallel) while not re-checking on every single save of a solo editing streak.
+const FRESH_MERGE_WINDOW_MS = 30000;
+
 class ChecklistEngine {
     constructor() {
         this.id = new URLSearchParams(window.location.search).get('id');
@@ -31,6 +39,16 @@ class ChecklistEngine {
         this._renderedCards = [];     // Card data in DOM render order
         this._reorderMode = false;
         this._sortableInstances = [];
+        this._lastFreshMergeAt = 0;   // Date.now() of the last real merge fetch (#733)
+
+        // The freshness window (#733) assumes nothing else wrote to the gist since
+        // our last fetch - true for a solo editing streak, not for a second tab
+        // regaining focus after editing there. Force the next save back onto the
+        // full fetch+merge path in that case, matching github-sync.js's own
+        // visibilitychange cache clear for the same reason.
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') this._lastFreshMergeAt = 0;
+        });
     }
 
     // ========================================
@@ -462,6 +480,10 @@ class ChecklistEngine {
         // the overwrite protection this function exists to provide (#560).
         if (typeof githubSync === 'undefined') return;
 
+        // Within the freshness window, trust the merge we already did rather than
+        // spending another GET - see FRESH_MERGE_WINDOW_MS above.
+        if (Date.now() - this._lastFreshMergeAt < FRESH_MERGE_WINDOW_MS) return;
+
         try {
             // Clear cache to get truly fresh data
             githubSync.clearGistCache();
@@ -482,6 +504,7 @@ class ChecklistEngine {
                     }
                 }
             }
+            this._lastFreshMergeAt = Date.now();
         } catch (e) {
             // Non-fatal: proceed with save using local data if merge fails
             console.warn('Failed to merge with fresh gist data:', e);

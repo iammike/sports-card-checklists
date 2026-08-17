@@ -17,6 +17,9 @@ const CONFIG = {
     PRODUCTION_GIST_ID: PRODUCTION_GIST_ID, // For syncing preview from prod
 };
 
+// Minimum gap enforced between consecutive gist PATCHes (see _patchGist, #733).
+const MIN_WRITE_SPACING_MS = 600;
+
 // Storage keys
 const TOKEN_KEY = 'github_token';
 const GIST_ID_KEY = 'github_gist_id';
@@ -42,6 +45,7 @@ class GitHubSync {
         }
         this.onAuthChange = null;
         this._saveQueue = Promise.resolve(); // Queue to prevent concurrent saves
+        this._lastWriteAt = 0; // Date.now() of the last gist PATCH, for MIN_WRITE_SPACING_MS (#733)
         this._cachedData = null; // Cache to avoid stale reads during saves
         this._gistCache = null; // Raw gist cache for registry/config reads
         this._publicGistCache = null; // Public gist cache
@@ -405,6 +409,16 @@ class GitHubSync {
         this._saveQueue = this._saveQueue.then(async () => {
             const gistId = this.getActiveGistId();
             if (!gistId) return false;
+
+            // GitHub's gist secondary rate limit reacts to write *rate*, not just
+            // volume - a minimum gap between PATCHes here costs a save queued right
+            // after another one a few hundred ms, but keeps a burst of saves during
+            // an editing session from tripping it (#733).
+            const elapsed = Date.now() - this._lastWriteAt;
+            if (elapsed < MIN_WRITE_SPACING_MS) {
+                await new Promise(r => setTimeout(r, MIN_WRITE_SPACING_MS - elapsed));
+            }
+            this._lastWriteAt = Date.now();
 
             const maxRetries = 3;
             for (let attempt = 0; attempt < maxRetries; attempt++) {
