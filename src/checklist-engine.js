@@ -434,10 +434,21 @@ class ChecklistEngine {
         // Merge with latest gist data to prevent overwriting external changes (#560)
         await this._mergeWithFreshGistData();
 
+        // Copy into the write payload rather than handing over this.cards itself:
+        // img/noCard sentinels have to be resolved into real deletions somewhere
+        // before the gist sees them, but resolving them by mutating the live cards
+        // would consume the marker whether or not this write actually lands. Unlike
+        // _clearedKeys (which _mergeWithFreshGistData already treats this way, for
+        // the same reason), these two have no carry-forward path back onto a future
+        // edit if the marker is gone - an unconfirmed write must not be able to
+        // cost a later retry its only copy of "this was cleared" (#733).
         if (this._isFlat()) {
-            this.cardData.cards = this.cards;
+            this.cardData.cards = this._sentinelStrippedPayload(this.cards);
         } else {
-            this.cardData.categories = this.cards;
+            this.cardData.categories = {};
+            for (const catId of Object.keys(this.cards)) {
+                this.cardData.categories[catId] = this._sentinelStrippedPayload(this.cards[catId]);
+            }
         }
 
         // Save card data and stats together in one PATCH (one request, not two).
@@ -485,92 +496,52 @@ class ChecklistEngine {
         if (typeof githubSync === 'undefined') return;
 
         // Within the freshness window, trust the merge we already did rather than
-        // spending another GET - see FRESH_MERGE_WINDOW_MS above. The sentinel strip
-        // below is normally a side effect of the merge, so it still has to run here
-        // on its own - skipping it would write raw `img: ''` / `noCard: false`
-        // sentinels into the gist instead of consuming them (#733).
-        if (Date.now() - this._lastFreshMergeAt < FRESH_MERGE_WINDOW_MS) {
-            this._stripSentinelMarkersFromAll();
-            return;
-        }
+        // spending another GET - see FRESH_MERGE_WINDOW_MS above. this.cards is
+        // left exactly as-is on this path (and every other exit below that isn't a
+        // completed merge): local-only markers (_clearedKeys, and the img/noCard
+        // sentinels) only get resolved into the write payload in _saveCardData,
+        // never by mutating the live cards here, so an unconfirmed write can never
+        // cost a marker its only chance to be tried again on the next save (#733).
+        if (Date.now() - this._lastFreshMergeAt < FRESH_MERGE_WINDOW_MS) return;
 
-        // Every exit below this point that isn't a completed merge writes
-        // this.cards verbatim right after returning, same as the freshness-window
-        // skip above, so it needs the same sentinel strip (#733; !freshData/
-        // !freshCards/catch had this gap before this fix too, just undiscovered
-        // until now - fixed by class per CLAUDE.md rather than only where found).
-        //
-        // This deliberately does NOT run the full _stripLocalOnlyMarkers used by a
-        // real merge below: that also consumes _clearedKeys, which is safe once we
-        // have fresh gist data to apply it against, but not here, where we have no
-        // idea what the gist currently holds. Consuming it anyway would strip the
-        // marker without confirming the deletion actually reached the gist, so a
-        // later save could hand the gist's stale value back with nothing left to
-        // suppress it - the exact failure "the marker survives a failed merge" in
-        // tests/clear-field-merge.test.js guards against. _clearedKeys is also
-        // non-enumerable, so leaving it in place here never risks it reaching the
-        // gist as JSON either way.
         try {
             // Clear cache to get truly fresh data
             githubSync.clearGistCache();
 
             const freshData = await githubSync.loadCardData(this.id)
                 || await githubSync.loadPublicCardData(this.id);
-            if (!freshData) {
-                this._stripSentinelMarkersFromAll();
-                return;
-            }
+            if (!freshData) return;
 
             const freshCards = this._isFlat() ? freshData.cards : freshData.categories;
-            if (!freshCards) {
-                this._stripSentinelMarkersFromAll();
-                return;
-            }
+            if (!freshCards) return;
 
             if (this._isFlat()) {
                 this.cards = this._mergeCardArrays(this.cards, freshCards);
             } else {
                 for (const catId of Object.keys(this.cards)) {
-                    // A category absent from the fresh copy has no fresh data of
-                    // its own, but a fetch did succeed this cycle - safe to use
-                    // the full strip, same as the no-freshCard branch inside
-                    // _mergeCardArrays for the equivalent per-card case.
-                    this.cards[catId] = freshCards[catId]
-                        ? this._mergeCardArrays(this.cards[catId], freshCards[catId])
-                        : this.cards[catId].map(c => this._stripLocalOnlyMarkers({ ...c }, c));
+                    if (freshCards[catId]) {
+                        this.cards[catId] = this._mergeCardArrays(this.cards[catId], freshCards[catId]);
+                    }
                 }
             }
             this._lastFreshMergeAt = Date.now();
         } catch (e) {
             // Non-fatal: proceed with save using local data if merge fails
             console.warn('Failed to merge with fresh gist data:', e);
-            this._stripSentinelMarkersFromAll();
         }
     }
 
-    // Strip just the img/noCard local-only sentinels, leaving _clearedKeys (and
-    // the fields it names) untouched - see the long comment above this function's
-    // fallback paths for why those two are safe to resolve without fresh gist data
-    // and _clearedKeys is not. Mutates each card in place rather than copying it:
-    // _clearedKeys is set non-enumerable (deliberately, so it can never reach the
-    // gist as JSON), and `{ ...c }` would silently drop it from a copy exactly
-    // like the bug this function exists to avoid, just by a different path.
-    _stripSentinelMarkersFrom(cardArray) {
-        return (cardArray || []).map(c => {
-            if (c.img === '') delete c.img;
-            if (c.noCard === false) delete c.noCard;
-            return c;
+    // Resolve the img/noCard local-only sentinels into real deletions for the
+    // write payload, without mutating the cards they came from - see the comment
+    // in _saveCardData for why a copy, not a strip-in-place, is required here.
+    _sentinelStrippedPayload(cardArray) {
+        return cardArray.map(c => {
+            if (c.img !== '' && c.noCard !== false) return c;
+            const copy = { ...c };
+            if (copy.img === '') delete copy.img;
+            if (copy.noCard === false) delete copy.noCard;
+            return copy;
         });
-    }
-
-    _stripSentinelMarkersFromAll() {
-        if (this._isFlat()) {
-            this.cards = this._stripSentinelMarkersFrom(this.cards);
-        } else {
-            for (const catId of Object.keys(this.cards)) {
-                this.cards[catId] = this._stripSentinelMarkersFrom(this.cards[catId]);
-            }
-        }
     }
 
     // Merge two card arrays: fresh fields as base, local fields overlay

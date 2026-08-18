@@ -121,7 +121,10 @@ describe('the freshness-window skip (#733)', () => {
     delete globalThis.githubSync;
   });
 
-  it('skips the gist refetch within the window, but still strips local-only markers', async () => {
+  it('skips the gist refetch within the window, and leaves this.cards untouched', async () => {
+    // Sentinels are only resolved into the write payload (_sentinelStrippedPayload,
+    // called from _saveCardData) - never by mutating the live cards here, so an
+    // unconfirmed write can't cost a marker its only chance at a later retry (#733).
     const loadCardData = vi.fn();
     globalThis.githubSync = {
       clearGistCache: vi.fn(),
@@ -129,15 +132,16 @@ describe('the freshness-window skip (#733)', () => {
       loadPublicCardData: async () => null,
     };
 
-    const engine = makeFlatEngine([{ id: 'n1', set: 'Prizm', noCard: false, img: '' }]);
+    const card = { id: 'n1', set: 'Prizm', noCard: false, img: '' };
+    const engine = makeFlatEngine([card]);
     engine._lastFreshMergeAt = Date.now(); // just merged - inside the 30s window
 
     await engine._mergeWithFreshGistData();
 
     expect(loadCardData).not.toHaveBeenCalled();
-    expect('noCard' in engine.cards[0]).toBe(false);
-    expect('img' in engine.cards[0]).toBe(false);
-    expect(engine.cards[0].set).toBe('Prizm');
+    expect(engine.cards[0]).toBe(card); // same object, not a stripped copy
+    expect(engine.cards[0].noCard).toBe(false);
+    expect(engine.cards[0].img).toBe('');
   });
 
   it('does the full fetch+merge again once the window has elapsed', async () => {
@@ -205,67 +209,75 @@ describe('the freshness-window skip (#733)', () => {
 });
 
 // Every early exit from _mergeWithFreshGistData - not just the freshness-window
-// skip - was writing raw local-only markers verbatim, since only a completed
-// merge ran _mergeCardArrays (the only place that stripped them). Fixed by class
-// per CLAUDE.md rather than only at the freshness-window site that was found first.
-describe('marker stripping on every _mergeWithFreshGistData exit path (#733)', () => {
+// skip - leaves this.cards exactly as it found it, including any local-only
+// sentinels. Resolving those into real deletions only happens for the write
+// payload (_sentinelStrippedPayload, called from _saveCardData), specifically so
+// an unconfirmed write can't cost this.cards its only copy of a marker (#733).
+describe('this.cards is left untouched on every _mergeWithFreshGistData fallback exit (#733)', () => {
   afterEach(() => {
     delete globalThis.githubSync;
   });
 
-  it('strips markers when the gist has no card data for this checklist yet', async () => {
+  it('leaves markers alone when the gist has no card data for this checklist yet', async () => {
     globalThis.githubSync = {
       clearGistCache: vi.fn(),
       loadCardData: async () => null,
       loadPublicCardData: async () => null,
     };
 
-    const engine = makeFlatEngine([{ id: 'n1', set: 'Prizm', noCard: false, img: '' }]);
+    const card = { id: 'n1', set: 'Prizm', noCard: false, img: '' };
+    const engine = makeFlatEngine([card]);
     await engine._mergeWithFreshGistData();
 
-    expect('noCard' in engine.cards[0]).toBe(false);
-    expect('img' in engine.cards[0]).toBe(false);
+    expect(engine.cards[0]).toBe(card);
+    expect(engine.cards[0].noCard).toBe(false);
+    expect(engine.cards[0].img).toBe('');
   });
 
-  it('strips markers when the fetched gist data has no cards/categories key', async () => {
+  it('leaves markers alone when the fetched gist data has no cards/categories key', async () => {
     globalThis.githubSync = {
       clearGistCache: vi.fn(),
       loadCardData: async () => ({}), // truthy response, but no `cards` key
       loadPublicCardData: async () => null,
     };
 
-    const engine = makeFlatEngine([{ id: 'n1', set: 'Prizm', noCard: false }]);
+    const card = { id: 'n1', set: 'Prizm', noCard: false };
+    const engine = makeFlatEngine([card]);
     await engine._mergeWithFreshGistData();
 
-    expect('noCard' in engine.cards[0]).toBe(false);
+    expect(engine.cards[0]).toBe(card);
+    expect(engine.cards[0].noCard).toBe(false);
   });
 
-  it('strips markers when the fetch throws', async () => {
+  it('leaves markers alone when the fetch throws', async () => {
     globalThis.githubSync = {
       clearGistCache: vi.fn(),
       loadCardData: async () => { throw new Error('network'); },
       loadPublicCardData: async () => null,
     };
 
-    const engine = makeFlatEngine([{ id: 'n1', set: 'Prizm', img: '' }]);
+    const card = { id: 'n1', set: 'Prizm', img: '' };
+    const engine = makeFlatEngine([card]);
     await engine._mergeWithFreshGistData();
 
-    expect('img' in engine.cards[0]).toBe(false);
+    expect(engine.cards[0]).toBe(card);
+    expect(engine.cards[0].img).toBe('');
   });
 
-  it('strips markers for just the category missing from the fresh copy, and merges the rest normally', async () => {
+  it('leaves a category missing from the fresh copy untouched, and merges the rest normally', async () => {
     globalThis.githubSync = {
       clearGistCache: vi.fn(),
       loadCardData: async () => ({ categories: { base: [{ id: 'n1', set: 'Prizm', price: 9 }] } }), // no "inserts" key
       loadPublicCardData: async () => null,
     };
 
+    const insertCard = { id: 'n2', set: 'Optic', noCard: false };
     const engine = Object.create(ChecklistEngine.prototype);
     engine.id = 'test';
     engine.config = { dataShape: 'categories' };
     engine.cards = {
       base: [{ id: 'n1', set: 'Prizm', price: 5 }],
-      inserts: [{ id: 'n2', set: 'Optic', noCard: false }],
+      inserts: [insertCard],
     };
     engine.checklistManager = { getCardId: (c) => c.id };
     engine._lastFreshMergeAt = 0;
@@ -273,6 +285,41 @@ describe('marker stripping on every _mergeWithFreshGistData exit path (#733)', (
     await engine._mergeWithFreshGistData();
 
     expect(engine.cards.base[0].price).toBe(5); // merged normally against the fresh copy
-    expect('noCard' in engine.cards.inserts[0]).toBe(false); // stripped, not skipped
+    expect(engine.cards.inserts[0]).toBe(insertCard); // no fresh data for this category - untouched
+    expect(engine.cards.inserts[0].noCard).toBe(false);
+  });
+});
+
+// _sentinelStrippedPayload is the only place img: ''/noCard: false get resolved
+// into real deletions - as a copy for the write payload, never by mutating the
+// card it read from (see the tests above and _saveCardData's comment for why).
+describe('_sentinelStrippedPayload (#733)', () => {
+  it('resolves img: "" into a real deletion in the copy, without touching the source card', () => {
+    const card = { id: 'n1', set: 'Prizm', img: '' };
+    const engine = makeFlatEngine([card]);
+
+    const payload = engine._sentinelStrippedPayload(engine.cards);
+
+    expect('img' in payload[0]).toBe(false);
+    expect(card.img).toBe(''); // source untouched
+  });
+
+  it('resolves noCard: false into a real deletion in the copy, without touching the source card', () => {
+    const card = { id: 'n1', set: 'Prizm', noCard: false };
+    const engine = makeFlatEngine([card]);
+
+    const payload = engine._sentinelStrippedPayload(engine.cards);
+
+    expect('noCard' in payload[0]).toBe(false);
+    expect(card.noCard).toBe(false); // source untouched
+  });
+
+  it('returns the same object reference for a card with neither sentinel set', () => {
+    const card = { id: 'n1', set: 'Prizm', price: 5 };
+    const engine = makeFlatEngine([card]);
+
+    const payload = engine._sentinelStrippedPayload(engine.cards);
+
+    expect(payload[0]).toBe(card);
   });
 });
