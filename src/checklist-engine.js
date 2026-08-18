@@ -17,6 +17,14 @@ const ENGINE_BUILTIN_CLEARABLE = new Set([
     'collectionLink', 'stackImages',
 ]);
 
+// _mergeWithFreshGistData() forces a GET before every save so a save can't clobber
+// changes made elsewhere (#560) - but that doubles request volume, and a burst of
+// saves in one editing session was enough to trip GitHub's gist secondary rate
+// limit (#733). Skipping the re-fetch when the last one is still this fresh keeps
+// the protection for the case it exists for (another device/tab writing in
+// parallel) while not re-checking on every single save of a solo editing streak.
+const FRESH_MERGE_WINDOW_MS = 30000;
+
 class ChecklistEngine {
     constructor() {
         this.id = new URLSearchParams(window.location.search).get('id');
@@ -31,6 +39,20 @@ class ChecklistEngine {
         this._renderedCards = [];     // Card data in DOM render order
         this._reorderMode = false;
         this._sortableInstances = [];
+        this._lastFreshMergeAt = 0;   // Date.now() of the last real merge fetch (#733)
+
+        // The freshness window (#733) assumes nothing else wrote to the gist since
+        // our last fetch - true for a solo editing streak, not for a second tab
+        // regaining focus after editing there. Force the next save back onto the
+        // full fetch+merge path in that case, matching github-sync.js's own
+        // visibilitychange cache clear for the same reason.
+        document.addEventListener('visibilitychange', () => this._onBecameVisible());
+    }
+
+    // Broken out from the listener above so it's callable directly in tests
+    // without going through the constructor + a real visibilitychange event.
+    _onBecameVisible() {
+        if (document.visibilityState === 'visible') this._lastFreshMergeAt = 0;
     }
 
     // ========================================
@@ -412,10 +434,24 @@ class ChecklistEngine {
         // Merge with latest gist data to prevent overwriting external changes (#560)
         await this._mergeWithFreshGistData();
 
+        // Copy into the write payload rather than handing over this.cards itself:
+        // img/noCard sentinels have to be resolved into real deletions somewhere
+        // before the gist sees them, but resolving them by mutating the live cards
+        // would consume the marker whether or not this write actually lands, and
+        // neither has a carry-forward path the way _clearedKeys does if the marker
+        // is gone (#733). This only protects the paths in _mergeWithFreshGistData
+        // that don't run a real merge, though - a merge that *does* complete still
+        // resolves both these sentinels and _clearedKeys directly into this.cards
+        // via _mergeCardArrays, same as it always has on main. That's pre-existing,
+        // not something this fix changes; see #735 for the case it can still lose
+        // an edit (a merge consumes the marker, then this same write's PATCH fails).
         if (this._isFlat()) {
-            this.cardData.cards = this.cards;
+            this.cardData.cards = this._sentinelStrippedPayload(this.cards);
         } else {
-            this.cardData.categories = this.cards;
+            this.cardData.categories = {};
+            for (const catId of Object.keys(this.cards)) {
+                this.cardData.categories[catId] = this._sentinelStrippedPayload(this.cards[catId]);
+            }
         }
 
         // Save card data and stats together in one PATCH (one request, not two).
@@ -462,6 +498,17 @@ class ChecklistEngine {
         // the overwrite protection this function exists to provide (#560).
         if (typeof githubSync === 'undefined') return;
 
+        // Within the freshness window, trust the merge we already did rather than
+        // spending another GET - see FRESH_MERGE_WINDOW_MS above. this.cards is
+        // left exactly as-is on this path (and every other exit below that isn't a
+        // completed merge): local-only markers only get resolved into the write
+        // payload in _saveCardData on these fallback exits, never by mutating the
+        // live cards here, so an unconfirmed write can't cost a marker its only
+        // chance to be tried again on the next save (#733). A merge that *does*
+        // complete below is a separate, pre-existing case - see the comment in
+        // _saveCardData above where the write payload is built.
+        if (Date.now() - this._lastFreshMergeAt < FRESH_MERGE_WINDOW_MS) return;
+
         try {
             // Clear cache to get truly fresh data
             githubSync.clearGistCache();
@@ -482,10 +529,30 @@ class ChecklistEngine {
                     }
                 }
             }
+            this._lastFreshMergeAt = Date.now();
         } catch (e) {
             // Non-fatal: proceed with save using local data if merge fails
             console.warn('Failed to merge with fresh gist data:', e);
         }
+    }
+
+    // Resolve the img/noCard local-only sentinels into real deletions for the
+    // write payload, without mutating the cards they came from - see the comment
+    // in _saveCardData for why a copy, not a strip-in-place, is required here.
+    // Always copies, even when there's nothing to strip: _saveCardData retries with
+    // this same payload on a transient failure, so a card object it still holds a
+    // reference to must never be the same one a concurrent edit can go on mutating.
+    // Guards against a non-array category too - this.cards comes straight from
+    // parsed gist JSON, and a hand-edited gist is something the rest of this file
+    // already treats as reachable (see _backfillSyntheticIds).
+    _sentinelStrippedPayload(cardArray) {
+        if (!Array.isArray(cardArray)) return cardArray;
+        return cardArray.map(c => {
+            const copy = { ...c };
+            if (copy.img === '') delete copy.img;
+            if (copy.noCard === false) delete copy.noCard;
+            return copy;
+        });
     }
 
     // Merge two card arrays: fresh fields as base, local fields overlay

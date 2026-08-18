@@ -8,6 +8,7 @@ function makeFlatEngine(cards) {
   engine.config = { dataShape: 'flat' };
   engine.cards = cards;
   engine.checklistManager = { getCardId: (c) => c.id };
+  engine._lastFreshMergeAt = 0; // matches a freshly constructed engine (#733)
   return engine;
 }
 
@@ -112,5 +113,284 @@ describe('un-flagging through the full save merge path', () => {
     await makeFlatEngine([{ id: 'n1', set: 'Prizm' }])._mergeWithFreshGistData();
 
     expect(clearGistCache).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('the freshness-window skip (#733)', () => {
+  afterEach(() => {
+    delete globalThis.githubSync;
+  });
+
+  it('skips the gist refetch within the window, and leaves this.cards untouched', async () => {
+    // Sentinels are only resolved into the write payload (_sentinelStrippedPayload,
+    // called from _saveCardData) - never by mutating the live cards here, so an
+    // unconfirmed write can't cost a marker its only chance at a later retry (#733).
+    const loadCardData = vi.fn();
+    globalThis.githubSync = {
+      clearGistCache: vi.fn(),
+      loadCardData,
+      loadPublicCardData: async () => null,
+    };
+
+    const card = { id: 'n1', set: 'Prizm', noCard: false, img: '' };
+    const engine = makeFlatEngine([card]);
+    engine._lastFreshMergeAt = Date.now(); // just merged - inside the 30s window
+
+    await engine._mergeWithFreshGistData();
+
+    expect(loadCardData).not.toHaveBeenCalled();
+    expect(engine.cards[0]).toBe(card); // same object, not a stripped copy
+    expect(engine.cards[0].noCard).toBe(false);
+    expect(engine.cards[0].img).toBe('');
+  });
+
+  it('does the full fetch+merge again once the window has elapsed', async () => {
+    const loadCardData = vi.fn(async () => ({ cards: [{ id: 'n1', set: 'Prizm' }] }));
+    globalThis.githubSync = { clearGistCache: vi.fn(), loadCardData, loadPublicCardData: async () => null };
+
+    const engine = makeFlatEngine([{ id: 'n1', set: 'Prizm', price: 5 }]);
+    engine._lastFreshMergeAt = Date.now() - 30001; // just past FRESH_MERGE_WINDOW_MS
+
+    await engine._mergeWithFreshGistData();
+
+    expect(loadCardData).toHaveBeenCalledTimes(1);
+    expect(engine.cards[0].price).toBe(5); // local edit still wins the merge
+  });
+
+  it('does the full fetch+merge on a category-shaped checklist too', async () => {
+    const loadCardData = vi.fn(async () => ({ categories: { base: [{ id: 'n1', set: 'Prizm' }] } }));
+    globalThis.githubSync = { clearGistCache: vi.fn(), loadCardData, loadPublicCardData: async () => null };
+
+    const engine = Object.create(ChecklistEngine.prototype);
+    engine.id = 'test';
+    engine.config = { dataShape: 'categories' };
+    engine.cards = { base: [{ id: 'n1', set: 'Prizm', noCard: false }] };
+    engine.checklistManager = { getCardId: (c) => c.id };
+    engine._lastFreshMergeAt = 0;
+
+    await engine._mergeWithFreshGistData();
+
+    expect(loadCardData).toHaveBeenCalledTimes(1);
+    expect('noCard' in engine.cards.base[0]).toBe(false);
+  });
+
+  it('_onBecameVisible resets the window so the next save re-fetches', () => {
+    const engine = makeFlatEngine([]);
+    engine._lastFreshMergeAt = Date.now();
+
+    // Defines an own property on the instance (document), which shadows whatever
+    // the prototype has - so cleanup deletes that same own property, not the
+    // prototype descriptor, or the override leaks into every later test (caught
+    // by review).
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+    try {
+      engine._onBecameVisible();
+    } finally {
+      delete document.visibilityState;
+    }
+
+    expect(engine._lastFreshMergeAt).toBe(0);
+  });
+
+  it('_onBecameVisible does nothing while the tab is hidden', () => {
+    const engine = makeFlatEngine([]);
+    const staleAt = Date.now() - 1000;
+    engine._lastFreshMergeAt = staleAt;
+
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+    try {
+      engine._onBecameVisible();
+    } finally {
+      delete document.visibilityState;
+    }
+
+    expect(engine._lastFreshMergeAt).toBe(staleAt);
+  });
+});
+
+// Every early exit from _mergeWithFreshGistData - not just the freshness-window
+// skip - leaves this.cards exactly as it found it, including any local-only
+// sentinels. Resolving those into real deletions only happens for the write
+// payload (_sentinelStrippedPayload, called from _saveCardData), specifically so
+// an unconfirmed write can't cost this.cards its only copy of a marker (#733).
+describe('this.cards is left untouched on every _mergeWithFreshGistData fallback exit (#733)', () => {
+  afterEach(() => {
+    delete globalThis.githubSync;
+  });
+
+  it('leaves markers alone when the gist has no card data for this checklist yet', async () => {
+    globalThis.githubSync = {
+      clearGistCache: vi.fn(),
+      loadCardData: async () => null,
+      loadPublicCardData: async () => null,
+    };
+
+    const card = { id: 'n1', set: 'Prizm', noCard: false, img: '' };
+    const engine = makeFlatEngine([card]);
+    await engine._mergeWithFreshGistData();
+
+    expect(engine.cards[0]).toBe(card);
+    expect(engine.cards[0].noCard).toBe(false);
+    expect(engine.cards[0].img).toBe('');
+  });
+
+  it('leaves markers alone when the fetched gist data has no cards/categories key', async () => {
+    globalThis.githubSync = {
+      clearGistCache: vi.fn(),
+      loadCardData: async () => ({}), // truthy response, but no `cards` key
+      loadPublicCardData: async () => null,
+    };
+
+    const card = { id: 'n1', set: 'Prizm', noCard: false };
+    const engine = makeFlatEngine([card]);
+    await engine._mergeWithFreshGistData();
+
+    expect(engine.cards[0]).toBe(card);
+    expect(engine.cards[0].noCard).toBe(false);
+  });
+
+  it('leaves markers alone when the fetch throws', async () => {
+    globalThis.githubSync = {
+      clearGistCache: vi.fn(),
+      loadCardData: async () => { throw new Error('network'); },
+      loadPublicCardData: async () => null,
+    };
+
+    const card = { id: 'n1', set: 'Prizm', img: '' };
+    const engine = makeFlatEngine([card]);
+    await engine._mergeWithFreshGistData();
+
+    expect(engine.cards[0]).toBe(card);
+    expect(engine.cards[0].img).toBe('');
+  });
+
+  it('leaves a category missing from the fresh copy untouched, and merges the rest normally', async () => {
+    globalThis.githubSync = {
+      clearGistCache: vi.fn(),
+      loadCardData: async () => ({ categories: { base: [{ id: 'n1', set: 'Prizm', price: 9 }] } }), // no "inserts" key
+      loadPublicCardData: async () => null,
+    };
+
+    const insertCard = { id: 'n2', set: 'Optic', noCard: false };
+    const engine = Object.create(ChecklistEngine.prototype);
+    engine.id = 'test';
+    engine.config = { dataShape: 'categories' };
+    engine.cards = {
+      base: [{ id: 'n1', set: 'Prizm', price: 5 }],
+      inserts: [insertCard],
+    };
+    engine.checklistManager = { getCardId: (c) => c.id };
+    engine._lastFreshMergeAt = 0;
+
+    await engine._mergeWithFreshGistData();
+
+    expect(engine.cards.base[0].price).toBe(5); // merged normally against the fresh copy
+    expect(engine.cards.inserts[0]).toBe(insertCard); // no fresh data for this category - untouched
+    expect(engine.cards.inserts[0].noCard).toBe(false);
+  });
+});
+
+// _sentinelStrippedPayload resolves img: ''/noCard: false into real deletions as
+// a copy for the write payload, without mutating the card it read from (see the
+// tests above and _saveCardData's comment for why). It does NOT cover
+// _clearedKeys or the fields it names - those still get resolved directly into
+// this.cards by a completed merge in _mergeWithFreshGistData, same as on main;
+// see #735 for the pre-existing gap that leaves open.
+describe('_sentinelStrippedPayload (#733)', () => {
+  it('resolves img: "" into a real deletion in the copy, without touching the source card', () => {
+    const card = { id: 'n1', set: 'Prizm', img: '' };
+    const engine = makeFlatEngine([card]);
+
+    const payload = engine._sentinelStrippedPayload(engine.cards);
+
+    expect('img' in payload[0]).toBe(false);
+    expect(card.img).toBe(''); // source untouched
+  });
+
+  it('resolves noCard: false into a real deletion in the copy, without touching the source card', () => {
+    const card = { id: 'n1', set: 'Prizm', noCard: false };
+    const engine = makeFlatEngine([card]);
+
+    const payload = engine._sentinelStrippedPayload(engine.cards);
+
+    expect('noCard' in payload[0]).toBe(false);
+    expect(card.noCard).toBe(false); // source untouched
+  });
+
+  it('always returns a copy, even for a card with neither sentinel set', () => {
+    // _saveCardData retries with this same payload on a transient failure - a
+    // card object it's still holding a reference to must never be one a
+    // concurrent edit can go on mutating underneath it.
+    const card = { id: 'n1', set: 'Prizm', price: 5 };
+    const engine = makeFlatEngine([card]);
+
+    const payload = engine._sentinelStrippedPayload(engine.cards);
+
+    expect(payload[0]).not.toBe(card);
+    expect(payload[0]).toEqual(card);
+  });
+
+  it('passes through a non-array category rather than throwing', () => {
+    const engine = makeFlatEngine([]);
+    expect(engine._sentinelStrippedPayload(null)).toBe(null);
+  });
+});
+
+// The round-2 bug (raw img: ''/noCard: false reaching the gist) is only actually
+// guarded against if the object _saveCardData hands to githubSync.saveCardData
+// has them resolved - assert on that object directly rather than on
+// _sentinelStrippedPayload in isolation, per CLAUDE.md's testing guidance.
+describe('the payload _saveCardData actually submits (#733)', () => {
+  afterEach(() => {
+    delete globalThis.githubSync;
+  });
+
+  function stubGithubSync(saveCardData) {
+    globalThis.githubSync = {
+      clearGistCache: () => {},
+      loadCardData: async () => null,
+      loadPublicCardData: async () => null,
+      saveCardData,
+    };
+  }
+
+  it('strips sentinels from a flat checklist payload without touching this.cards', async () => {
+    const saveCardData = vi.fn(async () => ({ ok: true }));
+    stubGithubSync(saveCardData);
+
+    const engine = makeFlatEngine([{ id: 'n1', set: 'Prizm', img: '', noCard: false }]);
+    engine.cardData = { cards: [] };
+    engine.checklistManager = { setSyncStatus: () => {} };
+    engine.computeStats = () => ({});
+
+    await engine._saveCardData();
+
+    const [, submittedCardData] = saveCardData.mock.calls[0];
+    expect('img' in submittedCardData.cards[0]).toBe(false);
+    expect('noCard' in submittedCardData.cards[0]).toBe(false);
+    expect(engine.cards[0].img).toBe(''); // live state still carries the marker
+  });
+
+  it('strips sentinels from every category in a category-shaped checklist payload', async () => {
+    const saveCardData = vi.fn(async () => ({ ok: true }));
+    stubGithubSync(saveCardData);
+
+    const engine = Object.create(ChecklistEngine.prototype);
+    engine.id = 'test';
+    engine.config = { dataShape: 'categories' };
+    engine.cards = {
+      base: [{ id: 'n1', set: 'Prizm', img: '' }],
+      inserts: [{ id: 'n2', set: 'Optic', noCard: false }],
+    };
+    engine.checklistManager = { getCardId: (c) => c.id, setSyncStatus: () => {} };
+    engine.cardData = { categories: {} };
+    engine.computeStats = () => ({});
+
+    await engine._saveCardData();
+
+    const [, submittedCardData] = saveCardData.mock.calls[0];
+    expect('img' in submittedCardData.categories.base[0]).toBe(false);
+    expect('noCard' in submittedCardData.categories.inserts[0]).toBe(false);
+    expect(engine.cards.base[0].img).toBe(''); // live state untouched
   });
 });
