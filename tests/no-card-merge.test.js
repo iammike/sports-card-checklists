@@ -178,13 +178,15 @@ describe('the freshness-window skip (#733)', () => {
     const engine = makeFlatEngine([]);
     engine._lastFreshMergeAt = Date.now();
 
-    const originalGet = Object.getOwnPropertyDescriptor(Document.prototype, 'visibilityState');
+    // Defines an own property on the instance (document), which shadows whatever
+    // the prototype has - so cleanup deletes that same own property, not the
+    // prototype descriptor, or the override leaks into every later test (caught
+    // by review).
     Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
     try {
       engine._onBecameVisible();
     } finally {
-      if (originalGet) Object.defineProperty(Document.prototype, 'visibilityState', originalGet);
-      else delete document.visibilityState;
+      delete document.visibilityState;
     }
 
     expect(engine._lastFreshMergeAt).toBe(0);
@@ -195,13 +197,11 @@ describe('the freshness-window skip (#733)', () => {
     const staleAt = Date.now() - 1000;
     engine._lastFreshMergeAt = staleAt;
 
-    const originalGet = Object.getOwnPropertyDescriptor(Document.prototype, 'visibilityState');
     Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
     try {
       engine._onBecameVisible();
     } finally {
-      if (originalGet) Object.defineProperty(Document.prototype, 'visibilityState', originalGet);
-      else delete document.visibilityState;
+      delete document.visibilityState;
     }
 
     expect(engine._lastFreshMergeAt).toBe(staleAt);
