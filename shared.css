@@ -2490,6 +2490,7 @@ select, input[type="text"] {
 }
 
 .image-editor-header {
+    flex-shrink: 0;
     padding: 20px 24px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     position: relative;
@@ -2526,6 +2527,16 @@ select, input[type="text"] {
     display: flex;
     flex-direction: column;
     padding: 16px;
+    /* Without this, .image-editor-canvas's min-height (below) can force this box
+       taller than the space .image-editor-modal's max-height leaves for it, and
+       since nothing here scrolls, the overflow spills past the modal's bottom
+       edge - taking the footer's Save/Cancel buttons with it - on any viewport
+       short enough that header + tabs + a 300px-tall canvas + controls + footer
+       don't all fit (#737). min-height: 0 above lets this box shrink below its
+       content's natural size in the first place; this lets that shrunk content
+       scroll instead of overflowing invisibly. */
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .image-editor-tabs {
@@ -2626,6 +2637,7 @@ select, input[type="text"] {
 }
 
 .image-editor-footer {
+    flex-shrink: 0;
     padding: 16px 24px 20px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
