@@ -437,11 +437,14 @@ class ChecklistEngine {
         // Copy into the write payload rather than handing over this.cards itself:
         // img/noCard sentinels have to be resolved into real deletions somewhere
         // before the gist sees them, but resolving them by mutating the live cards
-        // would consume the marker whether or not this write actually lands. Unlike
-        // _clearedKeys (which _mergeWithFreshGistData already treats this way, for
-        // the same reason), these two have no carry-forward path back onto a future
-        // edit if the marker is gone - an unconfirmed write must not be able to
-        // cost a later retry its only copy of "this was cleared" (#733).
+        // would consume the marker whether or not this write actually lands, and
+        // neither has a carry-forward path the way _clearedKeys does if the marker
+        // is gone (#733). This only protects the paths in _mergeWithFreshGistData
+        // that don't run a real merge, though - a merge that *does* complete still
+        // resolves both these sentinels and _clearedKeys directly into this.cards
+        // via _mergeCardArrays, same as it always has on main. That's pre-existing,
+        // not something this fix changes; see #735 for the case it can still lose
+        // an edit (a merge consumes the marker, then this same write's PATCH fails).
         if (this._isFlat()) {
             this.cardData.cards = this._sentinelStrippedPayload(this.cards);
         } else {
@@ -498,10 +501,12 @@ class ChecklistEngine {
         // Within the freshness window, trust the merge we already did rather than
         // spending another GET - see FRESH_MERGE_WINDOW_MS above. this.cards is
         // left exactly as-is on this path (and every other exit below that isn't a
-        // completed merge): local-only markers (_clearedKeys, and the img/noCard
-        // sentinels) only get resolved into the write payload in _saveCardData,
-        // never by mutating the live cards here, so an unconfirmed write can never
-        // cost a marker its only chance to be tried again on the next save (#733).
+        // completed merge): local-only markers only get resolved into the write
+        // payload in _saveCardData on these fallback exits, never by mutating the
+        // live cards here, so an unconfirmed write can't cost a marker its only
+        // chance to be tried again on the next save (#733). A merge that *does*
+        // complete below is a separate, pre-existing case - see the comment in
+        // _saveCardData above where the write payload is built.
         if (Date.now() - this._lastFreshMergeAt < FRESH_MERGE_WINDOW_MS) return;
 
         try {
@@ -534,9 +539,15 @@ class ChecklistEngine {
     // Resolve the img/noCard local-only sentinels into real deletions for the
     // write payload, without mutating the cards they came from - see the comment
     // in _saveCardData for why a copy, not a strip-in-place, is required here.
+    // Always copies, even when there's nothing to strip: _saveCardData retries with
+    // this same payload on a transient failure, so a card object it still holds a
+    // reference to must never be the same one a concurrent edit can go on mutating.
+    // Guards against a non-array category too - this.cards comes straight from
+    // parsed gist JSON, and a hand-edited gist is something the rest of this file
+    // already treats as reachable (see _backfillSyntheticIds).
     _sentinelStrippedPayload(cardArray) {
+        if (!Array.isArray(cardArray)) return cardArray;
         return cardArray.map(c => {
-            if (c.img !== '' && c.noCard !== false) return c;
             const copy = { ...c };
             if (copy.img === '') delete copy.img;
             if (copy.noCard === false) delete copy.noCard;

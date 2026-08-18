@@ -290,9 +290,12 @@ describe('this.cards is left untouched on every _mergeWithFreshGistData fallback
   });
 });
 
-// _sentinelStrippedPayload is the only place img: ''/noCard: false get resolved
-// into real deletions - as a copy for the write payload, never by mutating the
-// card it read from (see the tests above and _saveCardData's comment for why).
+// _sentinelStrippedPayload resolves img: ''/noCard: false into real deletions as
+// a copy for the write payload, without mutating the card it read from (see the
+// tests above and _saveCardData's comment for why). It does NOT cover
+// _clearedKeys or the fields it names - those still get resolved directly into
+// this.cards by a completed merge in _mergeWithFreshGistData, same as on main;
+// see #735 for the pre-existing gap that leaves open.
 describe('_sentinelStrippedPayload (#733)', () => {
   it('resolves img: "" into a real deletion in the copy, without touching the source card', () => {
     const card = { id: 'n1', set: 'Prizm', img: '' };
@@ -314,12 +317,80 @@ describe('_sentinelStrippedPayload (#733)', () => {
     expect(card.noCard).toBe(false); // source untouched
   });
 
-  it('returns the same object reference for a card with neither sentinel set', () => {
+  it('always returns a copy, even for a card with neither sentinel set', () => {
+    // _saveCardData retries with this same payload on a transient failure - a
+    // card object it's still holding a reference to must never be one a
+    // concurrent edit can go on mutating underneath it.
     const card = { id: 'n1', set: 'Prizm', price: 5 };
     const engine = makeFlatEngine([card]);
 
     const payload = engine._sentinelStrippedPayload(engine.cards);
 
-    expect(payload[0]).toBe(card);
+    expect(payload[0]).not.toBe(card);
+    expect(payload[0]).toEqual(card);
+  });
+
+  it('passes through a non-array category rather than throwing', () => {
+    const engine = makeFlatEngine([]);
+    expect(engine._sentinelStrippedPayload(null)).toBe(null);
+  });
+});
+
+// The round-2 bug (raw img: ''/noCard: false reaching the gist) is only actually
+// guarded against if the object _saveCardData hands to githubSync.saveCardData
+// has them resolved - assert on that object directly rather than on
+// _sentinelStrippedPayload in isolation, per CLAUDE.md's testing guidance.
+describe('the payload _saveCardData actually submits (#733)', () => {
+  afterEach(() => {
+    delete globalThis.githubSync;
+  });
+
+  function stubGithubSync(saveCardData) {
+    globalThis.githubSync = {
+      clearGistCache: () => {},
+      loadCardData: async () => null,
+      loadPublicCardData: async () => null,
+      saveCardData,
+    };
+  }
+
+  it('strips sentinels from a flat checklist payload without touching this.cards', async () => {
+    const saveCardData = vi.fn(async () => ({ ok: true }));
+    stubGithubSync(saveCardData);
+
+    const engine = makeFlatEngine([{ id: 'n1', set: 'Prizm', img: '', noCard: false }]);
+    engine.cardData = { cards: [] };
+    engine.checklistManager = { setSyncStatus: () => {} };
+    engine.computeStats = () => ({});
+
+    await engine._saveCardData();
+
+    const [, submittedCardData] = saveCardData.mock.calls[0];
+    expect('img' in submittedCardData.cards[0]).toBe(false);
+    expect('noCard' in submittedCardData.cards[0]).toBe(false);
+    expect(engine.cards[0].img).toBe(''); // live state still carries the marker
+  });
+
+  it('strips sentinels from every category in a category-shaped checklist payload', async () => {
+    const saveCardData = vi.fn(async () => ({ ok: true }));
+    stubGithubSync(saveCardData);
+
+    const engine = Object.create(ChecklistEngine.prototype);
+    engine.id = 'test';
+    engine.config = { dataShape: 'categories' };
+    engine.cards = {
+      base: [{ id: 'n1', set: 'Prizm', img: '' }],
+      inserts: [{ id: 'n2', set: 'Optic', noCard: false }],
+    };
+    engine.checklistManager = { getCardId: (c) => c.id, setSyncStatus: () => {} };
+    engine.cardData = { categories: {} };
+    engine.computeStats = () => ({});
+
+    await engine._saveCardData();
+
+    const [, submittedCardData] = saveCardData.mock.calls[0];
+    expect('img' in submittedCardData.categories.base[0]).toBe(false);
+    expect('noCard' in submittedCardData.categories.inserts[0]).toBe(false);
+    expect(engine.cards.base[0].img).toBe(''); // live state untouched
   });
 });
