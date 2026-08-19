@@ -55,14 +55,23 @@ describe('ChecklistEngine._getPriceBounds', () => {
         expect(engine._getPriceBounds()).toEqual({ min: 0, max: 48 });
     });
 
-    it('ignores a non-numeric price string the way getPrice/sort do', () => {
-        // getPrice() is `card.price || 0` - a string still participates in the
-        // > 0 filter via JS's numeric coercion for a numeric string, but a
-        // genuinely non-numeric one should not crash bounds computation.
+    it('coerces a numeric price string the way getPrice/sort do', () => {
+        // getPrice() is `card.price || 0` - a numeric string like "25" is
+        // truthy and compares correctly against `> 0` via JS's numeric coercion.
         const engine = makeEngine({}, [
             { set: 'A', num: '1', price: '25' },
         ]);
         expect(engine._getPriceBounds()).toEqual({ min: 0, max: 25 });
+    });
+
+    it('does not crash and excludes a genuinely non-numeric price', () => {
+        // "abc" > 0 is false (NaN comparison), so it's silently excluded from
+        // bounds rather than throwing or poisoning Math.max with NaN.
+        const engine = makeEngine({}, [
+            { set: 'A', num: '1', price: 'abc' },
+            { set: 'B', num: '2', price: 30 },
+        ]);
+        expect(engine._getPriceBounds()).toEqual({ min: 0, max: 30 });
     });
 });
 
@@ -164,6 +173,7 @@ describe('ChecklistEngine — price range filter', () => {
         const max = document.getElementById('price-max-filter');
         min.value = '10';
         max.value = '60';
+        max.dispatchEvent(new Event('input')); // marks max as touched - see the ceiling tests below
         engine._applyFilters();
 
         expect(visibleSets(engine)).toEqual(['B']);
@@ -204,11 +214,36 @@ describe('ChecklistEngine — price range filter', () => {
         ]);
         engine._renderFilters();
         engine.renderCards();
-        document.getElementById('price-max-filter').value = '15';
+        const maxInput = document.getElementById('price-max-filter');
+        maxInput.value = '15';
+        maxInput.dispatchEvent(new Event('input')); // real drag fires 'input', not just a value assignment
 
         engine.cards.push({ set: 'C', num: '3', price: 50 });
         engine.renderCards();
 
         expect(visibleSets(engine)).toEqual(['A']);
+    });
+
+    it('a max handle dragged back to exactly the ceiling stays a real cap, not uncapped again', () => {
+        // The naive "value === ceiling means untouched" check can't tell this
+        // apart from a handle nobody ever moved - a user who drags max down and
+        // deliberately back up to the top lands on the same number on purpose.
+        // The "touched" flag (set on any real 'input' event) is what makes the
+        // distinction, so a card priced above the ceiling added afterward must
+        // still be excluded here, unlike the untouched case above.
+        const engine = makeEngine({}, [
+            { set: 'A', num: '1', price: 10 },
+            { set: 'B', num: '2', price: 20 },
+        ]);
+        engine._renderFilters();
+        engine.renderCards();
+        const maxInput = document.getElementById('price-max-filter');
+        maxInput.value = '20'; // same number as the ceiling, but arrived at deliberately
+        maxInput.dispatchEvent(new Event('input'));
+
+        engine.cards.push({ set: 'C', num: '3', price: 50 });
+        engine.renderCards();
+
+        expect(visibleSets(engine)).toEqual(['A', 'B']);
     });
 });

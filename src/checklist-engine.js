@@ -1414,6 +1414,9 @@ class ChecklistEngine {
             scheduleFilterChange();
         });
         maxInput.addEventListener('input', () => {
+            // Marks this handle as deliberately set, even if the user lands back
+            // on the ceiling - see the "touched" comment in _applyFilters.
+            maxInput.dataset.touched = 'true';
             if (parseFloat(maxInput.value) < parseFloat(minInput.value)) maxInput.value = minInput.value;
             update();
             scheduleFilterChange();
@@ -1667,14 +1670,16 @@ class ChecklistEngine {
         // The slider's bounds are frozen at the values in place when the filter
         // bar was last rendered (_renderFilters isn't re-run on every card save),
         // so a card priced above that ceiling - just-raised, or freshly added -
-        // would otherwise fail the max check and vanish until reload. A max
-        // handle still parked at its own ceiling means "the user never touched
-        // this side," so treat that edge as uncapped rather than trusting the
-        // stale number.
+        // would otherwise fail the max check and vanish until reload. Comparing
+        // the value to the ceiling isn't enough to detect "untouched" - a user
+        // who drags max down and back up lands on that same number on purpose,
+        // and re-uncapping it would silently defeat the cap they just set. The
+        // "touched" flag (_initPriceRangeSlider) records a real interaction, so
+        // only a handle nobody has ever moved is treated as uncapped.
         const priceRange = (priceMin && priceMax)
             ? {
                 min: parseFloat(priceMin.value),
-                max: parseFloat(priceMax.value) >= parseFloat(priceMax.max) ? Infinity : parseFloat(priceMax.value),
+                max: priceMax.dataset.touched === 'true' ? parseFloat(priceMax.value) : Infinity,
             }
             : null;
 
