@@ -1036,8 +1036,14 @@ class ChecklistEngine {
     // Price
     // ========================================
 
+    // Number(), not the bare field: a hand-edited gist can store price as a
+    // string ("25"), and every caller here trusts the result to add/subtract
+    // like a number - extraOwnedValue += this.getPrice(card) would silently do
+    // string concatenation instead of addition, and the price slider's
+    // percentile interpolation the same. Number(undefined/NaN) is NaN, so the
+    // || 0 fallback still covers both a missing price and a garbage string.
     getPrice(card) {
-        return card.price || 0;
+        return Number(card.price) || 0;
     }
 
     getPriceThresholds() {

@@ -56,8 +56,9 @@ describe('ChecklistEngine._getPriceBounds', () => {
     });
 
     it('coerces a numeric price string the way getPrice/sort do', () => {
-        // getPrice() is `card.price || 0` - a numeric string like "25" is
-        // truthy and compares correctly against `> 0` via JS's numeric coercion.
+        // getPrice() is `Number(card.price) || 0` - a hand-edited gist can store
+        // price as a string ("25"), and Number() turns it into a real number
+        // rather than the truthy-but-still-a-string value the bare field would be.
         const engine = makeEngine({}, [
             { set: 'A', num: '1', price: '25' },
         ]);
@@ -65,13 +66,38 @@ describe('ChecklistEngine._getPriceBounds', () => {
     });
 
     it('does not crash and excludes a genuinely non-numeric price', () => {
-        // "abc" > 0 is false (NaN comparison), so it's silently excluded from
-        // bounds rather than throwing or poisoning Math.max with NaN.
+        // Number("abc") is NaN, and the || 0 fallback catches it the same way
+        // it catches a missing price - excluded from bounds, not thrown.
         const engine = makeEngine({}, [
             { set: 'A', num: '1', price: 'abc' },
             { set: 'B', num: '2', price: 30 },
         ]);
         expect(engine._getPriceBounds()).toEqual({ min: 0, max: 30 });
+    });
+});
+
+describe('ChecklistEngine.getPrice', () => {
+    it('coerces a numeric string to a real number, not a truthy string', () => {
+        // A bare `card.price || 0` would return the string "25" itself (truthy),
+        // which downstream arithmetic then silently mishandles - most sharply in
+        // _priceAtSliderPosition's `pointAt(lo) + frac * (...)`, where `+` with a
+        // string operand does concatenation instead of addition (e.g.
+        // "25" + 2.5 -> "252.5"), producing a wildly wrong price.
+        const engine = makeEngine({}, []);
+        const price = engine.getPrice({ price: '25' });
+        expect(price).toBe(25);
+        expect(typeof price).toBe('number');
+    });
+
+    it('a numeric-string price sorts correctly alongside real numbers instead of corrupting the order', () => {
+        const engine = makeEngine({}, [
+            { set: 'A', num: '1', price: '25' }, // hand-edited gist could store this as a string
+            { set: 'B', num: '2', price: 10 },
+            { set: 'C', num: '3', price: 100 },
+        ]);
+        const sorted = engine._getSortedPrices();
+        expect(sorted).toEqual([10, 25, 100]);
+        expect(sorted.every(p => typeof p === 'number')).toBe(true);
     });
 });
 
@@ -209,9 +235,10 @@ describe('ChecklistEngine._priceAtSliderPosition — quantile mapping against th
 });
 
 describe('ChecklistEngine — price range filter', () => {
-    // Prices are spread far apart on purpose so log-curve rounding (±$1 or so)
-    // near a boundary can never flip which card is included - these tests
-    // exercise filtering behavior, not the exact curve math.
+    // Prices are spread far apart on purpose so the quantile mapping's rounding
+    // (±$1 or so) near a boundary can never flip which card is included - these
+    // tests exercise filtering behavior, not the exact interpolation math (that
+    // lives in the _priceAtSliderPosition describe block above).
     const cards = [
         { set: 'A', num: '1', price: 5 },
         { set: 'B', num: '2', price: 50 },
@@ -220,13 +247,20 @@ describe('ChecklistEngine — price range filter', () => {
     ];
 
     // The slider's raw <input> position isn't a dollar amount (see
-    // _priceAtSliderPosition) - this inverts that same curve to find the raw
-    // position whose price is closest to `price`, so tests can express intent
-    // ("drag min to about $20") without hardcoding the curve's math twice.
-    function rawForPrice(price, ceiling, resolution) {
-        if (price <= 0) return 0;
-        if (price >= ceiling) return resolution;
-        return resolution * Math.log(price + 1) / Math.log(ceiling + 1);
+    // _priceAtSliderPosition) - this inverts that same percentile mapping
+    // against the checklist's own sorted prices to find the raw position whose
+    // price is closest to `price`, so tests can express intent ("drag min to
+    // about $20") without hardcoding the mapping's math twice.
+    function rawForPrice(price, sortedPrices, resolution) {
+        const n = sortedPrices.length;
+        if (n === 0 || price <= 0) return 0;
+        const points = [0, ...sortedPrices];
+        if (price >= points[n]) return resolution;
+        let i = 0;
+        while (i < n && points[i + 1] < price) i++;
+        const lo = points[i], hi = points[i + 1];
+        const frac = hi === lo ? 0 : (price - lo) / (hi - lo);
+        return ((i + frac) / n) * resolution;
     }
 
     it('narrowing the range hides cards outside it', () => {
@@ -236,9 +270,9 @@ describe('ChecklistEngine — price range filter', () => {
         const min = document.getElementById('price-min-filter');
         const max = document.getElementById('price-max-filter');
         const resolution = parseFloat(max.max);
-        const ceiling = parseFloat(document.getElementById('price-range-filter').dataset.max);
-        min.value = rawForPrice(20, ceiling, resolution); // between A ($5) and B ($50)
-        max.value = rawForPrice(70, ceiling, resolution); // between B ($50) and C ($100)
+        const sortedPrices = JSON.parse(document.getElementById('price-range-filter').dataset.prices);
+        min.value = rawForPrice(20, sortedPrices, resolution); // between A ($5) and B ($50)
+        max.value = rawForPrice(70, sortedPrices, resolution); // between B ($50) and C ($100)
         max.dispatchEvent(new Event('input')); // marks max as touched - see the ceiling tests below
         engine._applyFilters();
 
@@ -282,8 +316,8 @@ describe('ChecklistEngine — price range filter', () => {
         engine.renderCards();
         const maxInput = document.getElementById('price-max-filter');
         const resolution = parseFloat(maxInput.max);
-        const ceiling = parseFloat(document.getElementById('price-range-filter').dataset.max);
-        maxInput.value = rawForPrice(15, ceiling, resolution); // between A ($10) and B ($20)
+        const sortedPrices = JSON.parse(document.getElementById('price-range-filter').dataset.prices);
+        maxInput.value = rawForPrice(15, sortedPrices, resolution); // between A ($10) and B ($20)
         maxInput.dispatchEvent(new Event('input')); // real drag fires 'input', not just a value assignment
 
         engine.cards.push({ set: 'C', num: '3', price: 50 });
