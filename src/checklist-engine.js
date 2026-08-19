@@ -1267,13 +1267,15 @@ class ChecklistEngine {
         // Attribute toggle filters (Auto / Patch / Numbered / Rookie). Unlike the
         // dropdowns above, these are checkboxes: any combination can be active at
         // once and they AND together with every other filter in _filterCard.
-        this._quickFilterDefs().forEach(d => {
+        // Both helpers below take the flattened card list so it's only built once.
+        const allCards = this._getAllCardsFlat();
+        this._quickFilterDefs(allCards).forEach(d => {
             html += `<button type="button" class="filter-btn quick-filter-btn" data-quick-filter="${sanitizeAttr(d.key)}" aria-pressed="false">${sanitizeText(d.label)}</button>`;
         });
 
         // Price range (dual-handle slider) - omitted entirely when nothing on
         // this checklist has a price, so it never shows up as a dead control.
-        const priceBounds = this._getPriceBounds();
+        const priceBounds = this._getPriceBounds(allCards);
         if (priceBounds) {
             html += `<div class="price-range-filter" id="price-range-filter" data-min="${priceBounds.min}" data-max="${priceBounds.max}">
                 <span class="price-range-label">Price: <span id="price-range-display">$${priceBounds.min} - $${priceBounds.max}</span></span>
@@ -1317,20 +1319,20 @@ class ChecklistEngine {
     }
 
     // Which attribute toggles apply to this checklist. Auto/Patch/Numbered mirror
-    // the same customFields gate CardRenderer.renderAttributeBadges uses, so a
-    // toggle never appears for a field this config deliberately doesn't track.
-    // Rookie predates the editor and has no customFields entry at all (see
-    // _isManagedField), so it's gated on data presence instead - shown only when
-    // some card actually carries it.
-    _quickFilterDefs() {
-        const customFields = this.config.customFields || {};
+    // the exact gate CardRenderer.renderAttributeBadges uses - "no customFields
+    // config at all" means every badge is on, not off, so an absent customFields
+    // key must show the toggle rather than hide it. Rookie predates the editor
+    // and has no customFields entry at all (see _isManagedField), so it's gated
+    // on data presence instead - shown only when some card actually carries it.
+    _quickFilterDefs(allCards = this._getAllCardsFlat()) {
+        const customFields = this.config.customFields;
         const defs = [
             { key: 'auto', label: 'Auto', field: 'auto' },
             { key: 'patch', label: 'Patch', field: 'patch' },
             { key: 'numbered', label: 'Numbered', field: 'serial' },
-        ].filter(d => customFields[d.field]);
+        ].filter(d => !customFields || customFields[d.field]);
 
-        if (this._getAllCardsFlat().some(c => c.rc)) {
+        if (allCards.some(c => c.rc)) {
             defs.push({ key: 'rookie', label: 'Rookie', field: 'rc' });
         }
         return defs;
@@ -1338,12 +1340,13 @@ class ChecklistEngine {
 
     // Price slider bounds from actual priced cards; null when nothing on this
     // checklist has a price, so the caller can skip rendering the slider.
-    _getPriceBounds() {
-        const prices = this._getAllCardsFlat()
-            .map(c => c.price)
-            .filter(p => typeof p === 'number' && p > 0);
+    _getPriceBounds(allCards = this._getAllCardsFlat()) {
+        const prices = allCards
+            .map(c => this.getPrice(c))
+            .filter(p => p > 0);
         if (prices.length === 0) return null;
-        return { min: 0, max: Math.max(1, Math.ceil(Math.max(...prices))) };
+        const highest = prices.reduce((max, p) => (p > max ? p : max), 0);
+        return { min: 0, max: Math.max(1, Math.ceil(highest)) };
     }
 
     // Two overlapping range inputs standing in for one dual-handle slider - each
@@ -1352,6 +1355,14 @@ class ChecklistEngine {
     // to the click point. Dragging one handle past the other clamps them together
     // rather than letting them cross, which would strand the passed handle under
     // its sibling with no way to grab it back.
+    //
+    // Clamping alone still leaves one dead end: drag min all the way up to max
+    // and both handles sit at the same pixel. Whichever input is later in the
+    // DOM (max) wins hit-testing there by default, so min becomes permanently
+    // unreachable by pointer - there's no way to widen the range back out.
+    // updateStacking keeps whichever handle is in the "far" half of the track on
+    // top, so the collision point always favors the handle a user would
+    // plausibly want to grab next.
     _initPriceRangeSlider(container) {
         const wrap = container.querySelector('#price-range-filter');
         if (!wrap) return;
@@ -1361,6 +1372,14 @@ class ChecklistEngine {
         const display = wrap.querySelector('#price-range-display');
         const bounds = { min: parseFloat(wrap.dataset.min), max: parseFloat(wrap.dataset.max) };
         const span = (bounds.max - bounds.min) || 1;
+        const mid = bounds.min + span / 2;
+
+        // A native thumb's center travels from half its own width to (track
+        // width - half its width), not edge to edge, so a plain percentage
+        // misaligns the fill against the handles near both ends. THUMB_PX must
+        // match the thumb diameter set in shared.css.
+        const THUMB_PX = 16;
+        const thumbOffset = pct => (THUMB_PX / 2) - (pct / 100) * THUMB_PX;
 
         const update = () => {
             const minVal = parseFloat(minInput.value);
@@ -1368,19 +1387,36 @@ class ChecklistEngine {
             display.textContent = `$${minVal} - $${maxVal}`;
             const left = ((minVal - bounds.min) / span) * 100;
             const right = ((maxVal - bounds.min) / span) * 100;
-            fill.style.left = `${left}%`;
-            fill.style.width = `${Math.max(0, right - left)}%`;
+            const width = Math.max(0, right - left);
+            fill.style.left = `calc(${left}% + ${thumbOffset(left).toFixed(3)}px)`;
+            fill.style.width = `calc(${width}% + ${(thumbOffset(right) - thumbOffset(left)).toFixed(3)}px)`;
+            // Above the midpoint min is the one likely to collide with max, so
+            // bring it to the front; below the midpoint max is the collision risk.
+            const minOnTop = minVal > mid;
+            minInput.style.zIndex = minOnTop ? '2' : '1';
+            maxInput.style.zIndex = minOnTop ? '1' : '2';
+        };
+
+        // 'input' fires on every pixel of drag movement; coalesce the (expensive)
+        // full card re-filter to once per frame instead of once per event.
+        let rafId = null;
+        const scheduleFilterChange = () => {
+            if (rafId !== null) return;
+            rafId = requestAnimationFrame(() => {
+                rafId = null;
+                this._onFilterChange();
+            });
         };
 
         minInput.addEventListener('input', () => {
             if (parseFloat(minInput.value) > parseFloat(maxInput.value)) minInput.value = maxInput.value;
             update();
-            this._onFilterChange();
+            scheduleFilterChange();
         });
         maxInput.addEventListener('input', () => {
             if (parseFloat(maxInput.value) < parseFloat(minInput.value)) maxInput.value = minInput.value;
             update();
-            this._onFilterChange();
+            scheduleFilterChange();
         });
 
         update();
@@ -1622,13 +1658,24 @@ class ChecklistEngine {
             if (el) customFilterValues[f.id] = el.value;
         });
 
+        const filtersContainer = document.getElementById('filters-container');
         const quickFilters = new Set(
-            [...document.querySelectorAll('.quick-filter-btn.active')].map(b => b.dataset.quickFilter)
+            [...(filtersContainer?.querySelectorAll('.quick-filter-btn.active') || [])].map(b => b.dataset.quickFilter)
         );
         const priceMin = document.getElementById('price-min-filter');
         const priceMax = document.getElementById('price-max-filter');
+        // The slider's bounds are frozen at the values in place when the filter
+        // bar was last rendered (_renderFilters isn't re-run on every card save),
+        // so a card priced above that ceiling - just-raised, or freshly added -
+        // would otherwise fail the max check and vanish until reload. A max
+        // handle still parked at its own ceiling means "the user never touched
+        // this side," so treat that edge as uncapped rather than trusting the
+        // stale number.
         const priceRange = (priceMin && priceMax)
-            ? { min: parseFloat(priceMin.value), max: parseFloat(priceMax.value) }
+            ? {
+                min: parseFloat(priceMin.value),
+                max: parseFloat(priceMax.value) >= parseFloat(priceMax.max) ? Infinity : parseFloat(priceMax.value),
+            }
             : null;
 
         // Toggle visibility on individual cards
@@ -1714,9 +1761,11 @@ class ChecklistEngine {
             }
         }
 
-        // Price range
+        // Price range - getPrice matches every other price consumer (sort,
+        // stats), so a hand-edited gist string like "45" filters the same way
+        // it sorts instead of falling through to the unpriced bucket.
         if (priceRange) {
-            const price = typeof card.price === 'number' ? card.price : 0;
+            const price = this.getPrice(card);
             if (price < priceRange.min || price > priceRange.max) return false;
         }
 

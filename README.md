@@ -30,6 +30,8 @@ A modern web app for tracking sports card collections with cloud sync, real-time
 - **Status filter** - Show all cards, owned only, or needed to complete
 - **Text search** - Find cards by name, set, variant, or any text
 - **Custom filters** - Checklist-specific dropdown filters (e.g., sport, era, team)
+- **Price range** - Dual-handle slider to narrow cards to a price window
+- **Attribute toggles** - Combinable Auto / Patch / Numbered / Rookie filters, stackable with each other and every other filter
 - **Sort options** - Manual, year, set name, serial scarcity, price (low/high), and custom fields
 
 ### Inline Editing (Owner Only) · [Screenshot](docs/screenshots/card-editor.png)
