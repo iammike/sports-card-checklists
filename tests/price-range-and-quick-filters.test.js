@@ -157,7 +157,61 @@ describe('ChecklistEngine — quick filter toggles combine with each other and e
     });
 });
 
+describe('ChecklistEngine._priceAtSliderPosition — quantile mapping against this checklist\'s own prices', () => {
+    it('maps position 0 to $0 and PRICE_SLIDER_RESOLUTION to the exact highest price', () => {
+        const engine = makeEngine({}, []);
+        const sorted = [1, 2, 3, 4, 100];
+        expect(engine._priceAtSliderPosition(0, sorted)).toBe(0);
+        expect(engine._priceAtSliderPosition(1000, sorted)).toBe(100);
+    });
+
+    it('returns $0 for an empty price list instead of dividing by zero', () => {
+        const engine = makeEngine({}, []);
+        expect(engine._priceAtSliderPosition(500, [])).toBe(0);
+    });
+
+    it('spaces positions by count of cards, not by dollar gap - a cluster of cheap cards gets most of the track', () => {
+        // 4 cheap cards ($1-$4) plus one $100 outlier. A dollar-linear scale
+        // would put all four cheap cards under position 40 (4/100 of the
+        // track). The quantile mapping instead gives each of the 5 values an
+        // equal 1/5 (200-unit) share of the track, so the $1-$4 cluster
+        // occupies fully 80% of it and the $100 outlier only the last 20%.
+        const engine = makeEngine({}, []);
+        const sorted = [1, 2, 3, 4, 100];
+        expect(engine._priceAtSliderPosition(200, sorted)).toBe(1);
+        expect(engine._priceAtSliderPosition(400, sorted)).toBe(2);
+        expect(engine._priceAtSliderPosition(600, sorted)).toBe(3);
+        expect(engine._priceAtSliderPosition(800, sorted)).toBe(4);
+        // Still deep in the final ($4-$100) band - the jump to the outlier only
+        // happens right at the very end of that band, not partway through it.
+        expect(engine._priceAtSliderPosition(801, sorted)).toBeLessThan(50);
+    });
+
+    it('gives the low end of the range far more resolution than a linear scale would, using #740\'s own shape', () => {
+        // Mirrors the real Jayden Daniels checklist data this feature was built
+        // for: a large cluster of cards at $30 or under, plus a handful of rare
+        // parallels running into the thousands. A linear scale would put $30 at
+        // position ~4 out of 1000 (30 / 7000). The quantile mapping should put
+        // it dramatically further out, since most of the *cards* - not dollars
+        // - live under $30.
+        const cheap = Array.from({ length: 190 }, (_, i) => 1 + (i % 30)); // 190 cards, $1-$30
+        const expensive = [1000, 2000, 3000, 7000]; // a handful of rare outliers
+        const sorted = [...cheap, ...expensive].sort((a, b) => a - b);
+        const engine = makeEngine({}, []);
+
+        const linearPosition = (30 / 7000) * 1000;
+        let quantilePosition = 0;
+        for (let raw = 0; raw <= 1000; raw++) {
+            if (engine._priceAtSliderPosition(raw, sorted) <= 30) quantilePosition = raw;
+        }
+        expect(quantilePosition).toBeGreaterThan(linearPosition * 10);
+    });
+});
+
 describe('ChecklistEngine — price range filter', () => {
+    // Prices are spread far apart on purpose so log-curve rounding (±$1 or so)
+    // near a boundary can never flip which card is included - these tests
+    // exercise filtering behavior, not the exact curve math.
     const cards = [
         { set: 'A', num: '1', price: 5 },
         { set: 'B', num: '2', price: 50 },
@@ -165,14 +219,26 @@ describe('ChecklistEngine — price range filter', () => {
         { set: 'D', num: '4' }, // unpriced -> getPrice() is 0
     ];
 
+    // The slider's raw <input> position isn't a dollar amount (see
+    // _priceAtSliderPosition) - this inverts that same curve to find the raw
+    // position whose price is closest to `price`, so tests can express intent
+    // ("drag min to about $20") without hardcoding the curve's math twice.
+    function rawForPrice(price, ceiling, resolution) {
+        if (price <= 0) return 0;
+        if (price >= ceiling) return resolution;
+        return resolution * Math.log(price + 1) / Math.log(ceiling + 1);
+    }
+
     it('narrowing the range hides cards outside it', () => {
         const engine = makeEngine({}, cards);
         engine._renderFilters();
         engine.renderCards();
         const min = document.getElementById('price-min-filter');
         const max = document.getElementById('price-max-filter');
-        min.value = '10';
-        max.value = '60';
+        const resolution = parseFloat(max.max);
+        const ceiling = parseFloat(document.getElementById('price-range-filter').dataset.max);
+        min.value = rawForPrice(20, ceiling, resolution); // between A ($5) and B ($50)
+        max.value = rawForPrice(70, ceiling, resolution); // between B ($50) and C ($100)
         max.dispatchEvent(new Event('input')); // marks max as touched - see the ceiling tests below
         engine._applyFilters();
 
@@ -199,7 +265,7 @@ describe('ChecklistEngine — price range filter', () => {
         ]);
         engine._renderFilters();
         engine.renderCards();
-        expect(document.getElementById('price-max-filter').max).toBe('20');
+        expect(document.getElementById('price-range-filter').dataset.max).toBe('20');
 
         engine.cards.push({ set: 'C', num: '3', price: 50 });
         engine.renderCards(); // no _renderFilters() call, matching onSave
@@ -215,7 +281,9 @@ describe('ChecklistEngine — price range filter', () => {
         engine._renderFilters();
         engine.renderCards();
         const maxInput = document.getElementById('price-max-filter');
-        maxInput.value = '15';
+        const resolution = parseFloat(maxInput.max);
+        const ceiling = parseFloat(document.getElementById('price-range-filter').dataset.max);
+        maxInput.value = rawForPrice(15, ceiling, resolution); // between A ($10) and B ($20)
         maxInput.dispatchEvent(new Event('input')); // real drag fires 'input', not just a value assignment
 
         engine.cards.push({ set: 'C', num: '3', price: 50 });
@@ -238,7 +306,7 @@ describe('ChecklistEngine — price range filter', () => {
         engine._renderFilters();
         engine.renderCards();
         const maxInput = document.getElementById('price-max-filter');
-        maxInput.value = '20'; // same number as the ceiling, but arrived at deliberately
+        maxInput.value = maxInput.max; // raw position for "exactly the ceiling", arrived at deliberately
         maxInput.dispatchEvent(new Event('input'));
 
         engine.cards.push({ set: 'C', num: '3', price: 50 });
