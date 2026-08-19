@@ -243,7 +243,7 @@ describe('ChecklistEngine — price range filter', () => {
         { set: 'A', num: '1', price: 5 },
         { set: 'B', num: '2', price: 50 },
         { set: 'C', num: '3', price: 100 },
-        { set: 'D', num: '4' }, // unpriced -> getPrice() is 0
+        { set: 'D', num: '4' }, // unpriced - usually means "too rare to find a price," so it filters as if priced at Infinity
     ];
 
     // The slider's raw <input> position isn't a dollar amount (see
@@ -277,6 +277,38 @@ describe('ChecklistEngine — price range filter', () => {
         engine._applyFilters();
 
         expect(visibleSets(engine)).toEqual(['B']);
+    });
+
+    it('raising the min handle alone does not hide an unpriced card', () => {
+        // Card D has no price - typically because it's rare enough that the
+        // owner couldn't find one, not because it's worthless. It should behave
+        // like an infinitely expensive card: unaffected by a floor, only
+        // excluded once a real ceiling is set (see the next test).
+        const engine = makeEngine({}, cards);
+        engine._renderFilters();
+        engine.renderCards();
+        const min = document.getElementById('price-min-filter');
+        const resolution = parseFloat(document.getElementById('price-max-filter').max);
+        const sortedPrices = JSON.parse(document.getElementById('price-range-filter').dataset.prices);
+        min.value = rawForPrice(30, sortedPrices, resolution); // above A ($5), below B/C
+        min.dispatchEvent(new Event('input'));
+        engine._applyFilters();
+
+        expect(visibleSets(engine)).toEqual(['B', 'C', 'D']);
+    });
+
+    it('capping the max handle hides an unpriced card once a real ceiling is set', () => {
+        const engine = makeEngine({}, cards);
+        engine._renderFilters();
+        engine.renderCards();
+        const max = document.getElementById('price-max-filter');
+        const resolution = parseFloat(max.max);
+        const sortedPrices = JSON.parse(document.getElementById('price-range-filter').dataset.prices);
+        max.value = rawForPrice(60, sortedPrices, resolution); // above B ($50), below C ($100)
+        max.dispatchEvent(new Event('input'));
+        engine._applyFilters();
+
+        expect(visibleSets(engine)).toEqual(['A', 'B']);
     });
 
     it('the default (untouched) range shows every card, priced or not', () => {
