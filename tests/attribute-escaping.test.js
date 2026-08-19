@@ -590,9 +590,12 @@ describe('card data attributes — sport, era, type and price', () => {
   }
 
   it('injects nothing through a hostile price from a hand-edited gist', () => {
+    // getPrice() is Number(card.price) || 0 - a non-numeric string like HOSTILE
+    // never reaches the DOM at all, since Number() turns it into NaN and the
+    // || 0 fallback normalizes it away before sanitizeAttr ever sees it.
     const { el } = renderOne({ ...CARD, price: HOSTILE });
 
-    expect(el.dataset.price).toBe(HOSTILE);
+    expect(el.dataset.price).toBe('0');
     expect(el.getAttribute('onerror')).toBe(null);
     expect(inlineHandlers(container())).toEqual([]);
   });

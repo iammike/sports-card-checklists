@@ -25,6 +25,21 @@ const ENGINE_BUILTIN_CLEARABLE = new Set([
 // parallel) while not re-checking on every single save of a solo editing streak.
 const FRESH_MERGE_WINDOW_MS = 30000;
 
+// Card prices on a typical checklist are heavily right-skewed - most cards
+// cluster under $20-30 while a handful of rare parallels/autos run into the
+// thousands (e.g. #740's own data: 288 cards, 67% at $30 or under, ceiling
+// $7000). A linear slider gives that entire common range a sliver of pixels
+// at one end of the track. The price slider's raw <input> position instead
+// runs 0..PRICE_SLIDER_RESOLUTION and is mapped onto the real dollar amounts
+// in this checklist's own cards (see _priceAtSliderPosition): position t maps
+// to the price at the t-th percentile of this checklist's actual prices, so
+// each equal step of drag distance passes over roughly the same *number* of
+// cards rather than the same number of dollars. Wherever this checklist's
+// cards are actually clustered - $5-30, or $200-400, or wherever - that's
+// where the slider naturally gives the most control, with no fixed curve or
+// per-checklist tuning required.
+const PRICE_SLIDER_RESOLUTION = 1000;
+
 class ChecklistEngine {
     constructor() {
         this.id = new URLSearchParams(window.location.search).get('id');
@@ -1021,8 +1036,14 @@ class ChecklistEngine {
     // Price
     // ========================================
 
+    // Number(), not the bare field: a hand-edited gist can store price as a
+    // string ("25"), and every caller here trusts the result to add/subtract
+    // like a number - extraOwnedValue += this.getPrice(card) would silently do
+    // string concatenation instead of addition, and the price slider's
+    // percentile interpolation the same. Number(undefined/NaN) is NaN, so the
+    // || 0 fallback still covers both a missing price and a garbage string.
     getPrice(card) {
-        return card.price || 0;
+        return Number(card.price) || 0;
     }
 
     getPriceThresholds() {
@@ -1275,14 +1296,22 @@ class ChecklistEngine {
 
         // Price range (dual-handle slider) - omitted entirely when nothing on
         // this checklist has a price, so it never shows up as a dead control.
-        const priceBounds = this._getPriceBounds(allCards);
+        // The <input> elements themselves move over raw 0..PRICE_SLIDER_RESOLUTION
+        // positions, not dollars - _initPriceRangeSlider maps position to price
+        // against this checklist's own sorted prices (data-prices) so the slider's
+        // resolution follows wherever these specific cards are actually priced,
+        // not a fixed curve. data-max carries the dollar ceiling for the initial
+        // label; the sorted prices are frozen at render time the same way the
+        // ceiling already was (see the "touched" comment in _applyFilters).
+        const sortedPrices = this._getSortedPrices(allCards);
+        const priceBounds = this._getPriceBounds(allCards, sortedPrices);
         if (priceBounds) {
-            html += `<div class="price-range-filter" id="price-range-filter" data-min="${priceBounds.min}" data-max="${priceBounds.max}">
+            html += `<div class="price-range-filter" id="price-range-filter" data-max="${priceBounds.max}" data-prices="${sanitizeAttr(JSON.stringify(sortedPrices))}">
                 <span class="price-range-label">Price: <span id="price-range-display">$${priceBounds.min} - $${priceBounds.max}</span></span>
                 <div class="price-range-track">
                     <div class="price-range-fill" id="price-range-fill"></div>
-                    <input type="range" id="price-min-filter" min="${priceBounds.min}" max="${priceBounds.max}" value="${priceBounds.min}" step="1" aria-label="Minimum price">
-                    <input type="range" id="price-max-filter" min="${priceBounds.min}" max="${priceBounds.max}" value="${priceBounds.max}" step="1" aria-label="Maximum price">
+                    <input type="range" id="price-min-filter" min="0" max="${PRICE_SLIDER_RESOLUTION}" value="0" step="1" aria-label="Minimum price">
+                    <input type="range" id="price-max-filter" min="0" max="${PRICE_SLIDER_RESOLUTION}" value="${PRICE_SLIDER_RESOLUTION}" step="1" aria-label="Maximum price">
                 </div>
             </div>`;
         }
@@ -1338,15 +1367,43 @@ class ChecklistEngine {
         return defs;
     }
 
-    // Price slider bounds from actual priced cards; null when nothing on this
-    // checklist has a price, so the caller can skip rendering the slider.
-    _getPriceBounds(allCards = this._getAllCardsFlat()) {
-        const prices = allCards
+    // Every priced card's price, ascending. This is the checklist's own price
+    // distribution that the slider maps its raw positions against - see
+    // _priceAtSliderPosition and the PRICE_SLIDER_RESOLUTION comment above.
+    _getSortedPrices(allCards = this._getAllCardsFlat()) {
+        return allCards
             .map(c => this.getPrice(c))
-            .filter(p => p > 0);
-        if (prices.length === 0) return null;
-        const highest = prices.reduce((max, p) => (p > max ? p : max), 0);
-        return { min: 0, max: Math.max(1, Math.ceil(highest)) };
+            .filter(p => p > 0)
+            .sort((a, b) => a - b);
+    }
+
+    // Price slider bounds from actual priced cards; null when nothing on this
+    // checklist has a price, so the caller can skip rendering the slider. Takes
+    // an already-sorted price list when the caller has one (_renderFilters) to
+    // avoid sorting the same array twice.
+    _getPriceBounds(allCards = this._getAllCardsFlat(), sortedPrices = this._getSortedPrices(allCards)) {
+        if (sortedPrices.length === 0) return null;
+        return { min: 0, max: Math.max(1, Math.ceil(sortedPrices[sortedPrices.length - 1])) };
+    }
+
+    // Maps a raw slider position (0..PRICE_SLIDER_RESOLUTION) to a dollar amount
+    // by walking `sortedPrices`, this checklist's own priced cards ascending -
+    // position 0 is always $0 and position PRICE_SLIDER_RESOLUTION is always
+    // exactly the highest price, with sortedPrices treated as [$0, ...prices]
+    // for interpolation so every position in between lands at the percentile of
+    // *cards*, not of dollars. That's what gives the slider real resolution
+    // wherever this checklist's cards are actually clustered - $1-$30, or a
+    // $200-400 band, or wherever - rather than assuming any particular shape.
+    _priceAtSliderPosition(raw, sortedPrices) {
+        const n = sortedPrices.length;
+        if (n === 0) return 0;
+        const t = Math.max(0, Math.min(1, raw / PRICE_SLIDER_RESOLUTION));
+        const pointAt = i => (i === 0 ? 0 : sortedPrices[i - 1]); // index 0 is the implicit $0 floor
+        const idx = t * n;
+        const lo = Math.floor(idx);
+        const hi = Math.min(lo + 1, n);
+        const frac = idx - lo;
+        return Math.round(pointAt(lo) + frac * (pointAt(hi) - pointAt(lo)));
     }
 
     // Two overlapping range inputs standing in for one dual-handle slider - each
@@ -1370,9 +1427,9 @@ class ChecklistEngine {
         const maxInput = wrap.querySelector('#price-max-filter');
         const fill = wrap.querySelector('#price-range-fill');
         const display = wrap.querySelector('#price-range-display');
-        const bounds = { min: parseFloat(wrap.dataset.min), max: parseFloat(wrap.dataset.max) };
-        const span = (bounds.max - bounds.min) || 1;
-        const mid = bounds.min + span / 2;
+        const sortedPrices = JSON.parse(wrap.dataset.prices || '[]');
+        const mid = PRICE_SLIDER_RESOLUTION / 2;
+        const priceAt = raw => this._priceAtSliderPosition(raw, sortedPrices);
 
         // A native thumb's center travels from half its own width to (track
         // width - half its width), not edge to edge, so a plain percentage
@@ -1382,17 +1439,17 @@ class ChecklistEngine {
         const thumbOffset = pct => (THUMB_PX / 2) - (pct / 100) * THUMB_PX;
 
         const update = () => {
-            const minVal = parseFloat(minInput.value);
-            const maxVal = parseFloat(maxInput.value);
-            display.textContent = `$${minVal} - $${maxVal}`;
-            const left = ((minVal - bounds.min) / span) * 100;
-            const right = ((maxVal - bounds.min) / span) * 100;
+            const minRaw = parseFloat(minInput.value);
+            const maxRaw = parseFloat(maxInput.value);
+            display.textContent = `$${priceAt(minRaw)} - $${priceAt(maxRaw)}`;
+            const left = (minRaw / PRICE_SLIDER_RESOLUTION) * 100;
+            const right = (maxRaw / PRICE_SLIDER_RESOLUTION) * 100;
             const width = Math.max(0, right - left);
             fill.style.left = `calc(${left}% + ${thumbOffset(left).toFixed(3)}px)`;
             fill.style.width = `calc(${width}% + ${(thumbOffset(right) - thumbOffset(left)).toFixed(3)}px)`;
             // Above the midpoint min is the one likely to collide with max, so
             // bring it to the front; below the midpoint max is the collision risk.
-            const minOnTop = minVal > mid;
+            const minOnTop = minRaw > mid;
             minInput.style.zIndex = minOnTop ? '2' : '1';
             maxInput.style.zIndex = minOnTop ? '1' : '2';
         };
@@ -1676,10 +1733,18 @@ class ChecklistEngine {
         // and re-uncapping it would silently defeat the cap they just set. The
         // "touched" flag (_initPriceRangeSlider) records a real interaction, so
         // only a handle nobody has ever moved is treated as uncapped.
+        //
+        // The inputs themselves carry a raw 0..PRICE_SLIDER_RESOLUTION position,
+        // not a dollar amount (see _priceAtSliderPosition) - the wrapper's
+        // data-prices is this checklist's own sorted prices that position is
+        // mapped against.
+        const sortedPrices = JSON.parse(document.getElementById('price-range-filter')?.dataset.prices || '[]');
         const priceRange = (priceMin && priceMax)
             ? {
-                min: parseFloat(priceMin.value),
-                max: priceMax.dataset.touched === 'true' ? parseFloat(priceMax.value) : Infinity,
+                min: this._priceAtSliderPosition(parseFloat(priceMin.value), sortedPrices),
+                max: priceMax.dataset.touched === 'true'
+                    ? this._priceAtSliderPosition(parseFloat(priceMax.value), sortedPrices)
+                    : Infinity,
             }
             : null;
 
