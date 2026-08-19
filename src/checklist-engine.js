@@ -467,10 +467,12 @@ class ChecklistEngine {
         // would keep stripping this field from the fresh gist copy even after
         // this write successfully persisted the deletion, clobbering a value
         // added by another client after this write landed. _captureMarkerReleases
-        // snapshots exactly which markers this specific payload resolves, so an
-        // edit that lands on the same card while this write is still in flight
-        // (and was never part of this payload) is left alone rather than
-        // released early.
+        // snapshots exactly which markers this specific payload resolves and
+        // gates every release on the card's _markerVersion being unchanged, so
+        // an edit that lands on the same card while this write is still in
+        // flight is left alone rather than released early - including a re-clear
+        // of the very same field, which a value-only check (still '', still in
+        // the array) can't tell apart from the clear this payload confirmed.
         let markerReleases = [];
         if (this._isFlat()) {
             markerReleases = this._captureMarkerReleases(this.cards);
@@ -509,24 +511,42 @@ class ChecklistEngine {
     // (#735 follow-up: releasing on success is what keeps a resolved marker
     // from suppressing a field forever, the same way keeping it alive on a
     // failed write is what stops the field from silently reverting).
+    //
+    // Every release is gated on card._markerVersion still matching what it was
+    // at capture time. A value check alone (still '', still in the array) is
+    // not enough: img cleared, then restored, then cleared *again* while the
+    // first write is still in flight looks identical to the original clear by
+    // value, but the second clear was never part of the payload this write is
+    // about to confirm, and releasing it early would silently lose it the
+    // moment a later save for it fails - exactly the failure mode #735 exists
+    // to close. _clearEmptyFields bumps the version on every edit to the card,
+    // so any edit at all since capture - not just one touching this specific
+    // field - blocks the release; that only costs a delayed release (the next
+    // successful, uninterrupted save re-captures and releases normally), never
+    // an incorrect one.
     _captureMarkerReleases(cardArray) {
         if (!Array.isArray(cardArray)) return [];
         const releases = [];
         for (const card of cardArray) {
+            const capturedVersion = card._markerVersion;
+            const unchanged = () => card._markerVersion === capturedVersion;
+
             if (card.img === '') {
-                releases.push(() => { if (card.img === '') delete card.img; });
+                releases.push(() => { if (unchanged() && card.img === '') delete card.img; });
             }
             if (card.noCard === false) {
-                releases.push(() => { if (card.noCard === false) delete card.noCard; });
+                releases.push(() => { if (unchanged() && card.noCard === false) delete card.noCard; });
             }
             // Snapshot the array contents now, not a reference to the array - a
             // key cleared by a later, still-unwritten edit while this write is in
             // flight appends to the live array (see _recordClearedKeys's carry
-            // forward), and must not be released just because it happens to
-            // share the array with a key this payload did capture.
+            // forward). The version gate above already blocks this release
+            // entirely once that happens; the content diff in
+            // _releaseClearedKeys is a second, independent safety net specific
+            // to _clearedKeys being a list rather than a single value.
             if (Array.isArray(card._clearedKeys) && card._clearedKeys.length > 0) {
                 const captured = [...card._clearedKeys];
-                releases.push(() => this._releaseClearedKeys(card, captured));
+                releases.push(() => { if (unchanged()) this._releaseClearedKeys(card, captured); });
             }
         }
         return releases;
@@ -634,6 +654,12 @@ class ChecklistEngine {
             const copy = { ...c };
             if (copy.img === '') delete copy.img;
             if (copy.noCard === false) delete copy.noCard;
+            // Ours are always set non-enumerably, so the spread above never
+            // copies them from a card this engine produced - but a hand-edited
+            // gist can hold either as plain enumerable JSON, and without this
+            // it would round-trip straight back into the write.
+            delete copy._clearedKeys;
+            delete copy._markerVersion;
             return copy;
         });
     }
@@ -669,10 +695,14 @@ class ChecklistEngine {
     // _saveCardData right before the payload _sentinelStrippedPayload builds.
     // Mutates and returns `merged` for convenience.
     _stripLocalOnlyMarkers(merged, localCard) {
-        // A hand-edited gist card could carry an enumerable _clearedKeys of its
-        // own (spread in from freshCard or localCard); drop it before recording
-        // ours so it can't be mistaken for a legitimate carried-forward marker.
+        // A hand-edited gist card could carry an enumerable _clearedKeys (or
+        // _markerVersion) of its own (spread in from freshCard or localCard);
+        // drop both before recording ours so neither can be mistaken for a
+        // legitimate marker. _markerVersion isn't restored afterward - a merge
+        // produces a new object, and a version capture taken against it simply
+        // starts from undefined, which _captureMarkerReleases already handles.
         delete merged._clearedKeys;
+        delete merged._markerVersion;
         // Keys the edit cleared: the gist copy is the merge base, so its old
         // value has to be deleted explicitly from `merged` (#686). Array-checked
         // because a hand-edited gist card could carry a _clearedKeys of any
@@ -2559,6 +2589,17 @@ class ChecklistEngine {
     // the card for the merge to delete (#686).
     // `before` is the card as it was prior to Object.assign(card, cardData).
     _clearEmptyFields(card, cardData, before) {
+        // Bumped on every edit to this card, cleared fields or not - a marker
+        // capture taken before this edit (_captureMarkerReleases) uses this to
+        // tell it's now stale, so a save in flight when the *same* field gets
+        // cleared, restored, then cleared again can't have its confirmed write
+        // release the second, still-unwritten clear just because the value
+        // happens to match (#735 follow-up). Non-enumerable so a stray copy
+        // never reaches a merge result or the gist.
+        Object.defineProperty(card, '_markerVersion', {
+            value: (card._markerVersion || 0) + 1, enumerable: false, writable: true, configurable: true,
+        });
+
         const cleared = [];
         // Only claim a key was cleared if it had a value to clear - otherwise a
         // field added to the gist externally would be wiped by an unrelated edit

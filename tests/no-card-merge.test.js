@@ -528,3 +528,76 @@ describe('a marker release only drops what it captured, not whatever is there wh
     expect(card.img).toBe('https://new.png'); // not clobbered back to deleted
   });
 });
+
+// The gap the two tests above don't cover: a *re-clear* of the same field
+// while the original write is in flight is indistinguishable from the
+// original clear by value alone (still '' in both cases, still in the array
+// in both cases) - only _markerVersion tells them apart. Driven through the
+// real _updateCard/_saveCardData path rather than direct engine-internal
+// calls, using the saveCardData stub itself as the synchronization point: the
+// stub body runs synchronously, after _captureMarkerReleases has already
+// captured this save's markers and before the write "resolves", which is
+// exactly when a concurrent edit needs to land to prove anything.
+describe('a same-field re-clear while a write is in flight is not released early (#735 follow-up)', () => {
+  afterEach(() => {
+    delete globalThis.githubSync;
+  });
+
+  it('img: clear, restore, clear again before the first write resolves - the second clear survives', async () => {
+    const engine = makeFlatEngine([{ id: 'n1', set: 'Prizm', img: 'https://old.png' }]);
+    // _captureMarkerReleases has already run by the time _saveCardData awaits
+    // this call, so mutating the card synchronously here - before resolving -
+    // simulates the write being in flight when the user restores the image,
+    // then clears it again.
+    const saveCardData = vi.fn(async () => {
+      engine._updateCard('n1', { id: 'n1', set: 'Prizm', img: 'https://new.png' });
+      engine._updateCard('n1', { id: 'n1', set: 'Prizm', img: '' });
+      return { ok: true };
+    });
+    globalThis.githubSync = {
+      clearGistCache: () => {},
+      loadCardData: async () => null,
+      loadPublicCardData: async () => null,
+      saveCardData,
+    };
+    engine.checklistManager = { getCardId: (c) => c.id, setSyncStatus: () => {} };
+    engine.cardData = { cards: [] };
+    engine.computeStats = () => ({});
+
+    engine._updateCard('n1', { id: 'n1', set: 'Prizm', img: '' }); // the clear this write will confirm
+    await engine._saveCardData();
+
+    // Released img would come back from the gist's old value on the next
+    // merge, even though the user's most recent action was to clear it again.
+    expect(engine.cards[0].img).toBe('');
+  });
+
+  it('a custom field: clear, restore, clear again before the first write resolves - the second clear survives', async () => {
+    const config = { dataShape: 'flat', customFields: { patch: { type: 'checkbox' } } };
+    const engine = Object.create(ChecklistEngine.prototype);
+    engine.id = 'test';
+    engine.config = config;
+    engine.cards = [{ id: 'n1', set: 'Prizm', patch: true }];
+    const saveCardData = vi.fn(async () => {
+      engine._updateCard('n1', { id: 'n1', set: 'Prizm', patch: true }); // restore
+      engine._updateCard('n1', { id: 'n1', set: 'Prizm' }); // re-clear (checkbox omitted = unchecked)
+      return { ok: true };
+    });
+    globalThis.githubSync = {
+      clearGistCache: () => {},
+      loadCardData: async () => null,
+      loadPublicCardData: async () => null,
+      saveCardData,
+    };
+    engine.checklistManager = { getCardId: (c) => c.id, setSyncStatus: () => {} };
+    engine.cardData = { cards: [] };
+    engine.computeStats = () => ({});
+    engine._lastFreshMergeAt = 0;
+
+    engine._updateCard('n1', { id: 'n1', set: 'Prizm' }); // the clear this write will confirm
+    await engine._saveCardData();
+
+    expect(engine.cards[0]._clearedKeys).toEqual(['patch']);
+    expect(engine.cards[0].patch).toBeUndefined();
+  });
+});
