@@ -1833,9 +1833,14 @@ class ChecklistEngine {
 
         // Price range - getPrice matches every other price consumer (sort,
         // stats), so a hand-edited gist string like "45" filters the same way
-        // it sorts instead of falling through to the unpriced bucket.
+        // it sorts. An unpriced card usually means "too rare to find a price
+        // for," not "worth $0" - treating it as infinitely expensive keeps it
+        // visible by default (min starts at 0, and the max handle starts
+        // uncapped) and only excludes it once the user sets a real upper cap,
+        // rather than making it vanish the instant min leaves 0.
         if (priceRange) {
-            const price = this.getPrice(card);
+            const rawPrice = this.getPrice(card);
+            const price = rawPrice > 0 ? rawPrice : Infinity;
             if (price < priceRange.min || price > priceRange.max) return false;
         }
 
