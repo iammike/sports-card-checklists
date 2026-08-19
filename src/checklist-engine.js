@@ -1264,6 +1264,27 @@ class ChecklistEngine {
             <option value="need">Needed Only</option>
         </select>`;
 
+        // Attribute toggle filters (Auto / Patch / Numbered / Rookie). Unlike the
+        // dropdowns above, these are checkboxes: any combination can be active at
+        // once and they AND together with every other filter in _filterCard.
+        this._quickFilterDefs().forEach(d => {
+            html += `<button type="button" class="filter-btn quick-filter-btn" data-quick-filter="${sanitizeAttr(d.key)}" aria-pressed="false">${sanitizeText(d.label)}</button>`;
+        });
+
+        // Price range (dual-handle slider) - omitted entirely when nothing on
+        // this checklist has a price, so it never shows up as a dead control.
+        const priceBounds = this._getPriceBounds();
+        if (priceBounds) {
+            html += `<div class="price-range-filter" id="price-range-filter" data-min="${priceBounds.min}" data-max="${priceBounds.max}">
+                <span class="price-range-label">Price: <span id="price-range-display">$${priceBounds.min} - $${priceBounds.max}</span></span>
+                <div class="price-range-track">
+                    <div class="price-range-fill" id="price-range-fill"></div>
+                    <input type="range" id="price-min-filter" min="${priceBounds.min}" max="${priceBounds.max}" value="${priceBounds.min}" step="1" aria-label="Minimum price">
+                    <input type="range" id="price-max-filter" min="${priceBounds.min}" max="${priceBounds.max}" value="${priceBounds.max}" step="1" aria-label="Maximum price">
+                </div>
+            </div>`;
+        }
+
         // Search
         html += `<span class="search-wrapper"><input type="text" id="search" placeholder="Search cards..." aria-label="Search cards"><button class="search-clear" type="button" aria-label="Clear search">&times;</button></span>`;
 
@@ -1282,9 +1303,87 @@ class ChecklistEngine {
             if (input) { input.value = ''; input.focus(); this._onFilterChange(); }
         });
         container.querySelector('#reorder-btn')?.addEventListener('click', () => this._toggleReorderMode());
+        container.querySelectorAll('.quick-filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const active = btn.classList.toggle('active');
+                btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+                this._onFilterChange();
+            });
+        });
+        this._initPriceRangeSlider(container);
 
         // Show reorder button if applicable
         this._updateReorderButton();
+    }
+
+    // Which attribute toggles apply to this checklist. Auto/Patch/Numbered mirror
+    // the same customFields gate CardRenderer.renderAttributeBadges uses, so a
+    // toggle never appears for a field this config deliberately doesn't track.
+    // Rookie predates the editor and has no customFields entry at all (see
+    // _isManagedField), so it's gated on data presence instead - shown only when
+    // some card actually carries it.
+    _quickFilterDefs() {
+        const customFields = this.config.customFields || {};
+        const defs = [
+            { key: 'auto', label: 'Auto', field: 'auto' },
+            { key: 'patch', label: 'Patch', field: 'patch' },
+            { key: 'numbered', label: 'Numbered', field: 'serial' },
+        ].filter(d => customFields[d.field]);
+
+        if (this._getAllCardsFlat().some(c => c.rc)) {
+            defs.push({ key: 'rookie', label: 'Rookie', field: 'rc' });
+        }
+        return defs;
+    }
+
+    // Price slider bounds from actual priced cards; null when nothing on this
+    // checklist has a price, so the caller can skip rendering the slider.
+    _getPriceBounds() {
+        const prices = this._getAllCardsFlat()
+            .map(c => c.price)
+            .filter(p => typeof p === 'number' && p > 0);
+        if (prices.length === 0) return null;
+        return { min: 0, max: Math.max(1, Math.ceil(Math.max(...prices))) };
+    }
+
+    // Two overlapping range inputs standing in for one dual-handle slider - each
+    // input's own track is hidden (CSS) and only its thumb accepts pointer events,
+    // so a click always grabs a specific handle instead of jumping the nearer one
+    // to the click point. Dragging one handle past the other clamps them together
+    // rather than letting them cross, which would strand the passed handle under
+    // its sibling with no way to grab it back.
+    _initPriceRangeSlider(container) {
+        const wrap = container.querySelector('#price-range-filter');
+        if (!wrap) return;
+        const minInput = wrap.querySelector('#price-min-filter');
+        const maxInput = wrap.querySelector('#price-max-filter');
+        const fill = wrap.querySelector('#price-range-fill');
+        const display = wrap.querySelector('#price-range-display');
+        const bounds = { min: parseFloat(wrap.dataset.min), max: parseFloat(wrap.dataset.max) };
+        const span = (bounds.max - bounds.min) || 1;
+
+        const update = () => {
+            const minVal = parseFloat(minInput.value);
+            const maxVal = parseFloat(maxInput.value);
+            display.textContent = `$${minVal} - $${maxVal}`;
+            const left = ((minVal - bounds.min) / span) * 100;
+            const right = ((maxVal - bounds.min) / span) * 100;
+            fill.style.left = `${left}%`;
+            fill.style.width = `${Math.max(0, right - left)}%`;
+        };
+
+        minInput.addEventListener('input', () => {
+            if (parseFloat(minInput.value) > parseFloat(maxInput.value)) minInput.value = maxInput.value;
+            update();
+            this._onFilterChange();
+        });
+        maxInput.addEventListener('input', () => {
+            if (parseFloat(maxInput.value) < parseFloat(minInput.value)) maxInput.value = minInput.value;
+            update();
+            this._onFilterChange();
+        });
+
+        update();
     }
 
     _getSortLabel(key) {
@@ -1523,12 +1622,21 @@ class ChecklistEngine {
             if (el) customFilterValues[f.id] = el.value;
         });
 
+        const quickFilters = new Set(
+            [...document.querySelectorAll('.quick-filter-btn.active')].map(b => b.dataset.quickFilter)
+        );
+        const priceMin = document.getElementById('price-min-filter');
+        const priceMax = document.getElementById('price-max-filter');
+        const priceRange = (priceMin && priceMax)
+            ? { min: parseFloat(priceMin.value), max: parseFloat(priceMax.value) }
+            : null;
+
         // Toggle visibility on individual cards
         container.querySelectorAll('.card').forEach(cardEl => {
             const idx = parseInt(cardEl.dataset.cardIdx);
             const card = this._renderedCards[idx];
             if (!card) return;
-            const visible = this._filterCard(card, statusFilter, searchTerm, customFilterValues);
+            const visible = this._filterCard(card, statusFilter, searchTerm, customFilterValues, quickFilters, priceRange);
             cardEl.classList.toggle('filter-hidden', !visible);
         });
 
@@ -1565,7 +1673,7 @@ class ChecklistEngine {
         return value == null ? null : String(value);
     }
 
-    _filterCard(card, statusFilter, searchTerm, customFilterValues) {
+    _filterCard(card, statusFilter, searchTerm, customFilterValues, quickFilters = new Set(), priceRange = null) {
         // Status filter
         if (statusFilter !== 'all') {
             // No-card entries are neither owned nor obtainable
@@ -1604,6 +1712,21 @@ class ChecklistEngine {
             } else {
                 if (cardValue !== filterValue) return false;
             }
+        }
+
+        // Price range
+        if (priceRange) {
+            const price = typeof card.price === 'number' ? card.price : 0;
+            if (price < priceRange.min || price > priceRange.max) return false;
+        }
+
+        // Attribute toggles (Auto / Patch / Numbered / Rookie) - all active
+        // toggles must match, same AND semantics as every other filter here.
+        for (const key of quickFilters) {
+            if (key === 'auto' && !card.auto) return false;
+            if (key === 'patch' && !card.patch) return false;
+            if (key === 'numbered' && !card.serial) return false;
+            if (key === 'rookie' && !card.rc) return false;
         }
 
         return true;
