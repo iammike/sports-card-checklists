@@ -2691,6 +2691,19 @@ select, input[type="text"] {
     display: block;
 }
 
+/* Cropper.js's own CSS (loaded from the CDN, after this stylesheet) sizes its
+   bottom-right resize handle (point-se) via @media width breakpoints keyed to
+   the whole browser viewport - not this modal - stepping from 20px down to
+   5px only above a 1200px-wide window. Every other handle stays a fixed 5px
+   at every width, so on any narrower window that one corner renders visibly
+   oversized next to the rest. !important is needed to beat cropper.css's
+   equal-specificity, later-loaded media-query rules. */
+.cropper-point.point-se {
+    width: 5px !important;
+    height: 5px !important;
+    opacity: 0.75 !important;
+}
+
 /* Two-row toolbar: tools on top, text input below */
 .image-editor-controls {
     display: flex;
@@ -2869,7 +2882,14 @@ select, input[type="text"] {
 
 .perspective-canvas {
     max-width: 100%;
-    max-height: 60vh;
+    /* Relative to .image-editor-canvas's real box, not the viewport - matches
+       .image-editor-canvas img's pattern for the Crop & Rotate tab. A fixed
+       60vh here could exceed what .image-editor-canvas actually has available
+       on a short window, and since that parent has overflow: hidden, the
+       excess got clipped instead of shrinking - cutting off part of the card
+       and pushing the corner-drag handles to the clipped edge, sometimes out
+       of view entirely (#737 follow-up). */
+    max-height: 100%;
     display: block;
 }
 
