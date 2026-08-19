@@ -398,7 +398,7 @@ describe('the payload _saveCardData actually submits (#733)', () => {
     };
   }
 
-  it('strips sentinels from a flat checklist payload without touching this.cards', async () => {
+  it('strips sentinels from a flat checklist payload, then releases them from this.cards once the write lands (#735)', async () => {
     const saveCardData = vi.fn(async () => ({ ok: true }));
     stubGithubSync(saveCardData);
 
@@ -412,10 +412,15 @@ describe('the payload _saveCardData actually submits (#733)', () => {
     const [, submittedCardData] = saveCardData.mock.calls[0];
     expect('img' in submittedCardData.cards[0]).toBe(false);
     expect('noCard' in submittedCardData.cards[0]).toBe(false);
-    expect(engine.cards[0].img).toBe(''); // live state still carries the marker
+    // A successful write is what finally resolves the marker for good - a
+    // live '' surviving indefinitely would make every future merge keep
+    // stripping img from the fresh gist copy, even after another client adds
+    // a real one post-write.
+    expect('img' in engine.cards[0]).toBe(false);
+    expect('noCard' in engine.cards[0]).toBe(false);
   });
 
-  it('strips sentinels from every category in a category-shaped checklist payload', async () => {
+  it('strips sentinels from every category in a category-shaped checklist payload, then releases them too', async () => {
     const saveCardData = vi.fn(async () => ({ ok: true }));
     stubGithubSync(saveCardData);
 
@@ -435,6 +440,91 @@ describe('the payload _saveCardData actually submits (#733)', () => {
     const [, submittedCardData] = saveCardData.mock.calls[0];
     expect('img' in submittedCardData.categories.base[0]).toBe(false);
     expect('noCard' in submittedCardData.categories.inserts[0]).toBe(false);
-    expect(engine.cards.base[0].img).toBe(''); // live state untouched
+    expect('img' in engine.cards.base[0]).toBe(false);
+    expect('noCard' in engine.cards.inserts[0]).toBe(false);
+  });
+
+  it('leaves the marker on this.cards when the write fails, unlike the successful case above', async () => {
+    const saveCardData = vi.fn(async () => ({ ok: false, reason: 'network_error' }));
+    stubGithubSync(saveCardData);
+
+    const engine = makeFlatEngine([{ id: 'n1', set: 'Prizm', img: '' }]);
+    engine.cardData = { cards: [] };
+    engine.checklistManager = { setSyncStatus: () => {} };
+    engine.computeStats = () => ({});
+
+    await engine._saveCardData();
+
+    expect(saveCardData).toHaveBeenCalledTimes(2); // the automatic retry also failed
+    expect(engine.cards[0].img).toBe(''); // marker survives for the next save to retry
+  });
+
+  it('produces a clean payload even when a real merge (not just the no-merge fallback) runs first', async () => {
+    // Every other test in this describe block stubs loadCardData to return
+    // null, so _mergeWithFreshGistData bails before _mergeCardArrays ever
+    // runs - that only proves the no-merge fallback path (#733). This is the
+    // path #735 actually changed: a merge completes, _stripLocalOnlyMarkers
+    // keeps the marker alive on the merged result, and the payload built from
+    // that result still has to come out clean.
+    const saveCardData = vi.fn(async () => ({ ok: true }));
+    globalThis.githubSync = {
+      clearGistCache: () => {},
+      loadCardData: async () => ({ cards: [{ id: 'n1', set: 'Prizm', img: 'https://old.png' }] }),
+      loadPublicCardData: async () => null,
+      saveCardData,
+    };
+
+    const engine = makeFlatEngine([{ id: 'n1', set: 'Prizm', img: '' }]);
+    engine.cardData = { cards: [] };
+    engine.checklistManager = { setSyncStatus: () => {} };
+    engine.computeStats = () => ({});
+
+    await engine._saveCardData();
+
+    const [, submittedCardData] = saveCardData.mock.calls[0];
+    expect('img' in submittedCardData.cards[0]).toBe(false); // not resurrected, not leaked into the payload
+    expect('img' in engine.cards[0]).toBe(false); // and released now that the write landed
+  });
+});
+
+// Exercises _captureMarkerReleases/_releaseClearedKeys directly rather than
+// through the full async _saveCardData flow: the scenario is specifically
+// about *when* a release runs relative to a concurrent edit, and racing real
+// promises to land a synchronous mutation at the right microtask is exactly
+// the kind of timing assumption that makes a test flaky without actually
+// proving anything an explicit two-step capture-then-mutate-then-release
+// doesn't already prove more directly.
+describe('a marker release only drops what it captured, not whatever is there when it runs (#735 follow-up)', () => {
+  it('leaves a key an in-flight edit adds after capture untouched', () => {
+    const engine = makeFlatEngine([]);
+    const card = { id: 'n1', set: 'Prizm', num: '10' };
+    Object.defineProperty(card, '_clearedKeys', {
+      value: ['patch'], enumerable: false, writable: true, configurable: true,
+    });
+
+    const releases = engine._captureMarkerReleases([card]); // snapshots ['patch']
+
+    // A second, unrelated edit clears 'serial' while this write would still be
+    // in flight - mirrors what _recordClearedKeys's carry-forward does to the
+    // live array once a key is missing from the card but not yet in `cleared`.
+    Object.defineProperty(card, '_clearedKeys', {
+      value: ['serial', 'patch'], enumerable: false, writable: true, configurable: true,
+    });
+
+    releases.forEach(release => release()); // the original write "lands"
+
+    expect(card._clearedKeys).toEqual(['serial']); // patch released, serial untouched
+  });
+
+  it('leaves img alone if a later edit restored it before release runs', () => {
+    const engine = makeFlatEngine([]);
+    const card = { id: 'n1', set: 'Prizm', img: '' };
+
+    const releases = engine._captureMarkerReleases([card]);
+    card.img = 'https://new.png'; // user re-added an image before the write confirmed
+
+    releases.forEach(release => release());
+
+    expect(card.img).toBe('https://new.png'); // not clobbered back to deleted
   });
 });
