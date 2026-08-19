@@ -13,14 +13,18 @@ function makeFlatEngine(cards) {
 }
 
 describe('_mergeCardArrays — noCard deletion marker', () => {
-  it('strips noCard: false so the gist copy cannot resurrect the flag', () => {
+  it('keeps noCard: false so the gist copy cannot resurrect the flag, without dropping the marker (#735)', () => {
     const engine = makeFlatEngine([]);
     const merged = engine._mergeCardArrays(
       [{ id: 'n1', set: 'Prizm', noCard: false }],
       [{ id: 'n1', set: 'Prizm', noCard: true }],
     );
 
-    expect('noCard' in merged[0]).toBe(false);
+    // Not resurrected as true - and kept as false, not deleted outright, so
+    // this.cards (what `merged` becomes) still has something for a failed
+    // write to retry with. _sentinelStrippedPayload is what actually drops it
+    // for the gist.
+    expect(merged[0].noCard).toBe(false);
   });
 
   it('keeps noCard: true from the local card', () => {
@@ -44,19 +48,53 @@ describe('_mergeCardArrays — noCard deletion marker', () => {
     expect(merged[0].price).toBe(5);
   });
 
-  it('strips markers on an id-changing edit that has no fresh counterpart', () => {
+  it('keeps markers alive on an id-changing edit that has no fresh counterpart', () => {
     // Editing set/num changes the id derived from them, so the local card no
     // longer matches anything in the fresh gist copy - it takes the early
-    // "no fresh counterpart" return path, which must get the same cleanup.
+    // "no fresh counterpart" return path, which must get the same treatment.
     const engine = makeFlatEngine([]);
     const merged = engine._mergeCardArrays(
       [{ id: 'local-new', set: 'Prizm', num: '13', noCard: false, img: '' }],
       [{ id: 'local-old', set: 'Prizm', num: '12', price: 5 }],
     );
 
-    expect('noCard' in merged[0]).toBe(false);
-    expect('img' in merged[0]).toBe(false);
+    expect(merged[0].noCard).toBe(false);
+    expect(merged[0].img).toBe('');
     expect(merged[0].num).toBe('13');
+  });
+});
+
+// The exact repro from #735: a merge completes and consumes the marker, then
+// this same save's write fails (or never happens, as here - the point is the
+// gist is never actually updated), so a *second* merge runs against fresh data
+// that still has the old value. Before the fix, this brought the old image
+// back after exactly two merges.
+describe('a completed merge survives an unconfirmed write (#735 repro)', () => {
+  afterEach(() => {
+    delete globalThis.githubSync;
+  });
+
+  it('does not let the old image resurface on a second merge after the first merge already ran', async () => {
+    // The gist is never actually updated between the two merges below - that's
+    // standing in for "the write that was supposed to persist merge #1's
+    // result failed," since what matters here is only what the *next* merge
+    // sees, not how the intervening write happened to fail.
+    globalThis.githubSync = {
+      clearGistCache: () => {},
+      loadCardData: async () => ({ cards: [{ id: 'n1', set: 'Prizm', img: 'https://old.png' }] }),
+      loadPublicCardData: async () => null,
+    };
+
+    const engine = makeFlatEngine([{ id: 'n1', set: 'Prizm', img: 'https://old.png' }]);
+    engine._updateCard('n1', { id: 'n1', set: 'Prizm', img: '' });
+
+    await engine._mergeWithFreshGistData(); // merge #1
+    expect(engine.cards[0].img).toBe('');
+
+    engine._lastFreshMergeAt = 0; // force a real fetch+merge again, as a retried save would
+    await engine._mergeWithFreshGistData(); // merge #2 - the bug surfaced here before the fix
+
+    expect(engine.cards[0].img).toBe('');
   });
 });
 
@@ -78,8 +116,11 @@ describe('un-flagging through the full save merge path', () => {
 
     await engine._mergeWithFreshGistData();
 
-    expect(engine.cards[0].noCard).toBeFalsy();
-    expect('noCard' in engine.cards[0]).toBe(false);
+    // Not resurrected as true. The key stays present as false rather than
+    // being deleted outright, so this.cards still carries something for a
+    // failed write to retry with (#735) - _sentinelStrippedPayload is what
+    // actually drops it for the gist.
+    expect(engine.cards[0].noCard).toBe(false);
   });
 
   it('keeps a newly flagged entry flagged through the merge', async () => {
@@ -171,7 +212,7 @@ describe('the freshness-window skip (#733)', () => {
     await engine._mergeWithFreshGistData();
 
     expect(loadCardData).toHaveBeenCalledTimes(1);
-    expect('noCard' in engine.cards.base[0]).toBe(false);
+    expect(engine.cards.base[0].noCard).toBe(false);
   });
 
   it('_onBecameVisible resets the window so the next save re-fetches', () => {
@@ -292,10 +333,13 @@ describe('this.cards is left untouched on every _mergeWithFreshGistData fallback
 
 // _sentinelStrippedPayload resolves img: ''/noCard: false into real deletions as
 // a copy for the write payload, without mutating the card it read from (see the
-// tests above and _saveCardData's comment for why). It does NOT cover
-// _clearedKeys or the fields it names - those still get resolved directly into
-// this.cards by a completed merge in _mergeWithFreshGistData, same as on main;
-// see #735 for the pre-existing gap that leaves open.
+// tests above and _saveCardData's comment for why). It does not need to touch
+// _clearedKeys or the fields it names: those are deleted directly from the live
+// card the moment the edit happens (_clearEmptyFields), independent of any
+// merge, so the payload already excludes them the same way it would without a
+// marker at all. The marker's only job is telling a *future* merge to repeat
+// that deletion if the fresh copy it merges against still has the old value -
+// see _stripLocalOnlyMarkers (#735).
 describe('_sentinelStrippedPayload (#733)', () => {
   it('resolves img: "" into a real deletion in the copy, without touching the source card', () => {
     const card = { id: 'n1', set: 'Prizm', img: '' };
