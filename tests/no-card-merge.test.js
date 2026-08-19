@@ -495,7 +495,7 @@ describe('the payload _saveCardData actually submits (#733)', () => {
 // proving anything an explicit two-step capture-then-mutate-then-release
 // doesn't already prove more directly.
 describe('a marker release only drops what it captured, not whatever is there when it runs (#735 follow-up)', () => {
-  it('leaves a key an in-flight edit adds after capture untouched', () => {
+  it('leaves a key that an in-flight edit adds after capture untouched', () => {
     const engine = makeFlatEngine([]);
     const card = { id: 'n1', set: 'Prizm', num: '10' };
     Object.defineProperty(card, '_clearedKeys', {

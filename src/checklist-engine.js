@@ -2595,9 +2595,12 @@ class ChecklistEngine {
         // cleared, restored, then cleared again can't have its confirmed write
         // release the second, still-unwritten clear just because the value
         // happens to match (#735 follow-up). Non-enumerable so a stray copy
-        // never reaches a merge result or the gist.
+        // never reaches a merge result or the gist. Number()-coerced the same
+        // way getPrice() is: a hand-edited gist could hold a non-numeric
+        // _markerVersion, and `+ 1` on a string concatenates instead of
+        // incrementing.
         Object.defineProperty(card, '_markerVersion', {
-            value: (card._markerVersion || 0) + 1, enumerable: false, writable: true, configurable: true,
+            value: (Number(card._markerVersion) || 0) + 1, enumerable: false, writable: true, configurable: true,
         });
 
         const cleared = [];
