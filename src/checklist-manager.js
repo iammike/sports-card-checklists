@@ -1,3 +1,11 @@
+// How long saveOwned() waits for the owned-checkbox clicks to go quiet before
+// actually writing to the gist. toggleOwned() calls saveOwned() on every click
+// un-awaited, and that path shares _patchGist's write queue - a streak of N
+// quick toggles was N separate PATCHes, serialized ~1s apart (#733), so it took
+// N seconds to fully sync instead of coalescing into one write of the final
+// state (#734).
+const OWNED_SYNC_DEBOUNCE_MS = 1500;
+
 /**
  * Checklist Manager - handles owned state, sync, and auth
  */
@@ -10,6 +18,7 @@ class ChecklistManager {
         this.isReadOnly = true;
         this.onOwnedChange = config.onOwnedChange || (() => {});
         this.getStats = config.getStats || null; // Optional: return stats object for combined save
+        this._ownedSyncTimer = null;
     }
 
     // Generate unique card ID from card data
@@ -90,24 +99,33 @@ class ChecklistManager {
         }
     }
 
-    // Save owned cards to GitHub and localStorage
-    async saveOwned() {
-        // Always save to localStorage as backup
+    // Save owned cards to localStorage immediately and debounce the GitHub
+    // sync (see OWNED_SYNC_DEBOUNCE_MS) - a rapid streak of toggles collapses
+    // into one write of the final state instead of one write per click.
+    saveOwned() {
+        // Always save to localStorage as backup - cheap, local-only, no reason
+        // to delay it behind the network debounce.
         if (this.localStorageKey) {
             localStorage.setItem(this.localStorageKey, JSON.stringify(this.ownedCards));
         }
 
-        // Sync to GitHub if logged in
-        if (window.githubSync && githubSync.isLoggedIn()) {
-            this.setSyncStatus('syncing', 'Syncing...');
-            // Get stats if callback provided (saves both atomically to avoid race condition)
-            const stats = this.getStats ? this.getStats() : null;
-            const success = await githubSync.saveChecklist(this.checklistId, this.ownedCards, stats);
-            if (success) {
-                this.setSyncStatus('synced', 'Synced');
-            } else {
-                this.setSyncStatus('error', 'Sync failed');
-            }
+        if (!(window.githubSync && githubSync.isLoggedIn())) return;
+
+        // Reflect the pending sync immediately - the debounce delays the
+        // network call, not the feedback that a save is on its way.
+        this.setSyncStatus('syncing', 'Syncing...');
+        clearTimeout(this._ownedSyncTimer);
+        this._ownedSyncTimer = setTimeout(() => this._syncOwnedNow(), OWNED_SYNC_DEBOUNCE_MS);
+    }
+
+    async _syncOwnedNow() {
+        // Get stats if callback provided (saves both atomically to avoid race condition)
+        const stats = this.getStats ? this.getStats() : null;
+        const success = await githubSync.saveChecklist(this.checklistId, this.ownedCards, stats);
+        if (success) {
+            this.setSyncStatus('synced', 'Synced');
+        } else {
+            this.setSyncStatus('error', 'Sync failed');
         }
     }
 
