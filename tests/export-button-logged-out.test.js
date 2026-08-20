@@ -89,7 +89,14 @@ describe('Shopping List button in the filter row', () => {
 
         expect(showOptionsModal).not.toHaveBeenCalled();
         expect(generate).toHaveBeenCalledTimes(1);
-        expect([...generate.mock.calls[0][0].selectedChecklists]).toEqual(['test']);
+        const opts = generate.mock.calls[0][0];
+        expect([...opts.selectedChecklists]).toEqual(['test']);
+        // No options passed at all: generate() already defaults both to false, so
+        // naming them here would only be a chance to pass the wrong thing. The
+        // output side of this is pinned in tests/shopping-list.test.js - this end
+        // pins that the button is what asks for it.
+        expect(opts.includeExtra).toBeUndefined();
+        expect(opts.groupByChecklist).toBeUndefined();
     });
 
     // The disable is the only thing stopping a double-click, which would mean a
@@ -103,6 +110,7 @@ describe('Shopping List button in the filter row', () => {
 
         makeEngine()._renderFilters();
         const btn = document.getElementById('shopping-list-filter-btn');
+        const originalLabel = btn.textContent;
         btn.click();
 
         expect(btn.disabled).toBe(true);
@@ -112,7 +120,7 @@ describe('Shopping List button in the filter row', () => {
         await flush();
 
         expect(btn.disabled).toBe(false);
-        expect(btn.textContent).toBe('Export PDF');
+        expect(btn.textContent).toBe(originalLabel);
     });
 
     it('labels the button Export PDF', () => {
@@ -132,13 +140,17 @@ describe('Shopping List button in the filter row', () => {
 
         makeEngine()._renderFilters();
         const btn = document.getElementById('shopping-list-filter-btn');
-        btn.click();
-        await flush();
+        const originalLabel = btn.textContent;
+        try {
+            btn.click();
+            await flush();
+        } finally {
+            globalThis.alert = realAlert;
+        }
 
-        globalThis.alert = realAlert;
         expect(alerted).toBe(true);
         expect(btn.disabled).toBe(false);
-        expect(btn.textContent).toBe('Export PDF');
+        expect(btn.textContent).toBe(originalLabel);
     });
 
     it('is omitted when the ShoppingList module is absent, rather than rendering a dead button', () => {
