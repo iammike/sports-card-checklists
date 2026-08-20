@@ -2627,14 +2627,14 @@ select, input[type="text"] {
     display: flex;
     flex-direction: column;
     padding: 16px;
-    /* Without this, .image-editor-canvas's min-height (below) can force this box
-       taller than the space .image-editor-modal's max-height leaves for it, and
-       since nothing here scrolls, the overflow spills past the modal's bottom
-       edge - taking the footer's Save/Cancel buttons with it - on any viewport
-       short enough that header + tabs + a 300px-tall canvas + controls + footer
-       don't all fit (#737). min-height: 0 above lets this box shrink below its
-       content's natural size in the first place; this lets that shrunk content
-       scroll instead of overflowing invisibly. */
+    /* Once the window is short enough that the canvas has shrunk to nothing -
+       around 370px at desktop widths - the tabs and toolbar alone overflow this
+       box. Scrolling is what stops them riding over the footer, which they start
+       doing around 355px and reach the Cancel button around 335px. PR #738
+       blamed the canvas's 300px floor; #748 removed the floor and the overflow
+       outlived it. (Approximate, and measured on the desktop layout with the
+       webfonts loaded - every threshold lands ~4px lower without them, and none
+       of them apply under 600px wide, where the modal goes full height.) */
     overflow-y: auto;
     overflow-x: hidden;
 }

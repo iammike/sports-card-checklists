@@ -4,12 +4,14 @@ import { resolve } from 'path';
 
 const ImageEditorModal = globalThis.ImageEditorModal;
 
-// Both assertions here are about one thing: everything the image editor draws on
-// top of the picture - the perspective corner handles, the guide quad, Cropper's
-// own drag handles - is positioned against .image-editor-canvas, which is
-// overflow:hidden. Anything sized against a different box than that container
-// spills out and is silently clipped, which reads to the user as "the controls
-// are gone" rather than as a layout bug.
+// The CSS assertions below are about the image editor's controls going missing on
+// a short window. Two ways that happens. Everything drawn on top of the picture -
+// the perspective corner handles, the guide quad, Cropper's own drag handles - is
+// positioned against .image-editor-canvas, which is overflow:hidden, so anything
+// sized against a different box spills out and is silently clipped. Separately,
+// the toolbars go under the fold if the canvas stops yielding space to them.
+// Both read to the user as "the controls are gone" rather than as a layout bug.
+// The tests after the CSS group cover tab-switch ordering instead.
 
 // --- CSS: the canvas must be bounded by its container, not the viewport -------
 
@@ -28,7 +30,31 @@ function cssRules(selector) {
     const css = readFileSync(resolve(import.meta.dirname, '..', 'shared.css'), 'utf-8');
     const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const rule = new RegExp('(?:^|[\n},])\\s*' + escaped + '\\s*\\{([^}]*)\\}', 'g');
-    return [...css.matchAll(rule)].map(m => m[1]);
+    // Comments stripped: a rule that only *mentions* a declaration in prose would
+    // otherwise satisfy an assertion looking for it, and the rule these tests lean
+    // on hardest is the one carrying the long explanatory comment.
+    return [...css.matchAll(rule)].map(m => m[1].replace(/\/\*[\s\S]*?\*\//g, ''));
+}
+
+// The used vertical overflow. Last declaration wins, `overflow: <x> <y>` sets both
+// axes in that order, and an axis left `visible` computes to `auto` when the other
+// axis is neither `visible` nor `clip` - which is why neither line in the shipped
+// pair is load-bearing alone. The `clip` half of that carve-out matters: a `clip`
+// on the other axis leaves this one `visible`, so it cannot stand in for the
+// scroll the way `hidden` does.
+function usedOverflowY(rule) {
+    const initial = ['initial', 'unset', 'revert', 'revert-layer'];
+    const norm = (v) => (initial.includes(v) ? 'visible' : v);
+    let x = 'visible', y = 'visible';
+    // The lookbehind matters: without it `text-overflow: ellipsis` matches as an
+    // `overflow` declaration and poisons the result.
+    for (const [, axis, raw] of rule.matchAll(/(?<![\w-])overflow(-[xy])?:\s*([^;]+)/g)) {
+        const [first, second] = raw.replace(/!important/gi, '').trim().toLowerCase().split(/\s+/);
+        if (axis === '-x') x = norm(first);
+        else if (axis === '-y') y = norm(first);
+        else { x = norm(first); y = norm(second ?? first); }
+    }
+    return y === 'visible' && x !== 'visible' && x !== 'clip' ? 'auto' : y;
 }
 
 // --- Tab switching: the panel swap has to land before anything measures -------
@@ -76,6 +102,37 @@ describe('image editor overlay layout', () => {
         for (const rule of rules) {
             expect(rule).toMatch(/(^|[;{\s])height:\s*\d/);
         }
+    });
+
+    // A pixel floor here stops the canvas yielding space to the toolbars. That no
+    // longer re-clips the handles - the modal's definite height prevents it - but
+    // it does push the crop toolbar under the fold on an ordinary window: roughly
+    // 80px under at 600px tall, where the shipped rule fits everything on screen.
+    it('leaves the canvas container free to shrink', () => {
+        const rules = cssRules('.image-editor-canvas');
+        expect(rules.length).toBeGreaterThan(0);
+        // Every declaration, not just the first: the last one wins in CSS. And any
+        // unit, not just px - a rem or calc() floor pins the canvas open too.
+        // Dropping the declaration entirely is a floor as well, since min-height
+        // then falls back to auto, so one has to be present and all have to be 0.
+        const floors = rules
+            .flatMap(rule => [...rule.matchAll(/(?<![\w-])min-height:\s*([^;]+)/g)])
+            .map(m => m[1].replace(/!important/g, '').trim());
+        expect(floors.length).toBeGreaterThan(0);
+        // Every spelling of zero, since all of them leave the canvas free: 0, 0px,
+        // 0%, 0.0rem. Anything else is a floor.
+        for (const floor of floors) expect(floor).toMatch(/^0(\.0+)?\s*(%|[a-z]+)?$/i);
+    });
+
+    // The scrolling the .image-editor-body comment is about. Asserting on the
+    // declaration text is not enough: clipping the axis instead - hidden, clip, or
+    // a two-value shorthand with the axes the wrong way round - reads as "not
+    // visible" while losing the rotate controls with no way to scroll to them,
+    // which is worse than the overflow it replaced. So resolve the axis.
+    it('lets the modal body scroll when the toolbars no longer fit', () => {
+        const rules = cssRules('.image-editor-body');
+        expect(rules.length).toBeGreaterThan(0);
+        expect(rules.some(rule => ['auto', 'scroll'].includes(usedOverflowY(rule)))).toBe(true);
     });
 
     it('shows the crop panel before constructing Cropper', () => {
