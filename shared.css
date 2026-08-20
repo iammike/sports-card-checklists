@@ -2630,10 +2630,11 @@ select, input[type="text"] {
     /* Once the window is short enough that the canvas has shrunk to nothing -
        around 370px at desktop widths - the tabs and toolbar alone overflow this
        box. Scrolling is what stops them riding over the footer, which they start
-       doing at 353px and reach the Cancel button at 334px. PR #738 blamed the
-       canvas's 300px floor for the overflow; #748 removed the floor and it
-       outlived it. (Measured with the site's webfonts loaded; without them every
-       threshold lands about 4px lower.) */
+       doing around 355px and reach the Cancel button around 335px. PR #738
+       blamed the canvas's 300px floor; #748 removed the floor and the overflow
+       outlived it. (Approximate, and measured with the webfonts loaded - every
+       threshold lands ~4px lower without them, and they shift again below 600px
+       wide where the tab labels wrap.) */
     overflow-y: auto;
     overflow-x: hidden;
 }

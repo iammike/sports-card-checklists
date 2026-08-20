@@ -30,7 +30,25 @@ function cssRules(selector) {
     const css = readFileSync(resolve(import.meta.dirname, '..', 'shared.css'), 'utf-8');
     const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const rule = new RegExp('(?:^|[\n},])\\s*' + escaped + '\\s*\\{([^}]*)\\}', 'g');
-    return [...css.matchAll(rule)].map(m => m[1]);
+    // Comments stripped: a rule that only *mentions* a declaration in prose would
+    // otherwise satisfy an assertion looking for it, and the rule these tests lean
+    // on hardest is the one carrying the long explanatory comment.
+    return [...css.matchAll(rule)].map(m => m[1].replace(/\/\*[\s\S]*?\*\//g, ''));
+}
+
+// The used vertical overflow. Last declaration wins, `overflow: <x> <y>` sets both
+// axes in that order, and an axis left `visible` computes to `auto` when the other
+// axis is not `visible` - which is why neither line in the shipped pair is
+// load-bearing alone.
+function usedOverflowY(rule) {
+    let x = 'visible', y = 'visible';
+    for (const [, axis, raw] of rule.matchAll(/overflow(-[xy])?:\s*([^;]+)/g)) {
+        const [first, second] = raw.replace(/!important/g, '').trim().split(/\s+/);
+        if (axis === '-x') x = first;
+        else if (axis === '-y') y = first;
+        else { x = first; y = second ?? first; }
+    }
+    return y === 'visible' && x !== 'visible' ? 'auto' : y;
 }
 
 // --- Tab switching: the panel swap has to land before anything measures -------
@@ -82,8 +100,8 @@ describe('image editor overlay layout', () => {
 
     // A pixel floor here stops the canvas yielding space to the toolbars. That no
     // longer re-clips the handles - the modal's definite height prevents it - but
-    // it does push the crop toolbar under the fold on an ordinary window: 78px
-    // under at 600px tall, where the shipped rule fits everything on screen.
+    // it does push the crop toolbar under the fold on an ordinary window: roughly
+    // 80px under at 600px tall, where the shipped rule fits everything on screen.
     it('leaves the canvas container free to shrink', () => {
         const rules = cssRules('.image-editor-canvas');
         expect(rules.length).toBeGreaterThan(0);
@@ -93,23 +111,20 @@ describe('image editor overlay layout', () => {
         // then falls back to auto, so one has to be present and all have to be 0.
         const floors = rules
             .flatMap(rule => [...rule.matchAll(/min-height:\s*([^;]+)/g)])
-            .map(m => m[1].trim());
+            .map(m => m[1].replace(/!important/g, '').trim());
         expect(floors.length).toBeGreaterThan(0);
         for (const floor of floors) expect(floor).toMatch(/^0\w*$/);
     });
 
-    // The scrolling the .image-editor-body comment is about. Neither declaration
-    // is load-bearing on its own - overflow-x: hidden already forces the used
-    // overflow-y to auto, so deleting the auto changes nothing at runtime - so
-    // what has to hold is that the rule never leaves both axes visible.
+    // The scrolling the .image-editor-body comment is about. Asserting on the
+    // declaration text is not enough: clipping the axis instead - hidden, clip, or
+    // a two-value shorthand with the axes the wrong way round - reads as "not
+    // visible" while losing the rotate controls with no way to scroll to them,
+    // which is worse than the overflow it replaced. So resolve the axis.
     it('lets the modal body scroll when the toolbars no longer fit', () => {
         const rules = cssRules('.image-editor-body');
         expect(rules.length).toBeGreaterThan(0);
-        const overflows = rules
-            .flatMap(rule => [...rule.matchAll(/overflow(?:-[xy])?:\s*([^;]+)/g)])
-            .map(m => m[1].trim());
-        expect(overflows.length).toBeGreaterThan(0);
-        expect(overflows.some(v => v !== 'visible')).toBe(true);
+        expect(rules.some(rule => ['auto', 'scroll'].includes(usedOverflowY(rule)))).toBe(true);
     });
 
     it('shows the crop panel before constructing Cropper', () => {
