@@ -64,10 +64,10 @@ describe('Shopping List button in the filter row', () => {
 
         makeEngine()._renderFilters();
 
+        // #reorder-btn proves the row rendered at all, so the absence below is a
+        // real absence and not an empty container passing vacuously.
+        expect(document.getElementById('reorder-btn')).not.toBeNull();
         expect(document.getElementById('shopping-list-filter-btn')).toBeNull();
-        // The dropdown copy is the one that stays; nothing here should displace it.
-        expect(document.querySelectorAll('#filters-container .filter-btn').length)
-            .toBe(document.querySelectorAll('#filters-container #reorder-btn, #filters-container .quick-filter-btn').length);
     });
 
     it('opens the options modal when clicked', () => {

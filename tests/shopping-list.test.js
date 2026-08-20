@@ -169,4 +169,33 @@ describe('ShoppingList.generate', () => {
         // somewhere after the cache call.
         expect(ShoppingList.buildPDF).toHaveBeenCalled();
     });
+
+    // The export is offered to logged-out visitors (the filter-row button in
+    // checklist-engine.js), which rests entirely on every authenticated read
+    // here having a public fallback. Without a token loadData/loadChecklistConfig/
+    // loadCardData all return null, so this pins that the fallbacks carry it the
+    // whole way to a PDF rather than yielding an empty list.
+    it('builds the list from the public gist when there is no token', async () => {
+        window.githubSync = {
+            clearDataCache: vi.fn(),
+            loadData: async () => null,
+            loadPublicData: async () => ({ checklists: { 'jayden-daniels': ['owned-card'] } }),
+            loadChecklistConfig: async () => null,
+            loadPublicChecklistConfig: async () => ({ dataShape: 'flat', cardDisplay: {} }),
+            loadCardData: async () => null,
+            loadPublicCardData: async () => ({
+                cards: [
+                    { id: 'owned-card', set: '2024 Prizm', num: '1' },
+                    { id: 'needed-card', set: '2024 Select', num: '2', price: 25 },
+                ],
+            }),
+        };
+
+        await ShoppingList.generate();
+
+        expect(ShoppingList.buildPDF).toHaveBeenCalledTimes(1);
+        const items = ShoppingList.buildPDF.mock.calls[0][0];
+        expect(items.map(i => i.num)).toEqual(['2']);
+        expect(items[0].price).toBe(25);
+    });
 });

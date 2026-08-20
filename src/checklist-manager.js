@@ -144,8 +144,8 @@ class ChecklistManager {
     // (nav.js) for everything that isn't checklist-specific - avatar, dropdown
     // toggle, Shopping List, Sign out, commit hash - then adds this
     // checklist's owner-only actions on top, the same way
-    // ChecklistEngine._initDeleteButton/_initSettingsButton/_initExportButton
-    // insert into whatever the base render produced. This used to be a full
+    // ChecklistEngine._initDeleteButton/_initSettingsButton insert into
+    // whatever the base render produced. This used to be a full
     // second copy of AuthUI.update()'s template; the two drifted apart when
     // Shopping List was added to one and never mirrored into the other, which
     // silently hid it on every checklist page (only index.html called
