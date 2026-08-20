@@ -220,6 +220,9 @@ describe('ShoppingList.generate', () => {
 
         const items = ShoppingList.buildPDF.mock.calls[0][0];
         expect(items.map(i => i.num)).toEqual(['1']);
+        // groupByChecklist defaults false too - a group header on a
+        // single-checklist PDF is noise.
+        expect(ShoppingList.buildPDF.mock.calls[0][1].groupByChecklist).toBe(false);
     });
 
     // The export is offered to logged-out visitors (the filter-row button in
