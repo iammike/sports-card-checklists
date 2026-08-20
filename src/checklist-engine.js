@@ -1437,6 +1437,14 @@ class ChecklistEngine {
         // Reorder button (visible when sort=Manual and user is owner)
         html += `<button id="reorder-btn" class="filter-btn" style="display:none">Reorder</button>`;
 
+        // Logged out there is no nav dropdown at all (AuthUI.update() renders
+        // nothing without a token), so this is the only place the export can live.
+        // It needs no auth - every read in ShoppingList.generate() already falls
+        // back to the public gist.
+        if (!window.githubSync?.isLoggedIn() && window.ShoppingList) {
+            html += `<button id="shopping-list-filter-btn" class="filter-btn">Shopping List</button>`;
+        }
+
         container.innerHTML = html;
 
         // Bind events
@@ -1449,6 +1457,7 @@ class ChecklistEngine {
             if (input) { input.value = ''; input.focus(); this._onFilterChange(); }
         });
         container.querySelector('#reorder-btn')?.addEventListener('click', () => this._toggleReorderMode());
+        container.querySelector('#shopping-list-filter-btn')?.addEventListener('click', () => ShoppingList.showOptionsModal());
         container.querySelectorAll('.quick-filter-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const active = btn.classList.toggle('active');
