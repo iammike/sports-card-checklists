@@ -2628,10 +2628,12 @@ select, input[type="text"] {
     flex-direction: column;
     padding: 16px;
     /* Once the window is short enough that the canvas has shrunk to nothing -
-       around 365px - the tabs and toolbar alone overflow this box, and scrolling
-       is what keeps them from riding over the footer (they reach the Cancel
-       button around 330px). #737 blamed the canvas's 300px floor for the
-       overflow; #748 removed that floor and the overflow outlived it. */
+       around 370px - the tabs and toolbar alone overflow this box. Scrolling is
+       what stops them riding over the footer, which they start doing around
+       355px and reach the Cancel button by 335px. PR #738 blamed the canvas's
+       300px floor for the overflow; #748 removed the floor and it outlived it.
+       (Thresholds measured with the site's webfonts loaded - without them every
+       chrome box is ~1px shorter and each number lands ~5px low.) */
     overflow-y: auto;
     overflow-x: hidden;
 }

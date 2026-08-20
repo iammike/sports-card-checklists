@@ -4,13 +4,14 @@ import { resolve } from 'path';
 
 const ImageEditorModal = globalThis.ImageEditorModal;
 
-// These tests are about the image editor's controls going missing on a short
-// window. Two ways that happens. Everything drawn on top of the picture - the
-// perspective corner handles, the guide quad, Cropper's own drag handles - is
+// The CSS assertions below are about the image editor's controls going missing on
+// a short window. Two ways that happens. Everything drawn on top of the picture -
+// the perspective corner handles, the guide quad, Cropper's own drag handles - is
 // positioned against .image-editor-canvas, which is overflow:hidden, so anything
 // sized against a different box spills out and is silently clipped. Separately,
 // the toolbars go under the fold if the canvas stops yielding space to them.
 // Both read to the user as "the controls are gone" rather than as a layout bug.
+// The tests after the CSS group cover tab-switch ordering instead.
 
 // --- CSS: the canvas must be bounded by its container, not the viewport -------
 
@@ -81,13 +82,27 @@ describe('image editor overlay layout', () => {
 
     // A pixel floor here stops the canvas yielding space to the toolbars. That no
     // longer re-clips the handles - the modal's definite height prevents it - but
-    // it does push the crop toolbar under the fold on an ordinary window: 75px
+    // it does push the crop toolbar under the fold on an ordinary window: 78px
     // under at 600px tall, where the shipped rule fits everything on screen.
     it('leaves the canvas container free to shrink', () => {
         const rules = cssRules('.image-editor-canvas');
         expect(rules.length).toBeGreaterThan(0);
         for (const rule of rules) {
-            expect(rule).not.toMatch(/min-height:\s*[1-9]/);
+            // Any floor at all, not just a px one - a rem or calc() value pins the
+            // canvas open just as effectively.
+            const floor = rule.match(/min-height:\s*([^;]+)/);
+            expect(floor?.[1].trim() ?? '0').toMatch(/^0\w*$/);
+        }
+    });
+
+    // The declaration the .image-editor-body comment is about. Nothing else holds
+    // it in place, and it is the only thing keeping the toolbar off the footer
+    // once the canvas has no space left to give.
+    it('lets the modal body scroll when the toolbars no longer fit', () => {
+        const rules = cssRules('.image-editor-body');
+        expect(rules.length).toBeGreaterThan(0);
+        for (const rule of rules) {
+            expect(rule).toMatch(/overflow-y:\s*auto/);
         }
     });
 
