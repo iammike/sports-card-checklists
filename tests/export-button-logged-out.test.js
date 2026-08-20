@@ -34,6 +34,10 @@ function makeEngine() {
 // _renderFilters() ends in _updateReorderButton(), which reaches isOwner() ->
 // getUser(), so both are needed for the render to complete either way.
 const loggedOut = () => ({ isLoggedIn: () => false, getUser: () => null });
+
+// The click handler is async and the listener discards its promise, so tests have
+// to let the microtask queue drain before asserting on what happened after it.
+const flush = () => new Promise(r => setTimeout(r, 0));
 const loggedIn = () => ({ isLoggedIn: () => true, getUser: () => ({ login: 'someone-else' }) });
 
 describe('Shopping List button in the filter row', () => {
@@ -70,24 +74,45 @@ describe('Shopping List button in the filter row', () => {
         expect(document.getElementById('shopping-list-filter-btn')).toBeNull();
     });
 
-    it('exports this checklist directly, without the options modal', async () => {
+    // Driven by a real click, not by calling the method: the click binding is the
+    // thing this behaviour lives in, and invoking _exportShoppingList by hand
+    // leaves a full revert to showOptionsModal passing green.
+    it('exports this checklist directly when clicked, without the options modal', async () => {
         window.githubSync = loggedOut();
         const generate = vi.fn(async () => {});
         const showOptionsModal = vi.fn();
         window.ShoppingList = { generate, showOptionsModal };
 
-        const engine = makeEngine();
-        engine._renderFilters();
-        await engine._exportShoppingList(document.getElementById('shopping-list-filter-btn'));
+        makeEngine()._renderFilters();
+        document.getElementById('shopping-list-filter-btn').click();
+        await flush();
 
         expect(showOptionsModal).not.toHaveBeenCalled();
         expect(generate).toHaveBeenCalledTimes(1);
-        const opts = generate.mock.calls[0][0];
-        expect([...opts.selectedChecklists]).toEqual(['test']);
-        // No options: generate() defaults both to false, so passing them would
-        // only be a chance to pass the wrong thing.
-        expect(opts.includeExtra).toBeUndefined();
-        expect(opts.groupByChecklist).toBeUndefined();
+        expect([...generate.mock.calls[0][0].selectedChecklists]).toEqual(['test']);
+    });
+
+    // The disable is the only thing stopping a double-click, which would mean a
+    // second jsPDF load, a second full gist refetch and a second download. Asserted
+    // mid-flight - checking only that it is re-enabled afterwards passes just as
+    // well when it was never disabled.
+    it('disables the button while the export is in flight', async () => {
+        window.githubSync = loggedOut();
+        let finish;
+        window.ShoppingList = { generate: () => new Promise(r => { finish = r; }) };
+
+        makeEngine()._renderFilters();
+        const btn = document.getElementById('shopping-list-filter-btn');
+        btn.click();
+
+        expect(btn.disabled).toBe(true);
+        expect(btn.textContent).toBe('Generating...');
+
+        finish();
+        await flush();
+
+        expect(btn.disabled).toBe(false);
+        expect(btn.textContent).toBe('Export PDF');
     });
 
     it('labels the button Export PDF', () => {
@@ -102,14 +127,16 @@ describe('Shopping List button in the filter row', () => {
         window.githubSync = loggedOut();
         window.ShoppingList = { generate: async () => { throw new Error('boom'); } };
         const realAlert = globalThis.alert;
-        globalThis.alert = () => {};
+        let alerted = false;
+        globalThis.alert = () => { alerted = true; };
 
-        const engine = makeEngine();
-        engine._renderFilters();
+        makeEngine()._renderFilters();
         const btn = document.getElementById('shopping-list-filter-btn');
-        await engine._exportShoppingList(btn);
+        btn.click();
+        await flush();
 
         globalThis.alert = realAlert;
+        expect(alerted).toBe(true);
         expect(btn.disabled).toBe(false);
         expect(btn.textContent).toBe('Export PDF');
     });
