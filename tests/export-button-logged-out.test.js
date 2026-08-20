@@ -87,6 +87,7 @@ describe('Shopping List button in the filter row', () => {
 
         makeEngine()._renderFilters();
 
+        expect(document.getElementById('reorder-btn')).not.toBeNull();
         expect(document.getElementById('shopping-list-filter-btn')).toBeNull();
     });
 });
