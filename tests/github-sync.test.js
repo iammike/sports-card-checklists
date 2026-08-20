@@ -272,6 +272,13 @@ describe('GitHubSync owner-only sign-in', () => {
         expect(sync._rejectIfNotOwner({ login: null })).toBe(true);
     });
 
+    // Deliberately case-exact, matching isOwner() and the other owner checks in
+    // checklist-engine.js and index.html. Relaxing only this one would let a
+    // differently-cased login sign in and then land read-only everywhere.
+    it('matches the owner login case-exactly, like the sibling owner checks', () => {
+        expect(sync._rejectIfNotOwner({ login: 'IamMike' })).toBe(true);
+    });
+
 
     // The gates in handleCallback only fire on a fresh OAuth return, so a session
     // stored before this shipped would otherwise persist unchecked forever.
