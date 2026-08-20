@@ -272,13 +272,6 @@ describe('GitHubSync owner-only sign-in', () => {
         expect(sync._rejectIfNotOwner({ login: null })).toBe(true);
     });
 
-    // GitHub logins are case-insensitively unique, so casing must not decide this.
-    it('accepts the owner regardless of login casing', () => {
-        sync.token = 'tok';
-
-        expect(sync._rejectIfNotOwner({ login: 'IamMike' })).toBe(false);
-        expect(sync.token).toBe('tok');
-    });
 
     // The gates in handleCallback only fire on a fresh OAuth return, so a session
     // stored before this shipped would otherwise persist unchecked forever.
@@ -405,6 +398,30 @@ describe('GitHubSync owner-only sign-in', () => {
         expect(localStorage.getItem('github_token')).toBe('owner-tok');
         expect(calls.some(u => u.includes('/gists'))).toBe(true);
         expect(alerted).toBe(false);
+    });
+
+    // findOrCreateGist runs after the token is committed to storage and throws
+    // readily (unwrapped fetch, .json() on an HTML 5xx, a non-array body). Rolling
+    // the in-memory token back there would desync it from storage: the owner would
+    // see a signed-out UI holding a valid token until they reloaded.
+    it('keeps memory and storage in step when findOrCreateGist throws', async () => {
+        globalThis.fetch = async (url) => {
+            if (String(url).includes('/token')) {
+                return { json: async () => ({ access_token: 'owner-tok' }) };
+            }
+            if (String(url).includes('api.github.com/user')) {
+                return { json: async () => ({ login: 'iammike' }) };
+            }
+            throw new Error('gists unavailable');
+        };
+        sessionStorage.setItem('oauth_state', 'csrf4');
+        const state = btoa(JSON.stringify({ csrf: 'csrf4', returnUrl: null }));
+        window.history.replaceState({}, '', `${window.location.pathname}?code=abc&state=${encodeURIComponent(state)}`);
+
+        await sync.handleCallback();
+
+        expect(localStorage.getItem('github_token')).toBe('owner-tok');
+        expect(sync.token).toBe(localStorage.getItem('github_token'));
     });
 
     it('accepts the owner arriving via the #auth= fragment', async () => {

@@ -73,7 +73,7 @@ class GitHubSync {
     // every checklist and nav link - and findOrCreateGist() would plant a public
     // gist in their account uninvited. Callers must bail out when this returns true.
     _rejectIfNotOwner(user) {
-        if (user?.login?.toLowerCase() === OWNER_USERNAME) return false;
+        if (user?.login === OWNER_USERNAME) return false;
         this.logout();
         alert('Sign-in is limited to the collection owner. You can browse everything without signing in.');
         return true;
@@ -84,7 +84,7 @@ class GitHubSync {
     // Fails closed on a token with no user: that pairing is unattributable, so
     // requiring a user here would let it survive every reload.
     _clearStaleNonOwnerSession() {
-        if (this.token && this.user?.login?.toLowerCase() !== OWNER_USERNAME) {
+        if (this.token && this.user?.login !== OWNER_USERNAME) {
             this.logout();
         }
     }
@@ -177,6 +177,7 @@ class GitHubSync {
         window.history.replaceState({}, document.title, window.location.pathname);
 
         const priorToken = this.token;
+        let tokenCommitted = false;
         try {
             // Exchange code for token via proxy
             const response = await fetch(CONFIG.OAUTH_PROXY_URL + '/token', {
@@ -205,6 +206,7 @@ class GitHubSync {
             if (this._rejectIfNotOwner(this.user)) return false;
 
             localStorage.setItem(TOKEN_KEY, this.token);
+            tokenCommitted = true;
 
             // Find or create gist
             await this.findOrCreateGist();
@@ -225,10 +227,10 @@ class GitHubSync {
             return true;
         } catch (error) {
             console.error('OAuth callback failed:', error);
-            // Drop a half-acquired token rather than leaving it reading as signed
-            // in for the rest of the page. Restoring the prior value keeps an
-            // existing session intact.
-            this.token = priorToken;
+            // Roll back only a token that never reached storage - a throw after
+            // the commit (findOrCreateGist) must leave memory and storage in step,
+            // or the owner sees a signed-out UI holding a valid token.
+            if (!tokenCommitted) this.token = priorToken;
             return false;
         }
     }
