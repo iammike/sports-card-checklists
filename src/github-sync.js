@@ -50,12 +50,14 @@ class GitHubSync {
             localStorage.removeItem(USER_KEY);
         }
         this.onAuthChange = null;
-        this._clearStaleNonOwnerSession();
         this._saveQueue = Promise.resolve(); // Queue to prevent concurrent saves
         this._lastWriteAt = 0; // Date.now() of the last gist PATCH, for MIN_WRITE_SPACING_MS (#733)
         this._cachedData = null; // Cache to avoid stale reads during saves
         this._gistCache = null; // Raw gist cache for registry/config reads
         this._publicGistCache = null; // Public gist cache
+
+        // After the fields above, so it never depends on which of them exist yet.
+        this._clearStaleNonOwnerSession();
 
         // Clear cache when tab becomes visible (handles multi-tab edits)
         document.addEventListener('visibilitychange', () => {
@@ -71,7 +73,7 @@ class GitHubSync {
     // every checklist and nav link - and findOrCreateGist() would plant a public
     // gist in their account uninvited. Callers must bail out when this returns true.
     _rejectIfNotOwner(user) {
-        if (user?.login === OWNER_USERNAME) return false;
+        if (user?.login?.toLowerCase() === OWNER_USERNAME) return false;
         this.logout();
         alert('Sign-in is limited to the collection owner. You can browse everything without signing in.');
         return true;
@@ -79,8 +81,10 @@ class GitHubSync {
 
     // The handleCallback gates only fire on a fresh OAuth return, so a session
     // stored before sign-in became owner-only would otherwise persist unchecked.
+    // Fails closed on a token with no user: that pairing is unattributable, so
+    // requiring a user here would let it survive every reload.
     _clearStaleNonOwnerSession() {
-        if (this.token && this.user && this.user.login !== OWNER_USERNAME) {
+        if (this.token && this.user?.login?.toLowerCase() !== OWNER_USERNAME) {
             this.logout();
         }
     }
@@ -172,6 +176,7 @@ class GitHubSync {
         // Clean URL
         window.history.replaceState({}, document.title, window.location.pathname);
 
+        const priorToken = this.token;
         try {
             // Exchange code for token via proxy
             const response = await fetch(CONFIG.OAUTH_PROXY_URL + '/token', {
@@ -187,14 +192,19 @@ class GitHubSync {
                 return false;
             }
 
+            // Held in memory only until the gate passes - fetchUser() and
+            // findOrCreateGist() both read this.token, nothing reads storage. An
+            // early write would survive a fetchUser() throw as a token with no
+            // user, which reads as signed in and no sweeper can attribute.
             this.token = data.access_token;
-            localStorage.setItem(TOKEN_KEY, this.token);
 
             // Get user info
             await this.fetchUser();
 
             // Before findOrCreateGist, so a rejected sign-in never creates one.
             if (this._rejectIfNotOwner(this.user)) return false;
+
+            localStorage.setItem(TOKEN_KEY, this.token);
 
             // Find or create gist
             await this.findOrCreateGist();
@@ -215,6 +225,10 @@ class GitHubSync {
             return true;
         } catch (error) {
             console.error('OAuth callback failed:', error);
+            // Drop a half-acquired token rather than leaving it reading as signed
+            // in for the rest of the page. Restoring the prior value keeps an
+            // existing session intact.
+            this.token = priorToken;
             return false;
         }
     }
