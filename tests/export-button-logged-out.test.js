@@ -70,15 +70,48 @@ describe('Shopping List button in the filter row', () => {
         expect(document.getElementById('shopping-list-filter-btn')).toBeNull();
     });
 
-    it('opens the options modal when clicked', () => {
+    it('exports this checklist directly, without the options modal', async () => {
         window.githubSync = loggedOut();
+        const generate = vi.fn(async () => {});
         const showOptionsModal = vi.fn();
-        window.ShoppingList = { showOptionsModal };
+        window.ShoppingList = { generate, showOptionsModal };
+
+        const engine = makeEngine();
+        engine._renderFilters();
+        await engine._exportShoppingList(document.getElementById('shopping-list-filter-btn'));
+
+        expect(showOptionsModal).not.toHaveBeenCalled();
+        expect(generate).toHaveBeenCalledTimes(1);
+        const opts = generate.mock.calls[0][0];
+        expect([...opts.selectedChecklists]).toEqual(['test']);
+        // No options: generate() defaults both to false, so passing them would
+        // only be a chance to pass the wrong thing.
+        expect(opts.includeExtra).toBeUndefined();
+        expect(opts.groupByChecklist).toBeUndefined();
+    });
+
+    it('labels the button Export PDF', () => {
+        window.githubSync = loggedOut();
 
         makeEngine()._renderFilters();
-        document.getElementById('shopping-list-filter-btn').click();
 
-        expect(showOptionsModal).toHaveBeenCalledTimes(1);
+        expect(document.getElementById('shopping-list-filter-btn').textContent).toBe('Export PDF');
+    });
+
+    it('re-enables the button after a failed export', async () => {
+        window.githubSync = loggedOut();
+        window.ShoppingList = { generate: async () => { throw new Error('boom'); } };
+        const realAlert = globalThis.alert;
+        globalThis.alert = () => {};
+
+        const engine = makeEngine();
+        engine._renderFilters();
+        const btn = document.getElementById('shopping-list-filter-btn');
+        await engine._exportShoppingList(btn);
+
+        globalThis.alert = realAlert;
+        expect(btn.disabled).toBe(false);
+        expect(btn.textContent).toBe('Export PDF');
     });
 
     it('is omitted when the ShoppingList module is absent, rather than rendering a dead button', () => {
