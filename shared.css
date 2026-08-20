@@ -2458,7 +2458,7 @@ select, input[type="text"] {
     border-radius: 12px;
     width: 90vw;
     max-width: 900px;
-    max-height: 90vh;
+    height: 90vh;
     display: flex;
     flex-direction: column;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
@@ -2545,8 +2545,7 @@ select, input[type="text"] {
 
 .image-editor-canvas {
     flex: 1;
-    min-height: 300px;
-    max-height: 60vh;
+    min-height: 0;
     background: #0d0d1a;
     border-radius: 8px;
     overflow: hidden;
@@ -2736,9 +2735,14 @@ select, input[type="text"] {
     position: relative;
 }
 
+/* Bounded by the container, not the viewport. A 60vh canvas overflowed the
+   shorter container on short windows, and overflow:hidden then clipped the
+   corner handles and guide lines, which are placed relative to the canvas.
+   The percentage only resolves because .image-editor-modal has a definite
+   height; against a content-sized chain it computes to none. */
 .perspective-canvas {
     max-width: 100%;
-    max-height: 60vh;
+    max-height: 100%;
     display: block;
 }
 
@@ -2792,14 +2796,7 @@ select, input[type="text"] {
         height: 100vh;
         height: 100dvh;
         max-width: none;
-        max-height: none;
         border-radius: 0;
-    }
-
-    .image-editor-canvas {
-        max-height: none;
-        min-height: 0;
-        flex: 1;
     }
 
     .image-editor-controls {
@@ -2813,10 +2810,6 @@ select, input[type="text"] {
 
     .image-editor-slider {
         width: 80px;
-    }
-
-    .perspective-canvas {
-        max-height: none;
     }
 
     .perspective-handle {

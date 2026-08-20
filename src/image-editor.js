@@ -631,6 +631,10 @@ class ImageEditorModal {
 
     // Confirm (Done) - output result from whichever tab is active
     confirm() {
+        // Mid-switch the tab is already flipped but its editor is not built yet,
+        // so neither branch below can produce an image.
+        if (this.switching) return;
+
         if (this.activeTab === 'perspective') {
             // If corners moved, apply perspective transform then output
             if (!this.cornersAreDefault()) {
@@ -773,12 +777,17 @@ class ImageEditorModal {
             this.fineRotation = 0;
             if (this.setFineRotation) this.setFineRotation(0);
 
+            // Swap the panel before Cropper measures. The crop toolbar is taller
+            // than the perspective hint, so the canvas container shrinks on the
+            // swap, and Cropper never re-reads it - measuring first leaves its box
+            // overflowing and the top/bottom drag handles clipped.
+            this.activeTab = 'crop';
+            this.updateTabUI('crop');
+
             img.onload = () => {
                 this.cropper = new Cropper(img, {
                     ...this.cropperOptions,
                     ready: () => {
-                        this.activeTab = 'crop';
-                        this.updateTabUI('crop');
                         this.switching = false;
                     },
                 });
@@ -803,14 +812,16 @@ class ImageEditorModal {
             const tempImg = new Image();
             tempImg.crossOrigin = 'anonymous';
             tempImg.onload = () => {
+                // Same ordering rule as the crop direction: the panel swap resizes
+                // the canvas container, so it has to land before anything measures.
+                this.activeTab = 'perspective';
+                this.updateTabUI('perspective');
                 this.setupPerspectiveCanvas(tempImg);
                 // Restore saved corner positions if available (the deferred
                 // rAF in setupPerspectiveCanvas will pick up the restored positions)
                 if (this.savedCornerPositions) {
                     this.cornerPositions = this.savedCornerPositions.map(p => ({ ...p }));
                 }
-                this.activeTab = 'perspective';
-                this.updateTabUI('perspective');
                 this.switching = false;
             };
             tempImg.onerror = () => {
