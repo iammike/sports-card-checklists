@@ -22,6 +22,10 @@ const CONFIG = {
 // secondary limit, and a save is not latency-sensitive enough to shave this down.
 const MIN_WRITE_SPACING_MS = 1000;
 
+// Anyone can authorize the OAuth app, but only the owner has anything to sign in
+// for - see _rejectIfNotOwner.
+const OWNER_USERNAME = 'iammike';
+
 // Storage keys
 const TOKEN_KEY = 'github_token';
 const GIST_ID_KEY = 'github_gist_id';
@@ -52,6 +56,9 @@ class GitHubSync {
         this._gistCache = null; // Raw gist cache for registry/config reads
         this._publicGistCache = null; // Public gist cache
 
+        // After the fields above, so it never depends on which of them exist yet.
+        this._clearStaleNonOwnerSession();
+
         // Clear cache when tab becomes visible (handles multi-tab edits)
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
@@ -59,6 +66,27 @@ class GitHubSync {
                 this.clearGistCache();
             }
         });
+    }
+
+    // Signing in as anyone but the owner leaves a half-broken site - the registry
+    // read follows the token to the visitor's own gist, so the index page loses
+    // every checklist and nav link - and findOrCreateGist() would plant a public
+    // gist in their account uninvited. Callers must bail out when this returns true.
+    _rejectIfNotOwner(user) {
+        if (user?.login === OWNER_USERNAME) return false;
+        this.logout();
+        alert('Sign-in is limited to the collection owner. You can browse everything without signing in.');
+        return true;
+    }
+
+    // The handleCallback gates only fire on a fresh OAuth return, so a session
+    // stored before sign-in became owner-only would otherwise persist unchecked.
+    // Fails closed on a token with no user: that pairing is unattributable, so
+    // requiring a user here would let it survive every reload.
+    _clearStaleNonOwnerSession() {
+        if (this.token && this.user?.login !== OWNER_USERNAME) {
+            this.logout();
+        }
     }
 
     isLoggedIn() {
@@ -97,6 +125,10 @@ class GitHubSync {
         if (hash.startsWith('#auth=')) {
             try {
                 const authData = JSON.parse(atob(hash.slice(6)));
+                if (this._rejectIfNotOwner(authData.user)) {
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    return false;
+                }
                 this.token = authData.token;
                 this.user = authData.user;
                 this.gistId = authData.gistId;
@@ -144,6 +176,8 @@ class GitHubSync {
         // Clean URL
         window.history.replaceState({}, document.title, window.location.pathname);
 
+        const priorToken = this.token;
+        let tokenCommitted = false;
         try {
             // Exchange code for token via proxy
             const response = await fetch(CONFIG.OAUTH_PROXY_URL + '/token', {
@@ -159,11 +193,20 @@ class GitHubSync {
                 return false;
             }
 
+            // Held in memory only until the gate passes - fetchUser() and
+            // findOrCreateGist() both read this.token, nothing reads storage. An
+            // early write would survive a fetchUser() throw as a token with no
+            // user, which reads as signed in and no sweeper can attribute.
             this.token = data.access_token;
-            localStorage.setItem(TOKEN_KEY, this.token);
 
             // Get user info
             await this.fetchUser();
+
+            // Before findOrCreateGist, so a rejected sign-in never creates one.
+            if (this._rejectIfNotOwner(this.user)) return false;
+
+            localStorage.setItem(TOKEN_KEY, this.token);
+            tokenCommitted = true;
 
             // Find or create gist
             await this.findOrCreateGist();
@@ -184,6 +227,10 @@ class GitHubSync {
             return true;
         } catch (error) {
             console.error('OAuth callback failed:', error);
+            // Roll back only a token that never reached storage - a throw after
+            // the commit (findOrCreateGist) must leave memory and storage in step,
+            // or the owner sees a signed-out UI holding a valid token.
+            if (!tokenCommitted) this.token = priorToken;
             return false;
         }
     }
