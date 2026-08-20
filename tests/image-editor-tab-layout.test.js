@@ -42,7 +42,9 @@ function cssRules(selector) {
 // load-bearing alone.
 function usedOverflowY(rule) {
     let x = 'visible', y = 'visible';
-    for (const [, axis, raw] of rule.matchAll(/overflow(-[xy])?:\s*([^;]+)/g)) {
+    // The lookbehind matters: without it `text-overflow: ellipsis` matches as an
+    // `overflow` declaration and poisons the result.
+    for (const [, axis, raw] of rule.matchAll(/(?<![\w-])overflow(-[xy])?:\s*([^;]+)/g)) {
         const [first, second] = raw.replace(/!important/g, '').trim().split(/\s+/);
         if (axis === '-x') x = first;
         else if (axis === '-y') y = first;
@@ -110,10 +112,12 @@ describe('image editor overlay layout', () => {
         // Dropping the declaration entirely is a floor as well, since min-height
         // then falls back to auto, so one has to be present and all have to be 0.
         const floors = rules
-            .flatMap(rule => [...rule.matchAll(/min-height:\s*([^;]+)/g)])
+            .flatMap(rule => [...rule.matchAll(/(?<![\w-])min-height:\s*([^;]+)/g)])
             .map(m => m[1].replace(/!important/g, '').trim());
         expect(floors.length).toBeGreaterThan(0);
-        for (const floor of floors) expect(floor).toMatch(/^0\w*$/);
+        // Every spelling of zero, since all of them leave the canvas free: 0, 0px,
+        // 0%, 0.0rem. Anything else is a floor.
+        for (const floor of floors) expect(floor).toMatch(/^0(\.0+)?\s*(%|[a-z]+)?$/i);
     });
 
     // The scrolling the .image-editor-body comment is about. Asserting on the
