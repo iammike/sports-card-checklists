@@ -87,23 +87,29 @@ describe('image editor overlay layout', () => {
     it('leaves the canvas container free to shrink', () => {
         const rules = cssRules('.image-editor-canvas');
         expect(rules.length).toBeGreaterThan(0);
-        for (const rule of rules) {
-            // Any floor at all, not just a px one - a rem or calc() value pins the
-            // canvas open just as effectively.
-            const floor = rule.match(/min-height:\s*([^;]+)/);
-            expect(floor?.[1].trim() ?? '0').toMatch(/^0\w*$/);
-        }
+        // Every declaration, not just the first: the last one wins in CSS. And any
+        // unit, not just px - a rem or calc() floor pins the canvas open too.
+        // Dropping the declaration entirely is a floor as well, since min-height
+        // then falls back to auto, so one has to be present and all have to be 0.
+        const floors = rules
+            .flatMap(rule => [...rule.matchAll(/min-height:\s*([^;]+)/g)])
+            .map(m => m[1].trim());
+        expect(floors.length).toBeGreaterThan(0);
+        for (const floor of floors) expect(floor).toMatch(/^0\w*$/);
     });
 
-    // The declaration the .image-editor-body comment is about. Nothing else holds
-    // it in place, and it is the only thing keeping the toolbar off the footer
-    // once the canvas has no space left to give.
+    // The scrolling the .image-editor-body comment is about. Neither declaration
+    // is load-bearing on its own - overflow-x: hidden already forces the used
+    // overflow-y to auto, so deleting the auto changes nothing at runtime - so
+    // what has to hold is that the rule never leaves both axes visible.
     it('lets the modal body scroll when the toolbars no longer fit', () => {
         const rules = cssRules('.image-editor-body');
         expect(rules.length).toBeGreaterThan(0);
-        for (const rule of rules) {
-            expect(rule).toMatch(/overflow-y:\s*auto/);
-        }
+        const overflows = rules
+            .flatMap(rule => [...rule.matchAll(/overflow(?:-[xy])?:\s*([^;]+)/g)])
+            .map(m => m[1].trim());
+        expect(overflows.length).toBeGreaterThan(0);
+        expect(overflows.some(v => v !== 'visible')).toBe(true);
     });
 
     it('shows the crop panel before constructing Cropper', () => {
