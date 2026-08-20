@@ -2632,9 +2632,9 @@ select, input[type="text"] {
        box. Scrolling is what stops them riding over the footer, which they start
        doing around 355px and reach the Cancel button around 335px. PR #738
        blamed the canvas's 300px floor; #748 removed the floor and the overflow
-       outlived it. (Approximate, and measured with the webfonts loaded - every
-       threshold lands ~4px lower without them, and they shift again below 600px
-       wide where the tab labels wrap.) */
+       outlived it. (Approximate, and measured on the desktop layout with the
+       webfonts loaded - every threshold lands ~4px lower without them, and none
+       of them apply under 600px wide, where the modal goes full height.) */
     overflow-y: auto;
     overflow-x: hidden;
 }

@@ -38,19 +38,23 @@ function cssRules(selector) {
 
 // The used vertical overflow. Last declaration wins, `overflow: <x> <y>` sets both
 // axes in that order, and an axis left `visible` computes to `auto` when the other
-// axis is not `visible` - which is why neither line in the shipped pair is
-// load-bearing alone.
+// axis is neither `visible` nor `clip` - which is why neither line in the shipped
+// pair is load-bearing alone. The `clip` half of that carve-out matters: a `clip`
+// on the other axis leaves this one `visible`, so it cannot stand in for the
+// scroll the way `hidden` does.
 function usedOverflowY(rule) {
+    const initial = ['initial', 'unset', 'revert', 'revert-layer'];
+    const norm = (v) => (initial.includes(v) ? 'visible' : v);
     let x = 'visible', y = 'visible';
     // The lookbehind matters: without it `text-overflow: ellipsis` matches as an
     // `overflow` declaration and poisons the result.
     for (const [, axis, raw] of rule.matchAll(/(?<![\w-])overflow(-[xy])?:\s*([^;]+)/g)) {
-        const [first, second] = raw.replace(/!important/g, '').trim().split(/\s+/);
-        if (axis === '-x') x = first;
-        else if (axis === '-y') y = first;
-        else { x = first; y = second ?? first; }
+        const [first, second] = raw.replace(/!important/gi, '').trim().toLowerCase().split(/\s+/);
+        if (axis === '-x') x = norm(first);
+        else if (axis === '-y') y = norm(first);
+        else { x = norm(first); y = norm(second ?? first); }
     }
-    return y === 'visible' && x !== 'visible' ? 'auto' : y;
+    return y === 'visible' && x !== 'visible' && x !== 'clip' ? 'auto' : y;
 }
 
 // --- Tab switching: the panel swap has to land before anything measures -------
