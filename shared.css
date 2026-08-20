@@ -2577,7 +2577,7 @@ select, input[type="text"] {
     border-radius: 12px;
     width: 90vw;
     max-width: 900px;
-    max-height: 90vh;
+    height: 90vh;
     display: flex;
     flex-direction: column;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
@@ -2675,8 +2675,7 @@ select, input[type="text"] {
 
 .image-editor-canvas {
     flex: 1;
-    min-height: 300px;
-    max-height: 60vh;
+    min-height: 0;
     background: #0d0d1a;
     border-radius: 8px;
     overflow: hidden;
@@ -2880,15 +2879,16 @@ select, input[type="text"] {
     position: relative;
 }
 
+/* Relative to .image-editor-canvas's real box, not the viewport. A fixed 60vh
+   could exceed what that parent actually has on a short window, and since it
+   has overflow: hidden the excess was clipped rather than shrunk, pushing the
+   corner handles and guide lines out of view (#737 follow-up).
+   The percentage only bites because .image-editor-modal has a definite height.
+   Against the content-sized chain it computes to none and the canvas grows
+   unbounded instead - at a 740px viewport, 613px inside a 403px container,
+   further out than the 60vh it replaced. */
 .perspective-canvas {
     max-width: 100%;
-    /* Relative to .image-editor-canvas's real box, not the viewport - matches
-       .image-editor-canvas img's pattern for the Crop & Rotate tab. A fixed
-       60vh here could exceed what .image-editor-canvas actually has available
-       on a short window, and since that parent has overflow: hidden, the
-       excess got clipped instead of shrinking - cutting off part of the card
-       and pushing the corner-drag handles to the clipped edge, sometimes out
-       of view entirely (#737 follow-up). */
     max-height: 100%;
     display: block;
 }
@@ -2943,14 +2943,7 @@ select, input[type="text"] {
         height: 100vh;
         height: 100dvh;
         max-width: none;
-        max-height: none;
         border-radius: 0;
-    }
-
-    .image-editor-canvas {
-        max-height: none;
-        min-height: 0;
-        flex: 1;
     }
 
     .image-editor-controls {
@@ -2964,10 +2957,6 @@ select, input[type="text"] {
 
     .image-editor-slider {
         width: 80px;
-    }
-
-    .perspective-canvas {
-        max-height: none;
     }
 
     .perspective-handle {
