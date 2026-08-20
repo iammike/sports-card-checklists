@@ -1434,6 +1434,12 @@ class ChecklistEngine {
         // Search
         html += `<span class="search-wrapper"><input type="text" id="search" placeholder="Search cards..." aria-label="Search cards"><button class="search-clear" type="button" aria-label="Clear search">&times;</button></span>`;
 
+        // Export CSV - exports whatever the current filters leave visible, so
+        // "needed, under $50" or "owned, Auto" narrows the file the same way it
+        // narrows the grid. Available to every visitor, not just the owner: it
+        // only reads already-loaded data, no write access needed.
+        html += `<button id="export-csv-btn" class="filter-btn" title="Export the currently visible cards as CSV">Export CSV</button>`;
+
         // Reorder button (visible when sort=Manual and user is owner)
         html += `<button id="reorder-btn" class="filter-btn" style="display:none">Reorder</button>`;
 
@@ -1448,6 +1454,7 @@ class ChecklistEngine {
             const input = container.querySelector('#search');
             if (input) { input.value = ''; input.focus(); this._onFilterChange(); }
         });
+        container.querySelector('#export-csv-btn')?.addEventListener('click', () => this._exportCSV());
         container.querySelector('#reorder-btn')?.addEventListener('click', () => this._toggleReorderMode());
         container.querySelectorAll('.quick-filter-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -1460,6 +1467,91 @@ class ChecklistEngine {
 
         // Show reorder button if applicable
         this._updateReorderButton();
+    }
+
+    // ========================================
+    // CSV Export
+    // ========================================
+
+    // Cards currently on screen, in DOM order - i.e. whatever _applyFilters
+    // left visible, not every card this checklist has. Mirrors
+    // _quickFilterDefs/_getPriceBounds' allCards param convention: read once,
+    // pass to whoever needs it, rather than re-querying the DOM per caller.
+    _getVisibleCards() {
+        const container = document.getElementById('sections-container');
+        if (!container) return [];
+        return [...container.querySelectorAll('.card:not(.filter-hidden)')]
+            .map(el => this._renderedCards[parseInt(el.dataset.cardIdx)])
+            .filter(card => card && !card.noCard && !card.collectionLink);
+    }
+
+    // One CSV cell, RFC 4180 quoted whenever it contains a comma, quote, or
+    // newline - a comma in a set name ("2024 Panini, Prizm") would otherwise
+    // silently shift every later column.
+    _csvCell(value) {
+        const str = String(value ?? '');
+        return /[",\r\n]/.test(str) ? '"' + str.replace(/"/g, '""') + '"' : str;
+    }
+
+    // Exports whatever the filter bar currently leaves visible - "needed,
+    // under $50" narrows the file the same way it narrows the grid, so a user
+    // heading to a card show can filter to what they actually want before
+    // exporting rather than exporting everything and filtering in a
+    // spreadsheet afterward. Attribute columns (Auto/Patch/Numbered/Rookie)
+    // only appear when this checklist actually uses them - same gate the quick
+    // filter toggles use - so a stat-only checklist doesn't get three blank
+    // columns on every row.
+    _exportCSV() {
+        const cards = this._getVisibleCards();
+        if (cards.length === 0) {
+            alert('No cards to export - adjust the filters and try again.');
+            return;
+        }
+
+        const attrDefs = this._quickFilterDefs(this._getAllCardsFlat());
+        const showCategory = !this._isFlat();
+
+        const headers = [
+            ...(showCategory ? ['Category'] : []),
+            'Player', 'Set', 'Number', 'Variant', 'Type',
+            ...attrDefs.map(d => d.label),
+            'Price', 'Owned',
+        ];
+
+        const rows = cards.map(card => {
+            const row = [];
+            if (showCategory) row.push(card._category || '');
+            row.push(card.player || '', card.set || '', card.num || '', card.variant || '', card.type || '');
+            attrDefs.forEach(d => {
+                const val = card[d.field];
+                if (!val) { row.push(''); return; }
+                // serial is a value ("/99"), the rest are booleans
+                row.push(d.field === 'serial' ? String(val) : 'Yes');
+            });
+            const price = this.getPrice(card);
+            row.push(price > 0 ? price : '');
+            row.push(this.isOwned(this.getCardId(card)) ? 'Yes' : 'No');
+            return row;
+        });
+
+        const csv = [headers, ...rows]
+            .map(row => row.map(cell => this._csvCell(cell)).join(','))
+            .join('\r\n');
+        this._downloadCSV(csv, `${this.id}.csv`);
+    }
+
+    // A UTF-8 BOM prefix is what makes Excel (not just browsers) detect the
+    // encoding correctly instead of mangling an accented player name.
+    _downloadCSV(csvContent, filename) {
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
     }
 
     // Which attribute toggles apply to this checklist. Auto/Patch/Numbered mirror

@@ -32,6 +32,7 @@ A modern web app for tracking sports card collections with cloud sync, real-time
 - **Custom filters** - Checklist-specific dropdown filters (e.g., sport, era, team)
 - **Price range** - Dual-handle slider to narrow cards to a price window; scaled to each checklist's own price distribution (not linear dollars) so a handful of expensive outliers don't crowd out the common range
 - **Attribute toggles** - Combinable Auto / Patch / Numbered / Rookie filters, stackable with each other and every other filter
+- **CSV export** - Exports whatever the current filters leave visible, available to every visitor (no login required)
 - **Sort options** - Manual, year, set name, serial scarcity, price (low/high), and custom fields
 
 ### Inline Editing (Owner Only) · [Screenshot](docs/screenshots/card-editor.png)
