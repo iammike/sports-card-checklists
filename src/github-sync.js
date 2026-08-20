@@ -22,6 +22,10 @@ const CONFIG = {
 // secondary limit, and a save is not latency-sensitive enough to shave this down.
 const MIN_WRITE_SPACING_MS = 1000;
 
+// Anyone can authorize the OAuth app, but only the owner has anything to sign in
+// for - see _rejectIfNotOwner.
+const OWNER_USERNAME = 'iammike';
+
 // Storage keys
 const TOKEN_KEY = 'github_token';
 const GIST_ID_KEY = 'github_gist_id';
@@ -46,6 +50,7 @@ class GitHubSync {
             localStorage.removeItem(USER_KEY);
         }
         this.onAuthChange = null;
+        this._clearStaleNonOwnerSession();
         this._saveQueue = Promise.resolve(); // Queue to prevent concurrent saves
         this._lastWriteAt = 0; // Date.now() of the last gist PATCH, for MIN_WRITE_SPACING_MS (#733)
         this._cachedData = null; // Cache to avoid stale reads during saves
@@ -59,6 +64,25 @@ class GitHubSync {
                 this.clearGistCache();
             }
         });
+    }
+
+    // Signing in as anyone but the owner leaves a half-broken site - the registry
+    // read follows the token to the visitor's own gist, so the index page loses
+    // every checklist and nav link - and findOrCreateGist() would plant a public
+    // gist in their account uninvited. Callers must bail out when this returns true.
+    _rejectIfNotOwner(user) {
+        if (user?.login === OWNER_USERNAME) return false;
+        this.logout();
+        alert('Sign-in is limited to the collection owner. You can browse everything without signing in.');
+        return true;
+    }
+
+    // The handleCallback gates only fire on a fresh OAuth return, so a session
+    // stored before sign-in became owner-only would otherwise persist unchecked.
+    _clearStaleNonOwnerSession() {
+        if (this.token && this.user && this.user.login !== OWNER_USERNAME) {
+            this.logout();
+        }
     }
 
     isLoggedIn() {
@@ -97,6 +121,10 @@ class GitHubSync {
         if (hash.startsWith('#auth=')) {
             try {
                 const authData = JSON.parse(atob(hash.slice(6)));
+                if (this._rejectIfNotOwner(authData.user)) {
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    return false;
+                }
                 this.token = authData.token;
                 this.user = authData.user;
                 this.gistId = authData.gistId;
@@ -164,6 +192,9 @@ class GitHubSync {
 
             // Get user info
             await this.fetchUser();
+
+            // Before findOrCreateGist, so a rejected sign-in never creates one.
+            if (this._rejectIfNotOwner(this.user)) return false;
 
             // Find or create gist
             await this.findOrCreateGist();

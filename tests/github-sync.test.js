@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
 
 // The shared setup loads github-sync.js along with the rest of the bundle (#719),
 // so this exercises the real singleton rather than a re-loaded copy. Constructing
@@ -222,5 +222,129 @@ describe('GitHubSync cache clearing', () => {
 
         expect(sync._gistCache).toEqual({ files: {} });
         expect(sync._publicGistCache).toEqual({ files: {} });
+    });
+});
+
+// Sign-in is owner-only. Anyone can authorize the OAuth app, and before this
+// gate a stranger's callback ran all the way through findOrCreateGist(), which
+// silently created a public gist in *their* GitHub account. It also left them on
+// a half-broken site: the registry read follows the token to their own gist, so
+// the index page rendered with no checklists and no nav links.
+describe('GitHubSync owner-only sign-in', () => {
+    const realFetch = globalThis.fetch;
+    const realAlert = globalThis.alert;
+    const realSearch = window.location.search;
+
+    beforeEach(() => {
+        globalThis.alert = () => {};
+    });
+
+    afterEach(() => {
+        globalThis.fetch = realFetch;
+        globalThis.alert = realAlert;
+        window.history.replaceState({}, '', window.location.pathname + realSearch);
+        sessionStorage.clear();
+        sync.token = null;
+        sync.user = null;
+        sync.gistId = null;
+        localStorage.clear();
+    });
+
+    it('rejects a non-owner and clears the session', () => {
+        sync.token = 'tok';
+        sync.user = { login: 'someone-else' };
+
+        expect(sync._rejectIfNotOwner({ login: 'someone-else' })).toBe(true);
+        expect(sync.token).toBeNull();
+        expect(localStorage.getItem('github_token')).toBeNull();
+    });
+
+    it('accepts the owner and leaves the session intact', () => {
+        sync.token = 'tok';
+
+        expect(sync._rejectIfNotOwner({ login: 'iammike' })).toBe(false);
+        expect(sync.token).toBe('tok');
+    });
+
+    it('rejects a missing or malformed user rather than defaulting to allow', () => {
+        expect(sync._rejectIfNotOwner(undefined)).toBe(true);
+        expect(sync._rejectIfNotOwner({})).toBe(true);
+    });
+
+    // The gates in handleCallback only fire on a fresh OAuth return, so a session
+    // stored before this shipped would otherwise persist unchecked forever.
+    it('clears a stored non-owner session on construction', () => {
+        sync.token = 'tok';
+        sync.user = { login: 'someone-else' };
+
+        sync._clearStaleNonOwnerSession();
+
+        expect(sync.token).toBeNull();
+    });
+
+    // Calling the helper directly cannot show the constructor invokes it - without
+    // this, the wiring could be dropped and every other test here still passes.
+    it('clears a stale non-owner session when a new instance is constructed', () => {
+        localStorage.setItem('github_token', 'tok');
+        localStorage.setItem('github_user', JSON.stringify({ login: 'someone-else' }));
+
+        const fresh = new sync.constructor();
+
+        expect(fresh.token).toBeNull();
+        expect(localStorage.getItem('github_token')).toBeNull();
+    });
+
+    it('leaves a stored owner session alone', () => {
+        sync.token = 'tok';
+        sync.user = { login: 'iammike' };
+
+        sync._clearStaleNonOwnerSession();
+
+        expect(sync.token).toBe('tok');
+    });
+
+    // The branch-preview redirect path stores token/user/gistId straight from the
+    // URL fragment, so it needs the same gate as the code-exchange path above.
+    it('rejects a non-owner arriving via the #auth= fragment', async () => {
+        const authData = btoa(JSON.stringify({
+            token: 'tok', user: { login: 'someone-else' }, gistId: 'gist1',
+        }));
+        window.history.replaceState({}, '', `${window.location.pathname}#auth=${authData}`);
+
+        const result = await sync.handleCallback();
+
+        expect(result).toBe(false);
+        expect(sync.token).toBeNull();
+        expect(localStorage.getItem('github_token')).toBeNull();
+    });
+
+    // The behaviour that matters: the rejection lands before findOrCreateGist(),
+    // so a stranger never gets a gist created in their account.
+    it('never creates a gist for a non-owner callback', async () => {
+        const calls = [];
+        globalThis.fetch = async (url, opts) => {
+            calls.push({ url: String(url), method: opts?.method || 'GET' });
+            if (String(url).includes('/token')) {
+                return { json: async () => ({ access_token: 'tok' }) };
+            }
+            if (String(url).includes('api.github.com/user')) {
+                return { json: async () => ({ login: 'someone-else' }) };
+            }
+            return { ok: true, json: async () => ({}) };
+        };
+        sessionStorage.setItem('oauth_state', 'csrf1');
+        const state = btoa(JSON.stringify({ csrf: 'csrf1', returnUrl: null }));
+        window.history.replaceState({}, '', `${window.location.pathname}?code=abc&state=${encodeURIComponent(state)}`);
+
+        const result = await sync.handleCallback();
+
+        expect(result).toBe(false);
+        expect(sync.token).toBeNull();
+        expect(localStorage.getItem('github_token')).toBeNull();
+        // Reaching /gists at all would mean the gate ran too late.
+        expect(calls.filter(c => c.url.includes('/gists'))).toEqual([]);
+        // Proves the callback really ran rather than bailing early for some
+        // unrelated reason - otherwise the assertion above passes vacuously.
+        expect(calls.some(c => c.url.includes('api.github.com/user'))).toBe(true);
     });
 });
