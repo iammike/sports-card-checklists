@@ -118,6 +118,35 @@ describe('image editor overlay layout', () => {
         expect(editor.backdrop.classList.contains('active')).toBe(true);
     });
 
+    // Nothing in switchTab sets img.onerror - the recovery comes from the handler
+    // open() left on the shared <img>, which is invisible at the call site. Pinned
+    // because confirm()'s switching guard means a latch stuck on means Done stops
+    // working too, not just the tabs.
+    it('recovers from a failed image load during the switch back to crop', async () => {
+        const editor = new ImageEditorModal();
+        editor.loadCropperJS = async () => {};
+        globalThis.Cropper = class {
+            constructor(img, options) { options.ready?.(); }
+            destroy() {}
+        };
+
+        const opened = editor.open('https://example.test/card.png');
+        const failure = expect(opened).rejects.toThrow('Failed to load image');
+        await Promise.resolve();
+
+        // Land on perspective, then switch back with a source that will not load.
+        editor.activeTab = 'perspective';
+        editor.perspectiveCanvas = null;
+        editor.switchTab('crop');
+
+        const img = editor.backdrop.querySelector('#image-editor-img');
+        img.onerror();
+
+        expect(editor.switching).toBe(false);
+        expect(editor.backdrop.classList.contains('active')).toBe(false);
+        await failure;
+    });
+
     it('shows the perspective panel before laying out the corner handles', () => {
         const editor = new ImageEditorModal();
         editor.init();
