@@ -115,6 +115,7 @@ class ChecklistEngine {
         // Re-add delete and settings buttons (ChecklistManager.init re-renders the dropdown)
         this._initDeleteButton();
         this._initSettingsButton();
+        this._initExportButton();
 
         // Set up CardContextMenu
         this.cardContextMenu = new CardContextMenu(this.checklistManager);
@@ -245,6 +246,32 @@ class ChecklistEngine {
             creator.openEdit(this.config);
         };
         dropdown.insertBefore(settingsBtn, insertBefore);
+    }
+
+    // Export CSV's nav-menu entry point for a logged-in user - the filter bar
+    // carries the same action for a logged-out visitor instead (_renderFilters),
+    // who has no menu to put it in. Gated on isLoggedIn(), matching Shopping
+    // List's own gate in nav.js rather than the owner-only Settings/Delete
+    // gate: exporting already-visible data is no more sensitive than that.
+    _initExportButton() {
+        if (!window.githubSync || !githubSync.isLoggedIn()) return;
+        const dropdown = document.querySelector('.nav-dropdown');
+        if (!dropdown) return;
+        // Same "before the delete divider, else before sign-out" landing spot
+        // _initSettingsButton uses, so this settles in right after Settings.
+        const deleteBtn = document.getElementById('checklist-delete-btn');
+        const insertBefore = deleteBtn?.previousElementSibling || document.getElementById('auth-logout-btn');
+        if (!insertBefore) return;
+
+        const exportBtn = document.createElement('button');
+        exportBtn.className = 'nav-dropdown-item';
+        exportBtn.id = 'nav-export-csv-btn';
+        exportBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg> Export CSV';
+        exportBtn.onclick = () => {
+            dropdown.classList.remove('open');
+            this._exportCSV();
+        };
+        dropdown.insertBefore(exportBtn, insertBefore);
     }
 
     // ========================================
@@ -1436,9 +1463,13 @@ class ChecklistEngine {
 
         // Export CSV - exports whatever the current filters leave visible, so
         // "needed, under $50" or "owned, Auto" narrows the file the same way it
-        // narrows the grid. Available to every visitor, not just the owner: it
-        // only reads already-loaded data, no write access needed.
-        html += `<button id="export-csv-btn" class="filter-btn" title="Export the currently visible cards as CSV">Export CSV</button>`;
+        // narrows the grid. Shown here only for a logged-out visitor, who has
+        // no nav menu to put it in; a logged-in user gets the same action from
+        // the nav dropdown instead (_initExportButton), keeping the filter bar
+        // less cluttered for whoever sees it on every visit.
+        if (!(window.githubSync && githubSync.isLoggedIn())) {
+            html += `<button id="export-csv-btn" class="filter-btn" title="Export the currently visible cards as CSV">Export CSV</button>`;
+        }
 
         // Reorder button (visible when sort=Manual and user is owner)
         html += `<button id="reorder-btn" class="filter-btn" style="display:none">Reorder</button>`;

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 const ChecklistEngine = globalThis.ChecklistEngine;
 const ChecklistManager = globalThis.ChecklistManager;
@@ -324,5 +324,89 @@ describe('ChecklistEngine._downloadCSV', () => {
             URL.revokeObjectURL = realRevoke;
             clickSpy.mockRestore();
         }
+    });
+});
+
+// The button moves rather than duplicating: a logged-out visitor has no nav
+// menu to put it in, so the filter bar carries it; a logged-in user gets it
+// from the nav dropdown instead, keeping the filter bar less cluttered for
+// whoever sees it on every visit (same _exportCSV() handler either way).
+describe('Export CSV moves between the filter bar and the nav menu based on login state', () => {
+    let realGithubSync;
+
+    beforeEach(() => {
+        realGithubSync = window.githubSync;
+    });
+
+    afterEach(() => {
+        window.githubSync = realGithubSync;
+    });
+
+    it('shows the filter-bar button for a logged-out visitor', () => {
+        delete window.githubSync;
+        const engine = makeEngine({}, [{ set: 'A', num: '1' }]);
+        engine._renderFilters();
+
+        expect(document.getElementById('export-csv-btn')).not.toBeNull();
+    });
+
+    it('hides the filter-bar button for a logged-in user', () => {
+        window.githubSync = { isLoggedIn: () => true, getUser: () => ({ login: 'someone-else' }) };
+        const engine = makeEngine({}, [{ set: 'A', num: '1' }]);
+        engine._renderFilters();
+
+        expect(document.getElementById('export-csv-btn')).toBeNull();
+    });
+
+    it('_initExportButton does nothing for a logged-out visitor', () => {
+        delete window.githubSync;
+        document.body.innerHTML += '<div class="nav-dropdown"><button id="auth-logout-btn"></button></div>';
+        const engine = makeEngine({}, []);
+
+        engine._initExportButton();
+
+        expect(document.getElementById('nav-export-csv-btn')).toBeNull();
+    });
+
+    it('_initExportButton adds a nav item for a logged-in user, positioned before the delete divider', () => {
+        window.githubSync = { isLoggedIn: () => true };
+        document.body.innerHTML +=
+            '<div class="nav-dropdown">' +
+            '<div class="nav-dropdown-divider" id="delete-divider"></div>' +
+            '<button id="checklist-delete-btn"></button>' +
+            '<button id="auth-logout-btn"></button>' +
+            '</div>';
+        const engine = makeEngine({}, []);
+
+        engine._initExportButton();
+
+        const exportBtn = document.getElementById('nav-export-csv-btn');
+        expect(exportBtn).not.toBeNull();
+        expect(exportBtn.nextElementSibling.id).toBe('delete-divider'); // lands right before Delete's divider
+    });
+
+    it('_initExportButton falls back to landing before sign-out when there is no delete button', () => {
+        window.githubSync = { isLoggedIn: () => true };
+        document.body.innerHTML += '<div class="nav-dropdown"><button id="auth-logout-btn"></button></div>';
+        const engine = makeEngine({}, []);
+
+        engine._initExportButton();
+
+        const exportBtn = document.getElementById('nav-export-csv-btn');
+        expect(exportBtn.nextElementSibling.id).toBe('auth-logout-btn');
+    });
+
+    it('clicking the nav item closes the dropdown and triggers the same export', () => {
+        window.githubSync = { isLoggedIn: () => true };
+        document.body.innerHTML +=
+            '<div class="nav-dropdown open"><button id="auth-logout-btn"></button></div>';
+        const engine = makeEngine({}, [{ set: 'A', num: '1' }]);
+        const exportSpy = vi.spyOn(engine, '_exportCSV').mockImplementation(() => {});
+
+        engine._initExportButton();
+        document.getElementById('nav-export-csv-btn').click();
+
+        expect(exportSpy).toHaveBeenCalledTimes(1);
+        expect(document.querySelector('.nav-dropdown').classList.contains('open')).toBe(false);
     });
 });
