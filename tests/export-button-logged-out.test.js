@@ -34,6 +34,10 @@ function makeEngine() {
 // _renderFilters() ends in _updateReorderButton(), which reaches isOwner() ->
 // getUser(), so both are needed for the render to complete either way.
 const loggedOut = () => ({ isLoggedIn: () => false, getUser: () => null });
+
+// The click handler is async and the listener discards its promise, so tests have
+// to let the microtask queue drain before asserting on what happened after it.
+const flush = () => new Promise(r => setTimeout(r, 0));
 const loggedIn = () => ({ isLoggedIn: () => true, getUser: () => ({ login: 'someone-else' }) });
 
 describe('Shopping List button in the filter row', () => {
@@ -70,15 +74,83 @@ describe('Shopping List button in the filter row', () => {
         expect(document.getElementById('shopping-list-filter-btn')).toBeNull();
     });
 
-    it('opens the options modal when clicked', () => {
+    // Driven by a real click, not by calling the method: the click binding is the
+    // thing this behaviour lives in, and invoking _exportShoppingList by hand
+    // leaves a full revert to showOptionsModal passing green.
+    it('exports this checklist directly when clicked, without the options modal', async () => {
         window.githubSync = loggedOut();
+        const generate = vi.fn(async () => {});
         const showOptionsModal = vi.fn();
-        window.ShoppingList = { showOptionsModal };
+        window.ShoppingList = { generate, showOptionsModal };
 
         makeEngine()._renderFilters();
         document.getElementById('shopping-list-filter-btn').click();
+        await flush();
 
-        expect(showOptionsModal).toHaveBeenCalledTimes(1);
+        expect(showOptionsModal).not.toHaveBeenCalled();
+        expect(generate).toHaveBeenCalledTimes(1);
+        const opts = generate.mock.calls[0][0];
+        expect([...opts.selectedChecklists]).toEqual(['test']);
+        // No options passed at all: generate() already defaults both to false, so
+        // naming them here would only be a chance to pass the wrong thing. The
+        // output side of this is pinned in tests/shopping-list.test.js - this end
+        // pins that the button is what asks for it.
+        expect(opts.includeExtra).toBeUndefined();
+        expect(opts.groupByChecklist).toBeUndefined();
+    });
+
+    // The disable is the only thing stopping a double-click, which would mean a
+    // second jsPDF load, a second full gist refetch and a second download. Asserted
+    // mid-flight - checking only that it is re-enabled afterwards passes just as
+    // well when it was never disabled.
+    it('disables the button while the export is in flight', async () => {
+        window.githubSync = loggedOut();
+        let finish;
+        window.ShoppingList = { generate: () => new Promise(r => { finish = r; }) };
+
+        makeEngine()._renderFilters();
+        const btn = document.getElementById('shopping-list-filter-btn');
+        const originalLabel = btn.textContent;
+        btn.click();
+
+        expect(btn.disabled).toBe(true);
+        expect(btn.textContent).toBe('Generating...');
+
+        finish();
+        await flush();
+
+        expect(btn.disabled).toBe(false);
+        expect(btn.textContent).toBe(originalLabel);
+    });
+
+    it('labels the button Export PDF', () => {
+        window.githubSync = loggedOut();
+
+        makeEngine()._renderFilters();
+
+        expect(document.getElementById('shopping-list-filter-btn').textContent).toBe('Export PDF');
+    });
+
+    it('re-enables the button after a failed export', async () => {
+        window.githubSync = loggedOut();
+        window.ShoppingList = { generate: async () => { throw new Error('boom'); } };
+        const realAlert = globalThis.alert;
+        let alerted = false;
+        globalThis.alert = () => { alerted = true; };
+
+        makeEngine()._renderFilters();
+        const btn = document.getElementById('shopping-list-filter-btn');
+        const originalLabel = btn.textContent;
+        try {
+            btn.click();
+            await flush();
+        } finally {
+            globalThis.alert = realAlert;
+        }
+
+        expect(alerted).toBe(true);
+        expect(btn.disabled).toBe(false);
+        expect(btn.textContent).toBe(originalLabel);
     });
 
     it('is omitted when the ShoppingList module is absent, rather than rendering a dead button', () => {

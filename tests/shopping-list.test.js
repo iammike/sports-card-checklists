@@ -170,6 +170,61 @@ describe('ShoppingList.generate', () => {
         expect(ShoppingList.buildPDF).toHaveBeenCalled();
     });
 
+    // The filter-row button passes a single-id Set, so this branch is what makes
+    // "a PDF of the current checklist" true. Asserting the argument shape at the
+    // call site cannot show the output is actually narrowed.
+    it('includes only the checklists named in selectedChecklists', async () => {
+        DynamicNav.loadRegistry = async () => ({
+            checklists: [{ id: 'a' }, { id: 'b' }, { id: 'c' }],
+        });
+        window.githubSync = {
+            clearDataCache: vi.fn(),
+            loadData: async () => null,
+            loadPublicData: async () => ({ checklists: {} }),
+            loadChecklistConfig: async () => null,
+            loadPublicChecklistConfig: async () => ({ dataShape: 'flat', cardDisplay: {} }),
+            loadCardData: async () => null,
+            loadPublicCardData: async (id) => ({ cards: [{ id: id + '1', set: '2024 Set ' + id, num: id }] }),
+        };
+
+        await ShoppingList.generate({ selectedChecklists: new Set(['b']) });
+
+        const items = ShoppingList.buildPDF.mock.calls[0][0];
+        expect(items.map(i => i.num)).toEqual(['b']);
+    });
+
+    // includeExtra defaults to false inside generate(), which is why the filter-row
+    // button passes no options at all. Pinned on the output, not the default, so a
+    // flip of that `|| false` cannot change behaviour silently.
+    it('excludes extra categories when no options are passed', async () => {
+        DynamicNav.loadRegistry = async () => ({ checklists: [{ id: 'a' }] });
+        window.githubSync = {
+            clearDataCache: vi.fn(),
+            loadData: async () => null,
+            loadPublicData: async () => ({ checklists: {} }),
+            loadChecklistConfig: async () => null,
+            loadPublicChecklistConfig: async () => ({
+                cardDisplay: {},
+                categories: [{ id: 'base', isMain: true }, { id: 'inserts', isMain: false }],
+            }),
+            loadCardData: async () => null,
+            loadPublicCardData: async () => ({
+                categories: {
+                    base: [{ id: 'b1', set: '2024 Base', num: '1' }],
+                    inserts: [{ id: 'i1', set: '2024 Inserts', num: '2' }],
+                },
+            }),
+        };
+
+        await ShoppingList.generate({ selectedChecklists: new Set(['a']) });
+
+        const items = ShoppingList.buildPDF.mock.calls[0][0];
+        expect(items.map(i => i.num)).toEqual(['1']);
+        // groupByChecklist defaults false too - a group header on a
+        // single-checklist PDF is noise.
+        expect(ShoppingList.buildPDF.mock.calls[0][1].groupByChecklist).toBe(false);
+    });
+
     // The export is offered to logged-out visitors (the filter-row button in
     // checklist-engine.js), which rests entirely on every authenticated read
     // here having a public fallback. Without a token loadData/loadChecklistConfig/
