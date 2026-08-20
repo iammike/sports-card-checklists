@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
@@ -95,6 +95,27 @@ describe('image editor overlay layout', () => {
         editor.backdrop.querySelector('#image-editor-img').onload();
 
         expect(visibilityAtConstruction).toEqual({ crop: true, perspective: false });
+    });
+
+    // The window between the two tabs' editors: activeTab already names the
+    // destination, but neither Cropper nor the perspective canvas exists yet, so
+    // both confirm() branches fall through to a reject that throws the edit away.
+    it('ignores Done while a tab switch is in flight', () => {
+        const editor = new ImageEditorModal();
+        editor.init();
+        editor.backdrop.classList.add('active');
+        editor.switching = true;
+        editor.activeTab = 'crop';
+        editor.cropper = null;
+        editor.resolvePromise = vi.fn();
+        editor.rejectPromise = vi.fn();
+
+        editor.confirm();
+
+        expect(editor.rejectPromise).not.toHaveBeenCalled();
+        expect(editor.resolvePromise).not.toHaveBeenCalled();
+        // close() clears both handles, so the editor is still able to resolve later.
+        expect(editor.backdrop.classList.contains('active')).toBe(true);
     });
 
     it('shows the perspective panel before laying out the corner handles', () => {
