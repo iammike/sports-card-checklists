@@ -7,15 +7,38 @@
 
 // Fields whose absence from a submission really does mean the user cleared them.
 // The first four because the card editor always renders them, so an empty one is
-// a deliberate blank. The collection link trio is not always rendered, but earns
-// the same treatment for a different reason: getFormData omits all three together
+// a deliberate blank. The collection link pair is not always rendered, but earns
+// the same treatment for a different reason: getFormData omits both together
 // whenever no link is selected, which is exactly when they should be gone. Every
 // other clearable field is a custom field and is only trusted when this
 // checklist's config declares it - see _clearEmptyFields.
 const ENGINE_BUILTIN_CLEARABLE = new Set([
     'price', 'img', 'search', 'priceSearch',
-    'collectionLink', 'stackImages', 'cardCount',
+    'collectionLink', 'stackImages',
 ]);
+
+// _mergeWithFreshGistData() forces a GET before every save so a save can't clobber
+// changes made elsewhere (#560) - but that doubles request volume, and a burst of
+// saves in one editing session was enough to trip GitHub's gist secondary rate
+// limit (#733). Skipping the re-fetch when the last one is still this fresh keeps
+// the protection for the case it exists for (another device/tab writing in
+// parallel) while not re-checking on every single save of a solo editing streak.
+const FRESH_MERGE_WINDOW_MS = 30000;
+
+// Card prices on a typical checklist are heavily right-skewed - most cards
+// cluster under $20-30 while a handful of rare parallels/autos run into the
+// thousands (e.g. #740's own data: 288 cards, 67% at $30 or under, ceiling
+// $7000). A linear slider gives that entire common range a sliver of pixels
+// at one end of the track. The price slider's raw <input> position instead
+// runs 0..PRICE_SLIDER_RESOLUTION and is mapped onto the real dollar amounts
+// in this checklist's own cards (see _priceAtSliderPosition): position t maps
+// to the price at the t-th percentile of this checklist's actual prices, so
+// each equal step of drag distance passes over roughly the same *number* of
+// cards rather than the same number of dollars. Wherever this checklist's
+// cards are actually clustered - $5-30, or $200-400, or wherever - that's
+// where the slider naturally gives the most control, with no fixed curve or
+// per-checklist tuning required.
+const PRICE_SLIDER_RESOLUTION = 1000;
 
 class ChecklistEngine {
     constructor() {
@@ -31,6 +54,20 @@ class ChecklistEngine {
         this._renderedCards = [];     // Card data in DOM render order
         this._reorderMode = false;
         this._sortableInstances = [];
+        this._lastFreshMergeAt = 0;   // Date.now() of the last real merge fetch (#733)
+
+        // The freshness window (#733) assumes nothing else wrote to the gist since
+        // our last fetch - true for a solo editing streak, not for a second tab
+        // regaining focus after editing there. Force the next save back onto the
+        // full fetch+merge path in that case, matching github-sync.js's own
+        // visibilitychange cache clear for the same reason.
+        document.addEventListener('visibilitychange', () => this._onBecameVisible());
+    }
+
+    // Broken out from the listener above so it's callable directly in tests
+    // without going through the constructor + a real visibilitychange event.
+    _onBecameVisible() {
+        if (document.visibilityState === 'visible') this._lastFreshMergeAt = 0;
     }
 
     // ========================================
@@ -318,9 +355,8 @@ class ChecklistEngine {
         });
     }
 
-    // The two fields on a collection link card that describe the linked checklist
-    // rather than this card, filled in from the linked checklist itself. See the
-    // editor's _refreshLinkedCardCount and _suggestStackImages for when each is used.
+    // What a collection link card's target can offer it, filled in from the linked
+    // checklist itself. See the editor's _suggestStackImages for how it is used.
     //
     // No cache of its own: githubSync keeps the whole fetched gist in memory and
     // every file below comes out of it, so a repeat call is a JSON parse rather
@@ -337,26 +373,17 @@ class ChecklistEngine {
         if (!linkedId) return null;
 
         const loggedIn = !!githubSync.isLoggedIn();
-
-        // The count comes from the linked checklist's saved stats, not from
-        // counting its cards. `total` there is the number the badge shows whenever
-        // it can read those stats (see _renderCollectionLinkCard), so the stored
-        // cardCount stays a faithful snapshot of the value it stands in for - it
-        // cannot disagree with the live badge about what "N CARDS" means. Every
-        // save to a checklist rewrites its stats, so the snapshot is current as of
-        // that checklist's last edit.
-        const allStats = loggedIn
-            ? await githubSync.loadAllStats()
-            : await githubSync.loadPublicStats();
-        const linkedTotal = (allStats || {})[linkedId]?.total;
-
         const cardData = (loggedIn ? await githubSync.loadCardData(linkedId) : null)
             || await githubSync.loadPublicCardData(linkedId);
+        // No cards file means the read failed or the checklist is gone - not that
+        // it holds no images. The two are worth telling apart because the editor
+        // shows a different message for each, and they are reliably distinct: both
+        // reads answer null only for a file that is missing or unreachable, while a
+        // checklist that exists but holds nothing still answers with an object,
+        // since createChecklist writes {cards: []} or {categories: {}} up front.
+        if (!cardData) return null;
 
-        return {
-            cardCount: typeof linkedTotal === 'number' ? linkedTotal : null,
-            stackImages: this._pickStackImages(cardData),
-        };
+        return { stackImages: this._pickStackImages(cardData) };
     }
 
     // A starting point for the card stack: the first few of the linked checklist's
@@ -422,10 +449,40 @@ class ChecklistEngine {
         // Merge with latest gist data to prevent overwriting external changes (#560)
         await this._mergeWithFreshGistData();
 
+        // Copy into the write payload rather than handing over this.cards itself:
+        // img/noCard sentinels have to be resolved into real deletions somewhere
+        // before the gist sees them, but resolving them by mutating the live cards
+        // would consume the marker whether or not this write actually lands (#733).
+        // A merge in _mergeWithFreshGistData above can also update this.cards, but
+        // _stripLocalOnlyMarkers keeps every local-only marker (img/noCard
+        // sentinels and _clearedKeys alike) intact on the merged result rather
+        // than consuming them - so this.cards always still carries whatever a
+        // failed write needs to retry, whether or not a merge ran this time
+        // (#735).
+        //
+        // Capturing markerReleases here, before the write goes out, and only
+        // running them below if the write actually lands, is what makes that
+        // safe: a marker surviving a failed write is only half the fix. Without
+        // release-on-success, it would survive forever - every future merge
+        // would keep stripping this field from the fresh gist copy even after
+        // this write successfully persisted the deletion, clobbering a value
+        // added by another client after this write landed. _captureMarkerReleases
+        // snapshots exactly which markers this specific payload resolves and
+        // gates every release on the card's _markerVersion being unchanged, so
+        // an edit that lands on the same card while this write is still in
+        // flight is left alone rather than released early - including a re-clear
+        // of the very same field, which a value-only check (still '', still in
+        // the array) can't tell apart from the clear this payload confirmed.
+        let markerReleases = [];
         if (this._isFlat()) {
-            this.cardData.cards = this.cards;
+            markerReleases = this._captureMarkerReleases(this.cards);
+            this.cardData.cards = this._sentinelStrippedPayload(this.cards);
         } else {
-            this.cardData.categories = this.cards;
+            this.cardData.categories = {};
+            for (const catId of Object.keys(this.cards)) {
+                markerReleases.push(...this._captureMarkerReleases(this.cards[catId]));
+                this.cardData.categories[catId] = this._sentinelStrippedPayload(this.cards[catId]);
+            }
         }
 
         // Save card data and stats together in one PATCH (one request, not two).
@@ -441,7 +498,78 @@ class ChecklistEngine {
             result = await githubSync.saveCardData(this.id, this.cardData, stats);
         }
 
+        if (result.ok) markerReleases.forEach(release => release());
+
         return this._applySaveResult(result);
+    }
+
+    // Snapshots which local-only markers a card currently carries, as a list of
+    // no-arg functions that clear exactly that captured state - not whatever
+    // state the card has by the time the caller runs them. Call this right
+    // before building the write payload from the same card array, and run the
+    // returned functions only once that specific write has confirmed landed
+    // (#735 follow-up: releasing on success is what keeps a resolved marker
+    // from suppressing a field forever, the same way keeping it alive on a
+    // failed write is what stops the field from silently reverting).
+    //
+    // Every release is gated on card._markerVersion still matching what it was
+    // at capture time. A value check alone (still '', still in the array) is
+    // not enough: img cleared, then restored, then cleared *again* while the
+    // first write is still in flight looks identical to the original clear by
+    // value, but the second clear was never part of the payload this write is
+    // about to confirm, and releasing it early would silently lose it the
+    // moment a later save for it fails - exactly the failure mode #735 exists
+    // to close. _clearEmptyFields bumps the version on every edit to the card,
+    // so any edit at all since capture - not just one touching this specific
+    // field - blocks the release; that only costs a delayed release (the next
+    // successful, uninterrupted save re-captures and releases normally), never
+    // an incorrect one.
+    _captureMarkerReleases(cardArray) {
+        if (!Array.isArray(cardArray)) return [];
+        const releases = [];
+        for (const card of cardArray) {
+            const capturedVersion = card._markerVersion;
+            const unchanged = () => card._markerVersion === capturedVersion;
+
+            if (card.img === '') {
+                releases.push(() => { if (unchanged() && card.img === '') delete card.img; });
+            }
+            if (card.noCard === false) {
+                releases.push(() => { if (unchanged() && card.noCard === false) delete card.noCard; });
+            }
+            // Snapshot the array contents now, not a reference to the array - a
+            // key cleared by a later, still-unwritten edit while this write is in
+            // flight appends to the live array (see _recordClearedKeys's carry
+            // forward). The version gate above already blocks this release
+            // entirely once that happens; the content diff in
+            // _releaseClearedKeys is a second, independent safety net specific
+            // to _clearedKeys being a list rather than a single value.
+            if (Array.isArray(card._clearedKeys) && card._clearedKeys.length > 0) {
+                const captured = [...card._clearedKeys];
+                releases.push(() => { if (unchanged()) this._releaseClearedKeys(card, captured); });
+            }
+        }
+        return releases;
+    }
+
+    // Drops exactly `capturedKeys` from card._clearedKeys, keeping any key a
+    // later edit added after those were captured (see _captureMarkerReleases).
+    // Sets the array directly rather than going through _recordClearedKeys:
+    // that method's carry-forward logic re-adds anything still missing from
+    // the card that the new list doesn't name, which is exactly backwards
+    // here - `remaining` is already the full correct answer, not a fresh
+    // clear that needs the old marker merged into it.
+    _releaseClearedKeys(card, capturedKeys) {
+        if (!Array.isArray(card._clearedKeys)) return;
+        const remaining = card._clearedKeys.filter(key => !capturedKeys.includes(key));
+        if (remaining.length === card._clearedKeys.length) return; // nothing captured is still there
+        if (remaining.length === 0) {
+            delete card._clearedKeys;
+        } else {
+            Object.defineProperty(card, '_clearedKeys', {
+                value: remaining, enumerable: false, writable: true, configurable: true,
+            });
+        }
     }
 
     // Reflect a { ok, reason } save result in the sync status and error banner.
@@ -472,6 +600,18 @@ class ChecklistEngine {
         // the overwrite protection this function exists to provide (#560).
         if (typeof githubSync === 'undefined') return;
 
+        // Within the freshness window, trust the merge we already did rather than
+        // spending another GET - see FRESH_MERGE_WINDOW_MS above. this.cards is
+        // left exactly as-is on every exit below that isn't a completed merge:
+        // local-only markers only get resolved into the write payload in
+        // _saveCardData on these fallback exits, never by mutating the live
+        // cards here, so an unconfirmed write can't cost a marker its only
+        // chance to be tried again on the next save (#733). A merge that *does*
+        // complete below also keeps every marker intact on the merged result
+        // (see _stripLocalOnlyMarkers) for the same reason (#735) - see the
+        // comment in _saveCardData above where the write payload is built.
+        if (Date.now() - this._lastFreshMergeAt < FRESH_MERGE_WINDOW_MS) return;
+
         try {
             // Clear cache to get truly fresh data
             githubSync.clearGistCache();
@@ -492,10 +632,36 @@ class ChecklistEngine {
                     }
                 }
             }
+            this._lastFreshMergeAt = Date.now();
         } catch (e) {
             // Non-fatal: proceed with save using local data if merge fails
             console.warn('Failed to merge with fresh gist data:', e);
         }
+    }
+
+    // Resolve the img/noCard local-only sentinels into real deletions for the
+    // write payload, without mutating the cards they came from - see the comment
+    // in _saveCardData for why a copy, not a strip-in-place, is required here.
+    // Always copies, even when there's nothing to strip: _saveCardData retries with
+    // this same payload on a transient failure, so a card object it still holds a
+    // reference to must never be the same one a concurrent edit can go on mutating.
+    // Guards against a non-array category too - this.cards comes straight from
+    // parsed gist JSON, and a hand-edited gist is something the rest of this file
+    // already treats as reachable (see _backfillSyntheticIds).
+    _sentinelStrippedPayload(cardArray) {
+        if (!Array.isArray(cardArray)) return cardArray;
+        return cardArray.map(c => {
+            const copy = { ...c };
+            if (copy.img === '') delete copy.img;
+            if (copy.noCard === false) delete copy.noCard;
+            // Ours are always set non-enumerably, so the spread above never
+            // copies them from a card this engine produced - but a hand-edited
+            // gist can hold either as plain enumerable JSON, and without this
+            // it would round-trip straight back into the write.
+            delete copy._clearedKeys;
+            delete copy._markerVersion;
+            return copy;
+        });
     }
 
     // Merge two card arrays: fresh fields as base, local fields overlay
@@ -517,31 +683,52 @@ class ChecklistEngine {
         });
     }
 
-    // Honor the deletion markers _updateCard leaves on the local card - they are
-    // local to the in-progress edit and must not reach the gist. Mutates and
-    // returns `merged` for convenience.
+    // Honor the deletion markers _updateCard leaves on the local card by
+    // resolving them against `merged` (the fresh-plus-local result that becomes
+    // the new this.cards entry) - but keep the markers alive on `merged` itself
+    // rather than consuming them here. A completed merge is not the same as a
+    // landed write: if this save's PATCH fails afterward, `this.cards` (already
+    // updated by the merge) needs to still carry the markers so the next save's
+    // merge can repeat the same deletions against a possibly-still-stale fresh
+    // copy (#735). A marker set this way is only cleared for good once a write
+    // that actually captured it lands - see _captureMarkerReleases, called from
+    // _saveCardData right before the payload _sentinelStrippedPayload builds.
+    // Mutates and returns `merged` for convenience.
     _stripLocalOnlyMarkers(merged, localCard) {
-        // _clearedKeys is ours and never belongs in the gist. It's non-enumerable
-        // where we set it, so it isn't spread into `merged` in the first place;
-        // deleted unconditionally so a hand-edited gist card that carries an
-        // enumerable one can't round-trip it either.
+        // A hand-edited gist card could carry an enumerable _clearedKeys (or
+        // _markerVersion) of its own (spread in from freshCard or localCard);
+        // drop both before recording ours so neither can be mistaken for a
+        // legitimate marker. _markerVersion isn't restored afterward - a merge
+        // produces a new object, and a version capture taken against it simply
+        // starts from undefined, which _captureMarkerReleases already handles.
         delete merged._clearedKeys;
+        delete merged._markerVersion;
         // Keys the edit cleared: the gist copy is the merge base, so its old
-        // value has to be deleted explicitly (#686). Array-checked because a
-        // hand-edited gist card could carry a _clearedKeys of any shape, and
-        // throwing here would skip the merge for the whole checklist. Filtered by
-        // _isManagedField for the same reason recording is: a marker read back from
-        // gist data must not be able to name an arbitrary field for deletion.
-        if (Array.isArray(localCard._clearedKeys)) {
-            localCard._clearedKeys.forEach(key => {
-                if (this._isManagedField(key)) delete merged[key];
-            });
-        }
-        // img: '' means the image was removed
-        if (localCard.img === '') delete merged.img;
-        // noCard: false means an un-flagged entry must not pick the gist's
-        // noCard: true back up, and the gist shouldn't store false
-        if (localCard.noCard === false) delete merged.noCard;
+        // value has to be deleted explicitly from `merged` (#686). Array-checked
+        // because a hand-edited gist card could carry a _clearedKeys of any
+        // shape, and throwing here would skip the merge for the whole checklist.
+        // Filtered by _isManagedField for the same reason recording is: a marker
+        // read back from gist data must not be able to name an arbitrary field
+        // for deletion.
+        const cleared = Array.isArray(localCard._clearedKeys)
+            ? localCard._clearedKeys.filter(key => this._isManagedField(key))
+            : [];
+        cleared.forEach(key => delete merged[key]);
+        // Re-record on `merged` rather than leaving it deleted, so a future
+        // merge still knows to repeat this deletion if today's write never
+        // lands (#735). Skipped when there's nothing to record: `merged` never
+        // has a _clearedKeys of its own at this point (just deleted above), so
+        // an empty `cleared` would only stamp every merged card with a
+        // meaningless _clearedKeys: [].
+        if (cleared.length > 0) this._recordClearedKeys(merged, cleared);
+
+        // img: '' and noCard: false are enumerable on localCard, so the
+        // {...freshCard, ...localCard} spread that built `merged` already
+        // carries them through unchanged - nothing to do here. This function
+        // used to delete them at this point, which is exactly what let the
+        // gist's stale value come back on a later merge if this save's write
+        // then failed (#735): the sentinel needs to survive on this.cards until
+        // a write actually lands, not just until a merge completes.
         return merged;
     }
 
@@ -964,8 +1151,14 @@ class ChecklistEngine {
     // Price
     // ========================================
 
+    // Number(), not the bare field: a hand-edited gist can store price as a
+    // string ("25"), and every caller here trusts the result to add/subtract
+    // like a number - extraOwnedValue += this.getPrice(card) would silently do
+    // string concatenation instead of addition, and the price slider's
+    // percentile interpolation the same. Number(undefined/NaN) is NaN, so the
+    // || 0 fallback still covers both a missing price and a garbage string.
     getPrice(card) {
-        return card.price || 0;
+        return Number(card.price) || 0;
     }
 
     getPriceThresholds() {
@@ -1109,18 +1302,17 @@ class ChecklistEngine {
         const safeId = sanitizeAttr(cardId);
         const idAttrs = cardId ? ` id="card-${safeId}" data-card-id="${safeId}"` : '';
 
-        // Badge: show linked checklist stats if available, else cardCount.
-        // All three values land in a text node and all three come from the gist -
-        // the counts from the stats file, cardCount from the card - so all three
-        // are escaped. The editor now writes cardCount through parseInt, but a
-        // hand-edited gist can still put anything there.
+        // Badge: the linked checklist's live stats, or nothing. Both counts come
+        // out of the gist's stats file and land in a text node, so both are
+        // escaped. No stored fallback: every checklist gets a stats entry when it
+        // is created and rewrites it on every save, so a missing entry means the
+        // target is gone, and a count for a checklist that no longer exists is
+        // worse than no badge at all.
         let badgeHtml = '';
         const linkedId = collectionLinkTargetId(card.collectionLink);
         const linkedStats = linkedId ? (this._linkedStats || {})[linkedId] : null;
         if (linkedStats && typeof linkedStats.owned === 'number') {
             badgeHtml = `<span class="collection-badge">${sanitizeText(linkedStats.owned)} / ${sanitizeText(linkedStats.total)} CARDS</span>`;
-        } else if (card.cardCount) {
-            badgeHtml = `<span class="collection-badge">${sanitizeText(card.cardCount)} CARDS</span>`;
         }
 
         // Image: card stack, or a single image when there is no usable stack.
@@ -1208,6 +1400,37 @@ class ChecklistEngine {
             <option value="need">Needed Only</option>
         </select>`;
 
+        // Attribute toggle filters (Auto / Patch / Numbered / Rookie). Unlike the
+        // dropdowns above, these are checkboxes: any combination can be active at
+        // once and they AND together with every other filter in _filterCard.
+        // Both helpers below take the flattened card list so it's only built once.
+        const allCards = this._getAllCardsFlat();
+        this._quickFilterDefs(allCards).forEach(d => {
+            html += `<button type="button" class="filter-btn quick-filter-btn" data-quick-filter="${sanitizeAttr(d.key)}" aria-pressed="false">${sanitizeText(d.label)}</button>`;
+        });
+
+        // Price range (dual-handle slider) - omitted entirely when nothing on
+        // this checklist has a price, so it never shows up as a dead control.
+        // The <input> elements themselves move over raw 0..PRICE_SLIDER_RESOLUTION
+        // positions, not dollars - _initPriceRangeSlider maps position to price
+        // against this checklist's own sorted prices (data-prices) so the slider's
+        // resolution follows wherever these specific cards are actually priced,
+        // not a fixed curve. data-max carries the dollar ceiling for the initial
+        // label; the sorted prices are frozen at render time the same way the
+        // ceiling already was (see the "touched" comment in _applyFilters).
+        const sortedPrices = this._getSortedPrices(allCards);
+        const priceBounds = this._getPriceBounds(allCards, sortedPrices);
+        if (priceBounds) {
+            html += `<div class="price-range-filter" id="price-range-filter" data-max="${priceBounds.max}" data-prices="${sanitizeAttr(JSON.stringify(sortedPrices))}">
+                <span class="price-range-label">Price: <span id="price-range-display">$${priceBounds.min} - $${priceBounds.max}</span></span>
+                <div class="price-range-track">
+                    <div class="price-range-fill" id="price-range-fill"></div>
+                    <input type="range" id="price-min-filter" min="0" max="${PRICE_SLIDER_RESOLUTION}" value="0" step="1" aria-label="Minimum price">
+                    <input type="range" id="price-max-filter" min="0" max="${PRICE_SLIDER_RESOLUTION}" value="${PRICE_SLIDER_RESOLUTION}" step="1" aria-label="Maximum price">
+                </div>
+            </div>`;
+        }
+
         // Search
         html += `<span class="search-wrapper"><input type="text" id="search" placeholder="Search cards..." aria-label="Search cards"><button class="search-clear" type="button" aria-label="Clear search">&times;</button></span>`;
 
@@ -1226,9 +1449,152 @@ class ChecklistEngine {
             if (input) { input.value = ''; input.focus(); this._onFilterChange(); }
         });
         container.querySelector('#reorder-btn')?.addEventListener('click', () => this._toggleReorderMode());
+        container.querySelectorAll('.quick-filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const active = btn.classList.toggle('active');
+                btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+                this._onFilterChange();
+            });
+        });
+        this._initPriceRangeSlider(container);
 
         // Show reorder button if applicable
         this._updateReorderButton();
+    }
+
+    // Which attribute toggles apply to this checklist. Auto/Patch/Numbered mirror
+    // the exact gate CardRenderer.renderAttributeBadges uses - "no customFields
+    // config at all" means every badge is on, not off, so an absent customFields
+    // key must show the toggle rather than hide it. Rookie predates the editor
+    // and has no customFields entry at all (see _isManagedField), so it's gated
+    // on data presence instead - shown only when some card actually carries it.
+    _quickFilterDefs(allCards = this._getAllCardsFlat()) {
+        const customFields = this.config.customFields;
+        const defs = [
+            { key: 'auto', label: 'Auto', field: 'auto' },
+            { key: 'patch', label: 'Patch', field: 'patch' },
+            { key: 'numbered', label: 'Numbered', field: 'serial' },
+        ].filter(d => !customFields || customFields[d.field]);
+
+        if (allCards.some(c => c.rc)) {
+            defs.push({ key: 'rookie', label: 'Rookie', field: 'rc' });
+        }
+        return defs;
+    }
+
+    // Every priced card's price, ascending. This is the checklist's own price
+    // distribution that the slider maps its raw positions against - see
+    // _priceAtSliderPosition and the PRICE_SLIDER_RESOLUTION comment above.
+    _getSortedPrices(allCards = this._getAllCardsFlat()) {
+        return allCards
+            .map(c => this.getPrice(c))
+            .filter(p => p > 0)
+            .sort((a, b) => a - b);
+    }
+
+    // Price slider bounds from actual priced cards; null when nothing on this
+    // checklist has a price, so the caller can skip rendering the slider. Takes
+    // an already-sorted price list when the caller has one (_renderFilters) to
+    // avoid sorting the same array twice.
+    _getPriceBounds(allCards = this._getAllCardsFlat(), sortedPrices = this._getSortedPrices(allCards)) {
+        if (sortedPrices.length === 0) return null;
+        return { min: 0, max: Math.max(1, Math.ceil(sortedPrices[sortedPrices.length - 1])) };
+    }
+
+    // Maps a raw slider position (0..PRICE_SLIDER_RESOLUTION) to a dollar amount
+    // by walking `sortedPrices`, this checklist's own priced cards ascending -
+    // position 0 is always $0 and position PRICE_SLIDER_RESOLUTION is always
+    // exactly the highest price, with sortedPrices treated as [$0, ...prices]
+    // for interpolation so every position in between lands at the percentile of
+    // *cards*, not of dollars. That's what gives the slider real resolution
+    // wherever this checklist's cards are actually clustered - $1-$30, or a
+    // $200-400 band, or wherever - rather than assuming any particular shape.
+    _priceAtSliderPosition(raw, sortedPrices) {
+        const n = sortedPrices.length;
+        if (n === 0) return 0;
+        const t = Math.max(0, Math.min(1, raw / PRICE_SLIDER_RESOLUTION));
+        const pointAt = i => (i === 0 ? 0 : sortedPrices[i - 1]); // index 0 is the implicit $0 floor
+        const idx = t * n;
+        const lo = Math.floor(idx);
+        const hi = Math.min(lo + 1, n);
+        const frac = idx - lo;
+        return Math.round(pointAt(lo) + frac * (pointAt(hi) - pointAt(lo)));
+    }
+
+    // Two overlapping range inputs standing in for one dual-handle slider - each
+    // input's own track is hidden (CSS) and only its thumb accepts pointer events,
+    // so a click always grabs a specific handle instead of jumping the nearer one
+    // to the click point. Dragging one handle past the other clamps them together
+    // rather than letting them cross, which would strand the passed handle under
+    // its sibling with no way to grab it back.
+    //
+    // Clamping alone still leaves one dead end: drag min all the way up to max
+    // and both handles sit at the same pixel. Whichever input is later in the
+    // DOM (max) wins hit-testing there by default, so min becomes permanently
+    // unreachable by pointer - there's no way to widen the range back out.
+    // updateStacking keeps whichever handle is in the "far" half of the track on
+    // top, so the collision point always favors the handle a user would
+    // plausibly want to grab next.
+    _initPriceRangeSlider(container) {
+        const wrap = container.querySelector('#price-range-filter');
+        if (!wrap) return;
+        const minInput = wrap.querySelector('#price-min-filter');
+        const maxInput = wrap.querySelector('#price-max-filter');
+        const fill = wrap.querySelector('#price-range-fill');
+        const display = wrap.querySelector('#price-range-display');
+        const sortedPrices = JSON.parse(wrap.dataset.prices || '[]');
+        const mid = PRICE_SLIDER_RESOLUTION / 2;
+        const priceAt = raw => this._priceAtSliderPosition(raw, sortedPrices);
+
+        // A native thumb's center travels from half its own width to (track
+        // width - half its width), not edge to edge, so a plain percentage
+        // misaligns the fill against the handles near both ends. THUMB_PX must
+        // match the thumb diameter set in shared.css.
+        const THUMB_PX = 16;
+        const thumbOffset = pct => (THUMB_PX / 2) - (pct / 100) * THUMB_PX;
+
+        const update = () => {
+            const minRaw = parseFloat(minInput.value);
+            const maxRaw = parseFloat(maxInput.value);
+            display.textContent = `$${priceAt(minRaw)} - $${priceAt(maxRaw)}`;
+            const left = (minRaw / PRICE_SLIDER_RESOLUTION) * 100;
+            const right = (maxRaw / PRICE_SLIDER_RESOLUTION) * 100;
+            const width = Math.max(0, right - left);
+            fill.style.left = `calc(${left}% + ${thumbOffset(left).toFixed(3)}px)`;
+            fill.style.width = `calc(${width}% + ${(thumbOffset(right) - thumbOffset(left)).toFixed(3)}px)`;
+            // Above the midpoint min is the one likely to collide with max, so
+            // bring it to the front; below the midpoint max is the collision risk.
+            const minOnTop = minRaw > mid;
+            minInput.style.zIndex = minOnTop ? '2' : '1';
+            maxInput.style.zIndex = minOnTop ? '1' : '2';
+        };
+
+        // 'input' fires on every pixel of drag movement; coalesce the (expensive)
+        // full card re-filter to once per frame instead of once per event.
+        let rafId = null;
+        const scheduleFilterChange = () => {
+            if (rafId !== null) return;
+            rafId = requestAnimationFrame(() => {
+                rafId = null;
+                this._onFilterChange();
+            });
+        };
+
+        minInput.addEventListener('input', () => {
+            if (parseFloat(minInput.value) > parseFloat(maxInput.value)) minInput.value = maxInput.value;
+            update();
+            scheduleFilterChange();
+        });
+        maxInput.addEventListener('input', () => {
+            // Marks this handle as deliberately set, even if the user lands back
+            // on the ceiling - see the "touched" comment in _applyFilters.
+            maxInput.dataset.touched = 'true';
+            if (parseFloat(maxInput.value) < parseFloat(minInput.value)) maxInput.value = minInput.value;
+            update();
+            scheduleFilterChange();
+        });
+
+        update();
     }
 
     _getSortLabel(key) {
@@ -1467,12 +1833,42 @@ class ChecklistEngine {
             if (el) customFilterValues[f.id] = el.value;
         });
 
+        const filtersContainer = document.getElementById('filters-container');
+        const quickFilters = new Set(
+            [...(filtersContainer?.querySelectorAll('.quick-filter-btn.active') || [])].map(b => b.dataset.quickFilter)
+        );
+        const priceMin = document.getElementById('price-min-filter');
+        const priceMax = document.getElementById('price-max-filter');
+        // The slider's bounds are frozen at the values in place when the filter
+        // bar was last rendered (_renderFilters isn't re-run on every card save),
+        // so a card priced above that ceiling - just-raised, or freshly added -
+        // would otherwise fail the max check and vanish until reload. Comparing
+        // the value to the ceiling isn't enough to detect "untouched" - a user
+        // who drags max down and back up lands on that same number on purpose,
+        // and re-uncapping it would silently defeat the cap they just set. The
+        // "touched" flag (_initPriceRangeSlider) records a real interaction, so
+        // only a handle nobody has ever moved is treated as uncapped.
+        //
+        // The inputs themselves carry a raw 0..PRICE_SLIDER_RESOLUTION position,
+        // not a dollar amount (see _priceAtSliderPosition) - the wrapper's
+        // data-prices is this checklist's own sorted prices that position is
+        // mapped against.
+        const sortedPrices = JSON.parse(document.getElementById('price-range-filter')?.dataset.prices || '[]');
+        const priceRange = (priceMin && priceMax)
+            ? {
+                min: this._priceAtSliderPosition(parseFloat(priceMin.value), sortedPrices),
+                max: priceMax.dataset.touched === 'true'
+                    ? this._priceAtSliderPosition(parseFloat(priceMax.value), sortedPrices)
+                    : Infinity,
+            }
+            : null;
+
         // Toggle visibility on individual cards
         container.querySelectorAll('.card').forEach(cardEl => {
             const idx = parseInt(cardEl.dataset.cardIdx);
             const card = this._renderedCards[idx];
             if (!card) return;
-            const visible = this._filterCard(card, statusFilter, searchTerm, customFilterValues);
+            const visible = this._filterCard(card, statusFilter, searchTerm, customFilterValues, quickFilters, priceRange);
             cardEl.classList.toggle('filter-hidden', !visible);
         });
 
@@ -1509,7 +1905,7 @@ class ChecklistEngine {
         return value == null ? null : String(value);
     }
 
-    _filterCard(card, statusFilter, searchTerm, customFilterValues) {
+    _filterCard(card, statusFilter, searchTerm, customFilterValues, quickFilters = new Set(), priceRange = null) {
         // Status filter
         if (statusFilter !== 'all') {
             // No-card entries are neither owned nor obtainable
@@ -1548,6 +1944,28 @@ class ChecklistEngine {
             } else {
                 if (cardValue !== filterValue) return false;
             }
+        }
+
+        // Price range - getPrice matches every other price consumer (sort,
+        // stats), so a hand-edited gist string like "45" filters the same way
+        // it sorts. An unpriced card usually means "too rare to find a price
+        // for," not "worth $0" - treating it as infinitely expensive keeps it
+        // visible by default (min starts at 0, and the max handle starts
+        // uncapped) and only excludes it once the user sets a real upper cap,
+        // rather than making it vanish the instant min leaves 0.
+        if (priceRange) {
+            const rawPrice = this.getPrice(card);
+            const price = rawPrice > 0 ? rawPrice : Infinity;
+            if (price < priceRange.min || price > priceRange.max) return false;
+        }
+
+        // Attribute toggles (Auto / Patch / Numbered / Rookie) - all active
+        // toggles must match, same AND semantics as every other filter here.
+        for (const key of quickFilters) {
+            if (key === 'auto' && !card.auto) return false;
+            if (key === 'patch' && !card.patch) return false;
+            if (key === 'numbered' && !card.serial) return false;
+            if (key === 'rookie' && !card.rc) return false;
         }
 
         return true;
@@ -2171,6 +2589,20 @@ class ChecklistEngine {
     // the card for the merge to delete (#686).
     // `before` is the card as it was prior to Object.assign(card, cardData).
     _clearEmptyFields(card, cardData, before) {
+        // Bumped on every edit to this card, cleared fields or not - a marker
+        // capture taken before this edit (_captureMarkerReleases) uses this to
+        // tell it's now stale, so a save in flight when the *same* field gets
+        // cleared, restored, then cleared again can't have its confirmed write
+        // release the second, still-unwritten clear just because the value
+        // happens to match (#735 follow-up). Non-enumerable so a stray copy
+        // never reaches a merge result or the gist. Number()-coerced the same
+        // way getPrice() is: a hand-edited gist could hold a non-numeric
+        // _markerVersion, and `+ 1` on a string concatenates instead of
+        // incrementing.
+        Object.defineProperty(card, '_markerVersion', {
+            value: (Number(card._markerVersion) || 0) + 1, enumerable: false, writable: true, configurable: true,
+        });
+
         const cleared = [];
         // Only claim a key was cleared if it had a value to clear - otherwise a
         // field added to the gist externally would be wiped by an unrelated edit
@@ -2183,10 +2615,10 @@ class ChecklistEngine {
         if (cardData.priceSearch) { card.priceSearch = cardData.priceSearch; } else { clear('priceSearch'); }
 
         // img keeps '' as its own deletion marker, see _stripLocalOnlyMarkers.
-        // The collection link trio is absent from the form data whenever no link is
+        // The collection link pair is absent from the form data whenever no link is
         // selected, which is exactly when it should be gone from the card too.
         ['price', 'img', 'auto', 'rc', 'patch', 'serial', 'variant', 'search',
-            'collectionLink', 'stackImages', 'cardCount'].forEach(key => {
+            'collectionLink', 'stackImages'].forEach(key => {
             if (!(key in cardData) || !cardData[key]) {
                 if (key === 'img' && key in cardData) { card[key] = ''; } else { clear(key); }
             }
@@ -2207,14 +2639,20 @@ class ChecklistEngine {
     // the merged card. Non-enumerable so the marker can never be spread into a
     // merged copy or serialized into the gist - including when the fresh-data
     // fetch fails and no merge runs at all.
+    //
+    // Called from two places: _clearEmptyFields, on the card being edited
+    // (before any merge), and _stripLocalOnlyMarkers, on the object a
+    // completed merge is about to make the new this.cards entry (#735) - in
+    // that second case `card` never has its own _clearedKeys yet (a fresh
+    // merge result, with any stray one already deleted by the caller), so
+    // `previous`/`carried` below are trivially empty and this just records
+    // that merge's own cleared list. The carry-forward logic exists for the
+    // first call site: an earlier edit's cleared key can still be missing from
+    // the card with nothing having merged it away yet (the merge bailed, or
+    // this is a later edit before the next merge runs at all), and dropping it
+    // here would let the next merge restore the gist's old value. Keys this
+    // edit repopulated drop out either way.
     _recordClearedKeys(card, cleared) {
-        // Only a successful merge clears the marker (it returns fresh objects). If
-        // the merge bailed, an earlier edit's cleared key is still missing from the
-        // card and still needs deleting, so carry it forward - otherwise the next
-        // merge restores the gist's old value. Keys this edit repopulated drop out.
-        // A merge that succeeds but whose PATCH then fails still drops the marker,
-        // so a repeat of the same edit loses the clear; the user gets a retry banner
-        // for the failed save, and this is no worse than before the fix.
         const previous = Array.isArray(card._clearedKeys) ? card._clearedKeys : [];
         const carried = previous.filter(key => !(key in card) && !cleared.includes(key));
 

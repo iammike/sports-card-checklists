@@ -17,6 +17,11 @@ const CONFIG = {
     PRODUCTION_GIST_ID: PRODUCTION_GIST_ID, // For syncing preview from prod
 };
 
+// Minimum gap enforced between consecutive gist PATCHes (see _patchGist, #733).
+// 1s errs conservative - GitHub doesn't publish an exact figure for the gist
+// secondary limit, and a save is not latency-sensitive enough to shave this down.
+const MIN_WRITE_SPACING_MS = 1000;
+
 // Storage keys
 const TOKEN_KEY = 'github_token';
 const GIST_ID_KEY = 'github_gist_id';
@@ -42,6 +47,7 @@ class GitHubSync {
         }
         this.onAuthChange = null;
         this._saveQueue = Promise.resolve(); // Queue to prevent concurrent saves
+        this._lastWriteAt = 0; // Date.now() of the last gist PATCH, for MIN_WRITE_SPACING_MS (#733)
         this._cachedData = null; // Cache to avoid stale reads during saves
         this._gistCache = null; // Raw gist cache for registry/config reads
         this._publicGistCache = null; // Public gist cache
@@ -408,9 +414,24 @@ class GitHubSync {
 
             const maxRetries = 3;
             for (let attempt = 0; attempt < maxRetries; attempt++) {
+                // GitHub's gist secondary rate limit reacts to write *rate*, not
+                // just volume - wait out the minimum gap before every attempt,
+                // including 409 retries, so a request can't fire right on the
+                // heels of the previous one completing (#733).
+                const elapsed = Date.now() - this._lastWriteAt;
+                if (elapsed < MIN_WRITE_SPACING_MS) {
+                    await new Promise(r => setTimeout(r, MIN_WRITE_SPACING_MS - elapsed));
+                }
+
                 const result = await fn(gistId);
+                this._lastWriteAt = Date.now();
+
                 if (result.done) return result.value;
                 if (result.status === 409 && attempt < maxRetries - 1) {
+                    // This backoff is for spreading out concurrent-edit conflicts,
+                    // not rate-limit spacing - it's shorter than MIN_WRITE_SPACING_MS
+                    // and the loop-top wait above tops it up to the full gap on the
+                    // next iteration, so it's additive with that wait, not instead of it.
                     await new Promise(r => setTimeout(r, 300 * (attempt + 1)));
                     continue;
                 }

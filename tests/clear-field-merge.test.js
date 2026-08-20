@@ -302,6 +302,42 @@ describe('the marker survives a failed merge', () => {
   });
 });
 
+// The exact repro from #735: a merge completes and consumes the marker, then
+// this same save's write fails (or never happens, as here - the point is the
+// gist is never actually updated), so a *second* merge runs against fresh data
+// that still has the old value. Before the fix, this brought the cleared field
+// back after exactly two merges - "after merge #1, live card = {...} (patch
+// consumed); after merge #2, live card = {..., patch: true}" per the issue.
+describe('a completed merge survives an unconfirmed write (#735 repro)', () => {
+  afterEach(() => {
+    delete globalThis.githubSync;
+  });
+
+  it('does not let a cleared custom field resurface on a second merge after the first merge already ran', async () => {
+    // The gist is never actually updated between the two merges below - that's
+    // standing in for "the write that was supposed to persist merge #1's
+    // result failed," since what matters here is only what the *next* merge
+    // sees, not how the intervening write happened to fail.
+    globalThis.githubSync = {
+      clearGistCache: () => {},
+      loadCardData: async () => ({ cards: [{ set: 'Prizm', num: '10', variant: 'Silver', patch: true }] }),
+      loadPublicCardData: async () => null,
+    };
+
+    const gistCard = { set: 'Prizm', num: '10', variant: 'Silver', patch: true };
+    const engine = makeFlatEngine([{ ...gistCard }]);
+    engine._updateCard(hashId(gistCard), formDataWithCleared('patch', gistCard));
+
+    await engine._mergeWithFreshGistData(); // merge #1
+    expect(engine.cards[0].patch).toBeUndefined();
+
+    engine._lastFreshMergeAt = 0; // force a real fetch+merge again, as a retried save would
+    await engine._mergeWithFreshGistData(); // merge #2 - the bug surfaced here before the fix
+
+    expect(engine.cards[0].patch).toBeUndefined();
+  });
+});
+
 describe('a hand-edited gist card cannot break the merge', () => {
   it('ignores a non-array _clearedKeys instead of throwing', () => {
     // Throwing here would abort _mergeCardArrays for the whole checklist
@@ -365,26 +401,36 @@ describe('the cleared-keys marker never reaches the gist', () => {
     delete globalThis.githubSync;
   });
 
-  const hasMarker = (card) => '_clearedKeys' in card || JSON.stringify(card).includes('_clearedKeys');
+  // "never reaches the gist" means never serialized - JSON.stringify already
+  // skips a non-enumerable property regardless of whether it's set. It does
+  // NOT mean absent from the merged card: since #735, a completed merge keeps
+  // the marker alive (non-enumerably) on the object that becomes the new
+  // this.cards entry, so a later save can still retry the deletion if this
+  // one's write never lands. Only _sentinelStrippedPayload, building the
+  // actual write payload, gets to drop it for good.
 
-  it('is absent from a card merged against a fresh counterpart', () => {
+  it('survives a merge against a fresh counterpart (non-enumerably), so a failed write can retry', () => {
     const gistCard = { set: 'Prizm', num: '10', variant: 'Silver', price: 25 };
     const engine = makeFlatEngine([{ ...gistCard }]);
 
     engine._updateCard(hashId(gistCard), formDataWithCleared('price', gistCard));
     const merged = engine._mergeCardArrays(engine.cards, [gistCard]);
 
-    expect(hasMarker(merged[0])).toBe(false);
+    expect(merged[0]._clearedKeys).toEqual(['price']);
+    expect(Object.keys(merged[0])).not.toContain('_clearedKeys'); // still non-enumerable
+    expect(JSON.stringify(merged[0]).includes('_clearedKeys')).toBe(false);
   });
 
-  it('is absent on the no-fresh-counterpart path', () => {
+  it('survives on the no-fresh-counterpart path too, still non-enumerably', () => {
     const gistCard = { set: 'Prizm', num: '10', variant: 'Silver', price: 25 };
     const engine = makeFlatEngine([{ ...gistCard }]);
 
     engine._updateCard(hashId(gistCard), formDataWithCleared('variant', gistCard));
     const merged = engine._mergeCardArrays(engine.cards, [gistCard]);
 
-    expect(hasMarker(merged[0])).toBe(false);
+    expect(merged[0]._clearedKeys).toEqual(['variant']);
+    expect(Object.keys(merged[0])).not.toContain('_clearedKeys');
+    expect(JSON.stringify(merged[0]).includes('_clearedKeys')).toBe(false);
   });
 
   it('is not serialized when the fresh-data fetch returns nothing', async () => {
@@ -443,17 +489,20 @@ describe('img and noCard keep their existing markers', () => {
     expect(card.img).toBe('');
   });
 
-  it('a cleared img does not come back from the gist copy', () => {
+  it('a cleared img does not come back from the gist copy, and the marker survives for a retry (#735)', () => {
     const gistCard = { set: 'Prizm', num: '10', variant: 'Silver', img: 'https://x/y.webp' };
     const engine = makeFlatEngine([{ ...gistCard }]);
 
     engine._updateCard(hashId(gistCard), formDataWithCleared('img', gistCard));
     const merged = engine._mergeCardArrays(engine.cards, [gistCard]);
 
-    expect('img' in merged[0]).toBe(false);
+    // Not resurrected as the old URL, and not deleted outright either - '' is
+    // the marker _sentinelStrippedPayload needs to still see for the write
+    // payload if this save's PATCH fails and a later one has to retry.
+    expect(merged[0].img).toBe('');
   });
 
-  it('_updateCard keeps noCard: false and the merge strips it', () => {
+  it('_updateCard keeps noCard: false, and the merge keeps it rather than resurrecting the gist copy\'s true (#735)', () => {
     const gistCard = { id: 'n1', set: 'Prizm', num: '10', noCard: true };
     const engine = makeFlatEngine([{ ...gistCard }], (c) => c.id);
 
@@ -461,7 +510,7 @@ describe('img and noCard keep their existing markers', () => {
     expect(engine.cards[0].noCard).toBe(false);
 
     const merged = engine._mergeCardArrays(engine.cards, [gistCard]);
-    expect('noCard' in merged[0]).toBe(false);
+    expect(merged[0].noCard).toBe(false);
   });
 });
 

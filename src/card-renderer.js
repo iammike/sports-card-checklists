@@ -61,10 +61,17 @@ const CardRenderer = {
 
     // Build the default (unencoded) search string from card fields.
     // prefix is the resolved player name or configured fallback (may be empty).
-    // Includes the variant unless it is the "Base" variant.
+    // Includes the variant unless it is the "Base" variant, plus "Auto" for
+    // autographed cards - but only when set/variant don't already say so
+    // (e.g. "Rookie Signatures", "Autographics"). eBay's search ANDs every
+    // keyword, so appending "Auto" on top of wording that doesn't literally
+    // contain that word would require a token the real listing may lack.
     buildDefaultSearch(card, prefix = '') {
         const variant = (card.variant && card.variant !== 'Base') ? card.variant : '';
-        return `${prefix} ${card.set || ''} ${card.num || ''} ${variant}`.replace(/\s+/g, ' ').trim();
+        const base = `${prefix} ${card.set || ''} ${card.num || ''} ${variant}`;
+        const alreadySaysAuto = /\b(auto|autos|autographs?|autographics|signatures?|signed)\b/i.test(base);
+        const auto = (card.auto && !alreadySaysAuto) ? 'Auto' : '';
+        return `${base} ${auto}`.replace(/\s+/g, ' ').trim();
     },
 
     // Generate eBay search URL

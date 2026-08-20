@@ -80,7 +80,7 @@ beforeEach(() => {
 describe('collection-link cards — the link cannot inject markup or execute', () => {
   // Real call site: createCardElement() routes any card with collectionLink and
   // no noCard to _renderCollectionLinkCard, which is what these renders exercise.
-  const CARD = { player: 'Someone', collectionLink: 'checklist.html?id=x', cardCount: 3 };
+  const CARD = { player: 'Someone', collectionLink: 'checklist.html?id=x' };
 
   it('carries no inline handler at all', () => {
     renderOne(CARD);
@@ -183,27 +183,30 @@ describe('collection-link cards — the count badge', () => {
   const CARD = { player: 'Someone', collectionLink: 'checklist.html?id=x' };
   const badge = (el) => el.querySelector('.collection-badge');
 
-  it('renders a real count', () => {
-    const { el } = renderOne({ ...CARD, cardCount: 40 });
-
-    expect(badge(el).textContent).toBe('40 CARDS');
-  });
-
-  it('escapes a hand-edited cardCount instead of parsing it as markup', () => {
-    // The editor writes cardCount through parseInt, but the gist can hold anything
-    const { el } = renderOne({ ...CARD, cardCount: HOSTILE });
-
-    expect(badge(el).querySelectorAll('img')).toHaveLength(0);
-    expect(badge(el).textContent).toBe(`${HOSTILE} CARDS`);
-    expect(inlineHandlers(container())).toEqual([]);
-  });
-
-  it('escapes linked stats, which come from the gist too', () => {
-    const engine = makeEngine([{ ...CARD, cardCount: 3 }]);
-    engine._linkedStats = { x: { owned: 2, total: HOSTILE } };
+  // The badge has one source: the linked checklist's live stats, held on the
+  // engine. renderOne() builds an engine with none, which is the no-badge case.
+  function renderWithStats(stats) {
+    const engine = makeEngine([CARD]);
+    engine._linkedStats = { x: stats };
     engine._initOwnedToggle();
     engine.renderCards();
-    const el = container().querySelector('.card');
+    return container().querySelector('.card');
+  }
+
+  it('renders the linked checklist live counts', () => {
+    const el = renderWithStats({ owned: 12, total: 43 });
+
+    expect(badge(el).textContent).toBe('12 / 43 CARDS');
+  });
+
+  it('renders no badge at all when the linked checklist has no stats', () => {
+    const { el } = renderOne(CARD);
+
+    expect(el.querySelectorAll('.collection-badge')).toHaveLength(0);
+  });
+
+  it('escapes linked stats, which come from the gist', () => {
+    const el = renderWithStats({ owned: 2, total: HOSTILE });
 
     expect(badge(el).querySelectorAll('img')).toHaveLength(0);
     expect(badge(el).textContent).toBe(`2 / ${HOSTILE} CARDS`);
@@ -212,7 +215,7 @@ describe('collection-link cards — the count badge', () => {
 });
 
 describe('collection-link cards — clicking still navigates', () => {
-  const CARD = { player: 'Someone', collectionLink: 'checklist.html?id=x', cardCount: 3 };
+  const CARD = { player: 'Someone', collectionLink: 'checklist.html?id=x' };
   let nav;
 
   beforeEach(() => { nav = captureNavigation(); });
@@ -587,9 +590,12 @@ describe('card data attributes — sport, era, type and price', () => {
   }
 
   it('injects nothing through a hostile price from a hand-edited gist', () => {
+    // getPrice() is Number(card.price) || 0 - a non-numeric string like HOSTILE
+    // never reaches the DOM at all, since Number() turns it into NaN and the
+    // || 0 fallback normalizes it away before sanitizeAttr ever sees it.
     const { el } = renderOne({ ...CARD, price: HOSTILE });
 
-    expect(el.dataset.price).toBe(HOSTILE);
+    expect(el.dataset.price).toBe('0');
     expect(el.getAttribute('onerror')).toBe(null);
     expect(inlineHandlers(container())).toEqual([]);
   });

@@ -1,3 +1,11 @@
+// How long saveOwned() waits for the owned-checkbox clicks to go quiet before
+// actually writing to the gist. toggleOwned() calls saveOwned() on every click
+// un-awaited, and that path shares _patchGist's write queue - a streak of N
+// quick toggles was N separate PATCHes, serialized ~1s apart (#733), so it took
+// N seconds to fully sync instead of coalescing into one write of the final
+// state (#734).
+const OWNED_SYNC_DEBOUNCE_MS = 1500;
+
 /**
  * Checklist Manager - handles owned state, sync, and auth
  */
@@ -10,6 +18,7 @@ class ChecklistManager {
         this.isReadOnly = true;
         this.onOwnedChange = config.onOwnedChange || (() => {});
         this.getStats = config.getStats || null; // Optional: return stats object for combined save
+        this._ownedSyncTimer = null;
     }
 
     // Generate unique card ID from card data
@@ -90,24 +99,33 @@ class ChecklistManager {
         }
     }
 
-    // Save owned cards to GitHub and localStorage
-    async saveOwned() {
-        // Always save to localStorage as backup
+    // Save owned cards to localStorage immediately and debounce the GitHub
+    // sync (see OWNED_SYNC_DEBOUNCE_MS) - a rapid streak of toggles collapses
+    // into one write of the final state instead of one write per click.
+    saveOwned() {
+        // Always save to localStorage as backup - cheap, local-only, no reason
+        // to delay it behind the network debounce.
         if (this.localStorageKey) {
             localStorage.setItem(this.localStorageKey, JSON.stringify(this.ownedCards));
         }
 
-        // Sync to GitHub if logged in
-        if (window.githubSync && githubSync.isLoggedIn()) {
-            this.setSyncStatus('syncing', 'Syncing...');
-            // Get stats if callback provided (saves both atomically to avoid race condition)
-            const stats = this.getStats ? this.getStats() : null;
-            const success = await githubSync.saveChecklist(this.checklistId, this.ownedCards, stats);
-            if (success) {
-                this.setSyncStatus('synced', 'Synced');
-            } else {
-                this.setSyncStatus('error', 'Sync failed');
-            }
+        if (!(window.githubSync && githubSync.isLoggedIn())) return;
+
+        // Reflect the pending sync immediately - the debounce delays the
+        // network call, not the feedback that a save is on its way.
+        this.setSyncStatus('syncing', 'Syncing...');
+        clearTimeout(this._ownedSyncTimer);
+        this._ownedSyncTimer = setTimeout(() => this._syncOwnedNow(), OWNED_SYNC_DEBOUNCE_MS);
+    }
+
+    async _syncOwnedNow() {
+        // Get stats if callback provided (saves both atomically to avoid race condition)
+        const stats = this.getStats ? this.getStats() : null;
+        const success = await githubSync.saveChecklist(this.checklistId, this.ownedCards, stats);
+        if (success) {
+            this.setSyncStatus('synced', 'Synced');
+        } else {
+            this.setSyncStatus('error', 'Sync failed');
         }
     }
 
@@ -122,120 +140,46 @@ class ChecklistManager {
         }
     }
 
-    // Update nav auth UI with dropdown menu
+    // Update nav auth UI with dropdown menu. Delegates to AuthUI.update()
+    // (nav.js) for everything that isn't checklist-specific - avatar, dropdown
+    // toggle, Shopping List, Sign out, commit hash - then adds this
+    // checklist's owner-only actions on top, the same way
+    // ChecklistEngine._initDeleteButton/_initSettingsButton/_initExportButton
+    // insert into whatever the base render produced. This used to be a full
+    // second copy of AuthUI.update()'s template; the two drifted apart when
+    // Shopping List was added to one and never mirrored into the other, which
+    // silently hid it on every checklist page (only index.html called
+    // AuthUI.update() directly) - exactly the failure mode a single source of
+    // truth avoids.
     updateAuthUI() {
-        const authContent = document.getElementById('auth-content');
-        if (!authContent || !window.githubSync) return;
+        if (!window.AuthUI) return;
+        AuthUI.update();
 
-        if (githubSync.isLoggedIn()) {
-            const user = githubSync.getUser();
-            const safeAvatarUrl = sanitizeAttr(sanitizeUrl(user.avatar_url));
-            const safeLogin = sanitizeText(user.login);
-            const safeLoginAttr = sanitizeAttr(user.login);
-            const isOwner = this.isOwner();
-            const isPreview = githubSync.isPreview();
+        if (!this.isOwner()) return;
+        const dropdown = document.getElementById('nav-dropdown');
+        // Shopping List is always in AuthUI.update()'s template, so it's a
+        // stable anchor regardless of whether the preview sync button is
+        // also present ahead of it.
+        const insertBefore = document.getElementById('shopping-list-btn') || document.getElementById('auth-logout-btn');
+        if (!dropdown || !insertBefore) return;
 
-            const ownerItemsHtml = isOwner ? `
-                <button class="nav-dropdown-item" id="add-card-btn">
-                    <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-                    Add card
-                </button>
-                <button class="nav-dropdown-item danger" id="clear-all-btn">
-                    <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-                    Clear All
-                </button>
-                <div class="nav-dropdown-divider"></div>
-            ` : '';
+        const addCardBtn = document.createElement('button');
+        addCardBtn.className = 'nav-dropdown-item';
+        addCardBtn.id = 'add-card-btn';
+        addCardBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg> Add card';
 
-            const syncButtonHtml = isPreview ? `
-                <button class="nav-dropdown-item" id="sync-from-prod-btn">
-                    <svg viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
-                    Sync from Production
-                </button>
-                <div class="nav-dropdown-divider"></div>
-            ` : '';
+        const clearAllBtn = document.createElement('button');
+        clearAllBtn.className = 'nav-dropdown-item danger';
+        clearAllBtn.id = 'clear-all-btn';
+        clearAllBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg> Clear All';
+        clearAllBtn.onclick = () => this.clearAll();
 
-            authContent.innerHTML = `
-                <button class="nav-avatar-btn" id="nav-avatar-btn">
-                    <img src="${safeAvatarUrl}" alt="${safeLoginAttr}">
-                </button>
-                <div class="nav-dropdown" id="nav-dropdown">
-                    <div class="nav-dropdown-header">
-                        <img src="${safeAvatarUrl}" alt="">
-                        <span>${safeLogin}</span>
-                    </div>
-                    ${ownerItemsHtml}
-                    ${syncButtonHtml}
-                    <button class="nav-dropdown-item" id="auth-logout-btn">
-                        <svg viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
-                        Sign out
-                    </button>
-                    <div class="nav-dropdown-footer" id="commit-hash"></div>
-                </div>
-            `;
+        const divider = document.createElement('div');
+        divider.className = 'nav-dropdown-divider';
 
-            // Fetch commit hash
-            this.loadCommitHash();
-
-            // Toggle dropdown
-            const avatarBtn = document.getElementById('nav-avatar-btn');
-            const dropdown = document.getElementById('nav-dropdown');
-            avatarBtn.onclick = (e) => {
-                e.stopPropagation();
-                avatarBtn.classList.toggle('menu-open');
-                dropdown.classList.toggle('open');
-            };
-            // Close on outside click
-            document.addEventListener('click', () => {
-                avatarBtn.classList.remove('menu-open');
-                dropdown.classList.remove('open');
-            });
-            document.getElementById('auth-logout-btn').onclick = () => this.logout();
-            const clearAllBtn = document.getElementById('clear-all-btn');
-            if (clearAllBtn) clearAllBtn.onclick = () => this.clearAll();
-            // Sync button (preview only)
-            const syncBtn = document.getElementById('sync-from-prod-btn');
-            if (syncBtn) {
-                syncBtn.onclick = async () => {
-                    if (!confirm('This will overwrite all preview data with production data. Continue?')) return;
-                    syncBtn.disabled = true;
-                    syncBtn.textContent = 'Syncing...';
-                    try {
-                        await githubSync.syncFromProduction();
-                        alert('Preview data synced from production!');
-                        location.reload();
-                    } catch (e) {
-                        alert('Sync failed: ' + e.message);
-                        syncBtn.disabled = false;
-                        syncBtn.textContent = 'Sync from Production';
-                    }
-                };
-            }
-        } else {
-            authContent.innerHTML = '';
-        }
-    }
-
-    // Handle logout
-    logout() {
-        if (window.githubSync) {
-            githubSync.logout();
-        }
-        location.reload();
-    }
-
-    // Load and display commit hash in dropdown
-    async loadCommitHash() {
-        try {
-            const response = await fetch('version.json');
-            const data = await response.json();
-            const el = document.getElementById('commit-hash');
-            if (el) {
-                el.innerHTML = `<a href="${sanitizeAttr(sanitizeLinkUrl(data.url))}" target="_blank" rel="noopener noreferrer">${sanitizeText(data.commit)}</a>`;
-            }
-        } catch (e) {
-            // Silently fail - version.json may not exist locally
-        }
+        dropdown.insertBefore(addCardBtn, insertBefore);
+        dropdown.insertBefore(clearAllBtn, insertBefore);
+        dropdown.insertBefore(divider, insertBefore);
     }
 
     // Update read-only UI state

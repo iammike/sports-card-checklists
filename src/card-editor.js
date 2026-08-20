@@ -241,12 +241,13 @@ class CardEditorModal {
         // returning whatever it already has rather than fetching on demand.
         this.getLinkTargets = options.getLinkTargets || (() => []);
         // Async counterpart to getLinkTargets: what the checklist a card links to
-        // can say about itself, as { cardCount, stackImages }. Optional - without
-        // it both fields stay hand-entered, which is all they ever were.
+        // can say about itself, as { stackImages }. Optional - without it the stack
+        // stays hand-entered, which is all it ever was.
         this.getLinkSuggestions = options.getLinkSuggestions || null;
-        // Bumped by every request and by init(), so an answer that arrives after
-        // the selection moved on - or after the modal was rebuilt on a different
-        // card - is recognized as being about the wrong checklist and dropped.
+        // Bumped by every request, by init(), and by the link dropdown, so an
+        // answer that arrives after the selection moved on - or after the modal
+        // was rebuilt on a different card - is recognized as being about the
+        // wrong checklist and dropped.
         this._linkSuggestToken = 0;
         this.currentCard = null;
         this.currentCardId = null;
@@ -256,6 +257,20 @@ class CardEditorModal {
         this.imageProcessor = new ImageProcessor();
         this._initialOwned = false; // Track initial owned state to detect changes
         this._noCardStash = null; // Owned/price values captured when "no card exists" was ticked
+        // True while processImage/editExistingImage/processLocalFile is fetching,
+        // editing, or uploading. All four image entry points check this so a
+        // second action (e.g. clicking Edit while Process is still uploading)
+        // can't race the first and overwrite #editor-img mid-flight.
+        this._imageOpInProgress = false;
+        // Bumped by init(), same idea as _linkSuggestToken just below: an op holds
+        // `this`, not the backdrop, so if it's still in flight when the modal is
+        // closed and reopened, its result belongs to a card that's no longer
+        // open. Each op captures this at the start and compares before writing
+        // to the DOM or clearing the guard, so a stale op can't stomp the new
+        // card's in-progress state. Only one op can be in flight at a time
+        // (_imageOpInProgress enforces that), so a per-reopen value is enough -
+        // no need to also bump it per op.
+        this._imageOpToken = 0;
 
         // Schema-driven custom fields
         // Format: { fieldName: { label, type, options?, placeholder?, fullWidth? } }
@@ -570,8 +585,8 @@ class CardEditorModal {
     }
 
     // The rows that turn a card into a collection link: which checklist it stands
-    // in for, and the two things the tile shows in place of a real card's image
-    // and set - a stack of images and a card count.
+    // in for, and the stack of images the tile shows in place of the image and set
+    // a real card would have.
     //
     // A dropdown rather than a free-text field: the stored value is a URL that
     // every consumer parses an id back out of (see collectionLinkTargetId), so a
@@ -600,17 +615,13 @@ class CardEditorModal {
                     <select class="card-editor-select" id="editor-collection-link">${options}</select>
                 </div>
             </div>
-            <div class="card-editor-row" style="grid-template-columns:3fr 1fr">
+            <div class="card-editor-row" style="grid-template-columns:1fr">
                 <div class="card-editor-field" id="editor-stack-images-field">
                     <div class="card-editor-label-row">
                         <label class="card-editor-label" for="editor-stack-images">Stack Images</label>
                         <button type="button" class="card-editor-toggle-btn" id="editor-suggest-stack">${SUGGEST_STACK_LABEL}</button>
                     </div>
                     <textarea class="card-editor-input" id="editor-stack-images" rows="3" placeholder="One image URL per line"></textarea>
-                </div>
-                <div class="card-editor-field" id="editor-card-count-field">
-                    <label class="card-editor-label" for="editor-card-count">Card Count</label>
-                    <input type="text" class="card-editor-input" id="editor-card-count" placeholder="40" inputmode="numeric">
                 </div>
             </div>`;
     }
@@ -621,6 +632,14 @@ class CardEditorModal {
         // the card that was open before this one. Retire it here rather than letting
         // it write into the fresh form.
         this._linkSuggestToken++;
+        // Same reasoning for the image-op guard: it lives on the instance but the
+        // buttons it disables belong to the backdrop being replaced below, so a
+        // stale true (e.g. from a promise that never settled) would silently
+        // brick every image control in the fresh modal instead of just this one.
+        // Bumping the token additionally invalidates any op still in flight from
+        // before this reopen, so its eventual result can't land on this card.
+        this._imageOpInProgress = false;
+        this._imageOpToken++;
 
         // Remove existing card editor backdrop so re-init works after settings changes
         // Use :not(.checklist-creator-backdrop) to avoid removing the creator modal
@@ -662,11 +681,11 @@ class CardEditorModal {
                             ${this.collectionLinkHtml()}
                             <div class="card-editor-field full-width" id="editor-ebay-field">
                                 <label class="card-editor-label">eBay Search Term</label>
-                                <input type="text" class="card-editor-input" id="editor-ebay" placeholder="Defaults to player + set + number">
+                                <input type="text" class="card-editor-input" id="editor-ebay" placeholder="Defaults to player + set + number + variant/auto">
                             </div>
                             <div class="card-editor-field full-width" id="editor-price-search-field">
                                 <label class="card-editor-label">Price Search Term</label>
-                                <input type="text" class="card-editor-input" id="editor-price-search" placeholder="Defaults to player + set + number">
+                                <input type="text" class="card-editor-input" id="editor-price-search" placeholder="Defaults to player + set + number + variant/auto">
                             </div>
                         </div>
                         <div class="card-editor-field full-width card-editor-image-section">
@@ -766,10 +785,10 @@ class CardEditorModal {
             linkSelect.addEventListener('change', () => {
                 this._applyCollectionLinkState();
                 this.setDirty(true);
-                // Not awaited: the form is already usable and the count is only one
-                // of its fields. Picking a different checklist also cancels a
-                // suggestion still in flight for the previous one.
-                this._refreshLinkedCardCount();
+                // Pointing the card at a different checklist cancels a stack
+                // suggestion still in flight for the previous one: those images
+                // describe a checklist this card no longer stands in for.
+                this._linkSuggestToken++;
             });
         }
 
@@ -826,9 +845,8 @@ class CardEditorModal {
         // Image tab switching
         this.backdrop.querySelectorAll('.card-editor-image-tab').forEach(tab => {
             tab.onclick = () => {
-                // Block switching while processing
-                const saveBtn = this.backdrop.querySelector('.card-editor-btn.save');
-                if (saveBtn && saveBtn.disabled) return;
+                // Block switching while an image op is in flight
+                if (this._imageOpInProgress) return;
 
                 this.backdrop.querySelectorAll('.card-editor-image-tab').forEach(t => t.classList.remove('active'));
                 tab.classList.add('active');
@@ -1002,6 +1020,7 @@ class CardEditorModal {
 
     // Remove image from card
     removeImage() {
+        if (this._imageOpInProgress) return;
         if (!confirm('Remove this image?')) return;
 
         const imgInput = this.backdrop.querySelector('#editor-img');
@@ -1029,8 +1048,11 @@ class CardEditorModal {
         });
     }
 
-    // Set image processing state - disables Save button while processing
+    // Set image processing state - disables Save and every other image entry
+    // point (process/edit/upload/remove) so they can't race the in-flight one.
     setImageProcessing(isProcessing) {
+        this._imageOpInProgress = isProcessing;
+
         const saveBtn = this.backdrop.querySelector('.card-editor-btn.save');
         if (saveBtn) {
             saveBtn.disabled = isProcessing;
@@ -1041,10 +1063,28 @@ class CardEditorModal {
                 saveBtn.textContent = saveBtn.dataset.originalText;
             }
         }
+
+        const processBtn = this.backdrop.querySelector('#editor-process-img');
+        const editBtn = this.backdrop.querySelector('#editor-edit-img');
+        const removeBtn = this.backdrop.querySelector('#editor-remove-img');
+        const imgInput = this.backdrop.querySelector('#editor-img');
+        [processBtn, editBtn, removeBtn, imgInput].forEach(el => {
+            if (el) el.disabled = isProcessing;
+        });
+
+        // Both drop targets accept a dropped file via processLocalFile - both need
+        // the same disabled treatment or one silently no-ops with zero feedback.
+        const uploadZone = this.backdrop.querySelector('#editor-upload-zone');
+        const dropzone = this.backdrop.querySelector('#editor-img-dropzone');
+        [uploadZone, dropzone].forEach(el => {
+            if (el) el.classList.toggle('disabled', isProcessing);
+        });
     }
 
     // Edit existing image: load into editor, save new version
     async editExistingImage() {
+        if (this._imageOpInProgress) return;
+
         const imgInput = this.backdrop.querySelector('#editor-img');
         const url = imgInput.value.trim();
         const btn = this.backdrop.querySelector('#editor-edit-img');
@@ -1057,6 +1097,7 @@ class CardEditorModal {
             return;
         }
 
+        const opToken = this._imageOpToken;
         btn.classList.add('processing');
         btn.disabled = true;
         this.setImageProcessing(true);
@@ -1091,6 +1132,11 @@ class CardEditorModal {
                 githubSync.deleteImage(oldKey).catch(() => {});
             }
 
+            // The modal may have been closed and reopened on another card while
+            // this was in flight - its result no longer belongs to what's on
+            // screen, so leave the (now different) DOM alone.
+            if (opToken !== this._imageOpToken) return;
+
             // Update the input field with the R2 URL
             imgInput.value = r2Url;
             this.updateImagePreview(`data:image/webp;base64,${base64Data}`);
@@ -1105,12 +1151,17 @@ class CardEditorModal {
         } finally {
             btn.classList.remove('processing');
             btn.disabled = false;
-            this.setImageProcessing(false);
+            // Same staleness check: a stale op's finally must not clear the
+            // guard/re-enable controls for whatever op the fresh modal has
+            // running now.
+            if (opToken === this._imageOpToken) this.setImageProcessing(false);
         }
     }
 
     // Process image: fetch, optionally show editor, resize, upload to R2, update field with URL
     async processImage({ skipEditor = false } = {}) {
+        if (this._imageOpInProgress) return;
+
         const imgInput = this.backdrop.querySelector('#editor-img');
         const url = imgInput.value.trim();
         const btn = this.backdrop.querySelector('#editor-process-img');
@@ -1125,6 +1176,8 @@ class CardEditorModal {
 
         // Capture old R2 key before upload replaces the URL
         const oldKey = r2KeyFromUrl(url);
+
+        const opToken = this._imageOpToken;
 
         // Show loading state
         btn.classList.add('processing');
@@ -1179,6 +1232,10 @@ class CardEditorModal {
                 githubSync.deleteImage(oldKey).catch(() => {});
             }
 
+            // The modal may have been closed and reopened on another card while
+            // this was in flight - leave the (now different) DOM alone.
+            if (opToken !== this._imageOpToken) return;
+
             // Update the input field with the R2 URL
             imgInput.value = r2Url;
             this.updateImagePreview(`data:image/webp;base64,${base64Content}`);
@@ -1193,12 +1250,14 @@ class CardEditorModal {
         } finally {
             btn.classList.remove('processing');
             btn.disabled = false;
-            this.setImageProcessing(false);
+            if (opToken === this._imageOpToken) this.setImageProcessing(false);
         }
     }
 
     // Process a local file: read, show editor, resize, upload to R2, update field with URL
     async processLocalFile(file) {
+        if (this._imageOpInProgress) return;
+
         const imgInput = this.backdrop.querySelector('#editor-img');
         const zone = this.backdrop.querySelector('#editor-upload-zone');
 
@@ -1216,6 +1275,8 @@ class CardEditorModal {
 
         // Capture old R2 key before upload replaces the URL
         const oldKey = r2KeyFromUrl(imgInput.value.trim());
+
+        const opToken = this._imageOpToken;
 
         // Show loading state
         zone.classList.add('processing');
@@ -1264,6 +1325,10 @@ class CardEditorModal {
                 githubSync.deleteImage(oldKey).catch(() => {});
             }
 
+            // The modal may have been closed and reopened on another card while
+            // this was in flight - leave the (now different) DOM alone.
+            if (opToken !== this._imageOpToken) return;
+
             // Update the input field with the R2 URL
             imgInput.value = r2Url;
             this.updateImagePreview(`data:image/webp;base64,${base64Content}`);
@@ -1278,7 +1343,7 @@ class CardEditorModal {
             this._handleImageError(error, 'Image upload failed:', 'Failed to upload image: ');
         } finally {
             zone.classList.remove('processing');
-            this.setImageProcessing(false);
+            if (opToken === this._imageOpToken) this.setImageProcessing(false);
         }
     }
 
@@ -1363,9 +1428,6 @@ class CardEditorModal {
 
         this._populateCollectionLink(cardData);
         this._applyCollectionLinkState();
-        // Not awaited - the modal opens on the stored count and corrects it if and
-        // when the linked checklist answers
-        if (cardData.collectionLink) this._refreshLinkedCardCount();
 
         // Show modal
         this.backdrop.classList.add('active');
@@ -1512,7 +1574,6 @@ class CardEditorModal {
 
         this._setFieldVisible('#editor-collection-link-field', offerLink);
         this._setFieldVisible('#editor-stack-images-field', isLink);
-        this._setFieldVisible('#editor-card-count-field', isLink);
 
         this._setFieldVisible('#editor-set-field', !isLink);
         this._setFieldVisible('#editor-num-field', !isLink);
@@ -1590,8 +1651,6 @@ class CardEditorModal {
         }
         select.value = link;
 
-        const count = this.backdrop.querySelector('#editor-card-count');
-        if (count) count.value = cardData.cardCount != null ? cardData.cardCount : '';
         const stack = this.backdrop.querySelector('#editor-stack-images');
         if (stack) stack.value = (Array.isArray(cardData.stackImages) ? cardData.stackImages : []).join('\n');
     }
@@ -1602,7 +1661,7 @@ class CardEditorModal {
     // reopened modal - has taken over since this one went out, and the answer
     // describes a checklist the form may no longer point at; the only correct
     // response is to touch nothing. A failed fetch resolves as a plain absent
-    // suggestion: the fields are hand-editable and keep whatever they hold, so
+    // suggestion: the stack box is hand-editable and keeps whatever it holds, so
     // there is nothing to recover from beyond not writing anything.
     async _requestLinkSuggestions() {
         const token = ++this._linkSuggestToken;
@@ -1619,30 +1678,6 @@ class CardEditorModal {
         return { stale: false, suggestion: suggestion || null };
     }
 
-    // How many cards the linked checklist holds is a fact about that checklist, not
-    // a choice about this card, and it goes out of date on its own as the target
-    // grows. So it refreshes itself: on opening a card that already links somewhere,
-    // and on pointing a card at a different checklist.
-    //
-    // Opening deliberately does not mark the form dirty. The user may have opened
-    // the card only to look at it, and a confirm-on-close prompt for an edit they
-    // did not make is worse than a count that stays stale one more save; the fresh
-    // value is in the field and goes out with whatever they do save. On the
-    // dropdown path the change handler has already marked the form dirty, so the
-    // corrected count is saved along with the new link.
-    async _refreshLinkedCardCount() {
-        const before = this.backdrop.querySelector('#editor-card-count')?.value;
-        if (before === undefined) return;
-
-        const { stale, suggestion } = await this._requestLinkSuggestions();
-        if (stale || !suggestion || typeof suggestion.cardCount !== 'number') return;
-
-        const field = this.backdrop.querySelector('#editor-card-count');
-        // A count the user typed while the answer was in flight is theirs to keep
-        if (!field || field.value !== before) return;
-        field.value = String(suggestion.cardCount);
-    }
-
     // Fill the stack box with images from the linked checklist. Behind a button
     // rather than automatic, because three hand-picked images are a legitimate
     // choice and this replaces the lot - and because a button is the only trigger
@@ -1653,6 +1688,12 @@ class CardEditorModal {
     // a convenience feature is out of proportion. It resets to its resting label on
     // the next open, since init() rebuilds the modal.
     async _suggestStackImages() {
+        // No checklist selected, so there is nothing to ask and nothing to report:
+        // leaving the button alone is the honest answer, where falling through
+        // would announce a failure for a fetch that never happened. Not reachable
+        // from the UI, which hides the whole stack field until a link is chosen.
+        if (!this.backdrop.querySelector('#editor-collection-link')?.value.trim()) return;
+
         const button = this.backdrop.querySelector('#editor-suggest-stack');
         const resting = button ? button.textContent : SUGGEST_STACK_LABEL;
         if (button) {
@@ -1702,8 +1743,11 @@ class CardEditorModal {
         this.currentCardId = null;
         this.isNewCard = false;
         this._noCardStash = null;
-        // Close image editor if it was left open
-        imageEditor.close();
+        // Cancel image editor if it was left open - cancel() (not close()) rejects
+        // the open() promise so any pending processImage/editExistingImage/
+        // processLocalFile await resolves and clears _imageOpInProgress instead
+        // of hanging forever.
+        imageEditor.cancel();
     }
 
     // Gather form data
@@ -1773,8 +1817,6 @@ class CardEditorModal {
         // image, and [] is truthy so it would never be recognized as cleared.
         if (link && !noCardChecked) {
             data.collectionLink = link;
-            const count = parseInt(this.backdrop.querySelector('#editor-card-count').value.trim(), 10);
-            if (count > 0) data.cardCount = count;
             const stack = this.parseStackImages(this.backdrop.querySelector('#editor-stack-images').value);
             if (stack.length > 0) data.stackImages = stack;
         }
@@ -1857,6 +1899,11 @@ class CardEditorModal {
 
     // Save card (auto-processes image if needed)
     async save() {
+        // The Save button is disabled while an image op is in flight, but the
+        // Enter-to-save shortcut calls save() directly and isn't gated by that -
+        // without this, it would race processImage below and skip straight to
+        // persisting the pre-upload URL.
+        if (this._imageOpInProgress) return;
         if (!this.validate()) return;
 
         const imgUrl = this.backdrop.querySelector('#editor-img').value.trim();

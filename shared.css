@@ -702,6 +702,106 @@ select, input[type="text"] {
     background: #f0f0f0;
 }
 
+.quick-filter-btn.active {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: white;
+}
+
+.quick-filter-btn.active:hover {
+    background: var(--color-accent);
+}
+
+/* ============================================
+   Price Range Filter (dual-handle slider)
+   ============================================ */
+.price-range-filter {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 180px;
+}
+
+.price-range-label {
+    font-family: 'Barlow', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text-light);
+    white-space: nowrap;
+}
+
+.price-range-track {
+    position: relative;
+    height: 20px;
+}
+
+.price-range-track::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 4px;
+    transform: translateY(-50%);
+    background: rgba(128, 128, 128, 0.3);
+    border-radius: 2px;
+}
+
+.price-range-fill {
+    position: absolute;
+    top: 50%;
+    height: 4px;
+    transform: translateY(-50%);
+    background: var(--color-accent);
+    border-radius: 2px;
+}
+
+.price-range-track input[type="range"] {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 20px;
+    margin: 0;
+    background: none;
+    pointer-events: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.price-range-track input[type="range"]::-webkit-slider-runnable-track {
+    -webkit-appearance: none;
+    background: none;
+}
+
+.price-range-track input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    pointer-events: auto;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--color-accent);
+    border: 2px solid var(--color-surface, #fff);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+}
+
+.price-range-track input[type="range"]::-moz-range-track {
+    background: none;
+    border: none;
+}
+
+.price-range-track input[type="range"]::-moz-range-thumb {
+    pointer-events: auto;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--color-accent);
+    border: 2px solid var(--color-surface, #fff);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+}
+
 /* ============================================
    Sections & Headers
    ============================================ */
@@ -2056,6 +2156,13 @@ select, input[type="text"] {
     display: block;
 }
 
+/* Another image action (process/edit/remove) is in flight - block drops/clicks
+   without swapping in the upload spinner, since this zone isn't the one working. */
+.card-editor-upload-zone.disabled:not(.processing) {
+    pointer-events: none;
+    opacity: 0.5;
+}
+
 /* Process button - conditionally visible */
 .card-editor-process-btn {
     display: none;
@@ -2161,6 +2268,12 @@ select, input[type="text"] {
     box-shadow: 0 4px 12px rgba(233, 67, 67, 0.4);
 }
 
+.card-editor-remove-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
 .card-editor-edit-btn:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(67, 233, 123, 0.4);
@@ -2218,6 +2331,12 @@ select, input[type="text"] {
 .card-editor-image-preview.dragover {
     border-color: #43e97b;
     background: rgba(67, 233, 123, 0.1);
+}
+
+/* Another image action is in flight - block drops on the preview area too. */
+.card-editor-image-preview.disabled {
+    pointer-events: none;
+    opacity: 0.6;
 }
 
 /* Footer with actions */
@@ -2471,6 +2590,7 @@ select, input[type="text"] {
 }
 
 .image-editor-header {
+    flex-shrink: 0;
     padding: 20px 24px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     position: relative;
@@ -2507,6 +2627,16 @@ select, input[type="text"] {
     display: flex;
     flex-direction: column;
     padding: 16px;
+    /* Without this, .image-editor-canvas's min-height (below) can force this box
+       taller than the space .image-editor-modal's max-height leaves for it, and
+       since nothing here scrolls, the overflow spills past the modal's bottom
+       edge - taking the footer's Save/Cancel buttons with it - on any viewport
+       short enough that header + tabs + a 300px-tall canvas + controls + footer
+       don't all fit (#737). min-height: 0 above lets this box shrink below its
+       content's natural size in the first place; this lets that shrunk content
+       scroll instead of overflowing invisibly. */
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .image-editor-tabs {
@@ -2560,6 +2690,19 @@ select, input[type="text"] {
     display: block;
 }
 
+/* Cropper.js's own CSS (loaded from the CDN, after this stylesheet) sizes its
+   bottom-right resize handle (point-se) via @media width breakpoints keyed to
+   the whole browser viewport - not this modal - stepping from 20px down to
+   5px only above a 1200px-wide window. Every other handle stays a fixed 5px
+   at every width, so on any narrower window that one corner renders visibly
+   oversized next to the rest. !important is needed to beat cropper.css's
+   equal-specificity, later-loaded media-query rules. */
+.cropper-point.point-se {
+    width: 5px !important;
+    height: 5px !important;
+    opacity: 0.75 !important;
+}
+
 /* Two-row toolbar: tools on top, text input below */
 .image-editor-controls {
     display: flex;
@@ -2606,6 +2749,7 @@ select, input[type="text"] {
 }
 
 .image-editor-footer {
+    flex-shrink: 0;
     padding: 16px 24px 20px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
@@ -2735,11 +2879,14 @@ select, input[type="text"] {
     position: relative;
 }
 
-/* Bounded by the container, not the viewport. A 60vh canvas overflowed the
-   shorter container on short windows, and overflow:hidden then clipped the
-   corner handles and guide lines, which are placed relative to the canvas.
-   The percentage only resolves because .image-editor-modal has a definite
-   height; against a content-sized chain it computes to none. */
+/* Relative to .image-editor-canvas's real box, not the viewport. A fixed 60vh
+   could exceed what that parent actually has on a short window, and since it
+   has overflow: hidden the excess was clipped rather than shrunk, pushing the
+   corner handles and guide lines out of view (#737 follow-up).
+   The percentage only bites because .image-editor-modal has a definite height.
+   Against the content-sized chain it computes to none and the canvas grows
+   unbounded instead - at a 740px viewport, 613px inside a 403px container,
+   further out than the 60vh it replaced. */
 .perspective-canvas {
     max-width: 100%;
     max-height: 100%;

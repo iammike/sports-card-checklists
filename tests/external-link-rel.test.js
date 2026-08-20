@@ -165,8 +165,15 @@ describe('a rendered card carries rel on every new-tab anchor', () => {
 });
 
 describe('the commit-hash link', () => {
-  // Real call site: both loadCommitHash implementations fetch version.json and
-  // write an anchor into #commit-hash. Only fetch is stubbed.
+  // Real call site: AuthUI.loadCommitHash fetches version.json and writes an
+  // anchor into #commit-hash. Only fetch is stubbed.
+  //
+  // ChecklistManager used to carry a full second copy of this (and of the
+  // whole nav dropdown render) - the two drifted apart when Shopping List was
+  // added to AuthUI's copy and never mirrored into ChecklistManager's, which
+  // silently hid it on every checklist page. ChecklistManager.updateAuthUI()
+  // now delegates to AuthUI.update() instead of re-implementing it, so
+  // there's only one commit-hash renderer left to cover.
   const VERSION = { url: 'https://github.com/iammike/sports-card-checklists/commit/abc', commit: 'abc' };
   let originalFetch;
 
@@ -186,13 +193,6 @@ describe('the commit-hash link', () => {
 
   it('sets rel when rendered by AuthUI', async () => {
     await AuthUI.loadCommitHash();
-
-    expect(commitHash().querySelector('a').textContent).toBe('abc');
-    expectAllNewTabAnchorsHaveRel(commitHash(), 1);
-  });
-
-  it('sets rel when rendered by ChecklistManager', async () => {
-    await ChecklistManager.prototype.loadCommitHash.call({});
 
     expect(commitHash().querySelector('a').textContent).toBe('abc');
     expectAllNewTabAnchorsHaveRel(commitHash(), 1);
