@@ -176,7 +176,8 @@ No code changes needed to add a new checklist.
 │   ├── checklist-creator.js #   Checklist creation/settings modal
 │   ├── collapsible-sections.js # Expandable section headers
 │   ├── image-editor.js      #   Image crop/rotate, perspective correction, upload
-│   ├── shopping-list.js     #   Shopping List PDF export
+│   ├── shopping-list.js     #   Shopping List PDF export (owner)
+│   ├── checklist-export.js  #   CSV / printable PDF export of a whole checklist
 │   ├── nav.js               #   Dynamic navigation, auth UI, dropdown menus
 │   └── checklist-engine.js  #   Checklist engine (loads config from gist)
 ├── dist/                    # Built output (app.min.js, checklist-engine.min.js, shared.min.css)

@@ -40,7 +40,7 @@ const loggedOut = () => ({ isLoggedIn: () => false, getUser: () => null });
 const flush = () => new Promise(r => setTimeout(r, 0));
 const loggedIn = () => ({ isLoggedIn: () => true, getUser: () => ({ login: 'someone-else' }) });
 
-describe('Shopping List button in the filter row', () => {
+describe('Export button in the filter row', () => {
     let realGithubSync;
     let realShoppingList;
     let realChecklistExport;
@@ -63,7 +63,7 @@ describe('Shopping List button in the filter row', () => {
 
         makeEngine()._renderFilters();
 
-        expect(document.getElementById('shopping-list-filter-btn')).not.toBeNull();
+        expect(document.getElementById('checklist-export-btn')).not.toBeNull();
     });
 
     it('does not render when signed in - the nav dropdown already carries it', () => {
@@ -74,7 +74,7 @@ describe('Shopping List button in the filter row', () => {
         // #reorder-btn proves the row rendered at all, so the absence below is a
         // real absence and not an empty container passing vacuously.
         expect(document.getElementById('reorder-btn')).not.toBeNull();
-        expect(document.getElementById('shopping-list-filter-btn')).toBeNull();
+        expect(document.getElementById('checklist-export-btn')).toBeNull();
     });
 
     // Driven by a real click: the binding is where this behaviour lives, and
@@ -86,7 +86,7 @@ describe('Shopping List button in the filter row', () => {
 
         const engine = makeEngine();
         engine._renderFilters();
-        document.getElementById('shopping-list-filter-btn').click();
+        document.getElementById('checklist-export-btn').click();
 
         expect(open).toHaveBeenCalledTimes(1);
         const ctx = open.mock.calls[0][0];
@@ -102,7 +102,7 @@ describe('Shopping List button in the filter row', () => {
 
         makeEngine()._renderFilters();
 
-        expect(document.getElementById('shopping-list-filter-btn').textContent).toBe('Export');
+        expect(document.getElementById('checklist-export-btn').textContent).toBe('Export');
     });
 
     it('is omitted when the export module is absent, rather than rendering a dead button', () => {
@@ -112,6 +112,6 @@ describe('Shopping List button in the filter row', () => {
         makeEngine()._renderFilters();
 
         expect(document.getElementById('reorder-btn')).not.toBeNull();
-        expect(document.getElementById('shopping-list-filter-btn')).toBeNull();
+        expect(document.getElementById('checklist-export-btn')).toBeNull();
     });
 });

@@ -10,12 +10,12 @@ const ChecklistExport = {
 
     // Flatten the engine's in-memory cards into export rows, in config order.
     // `cards` is a flat array or a {categoryId: [...]} map, matching dataShape.
-    collectRows(cards, config, includeExtra) {
+    collectRows(cards, config, includeExtra, sort) {
         const rows = [];
         const isFlat = (config?.dataShape || 'categories') === 'flat';
 
         const push = (section, list) => {
-            (list || []).forEach(card => {
+            (sort ? sort(list || []) : (list || [])).forEach(card => {
                 if (card.collectionLink || card.noCard) return;
                 rows.push({
                     section,
@@ -49,9 +49,10 @@ const ChecklistExport = {
     },
 
     // RFC 4180: quote anything containing a delimiter, quote or newline, and
-    // double the quotes inside. Formula injection is deliberately not escaped -
-    // every value originates in the site owner's own gist, not in visitor input,
-    // and prefixing would corrupt legitimate values like a negative card number.
+    // double the quotes inside. Formula injection is deliberately not escaped:
+    // only the site owner can write these values, and anyone who could inject one
+    // already has arbitrary content on the page itself, so the CSV adds no surface.
+    // Prefixing would also corrupt legitimate values like a negative card number.
     _escapeCSV(value) {
         const str = value === null || value === undefined ? '' : String(value);
         return /[",\r\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
@@ -132,7 +133,6 @@ const ChecklistExport = {
         };
 
         const newPage = () => {
-            ShoppingList.drawPageFooter(doc, pageWidth, pageHeight, margin, doc.internal.getNumberOfPages());
             doc.addPage();
             y = margin;
         };
@@ -179,17 +179,22 @@ const ChecklistExport = {
             doc.setLineWidth(0.3);
             doc.rect(margin + 2, y - 0.2, boxSize, boxSize, 'S');
 
-            const values = ['', row.set, row.num, row.name, row.variant, row.price ? '$' + row.price : ''];
+            const values = ['', row.set, row.num, row.name, row.variant,
+                row.price > 0 ? '$' + Number(row.price).toFixed(0) : ''];
             let x = margin + 2;
             values.forEach((v, i) => {
-                if (v) doc.text(String(v), x, y + 3);
+                if (v) doc.text(ShoppingList.truncateToWidth(doc, v, cols[i].width), x, y + 3);
                 x += cols[i].width;
             });
             y += rowHeight;
             rowIndex++;
         }
 
-        ShoppingList.drawPageFooter(doc, pageWidth, pageHeight, margin, doc.internal.getNumberOfPages());
+        const totalPages = doc.internal.getNumberOfPages();
+        for (let p = 1; p <= totalPages; p++) {
+            doc.setPage(p);
+            ShoppingList.drawPageFooter(doc, pageWidth, pageHeight, margin, p, totalPages);
+        }
         doc.save(meta.filename);
     },
 
@@ -206,7 +211,7 @@ const ChecklistExport = {
         document.body.appendChild(a);
         a.click();
         a.remove();
-        URL.revokeObjectURL(url);
+        setTimeout(() => URL.revokeObjectURL(url), 0);
     },
 
     _initModal() {
@@ -277,11 +282,13 @@ const ChecklistExport = {
         const btn = this.backdrop.querySelector('#ce-export');
         const includeExtra = this.backdrop.querySelector('#ce-include-extra').checked;
         const asPdf = this.backdrop.querySelector('#ce-format-pdf').checked;
-        const rows = this.collectRows(ctx.cards, ctx.config, includeExtra);
+        const rows = this.collectRows(ctx.cards, ctx.config, includeExtra, ctx.sort);
         const base = `${ctx.id}-checklist`;
 
         if (!asPdf) {
-            this._download(`${base}.csv`, this.toCSV(rows));
+            // Excel on Windows ignores the Blob's charset and uses the system
+            // codepage; the BOM is what makes an accented name survive.
+            this._download(`${base}.csv`, '\uFEFF' + this.toCSV(rows));
             this.close();
             return;
         }

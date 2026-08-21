@@ -130,12 +130,27 @@ describe('ChecklistExport.toCSV', () => {
     });
 
     // The Owned column is the importable equivalent of a blank checkbox - the
-    // visitor's own tracking, never the site owner's ownership.
-    it('leaves Owned empty on every row', () => {
-        const lines = ChecklistExport.toCSV([row(), row({ num: '2' })]).split('\r\n');
+    // visitor's own tracking, never the site owner's ownership. Asserting the full
+    // field array rather than a trailing comma: with an empty Price in the fixture
+    // a trailing comma is satisfied even when the Owned field is gone entirely,
+    // and dropping it silently shifts every column left of it.
+    it('emits one field per declared column, with Owned last and empty', () => {
+        const csv = ChecklistExport.toCSV([row({ variant: 'Silver', serial: '/99', price: 45 })]);
+        const fields = csv.split('\r\n')[1].split(',');
 
-        expect(lines[1].endsWith(',')).toBe(true);
-        expect(lines[2].endsWith(',')).toBe(true);
+        expect(fields).toEqual(['Base', '2024', '2024 Prizm', '1', 'Jayden Daniels', 'Silver', '/99', '45', '']);
+        expect(fields).toHaveLength(ChecklistExport.CSV_COLUMNS.length);
+    });
+
+    it('keeps field order matching the header', () => {
+        const header = ChecklistExport.CSV_COLUMNS;
+        const fields = ChecklistExport.toCSV([row({ num: 'NUM', name: 'NAME', variant: 'VAR', serial: 'SER' })])
+            .split('\r\n')[1].split(',');
+
+        expect(fields[header.indexOf('Number')]).toBe('NUM');
+        expect(fields[header.indexOf('Name')]).toBe('NAME');
+        expect(fields[header.indexOf('Variant')]).toBe('VAR');
+        expect(fields[header.indexOf('Serial')]).toBe('SER');
     });
 
     it('quotes a value containing a comma', () => {
@@ -218,10 +233,12 @@ describe('ChecklistExport dialog', () => {
     it('includes every card, owned or not, with an empty Owned column', () => {
         openAndExport();
 
-        const lines = downloads[0].content.split('\r\n');
+        // Excel on Windows needs the BOM to decode accented names correctly.
+        expect(downloads[0].content.startsWith('\uFEFF')).toBe(true);
+        const lines = downloads[0].content.slice(1).split('\r\n');
         expect(lines[0]).toBe('Section,Year,Set,Number,Name,Variant,Serial,Price,Owned');
         expect(lines).toHaveLength(3);
-        expect(lines.every((l, i) => i === 0 || l.endsWith(','))).toBe(true);
+        lines.slice(1).forEach(l => expect(l.split(',')).toHaveLength(ChecklistExport.CSV_COLUMNS.length));
     });
 
     it('drops extra categories when the box is unchecked', () => {
@@ -229,7 +246,7 @@ describe('ChecklistExport dialog', () => {
         document.getElementById('ce-include-extra').checked = false;
         document.getElementById('ce-export').click();
 
-        const lines = downloads[0].content.split('\r\n');
+        const lines = downloads[0].content.slice(1).split('\r\n');
         expect(lines).toHaveLength(2);
         expect(lines[1]).toContain('Base Set');
     });
@@ -252,6 +269,21 @@ describe('ChecklistExport dialog', () => {
         expect(calls[0].meta.title).toBe('Jayden Daniels');
     });
 
+    // The modal is created once and reused, so a stale checkbox from a previous
+    // open would otherwise persist. Every other test here gets a fresh backdrop.
+    it('resets the options each time it is opened', () => {
+        ChecklistExport.open(CONTEXT());
+        document.getElementById('ce-include-extra').checked = false;
+        document.getElementById('ce-format-pdf').checked = true;
+        ChecklistExport.close();
+
+        ChecklistExport.open(CONTEXT());
+
+        expect(document.getElementById('ce-include-extra').checked).toBe(true);
+        expect(document.getElementById('ce-format-pdf').checked).toBe(false);
+        expect(document.getElementById('ce-format-csv').checked).toBe(true);
+    });
+
     it('closes without exporting when cancelled', () => {
         ChecklistExport.open(CONTEXT());
         document.getElementById('ce-cancel').click();
@@ -271,18 +303,22 @@ describe('ChecklistExport dialog', () => {
 });
 
 describe('ChecklistExport.buildPDF', () => {
-    // Records what was drawn. Asserting on jsPDF calls is the only way to check a
-    // PDF's content without parsing one, and it keeps the checkbox count - the
-    // whole point of this document - directly observable.
+    // Models the jsPDF surface the builder actually uses, including getTextWidth
+    // and setPage. A stub that omits those only looks faithful while the code
+    // never asks for them - which is how the fork of this layout lost truncation.
+    // Width is ~2mm per character, close enough to 8pt Helvetica to exercise the
+    // column limits.
     function fakeDoc() {
-        const calls = { text: [], strokedRects: [], saved: null, pages: 1 };
+        const calls = { text: [], strokedRects: [], saved: null, pages: 1, page: 1 };
         return {
             calls,
             setFont() {}, setFontSize() {}, setTextColor() {}, setFillColor() {},
             setDrawColor() {}, setLineWidth() {},
+            getTextWidth(t) { return String(t).length * 2; },
             rect(x, y, w, h, style) { if (style === 'S') calls.strokedRects.push({ x, y, w, h }); },
-            text(str) { calls.text.push(String(str)); },
-            addPage() { calls.pages++; },
+            text(str, x, y) { calls.text.push({ str: String(str), x, y, page: calls.page }); },
+            addPage() { calls.pages++; calls.page = calls.pages; },
+            setPage(p) { calls.page = p; },
             save(name) { calls.saved = name; },
             internal: {
                 pageSize: { getWidth: () => 215.9, getHeight: () => 279.4 },
@@ -305,11 +341,18 @@ describe('ChecklistExport.buildPDF', () => {
         delete window.jspdf;
     });
 
+    const strings = () => doc.calls.text.map(t => t.str);
+
     const ROWS = [
         { section: 'Base Set', year: 2024, set: '2024 Prizm', num: '1', name: 'Daniels', variant: '', serial: '', price: 45 },
         { section: 'Base Set', year: 2024, set: '2024 Prizm', num: '2', name: 'Daniels', variant: '', serial: '', price: 0 },
         { section: 'Inserts', year: 2024, set: '2024 Kaboom', num: 'K1', name: 'Daniels', variant: '', serial: '', price: 120 },
     ];
+
+    const manyRows = (n) => Array.from({ length: n }, (_, i) => ({
+        section: 'Base Set', year: 2024, set: '2024 Prizm', num: String(i + 1),
+        name: 'Daniels', variant: '', serial: '', price: 0,
+    }));
 
     it('draws one empty checkbox per card', async () => {
         await ChecklistExport.buildPDF(ROWS, { title: 'Jayden Daniels', filename: 'x.pdf' });
@@ -326,7 +369,7 @@ describe('ChecklistExport.buildPDF', () => {
     it('heads the document with the checklist title and a plain card count', async () => {
         await ChecklistExport.buildPDF(ROWS, { title: 'Jayden Daniels', filename: 'x.pdf' });
 
-        const text = doc.calls.text.join('|');
+        const text = strings().join('|');
         expect(text).toContain('Jayden Daniels');
         expect(text).toContain('3 cards');
         // This is not the shopping list: nothing is "needed" and no cost is totalled.
@@ -337,9 +380,54 @@ describe('ChecklistExport.buildPDF', () => {
     it('writes a section header per category', async () => {
         await ChecklistExport.buildPDF(ROWS, { title: 'T', filename: 'x.pdf' });
 
-        const text = doc.calls.text;
-        expect(text.filter(t => t === 'Base Set')).toHaveLength(1);
-        expect(text.filter(t => t === 'Inserts')).toHaveLength(1);
+        expect(strings().filter(t => t === 'Base Set')).toHaveLength(1);
+        expect(strings().filter(t => t === 'Inserts')).toHaveLength(1);
+    });
+
+    // Without this, a PDF of checkboxes and headers containing no card data at all
+    // still passes every other test in this block.
+    it('writes each card\'s values into its own column', async () => {
+        await ChecklistExport.buildPDF(ROWS, { title: 'T', filename: 'x.pdf' });
+
+        const first = doc.calls.text.filter(t => t.str === '2024 Prizm');
+        expect(first.length).toBeGreaterThan(0);
+        const setX = first[0].x;
+        const numX = doc.calls.text.find(t => t.str === '1').x;
+        const nameX = doc.calls.text.filter(t => t.str === 'Daniels')[0].x;
+        // Columns advance left to right; a collapsed layout would not.
+        expect(setX).toBeLessThan(numX);
+        expect(numX).toBeLessThan(nameX);
+        expect(strings()).toContain('$45');
+        // A zero price is left blank rather than printed as $0.
+        expect(strings()).not.toContain('$0');
+    });
+
+    it('repeats the column header on every page of a long checklist', async () => {
+        await ChecklistExport.buildPDF(manyRows(120), { title: 'T', filename: 'x.pdf' });
+
+        expect(doc.calls.pages).toBeGreaterThan(1);
+        const headerPages = new Set(doc.calls.text.filter(t => t.str === 'Set').map(t => t.page));
+        expect(headerPages.size).toBe(doc.calls.pages);
+    });
+
+    it('numbers every page once the total is known', async () => {
+        await ChecklistExport.buildPDF(manyRows(120), { title: 'T', filename: 'x.pdf' });
+
+        const total = doc.calls.pages;
+        const numbered = strings().filter(t => /^Page \d+ of \d+$/.test(t));
+        expect(numbered).toContain(`Page 1 of ${total}`);
+        expect(numbered).toContain(`Page ${total} of ${total}`);
+    });
+
+    // ShoppingList.truncateToWidth is shared for exactly this: a long parallel name
+    // running into the price column is the failure this layout is prone to.
+    it('truncates a value too wide for its column', async () => {
+        const wide = [{ ...ROWS[0], variant: 'Green Shimmer Prizm Autograph Refractor' }];
+
+        await ChecklistExport.buildPDF(wide, { title: 'T', filename: 'x.pdf' });
+
+        expect(strings()).not.toContain('Green Shimmer Prizm Autograph Refractor');
+        expect(strings().some(t => t.startsWith('Green Shimmer') && t.endsWith('..'))).toBe(true);
     });
 
     it('loads jsPDF before building', async () => {

@@ -1439,10 +1439,9 @@ class ChecklistEngine {
 
         // Logged out there is no nav dropdown at all (AuthUI.update() renders
         // nothing without a token), so this is the only place the export can live.
-        // It needs no auth - every read in ShoppingList.generate() already falls
-        // back to the public gist.
+        // It needs no auth: the dialog exports the cards already in memory.
         if (!window.githubSync?.isLoggedIn() && window.ChecklistExport) {
-            html += `<button id="shopping-list-filter-btn" class="filter-btn">Export</button>`;
+            html += `<button id="checklist-export-btn" class="filter-btn">Export</button>`;
         }
 
         container.innerHTML = html;
@@ -1457,11 +1456,15 @@ class ChecklistEngine {
             if (input) { input.value = ''; input.focus(); this._onFilterChange(); }
         });
         container.querySelector('#reorder-btn')?.addEventListener('click', () => this._toggleReorderMode());
-        container.querySelector('#shopping-list-filter-btn')?.addEventListener('click', () => ChecklistExport.open({
+        container.querySelector('#checklist-export-btn')?.addEventListener('click', () => ChecklistExport.open({
             id: this.id,
             title: this.config?.title,
             config: this.config,
             cards: this.cards,
+            // Same order the page renders in, so a printed copy tracks the screen.
+            sort: (list) => (this.config.defaultSortMode
+                ? this.sortCards([...list], this.config.defaultSortMode)
+                : list),
         }));
         container.querySelectorAll('.quick-filter-btn').forEach(btn => {
             btn.addEventListener('click', () => {
