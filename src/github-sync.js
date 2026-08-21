@@ -96,6 +96,13 @@ class GitHubSync {
     // matched: "https://evil.example/?x=.pages.dev" contains the preview domain
     // and is not it. Restricted to this project's own subdomains rather than
     // *.pages.dev, because anyone can create a Pages project.
+    // A branch preview, as opposed to the apex preview that receives the OAuth
+    // callback. Takes the hostname so it can be exercised for hosts the test
+    // environment cannot actually be served from.
+    _isBranchPreview(hostname = window.location.hostname) {
+        return this.isPreview() && hostname !== PREVIEW_HOST;
+    }
+
     isProjectPreviewUrl(url) {
         try {
             const { protocol, hostname } = new URL(url);
@@ -123,12 +130,12 @@ class GitHubSync {
     // Start OAuth flow
     login() {
         // For branch previews, use main pages.dev as OAuth callback, then redirect back
-        const isBranchPreview = IS_PREVIEW && !window.location.hostname.match(/^sports-card-checklists\.pages\.dev$/);
+        const isBranchPreview = this._isBranchPreview();
         let redirectUri;
         let returnUrl = null;
         if (isBranchPreview) {
             returnUrl = window.location.href;
-            redirectUri = 'https://sports-card-checklists.pages.dev/';
+            redirectUri = `https://${PREVIEW_HOST}/`;
         } else {
             redirectUri = window.location.origin + window.location.pathname;
         }
@@ -138,7 +145,7 @@ class GitHubSync {
         const state = btoa(JSON.stringify(stateData));
         sessionStorage.setItem('oauth_state', stateData.csrf);
         const authUrl = `https://github.com/login/oauth/authorize?client_id=${CONFIG.GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&state=${encodeURIComponent(state)}`;
-        window.location.href = authUrl;
+        this._redirect(authUrl);
     }
 
     // Handle OAuth callback (call this on page load)
@@ -157,7 +164,10 @@ class GitHubSync {
                 sessionStorage.removeItem('oauth_state');
                 if (!this.isPreview() || !authData.csrf || authData.csrf !== expected) {
                     console.error('Rejected auth fragment: not a redirect this tab started');
-                    window.history.replaceState({}, document.title, window.location.pathname);
+                    // Keep the query: dropping it would strip ?id= and leave a
+                    // reload with no checklist to load.
+                    window.history.replaceState({}, document.title,
+                        window.location.pathname + window.location.search);
                     return false;
                 }
                 if (this._rejectIfNotOwner(authData.user)) {
