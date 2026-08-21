@@ -267,11 +267,21 @@ describe('ChecklistExport.toCSV', () => {
     });
 
     it('omits a zero price rather than printing 0', () => {
-        const fields = ChecklistExport.toCSV([row({ price: 0 })]).split('\r\n')[1].split(',');
+        const csv = ChecklistExport.toCSV([row({ price: 0 })]);
+        const header = csv.split('\r\n')[0].split(',');
+        const fields = csv.split('\r\n')[1].split(',');
 
-        // Indexed off the declared columns: ',,' appears anyway for the empty
-        // variant and serial, so a substring check proves nothing here.
-        expect(fields[ChecklistExport.CSV_COLUMNS.indexOf('Price')]).toBe('');
+        // Index off the EMITTED header, not CSV_COLUMNS: this fixture is one
+        // player so Name is dropped, and the declared index then points at Owned,
+        // which is empty by construction and passes whatever Price does.
+        expect(fields[header.indexOf('Price')]).toBe('');
+    });
+
+    // A lone CR is as capable of breaking a record as a LF.
+    it('quotes a value containing a carriage return', () => {
+        const csv = ChecklistExport.toCSV([row({ set: 'One\rTwo' })]);
+
+        expect(csv).toContain('"One\rTwo"');
     });
 });
 
@@ -421,6 +431,34 @@ describe('ChecklistExport dialog', () => {
         expect(downloads).toHaveLength(1);
     });
 
+    // eagles-legends marks every category isMain:false. Unchecking there yields a
+    // header-only CSV with no explanation, so the option is not offered.
+    it('hides the extras option when no category is a main one', () => {
+        const ctx = CONTEXT();
+        ctx.config = { categories: [{ id: 'a', label: 'A', isMain: false }, { id: 'b', label: 'B', isMain: false }] };
+
+        ChecklistExport.open(ctx);
+
+        const row = document.getElementById('ce-include-extra').closest('.shopping-list-option');
+        expect(row.style.display).toBe('none');
+    });
+
+    it('offers the extras option when a main category exists', () => {
+        ChecklistExport.open(CONTEXT());
+
+        const row = document.getElementById('ce-include-extra').closest('.shopping-list-option');
+        expect(row.style.display).not.toBe('none');
+    });
+
+    // N4: closing after a CSV download was untested, so it could regress into
+    // "click Export, nothing appears to happen".
+    it('closes after a CSV download', () => {
+        ChecklistExport.open(CONTEXT());
+        document.getElementById('ce-export').click();
+
+        expect(ChecklistExport.backdrop.classList.contains('active')).toBe(false);
+    });
+
     it('closes without exporting when cancelled', () => {
         ChecklistExport.open(CONTEXT());
         document.getElementById('ce-cancel').click();
@@ -446,13 +484,15 @@ describe('ChecklistExport.buildPDF', () => {
     // Width is ~2mm per character, close enough to 8pt Helvetica to exercise the
     // column limits.
     function fakeDoc() {
-        const calls = { text: [], strokedRects: [], saved: null, pages: 1, page: 1 };
+        const calls = { text: [], strokedRects: [], filledRects: [], saved: null, pages: 1, page: 1 };
         return {
             calls,
             setFont() {}, setFontSize() {}, setTextColor() {}, setFillColor() {},
             setDrawColor() {}, setLineWidth() {},
             getTextWidth(t) { return String(t).length * 2; },
-            rect(x, y, w, h, style) { if (style === 'S') calls.strokedRects.push({ x, y, w, h }); },
+            rect(x, y, w, h, style) {
+                (style === 'S' ? calls.strokedRects : calls.filledRects).push({ x, y, w, h });
+            },
             text(str, x, y) { calls.text.push({ str: String(str), x, y, page: calls.page }); },
             addPage() { calls.pages++; calls.page = calls.pages; },
             setPage(p) { calls.page = p; },
@@ -529,8 +569,8 @@ describe('ChecklistExport.buildPDF', () => {
     it('writes each card\'s values into its own column', async () => {
         await ChecklistExport.buildPDF(ROWS, { title: 'T', filename: 'x.pdf' });
 
-        // ROWS is one player throughout, so Name is dropped and Year is its own
-        // column: Year | Set | # | Variant | Price, left to right.
+        // ROWS is one player throughout, so Name is dropped: Set | # | Variant |
+        // Price, left to right.
         expect(strings()).not.toContain('Daniels');
         const setX = doc.calls.text.filter(t => t.str === '2024 Prizm')[0].x;
         const numX = doc.calls.text.find(t => t.str === '1').x;
@@ -586,8 +626,8 @@ describe('ChecklistExport.buildPDF', () => {
         expect(strings()).toContain('Team Card');
     });
 
-    // Neither layout was pinned: widening Set to 188mm, shrinking Variant to 8mm,
-    // reordering, or dropping Year from the with-Name array all passed.
+    // Neither layout was pinned: widening Set to 188mm, shrinking Variant to 8mm
+    // and reordering all passed.
     it('lays out both column sets across the same usable width', async () => {
         await ChecklistExport.buildPDF(ROWS, { title: 'T', filename: 'x.pdf' });
         // Header cells advance strictly left to right and stay on the page.
@@ -609,6 +649,17 @@ describe('ChecklistExport.buildPDF', () => {
         const xs = order.map(h => h.x);
         expect(xs).toEqual([...xs].sort((a, b) => a - b));
         expect(Math.max(...xs)).toBeLessThan(203.9);
+    });
+
+    // USABLE_WIDTH was only ever compared against itself, so the margin could
+    // drift away from it and every band, row and column would move together
+    // while the arithmetic test stayed green.
+    it('draws the header band across exactly the usable width', async () => {
+        await ChecklistExport.buildPDF(ROWS, { title: 'T', filename: 'x.pdf' });
+
+        const bands = doc.calls.filledRects.filter(r => Math.abs(r.w - ChecklistExport.USABLE_WIDTH) < 0.01);
+        expect(bands.length).toBeGreaterThan(0);
+        expect(doc.calls.filledRects.every(r => r.x + r.w <= 215.9 - 12 + 0.01)).toBe(true);
     });
 
     it('loads jsPDF before building', async () => {
@@ -660,10 +711,16 @@ describe('ChecklistExport.columnLayout', () => {
         expect(w(without, 'variant')).toBeGreaterThan(w(withName, 'variant'));
     });
 
-    it('keeps every column at a usable width', () => {
+    // The spacer column is exactly 8mm, so a blanket ">= 8" can never catch a text
+    // column collapsed to 8mm - and such a mutation keeps the sum correct, so the
+    // arithmetic test misses it too. At 8mm truncateToWidth leaves ~4 characters.
+    it('keeps every text column wide enough to read', () => {
+        const MIN = { set: 60, name: 30, variant: 30, num: 12, price: 14 };
+
         [true, false].forEach(showName => {
             ChecklistExport.columnLayout(showName).forEach(c => {
-                expect(c.width).toBeGreaterThanOrEqual(8);
+                if (c.key === null) return;
+                expect(c.width).toBeGreaterThanOrEqual(MIN[c.key]);
             });
         });
     });

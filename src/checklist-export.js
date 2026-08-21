@@ -23,7 +23,7 @@ const ChecklistExport = {
 
     // A checklist for one player repeats that name on every row. Dropped from both
     // formats: it is in the document title, and in the PDF it costs 40mm of a
-    // 192mm line. Any card naming someone else - a team card, a dual auto - brings
+    // 191.9mm line. Any card naming someone else - a team card, a dual auto - brings
     // the column back, so this follows the data rather than a config flag.
     _namesVary(rows) {
         return new Set(rows.map(r => r.name || '')).size > 1;
@@ -46,6 +46,8 @@ const ChecklistExport = {
                     section,
                     set: card.set || '',
                     num: card.num || '',
+                    // No live card carries `name` today; `player` is the populated
+                    // field. Both are read so a renamed entry is not silently blank.
                     name: card.name || card.player || '',
                     variant: card.variant || '',
                     serial: card.serial || '',
@@ -104,17 +106,17 @@ const ChecklistExport = {
         return showName
             ? [
                 { key: null, label: '', width: 8 },
-                { key: 'set', label: 'Set', width: 76 },
+                { key: 'set', label: 'Set', width: 72 },
                 { key: 'num', label: '#', width: 14 },
                 { key: 'name', label: 'Name', width: 40 },
-                { key: 'variant', label: 'Variant', width: 38 },
+                { key: 'variant', label: 'Variant', width: 42 },
                 { key: 'price', label: 'Price', width: 15.9 },
             ]
             : [
                 { key: null, label: '', width: 8 },
-                { key: 'set', label: 'Set', width: 102 },
+                { key: 'set', label: 'Set', width: 98 },
                 { key: 'num', label: '#', width: 14 },
-                { key: 'variant', label: 'Variant', width: 52 },
+                { key: 'variant', label: 'Variant', width: 56 },
                 { key: 'price', label: 'Price', width: 15.9 },
             ];
     },
@@ -129,11 +131,13 @@ const ChecklistExport = {
         const doc = new jsPDF({ unit: 'mm', format: 'letter' });
         const pageWidth = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.getHeight();
-        const margin = 12;
-        const usableWidth = pageWidth - margin * 2;
+        // Derived, so USABLE_WIDTH stays load-bearing: a margin that disagreed with
+        // it would move every band and column together and look fine in isolation.
+        const usableWidth = this.USABLE_WIDTH;
+        const margin = (pageWidth - usableWidth) / 2;
 
         const boxSize = 3.2;
-        // Both layouts sum to 192mm; dropping Name gives its space to Set and
+        // Both layouts sum to USABLE_WIDTH; dropping Name gives its space to Set and
         // Variant, the two that actually run long.
         const showName = this._namesVary(rows);
         const cols = this.columnLayout(showName);
@@ -318,6 +322,15 @@ const ChecklistExport = {
         this.backdrop.querySelector('#ce-format-csv').checked = true;
         this.backdrop.querySelector('#ce-format-pdf').checked = false;
         this.backdrop.querySelector('#ce-include-extra').checked = true;
+
+        // Some checklists mark every category as extra (eagles-legends does).
+        // Unchecking there exports nothing, so offer no choice that can only
+        // produce an empty file.
+        const cats = context.config?.categories || [];
+        const canFilter = cats.some(c => c.isMain !== false);
+        this.backdrop.querySelector('#ce-include-extra').closest('.shopping-list-option')
+            .style.display = canFilter ? '' : 'none';
+
         this.backdrop.classList.add('active');
     },
 
