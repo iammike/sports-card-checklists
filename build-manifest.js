@@ -16,6 +16,7 @@ const sharedFiles = [
   'image-editor.js',
   'card-editor.js',
   'shopping-list.js',
+  'checklist-export.js',
   'nav.js',
   'checklist-creator.js',
 ];
