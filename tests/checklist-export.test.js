@@ -135,7 +135,7 @@ describe('ChecklistExport.collectRows', () => {
         const [row] = ChecklistExport.collectRows(cards, { dataShape: 'flat' }, true);
 
         expect(row).toMatchObject({
-            year: 2024, set: '2024 Panini Prizm', num: '17',
+            year: 2024, set: 'Panini Prizm', num: '17',
             name: 'Jayden Daniels', variant: 'Silver', serial: '/99', price: 45,
         });
     });
@@ -155,6 +155,28 @@ describe('ChecklistExport.collectRows', () => {
         expect(ChecklistExport.collectRows(cards, { dataShape: 'flat' }, true)[0].price).toBe(45);
     });
 
+    // "2024 Leaf Pro Set 1989" - the leading 2024 is the year, the trailing 1989 is
+    // part of the set's name. A global year match would eat both.
+    it('strips only a leading year from the set name', () => {
+        const cards = [{ set: '2024 Leaf Pro Set 1989', num: '1' }];
+
+        const [row] = ChecklistExport.collectRows(cards, { dataShape: 'flat' }, true);
+
+        expect(row.year).toBe(2024);
+        expect(row.set).toBe('Leaf Pro Set 1989');
+    });
+
+    // Contains a year but does not start with one. An unanchored strip would eat
+    // the 1989 and leave a set nobody would recognise.
+    it('leaves an embedded year alone when the set does not start with one', () => {
+        const cards = [{ set: 'Topps Pro Set 1989', num: '1' }];
+
+        const [row] = ChecklistExport.collectRows(cards, { dataShape: 'flat' }, true);
+
+        expect(row.year).toBe(0);
+        expect(row.set).toBe('Topps Pro Set 1989');
+    });
+
     it('prefers an explicit card name over the player', () => {
         const cards = [{ set: '2024 Prizm', num: '1', name: 'Team Card' }];
 
@@ -170,9 +192,25 @@ describe('ChecklistExport.toCSV', () => {
     });
 
     it('starts with a header row naming every column', () => {
-        const header = ChecklistExport.toCSV([]).split('\r\n')[0];
+        const header = ChecklistExport.toCSV([row({ name: 'A' }), row({ name: 'B' })]).split('\r\n')[0];
 
         expect(header).toBe('Section,Year,Set,Number,Name,Variant,Serial,Price,Owned');
+    });
+
+    // Every row of a single-player checklist repeats the same name.
+    it('drops the Name column when every card names the same player', () => {
+        const csv = ChecklistExport.toCSV([row(), row({ num: '2' })]);
+
+        expect(csv.split('\r\n')[0]).toBe('Section,Year,Set,Number,Variant,Serial,Price,Owned');
+        expect(csv).not.toContain('Jayden Daniels');
+    });
+
+    it('keeps the Name column as soon as one card names someone else', () => {
+        const csv = ChecklistExport.toCSV([row(), row({ num: '2', name: 'Team Card' })]);
+
+        expect(csv.split('\r\n')[0]).toContain('Name');
+        expect(csv).toContain('Team Card');
+        expect(csv).toContain('Jayden Daniels');
     });
 
     // The Owned column is the importable equivalent of a blank checkbox - the
@@ -181,17 +219,18 @@ describe('ChecklistExport.toCSV', () => {
     // a trailing comma is satisfied even when the Owned field is gone entirely,
     // and dropping it silently shifts every column left of it.
     it('emits one field per declared column, with Owned last and empty', () => {
-        const csv = ChecklistExport.toCSV([row({ variant: 'Silver', serial: '/99', price: 45 })]);
-        const fields = csv.split('\r\n')[1].split(',');
+        const rows = [row({ variant: 'Silver', serial: '/99', price: 45 }), row({ num: '2', name: 'Other' })];
+        const fields = ChecklistExport.toCSV(rows).split('\r\n')[1].split(',');
 
         expect(fields).toEqual(['Base', '2024', '2024 Prizm', '1', 'Jayden Daniels', 'Silver', '/99', '45', '']);
         expect(fields).toHaveLength(ChecklistExport.CSV_COLUMNS.length);
     });
 
     it('keeps field order matching the header', () => {
-        const header = ChecklistExport.CSV_COLUMNS;
-        const fields = ChecklistExport.toCSV([row({ num: 'NUM', name: 'NAME', variant: 'VAR', serial: 'SER' })])
-            .split('\r\n')[1].split(',');
+        const rows = [row({ num: 'NUM', name: 'NAME', variant: 'VAR', serial: 'SER' }), row({ name: 'Other' })];
+        const csv = ChecklistExport.toCSV(rows);
+        const header = csv.split('\r\n')[0].split(',');
+        const fields = csv.split('\r\n')[1].split(',');
 
         expect(fields[header.indexOf('Number')]).toBe('NUM');
         expect(fields[header.indexOf('Name')]).toBe('NAME');
@@ -212,7 +251,7 @@ describe('ChecklistExport.toCSV', () => {
     });
 
     it('quotes a value containing a newline rather than breaking the row', () => {
-        const csv = ChecklistExport.toCSV([row({ name: 'Line one\nLine two' })]);
+        const csv = ChecklistExport.toCSV([row({ set: 'Line one\nLine two' })]);
 
         expect(csv).toContain('"Line one\nLine two"');
         // Header plus one record: the embedded newline must not split the record.
@@ -284,9 +323,11 @@ describe('ChecklistExport dialog', () => {
         // Excel on Windows needs the BOM to decode accented names correctly.
         expect(downloads[0].content.startsWith('\uFEFF')).toBe(true);
         const lines = downloads[0].content.slice(1).split('\r\n');
-        expect(lines[0]).toBe('Section,Year,Set,Number,Name,Variant,Serial,Price,Owned');
+        // One player throughout, so Name is dropped.
+        expect(lines[0]).toBe('Section,Year,Set,Number,Variant,Serial,Price,Owned');
         expect(lines).toHaveLength(3);
-        lines.slice(1).forEach(l => expect(l.split(',')).toHaveLength(ChecklistExport.CSV_COLUMNS.length));
+        const cols = lines[0].split(',').length;
+        lines.slice(1).forEach(l => expect(l.split(',')).toHaveLength(cols));
     });
 
     it('drops extra categories when the box is unchecked', () => {
@@ -426,7 +467,7 @@ describe('ChecklistExport.buildPDF', () => {
     const strings = () => doc.calls.text.map(t => t.str);
 
     const ROWS = [
-        { section: 'Base Set', year: 2024, set: '2024 Prizm', num: '1', name: 'Daniels', variant: '', serial: '', price: 45 },
+        { section: 'Base Set', year: 2024, year: 2024, set: '2024 Prizm', num: '1', name: 'Daniels', variant: '', serial: '', price: 45 },
         { section: 'Base Set', year: 2024, set: '2024 Prizm', num: '2', name: 'Daniels', variant: '', serial: '', price: 0 },
         { section: 'Inserts', year: 2024, set: '2024 Kaboom', num: 'K1', name: 'Daniels', variant: '', serial: '', price: 120 },
         // Sub-dollar: rounding this to whole dollars is what printed a real card
@@ -474,14 +515,14 @@ describe('ChecklistExport.buildPDF', () => {
     it('writes each card\'s values into its own column', async () => {
         await ChecklistExport.buildPDF(ROWS, { title: 'T', filename: 'x.pdf' });
 
-        const first = doc.calls.text.filter(t => t.str === '2024 Prizm');
-        expect(first.length).toBeGreaterThan(0);
-        const setX = first[0].x;
+        // ROWS is one player throughout, so Name is dropped and Year is its own
+        // column: Year | Set | # | Variant | Price, left to right.
+        expect(strings()).not.toContain('Daniels');
+        const yearX = doc.calls.text.filter(t => t.str === '2024')[1].x;
+        const setX = doc.calls.text.filter(t => t.str === '2024 Prizm')[0].x;
         const numX = doc.calls.text.find(t => t.str === '1').x;
-        const nameX = doc.calls.text.filter(t => t.str === 'Daniels')[0].x;
-        // Columns advance left to right; a collapsed layout would not.
+        expect(yearX).toBeLessThan(setX);
         expect(setX).toBeLessThan(numX);
-        expect(numX).toBeLessThan(nameX);
         expect(strings()).toContain('$45');
         // A zero price is blank, and a sub-dollar one keeps its cents rather than
         // rounding down to $0.
@@ -515,6 +556,22 @@ describe('ChecklistExport.buildPDF', () => {
 
         expect(strings()).not.toContain('Green Shimmer Prizm Autograph Refractor');
         expect(strings().some(t => t.startsWith('Green Shimmer') && t.endsWith('..'))).toBe(true);
+    });
+
+    it('drops the Name column when every card names the same player', async () => {
+        await ChecklistExport.buildPDF(ROWS, { title: 'Jayden Daniels', filename: 'x.pdf' });
+
+        expect(strings()).not.toContain('Name');
+        expect(strings()).toContain('Year');
+    });
+
+    it('keeps the Name column as soon as one card names someone else', async () => {
+        const mixed = [...ROWS, { ...ROWS[0], num: '9', name: 'Team Card' }];
+
+        await ChecklistExport.buildPDF(mixed, { title: 'T', filename: 'x.pdf' });
+
+        expect(strings()).toContain('Name');
+        expect(strings()).toContain('Team Card');
     });
 
     it('loads jsPDF before building', async () => {

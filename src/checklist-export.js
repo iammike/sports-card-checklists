@@ -8,6 +8,32 @@
 const ChecklistExport = {
     CSV_COLUMNS: ['Section', 'Year', 'Set', 'Number', 'Name', 'Variant', 'Serial', 'Price', 'Owned'],
 
+    // Column -> value, so a header and its data cannot drift apart. Reordering or
+    // removing a column is one edit to the list above, not two that must agree.
+    CSV_FIELDS: {
+        Section: r => r.section,
+        Year: r => r.year || '',
+        Set: r => r.set,
+        Number: r => r.num,
+        Name: r => r.name,
+        Variant: r => r.variant,
+        Serial: r => r.serial,
+        Price: r => r.price || '',
+        Owned: () => '',   // the visitor's to fill in
+    },
+
+    // A checklist for one player repeats that name on every row. Dropped from both
+    // formats: it is in the document title, and in the PDF it costs 40mm of a
+    // 192mm line. Any card naming someone else - a team card, a dual auto - brings
+    // the column back, so this follows the data rather than a config flag.
+    _namesVary(rows) {
+        return new Set(rows.map(r => r.name).filter(Boolean)).size > 1;
+    },
+
+    columnsFor(rows) {
+        return this._namesVary(rows) ? this.CSV_COLUMNS : this.CSV_COLUMNS.filter(c => c !== 'Name');
+    },
+
     // Flatten the engine's in-memory cards into export rows, in config order.
     // `cards` is a flat array or a {categoryId: [...]} map, matching dataShape.
     collectRows(cards, config, includeExtra, sort) {
@@ -20,7 +46,7 @@ const ChecklistExport = {
                 rows.push({
                     section,
                     year: CardRenderer.getYear(card),
-                    set: card.set || '',
+                    set: (card.set || '').replace(/^\d{4}\s*/, ''),
                     num: card.num || '',
                     name: card.name || card.player || '',
                     variant: card.variant || '',
@@ -59,19 +85,10 @@ const ChecklistExport = {
     },
 
     toCSV(rows) {
-        const lines = [this.CSV_COLUMNS.join(',')];
+        const cols = this.columnsFor(rows);
+        const lines = [cols.join(',')];
         rows.forEach(r => {
-            lines.push([
-                r.section,
-                r.year || '',
-                r.set,
-                r.num,
-                r.name,
-                r.variant,
-                r.serial,
-                r.price || '',
-                '', // Owned - the visitor's to fill in
-            ].map(v => this._escapeCSV(v)).join(','));
+            lines.push(cols.map(c => this._escapeCSV(this.CSV_FIELDS[c](r))).join(','));
         });
         return lines.join('\r\n');
     },
@@ -95,14 +112,27 @@ const ChecklistExport = {
         const usableWidth = pageWidth - margin * 2;
 
         const boxSize = 3.2;
-        const cols = [
-            { label: '', width: 8 },
-            { label: 'Set', width: 74 },
-            { label: '#', width: 16 },
-            { label: 'Name', width: 44 },
-            { label: 'Variant', width: 34 },
-            { label: 'Price', width: 16 },
-        ];
+        // Widths sum to the 191.9mm usable line either way; dropping Name gives its
+        // space to Set and Variant, the two that actually run long.
+        const showName = this._namesVary(rows);
+        const cols = showName
+            ? [
+                { key: null, label: '', width: 8 },
+                { key: 'year', label: 'Year', width: 14 },
+                { key: 'set', label: 'Set', width: 62 },
+                { key: 'num', label: '#', width: 14 },
+                { key: 'name', label: 'Name', width: 40 },
+                { key: 'variant', label: 'Variant', width: 38 },
+                { key: 'price', label: 'Price', width: 16 },
+            ]
+            : [
+                { key: null, label: '', width: 8 },
+                { key: 'year', label: 'Year', width: 14 },
+                { key: 'set', label: 'Set', width: 88 },
+                { key: 'num', label: '#', width: 14 },
+                { key: 'variant', label: 'Variant', width: 52 },
+                { key: 'price', label: 'Price', width: 16 },
+            ];
         const rowHeight = 5.5;
         const headerHeight = 7;
         const sectionHeaderHeight = 7;
@@ -185,12 +215,13 @@ const ChecklistExport = {
             doc.setLineWidth(0.3);
             doc.rect(margin + 2, y - 0.2, boxSize, boxSize, 'S');
 
-            const values = ['', row.set, row.num, row.name, row.variant,
-                row.price > 0 ? '$' + this._formatPrice(row.price) : ''];
             let x = margin + 2;
-            values.forEach((v, i) => {
-                if (v) doc.text(ShoppingList.truncateToWidth(doc, v, cols[i].width), x, y + 3);
-                x += cols[i].width;
+            cols.forEach(col => {
+                const v = col.key === 'price'
+                    ? (row.price > 0 ? '$' + this._formatPrice(row.price) : '')
+                    : (col.key ? (row[col.key] || '') : '');
+                if (v) doc.text(ShoppingList.truncateToWidth(doc, String(v), col.width), x, y + 3);
+                x += col.width;
             });
             y += rowHeight;
             rowIndex++;
