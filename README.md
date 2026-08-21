@@ -15,7 +15,8 @@ A modern web app for tracking sports card collections with cloud sync, real-time
 - **Card attribute badges** - AUTO (autograph), PATCH (relic), serial number (/99), and price badges rendered on each card
 - **Serial tracking** - Record numbered cards (/99, /25, /1) with scarcity-based sorting
 - **Drag-and-drop reordering** - Reorder cards within sections via drag (desktop) or touch-drag (mobile) when using Manual sort
-- **Shopping List PDF** - Export all unowned cards as a printable PDF checklist
+- **Shopping List PDF** - Export all unowned cards as a printable PDF checklist (owner)
+- **Checklist export** - Any visitor can download a whole checklist as CSV or a printable PDF with blank checkboxes
 
 ### Cloud Sync
 - **GitHub OAuth authentication** - Secure login via GitHub

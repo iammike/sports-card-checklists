@@ -4,9 +4,9 @@ const ChecklistEngine = globalThis.ChecklistEngine;
 const ChecklistManager = globalThis.ChecklistManager;
 
 // Logged out, AuthUI.update() renders nothing into #auth-content (nav.js), so
-// there is no dropdown and therefore no Shopping List entry - the export was
-// unreachable for every visitor who wasn't signed in, even though nothing in
-// ShoppingList needs a token. The filter row is where it lives for them.
+// there is no dropdown at all - which is where every export entry used to live.
+// The filter row is the only home the button has for a visitor who isn't signed
+// in, and it opens ChecklistExport rather than the owner's Shopping List.
 //
 // Harness mirrors tests/price-range-and-quick-filters.test.js: a real engine and
 // a real _renderFilters() DOM render, so these assert the markup a visitor
@@ -35,26 +35,20 @@ function makeEngine() {
 // getUser(), so both are needed for the render to complete either way.
 const loggedOut = () => ({ isLoggedIn: () => false, getUser: () => null });
 
-// The click handler is async and the listener discards its promise, so tests have
-// to let the microtask queue drain before asserting on what happened after it.
-const flush = () => new Promise(r => setTimeout(r, 0));
 const loggedIn = () => ({ isLoggedIn: () => true, getUser: () => ({ login: 'someone-else' }) });
 
 describe('Export button in the filter row', () => {
     let realGithubSync;
-    let realShoppingList;
     let realChecklistExport;
 
     beforeEach(() => {
         document.body.innerHTML = '<div id="filters-container"></div><div id="sections-container"></div>';
         realGithubSync = window.githubSync;
-        realShoppingList = window.ShoppingList;
         realChecklistExport = window.ChecklistExport;
     });
 
     afterEach(() => {
         window.githubSync = realGithubSync;
-        window.ShoppingList = realShoppingList;
         window.ChecklistExport = realChecklistExport;
     });
 
@@ -95,6 +89,40 @@ describe('Export button in the filter row', () => {
         // dependence on the registry or on a checklist's hidden flag.
         expect(ctx.cards).toBe(engine.cards);
         expect(ctx.config).toBe(engine.config);
+    });
+
+    // Pins that the context carries a working sort, not merely that some function
+    // was passed: a wrong sort mode reorders every row and is otherwise silent.
+    it('passes a sort honouring the checklist default sort mode', () => {
+        window.githubSync = loggedOut();
+        const open = vi.fn();
+        window.ChecklistExport = { open };
+
+        const engine = makeEngine();
+        engine.config.defaultSortMode = 'price-high';
+        engine._renderFilters();
+        document.getElementById('checklist-export-btn').click();
+
+        const { sort } = open.mock.calls[0][0];
+        const input = [{ set: 'A', num: '1', price: 5 }, { set: 'B', num: '2', price: 90 }];
+        expect(sort(input).map(c => c.num)).toEqual(['2', '1']);
+        // The engine's own arrays must not be reordered as a side effect.
+        expect(input.map(c => c.num)).toEqual(['1', '2']);
+    });
+
+    it('leaves order alone when the checklist sets no default sort', () => {
+        window.githubSync = loggedOut();
+        const open = vi.fn();
+        window.ChecklistExport = { open };
+
+        const engine = makeEngine();
+        delete engine.config.defaultSortMode;
+        engine._renderFilters();
+        document.getElementById('checklist-export-btn').click();
+
+        const { sort } = open.mock.calls[0][0];
+        const input = [{ set: 'B', num: '2' }, { set: 'A', num: '1' }];
+        expect(sort(input).map(c => c.num)).toEqual(['2', '1']);
     });
 
     it('labels the button Export', () => {

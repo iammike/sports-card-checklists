@@ -1461,7 +1461,10 @@ class ChecklistEngine {
             title: this.config?.title,
             config: this.config,
             cards: this.cards,
-            // Same order the page renders in, so a printed copy tracks the screen.
+            // The checklist's own default order - deliberately not the visitor's
+            // current #sort-filter choice, which also collapses the page into one
+            // flat section. An export should be the checklist, not a snapshot of
+            // one person's view of it.
             sort: (list) => (this.config.defaultSortMode
                 ? this.sortCards([...list], this.config.defaultSortMode)
                 : list),

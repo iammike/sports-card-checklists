@@ -95,6 +95,37 @@ describe('ChecklistExport.collectRows', () => {
             .toEqual(['Rookies', 'Veterans', 'Parallels']);
     });
 
+    // The sort callback is how the export matches the checklist's own ordering.
+    // Without a test it can be dropped, ignored or handed the wrong mode and
+    // nothing notices - only the row order changes.
+    it('applies the sort callback to each section', () => {
+        const cards = {
+            base: [{ set: 'B', num: '2' }, { set: 'A', num: '1' }],
+            inserts: [{ set: 'D', num: '4' }, { set: 'C', num: '3' }],
+        };
+        const config = {
+            categories: [
+                { id: 'base', label: 'Base', isMain: true },
+                { id: 'inserts', label: 'Inserts', isMain: false },
+            ],
+        };
+        const seen = [];
+        const sort = (list) => { seen.push(list.length); return [...list].sort((a, b) => a.num.localeCompare(b.num)); };
+
+        const rows = ChecklistExport.collectRows(cards, config, true, sort);
+
+        // Called once per section, not once for the whole checklist.
+        expect(seen).toEqual([2, 2]);
+        expect(rows.map(r => r.num)).toEqual(['1', '2', '3', '4']);
+    });
+
+    it('keeps the stored order when no sort callback is given', () => {
+        const cards = [{ set: 'B', num: '2' }, { set: 'A', num: '1' }];
+
+        expect(ChecklistExport.collectRows(cards, { dataShape: 'flat' }, true).map(r => r.num))
+            .toEqual(['2', '1']);
+    });
+
     it('maps the card fields an importer needs', () => {
         const cards = [{
             set: '2024 Panini Prizm', num: '17', player: 'Jayden Daniels',
@@ -109,7 +140,7 @@ describe('ChecklistExport.collectRows', () => {
         });
     });
 
-    it('falls back to name when a card has no player', () => {
+    it('prefers an explicit card name over the player', () => {
         const cards = [{ set: '2024 Prizm', num: '1', name: 'Team Card' }];
 
         expect(ChecklistExport.collectRows(cards, { dataShape: 'flat' }, true)[0].name)
@@ -180,9 +211,11 @@ describe('ChecklistExport.toCSV', () => {
     });
 
     it('omits a zero price rather than printing 0', () => {
-        const csv = ChecklistExport.toCSV([row({ price: 0 })]);
+        const fields = ChecklistExport.toCSV([row({ price: 0 })]).split('\r\n')[1].split(',');
 
-        expect(csv.split('\r\n')[1]).toContain(',,');
+        // Indexed off the declared columns: ',,' appears anyway for the empty
+        // variant and serial, so a substring check proves nothing here.
+        expect(fields[ChecklistExport.CSV_COLUMNS.indexOf('Price')]).toBe('');
     });
 });
 
@@ -444,5 +477,17 @@ describe('ChecklistExport.buildPDF', () => {
 
         expect(doc.calls.saved).toBe('x.pdf');
         expect(doc.calls.strokedRects).toHaveLength(0);
+    });
+});
+
+describe('ChecklistExport._formatPrice', () => {
+    // Rounding to whole dollars printed a real 40c card as $0.
+    it('keeps cents below a dollar', () => {
+        expect(ChecklistExport._formatPrice(0.4)).toBe('0.40');
+    });
+
+    it('rounds to whole dollars at a dollar and above', () => {
+        expect(ChecklistExport._formatPrice(45.6)).toBe('46');
+        expect(ChecklistExport._formatPrice(1)).toBe('1');
     });
 });

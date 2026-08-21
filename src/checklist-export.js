@@ -75,6 +75,12 @@ const ChecklistExport = {
         });
         return lines.join('\r\n');
     },
+    // Whole dollars, except under $1 where rounding would print a real card as $0.
+    _formatPrice(price) {
+        const p = Number(price);
+        return p < 1 ? p.toFixed(2) : p.toFixed(0);
+    },
+
     // A separate builder from ShoppingList.buildPDF rather than a mode flag on it.
     // The documents differ in title, summary, column set and grouping axis, so
     // parameterising would thread branches through the export the owner relies on.
@@ -113,7 +119,7 @@ const ChecklistExport = {
         );
         y += 12;
         doc.setFontSize(9);
-        doc.text(rows.length + ' cards', margin, y);
+        doc.text(rows.length + (rows.length === 1 ? ' card' : ' cards'), margin, y);
         y += 8;
 
         const drawHeader = () => {
@@ -180,7 +186,7 @@ const ChecklistExport = {
             doc.rect(margin + 2, y - 0.2, boxSize, boxSize, 'S');
 
             const values = ['', row.set, row.num, row.name, row.variant,
-                row.price > 0 ? '$' + Number(row.price).toFixed(0) : ''];
+                row.price > 0 ? '$' + this._formatPrice(row.price) : ''];
             let x = margin + 2;
             values.forEach((v, i) => {
                 if (v) doc.text(ShoppingList.truncateToWidth(doc, v, cols[i].width), x, y + 3);
@@ -258,6 +264,9 @@ const ChecklistExport = {
             if (e.key === 'Escape' && backdrop.classList.contains('active')) close();
         });
         backdrop.querySelector('#ce-export').onclick = () => this._onExport();
+        backdrop.querySelector('.card-editor-modal').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') backdrop.querySelector('#ce-export').click();
+        });
 
         document.body.appendChild(backdrop);
         this.backdrop = backdrop;
