@@ -22,8 +22,8 @@ const ChecklistExport = {
     },
 
     // A checklist for one player repeats that name on every row. Dropped from both
-    // formats: it is in the document title, and in the PDF it costs 40mm of a
-    // 191.9mm line. Any card naming someone else - a team card, a dual auto - brings
+    // formats: it is in the document title, and in the PDF it costs roughly a
+    // fifth of the line. Any card naming someone else - a team card, a dual auto - brings
     // the column back, so this follows the data rather than a config flag.
     _namesVary(rows) {
         return new Set(rows.map(r => r.name || '')).size > 1;
@@ -101,11 +101,15 @@ const ChecklistExport = {
     // The content block. buildPDF derives its horizontal margin from this, so both
     // layouts span exactly this width or one of them runs off the page.
     //
-    // Columns are sized from the longest values in the live gist, measured at
-    // Helvetica 8pt: numbers 18.7mm ("#34 / 139 / 174"), set names 77.2mm on the
-    // no-Name layout and 49.1mm with Name, variants 51.3mm, names 32.2mm. The #
-    // column carries ~2mm more than it needs on purpose - truncating a card number
-    // costs a reader the identifier, so it is the one column to over-provision.
+    // Columns are sized from the longest values in the live gist at Helvetica 8pt,
+    // per layout - the widest number and the widest set live on different ones:
+    //   set      77.2mm no-Name / 49.1mm with-Name
+    //   number   16.2mm no-Name / 18.7mm with-Name ("#34 / 139 / 174")
+    //   variant  51.3mm no-Name / 34.9mm with-Name
+    //   name     32.2mm (with-Name only)
+    // Truncating a card number costs the reader the identifier, so # is deliberately
+    // over-provisioned - though it still ends up the tightest column in absolute
+    // terms (2.3mm spare), because its longest value is close to its width.
     USABLE_WIDTH: 191.9,
 
     // No Serial column: it matters to an importer, but on paper the print run is
@@ -253,8 +257,7 @@ const ChecklistExport = {
 
     backdrop: null,
 
-    // A blob download rather than a data: URI - card data runs to thousands of
-    // rows and long data: URIs are truncated by some browsers.
+    // A blob download rather than a data: URI, which some browsers truncate.
     _download(filename, content, mime = 'text/csv;charset=utf-8') {
         const blob = new Blob([content], { type: mime });
         const url = URL.createObjectURL(blob);

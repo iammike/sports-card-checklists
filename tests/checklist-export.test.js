@@ -774,6 +774,14 @@ describe('ChecklistExport.columnLayout', () => {
         ]);
     });
 
+    // 215.9mm is US Letter, the one physical fact here. The positional bounds all
+    // derive from USABLE_WIDTH, so widening it *and* the columns together leaves
+    // every one of them satisfied while the margin goes negative and the content
+    // block hangs off both paper edges.
+    it('leaves a printable margin on a letter page', () => {
+        expect((215.9 - ChecklistExport.USABLE_WIDTH) / 2).toBeGreaterThanOrEqual(10);
+    });
+
     // Every threshold is a raw text width measured over the live gist at Helvetica
     // 8pt - w() has already taken off the 2mm gutter truncateToWidth reserves.
     // Widest number is "#34 / 139 / 174" (18.7mm), not a prefixed code.
