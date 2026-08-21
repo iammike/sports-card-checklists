@@ -98,24 +98,26 @@ const ChecklistExport = {
         return p < 1 ? p.toFixed(2) : p.toFixed(0);
     },
 
-    // Both layouts must span the same line, or one of them silently runs off the
-    // page. USABLE_WIDTH is pageWidth - 2*margin for letter at 12mm margins.
+    // The content block. buildPDF derives its horizontal margin from this, so both
+    // layouts span exactly this width or one of them runs off the page. Column
+    // widths are sized from the longest real values in the gist: card numbers run
+    // to ~21mm (MOCPA-JD), set names to ~78mm, variants to ~52mm.
     USABLE_WIDTH: 191.9,
 
     columnLayout(showName) {
         return showName
             ? [
                 { key: null, label: '', width: 8 },
-                { key: 'set', label: 'Set', width: 72 },
-                { key: 'num', label: '#', width: 14 },
+                { key: 'set', label: 'Set', width: 63 },
+                { key: 'num', label: '#', width: 23 },
                 { key: 'name', label: 'Name', width: 40 },
                 { key: 'variant', label: 'Variant', width: 42 },
                 { key: 'price', label: 'Price', width: 15.9 },
             ]
             : [
                 { key: null, label: '', width: 8 },
-                { key: 'set', label: 'Set', width: 98 },
-                { key: 'num', label: '#', width: 14 },
+                { key: 'set', label: 'Set', width: 89 },
+                { key: 'num', label: '#', width: 23 },
                 { key: 'variant', label: 'Variant', width: 56 },
                 { key: 'price', label: 'Price', width: 15.9 },
             ];
@@ -136,6 +138,8 @@ const ChecklistExport = {
         const usableWidth = this.USABLE_WIDTH;
         const margin = (pageWidth - usableWidth) / 2;
 
+        // Serial is CSV-only: it matters to an importer but costs a column here,
+        // and the print run is already visible on the card itself.
         const boxSize = 3.2;
         // Both layouts sum to USABLE_WIDTH; dropping Name gives its space to Set and
         // Variant, the two that actually run long.
@@ -282,8 +286,8 @@ const ChecklistExport = {
                         '<input type="radio" name="ce-format" id="ce-format-pdf">' +
                         '<label for="ce-format-pdf">PDF - printable, with a blank checkbox per card</label>' +
                     '</div>' +
-                    '<div class="shopping-list-divider"></div>' +
-                    '<div class="shopping-list-section-label">Options</div>' +
+                    '<div class="shopping-list-divider" id="ce-options-divider"></div>' +
+                    '<div class="shopping-list-section-label" id="ce-options-label">Options</div>' +
                     '<div class="shopping-list-option">' +
                         '<input type="checkbox" id="ce-include-extra" checked>' +
                         '<label for="ce-include-extra">Include inserts, parallels and other extra categories</label>' +
@@ -328,8 +332,12 @@ const ChecklistExport = {
         // produce an empty file.
         const cats = context.config?.categories || [];
         const canFilter = cats.some(c => c.isMain !== false);
+        const display = canFilter ? '' : 'none';
         this.backdrop.querySelector('#ce-include-extra').closest('.shopping-list-option')
-            .style.display = canFilter ? '' : 'none';
+            .style.display = display;
+        // The heading and divider too, or the section is an empty "Options".
+        this.backdrop.querySelector('#ce-options-divider').style.display = display;
+        this.backdrop.querySelector('#ce-options-label').style.display = display;
 
         this.backdrop.classList.add('active');
     },

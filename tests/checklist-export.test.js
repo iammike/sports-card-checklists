@@ -443,6 +443,28 @@ describe('ChecklistExport dialog', () => {
         expect(row.style.display).toBe('none');
     });
 
+    // An absent isMain means main - the convention collectRows and the engine both
+    // rely on. Every other fixture declares it explicitly.
+    it('treats a category with no isMain as a main one', () => {
+        const ctx = CONTEXT();
+        ctx.config = { categories: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B', isMain: false }] };
+
+        ChecklistExport.open(ctx);
+
+        const row = document.getElementById('ce-include-extra').closest('.shopping-list-option');
+        expect(row.style.display).not.toBe('none');
+    });
+
+    it('hides the Options heading along with its only option', () => {
+        const ctx = CONTEXT();
+        ctx.config = { categories: [{ id: 'a', label: 'A', isMain: false }] };
+
+        ChecklistExport.open(ctx);
+
+        expect(document.getElementById('ce-options-label').style.display).toBe('none');
+        expect(document.getElementById('ce-options-divider').style.display).toBe('none');
+    });
+
     it('offers the extras option when a main category exists', () => {
         ChecklistExport.open(CONTEXT());
 
@@ -659,7 +681,8 @@ describe('ChecklistExport.buildPDF', () => {
 
         const bands = doc.calls.filledRects.filter(r => Math.abs(r.w - ChecklistExport.USABLE_WIDTH) < 0.01);
         expect(bands.length).toBeGreaterThan(0);
-        expect(doc.calls.filledRects.every(r => r.x + r.w <= 215.9 - 12 + 0.01)).toBe(true);
+        const rightEdge = 215.9 - (215.9 - ChecklistExport.USABLE_WIDTH) / 2;
+        expect(doc.calls.filledRects.every(r => r.x + r.w <= rightEdge + 0.01)).toBe(true);
     });
 
     it('loads jsPDF before building', async () => {
@@ -711,17 +734,34 @@ describe('ChecklistExport.columnLayout', () => {
         expect(w(without, 'variant')).toBeGreaterThan(w(withName, 'variant'));
     });
 
-    // The spacer column is exactly 8mm, so a blanket ">= 8" can never catch a text
-    // column collapsed to 8mm - and such a mutation keeps the sum correct, so the
-    // arithmetic test misses it too. At 8mm truncateToWidth leaves ~4 characters.
-    it('keeps every text column wide enough to read', () => {
-        const MIN = { set: 60, name: 30, variant: 30, num: 12, price: 14 };
+    // Minimums alone leave a hole: a sum-preserving swap between two columns can
+    // satisfy every threshold and still collapse one. The layouts are a design
+    // decision sized from real data, so pin them exactly - any change is then
+    // deliberate and visible in the diff rather than silently absorbed.
+    it('lays out the with-Name columns at their designed widths', () => {
+        expect(ChecklistExport.columnLayout(true).map(c => [c.key, c.width])).toEqual([
+            [null, 8], ['set', 63], ['num', 23], ['name', 40], ['variant', 42], ['price', 15.9],
+        ]);
+    });
 
-        [true, false].forEach(showName => {
-            ChecklistExport.columnLayout(showName).forEach(c => {
-                if (c.key === null) return;
-                expect(c.width).toBeGreaterThanOrEqual(MIN[c.key]);
-            });
-        });
+    it('lays out the no-Name columns at their designed widths', () => {
+        expect(ChecklistExport.columnLayout(false).map(c => [c.key, c.width])).toEqual([
+            [null, 8], ['set', 89], ['num', 23], ['variant', 56], ['price', 15.9],
+        ]);
+    });
+
+    // Sized from the longest values actually in the gist, with the 2mm gutter
+    // truncateToWidth reserves. Card numbers run to ~21mm (MOCPA-JD), set names to
+    // ~78mm on the no-Name layout and ~50mm with Name, variants to ~52mm.
+    it('fits the longest real values in each column', () => {
+        const w = (showName, key) => ChecklistExport.columnLayout(showName).find(c => c.key === key).width - 2;
+
+        expect(w(false, 'set')).toBeGreaterThanOrEqual(78);
+        expect(w(true, 'set')).toBeGreaterThanOrEqual(50);
+        expect(w(true, 'num')).toBeGreaterThanOrEqual(21);
+        expect(w(false, 'num')).toBeGreaterThanOrEqual(21);
+        expect(w(false, 'variant')).toBeGreaterThanOrEqual(52);
+        expect(w(true, 'variant')).toBeGreaterThanOrEqual(36);
+        expect(w(true, 'name')).toBeGreaterThanOrEqual(33);
     });
 });
