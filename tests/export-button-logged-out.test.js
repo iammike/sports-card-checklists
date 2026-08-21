@@ -60,7 +60,7 @@ describe('Export button in the filter row', () => {
         expect(document.getElementById('checklist-export-btn')).not.toBeNull();
     });
 
-    it('does not render when signed in - the nav dropdown already carries it', () => {
+    it('does not render when signed in - the filter row is the logged-out home', () => {
         window.githubSync = loggedIn();
 
         makeEngine()._renderFilters();

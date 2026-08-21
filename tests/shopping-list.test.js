@@ -254,3 +254,54 @@ describe('ShoppingList.generate', () => {
         expect(items[0].price).toBe(25);
     });
 });
+
+// The Enter handler forwards to Generate so the option checkboxes submit, but
+// buttons already activate on Enter natively. Forwarding from them generated a
+// PDF when Cancel, the close X, or Select All had focus, and double-fired on
+// Generate itself. This is the owner's live dialog, so it is pinned here as well
+// as in the export dialog that shares the pattern.
+describe('ShoppingList modal Enter handling', () => {
+    let realGenerate;
+
+    beforeEach(() => {
+        ShoppingList.backdrop = null;
+        document.body.innerHTML = '';
+        realGenerate = ShoppingList._onGenerate;
+        ShoppingList._onGenerate = vi.fn();
+        ShoppingList.initModal();
+    });
+
+    afterEach(() => {
+        ShoppingList._onGenerate = realGenerate;
+        ShoppingList.backdrop = null;
+        document.body.innerHTML = '';
+    });
+
+    const pressEnterOn = (id) => document.getElementById(id)
+        .dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+
+    it('does not generate when Enter is pressed on Cancel', () => {
+        pressEnterOn('sl-cancel');
+
+        expect(ShoppingList._onGenerate).not.toHaveBeenCalled();
+    });
+
+    it('does not generate when Enter is pressed on Select All', () => {
+        pressEnterOn('sl-toggle-all');
+
+        expect(ShoppingList._onGenerate).not.toHaveBeenCalled();
+    });
+
+    // Native activation handles this one; forwarding as well fired it twice.
+    it('does not forward Enter from the Generate button itself', () => {
+        pressEnterOn('sl-generate');
+
+        expect(ShoppingList._onGenerate).not.toHaveBeenCalled();
+    });
+
+    it('generates when Enter is pressed on an option checkbox', () => {
+        pressEnterOn('sl-include-extra');
+
+        expect(ShoppingList._onGenerate).toHaveBeenCalledTimes(1);
+    });
+});
