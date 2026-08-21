@@ -473,3 +473,126 @@ describe('GitHubSync owner-only sign-in', () => {
         expect(calls.some(c => c.url.includes('api.github.com/user'))).toBe(true);
     });
 });
+
+// The branch-preview return path classified a redirect target by substring
+// (`returnUrl.includes('.pages.dev')`), skipped CSRF verification on that basis,
+// and then put the live token in the target's URL fragment. A crafted authorize
+// link therefore walked the OWNER through a genuine GitHub flow and delivered a
+// gist+public_repo token to a host of the attacker's choosing.
+describe('GitHubSync branch-preview return URL', () => {
+    const ok = (u) => sync.isProjectPreviewUrl(u);
+
+    it('accepts the project preview host and its branch subdomains', () => {
+        expect(ok('https://sports-card-checklists.pages.dev/')).toBe(true);
+        expect(ok('https://fix-something.sports-card-checklists.pages.dev/x?y=1')).toBe(true);
+    });
+
+    // Anyone can create a Cloudflare Pages project, so *.pages.dev is not a
+    // boundary - only this project's own subdomain is.
+    it('rejects another Pages project', () => {
+        expect(ok('https://evil.pages.dev/')).toBe(false);
+        expect(ok('https://sports-card-checklists.pages.dev.evil.com/')).toBe(false);
+    });
+
+    // The substring test that shipped: .pages.dev anywhere in the URL passed.
+    it('rejects a foreign host that merely mentions the preview domain', () => {
+        expect(ok('https://evil.example/?x=.pages.dev')).toBe(false);
+        expect(ok('https://evil.example/#sports-card-checklists.pages.dev')).toBe(false);
+        expect(ok('https://evil.example/.pages.dev')).toBe(false);
+    });
+
+    it('rejects non-https and unparseable values', () => {
+        expect(ok('http://fix-x.sports-card-checklists.pages.dev/')).toBe(false);
+        expect(ok('javascript:alert(1)//sports-card-checklists.pages.dev')).toBe(false);
+        expect(ok('not a url')).toBe(false);
+        expect(ok(null)).toBe(false);
+        expect(ok(undefined)).toBe(false);
+    });
+});
+
+describe('GitHubSync OAuth CSRF verification', () => {
+    const realFetch = globalThis.fetch;
+    const realAlert = globalThis.alert;
+    const realSearch = window.location.search;
+
+    let requests;
+    beforeEach(() => {
+        globalThis.alert = () => {};
+        requests = [];
+        globalThis.fetch = async (url) => {
+            requests.push(String(url));
+            throw new Error('no request should be made');
+        };
+    });
+
+    afterEach(() => {
+        globalThis.fetch = realFetch;
+        globalThis.alert = realAlert;
+        window.history.replaceState({}, '', window.location.pathname + realSearch);
+        sessionStorage.clear();
+        localStorage.clear();
+        sync.token = null;
+        sync.user = null;
+    });
+
+    const arrive = async (stateObj) => {
+        const state = btoa(JSON.stringify(stateObj));
+        window.history.replaceState({}, '', `${window.location.pathname}?code=abc&state=${encodeURIComponent(state)}`);
+        return sync.handleCallback();
+    };
+
+    // The heart of it: a mismatched CSRF token must not be excused by anything
+    // the attacker put in the state.
+    it('rejects a mismatched csrf even with a preview-looking returnUrl', async () => {
+        sessionStorage.setItem('oauth_state', 'the-real-one');
+
+        const result = await arrive({ csrf: 'forged', returnUrl: 'https://evil.example/?x=.pages.dev' });
+
+        expect(result).toBe(false);
+        expect(sync.token).toBeNull();
+        // Rejected at the CSRF check, not merely failed later: the code is never
+        // exchanged. Without this the test passes on any downstream error.
+        expect(requests).toEqual([]);
+    });
+
+    it('rejects a callback carrying no csrf and no preview return URL', async () => {
+        sessionStorage.setItem('oauth_state', 'the-real-one');
+
+        expect(await arrive({ returnUrl: null })).toBe(false);
+        expect(requests).toEqual([]);
+    });
+
+    // A branch preview begins on <branch>.<project>.pages.dev and lands here on
+    // <project>.pages.dev, so sessionStorage is empty and the token cannot be
+    // matched. That exemption is deliberate and is why the origin check above
+    // carries the weight: it is the only thing deciding who may be handed a token.
+    it('exempts a genuine project preview return URL from the csrf check', async () => {
+        sessionStorage.clear();
+
+        await arrive({ csrf: 'unverifiable', returnUrl: 'https://fix-x.sports-card-checklists.pages.dev/' });
+
+        expect(requests.some(u => u.includes('/token'))).toBe(true);
+    });
+
+    // The exploit end to end: a valid flow whose state names a foreign host must
+    // complete against this origin and never treat that host as a return target.
+    it('does not treat a foreign return URL as a redirect target', async () => {
+        sessionStorage.setItem('oauth_state', 'match');
+        const seen = [];
+        globalThis.fetch = async (url) => {
+            seen.push(String(url));
+            if (String(url).includes('/token')) return { json: async () => ({ access_token: 'tok' }) };
+            if (String(url).includes('api.github.com/user')) return { json: async () => ({ login: 'iammike' }) };
+            return { ok: true, json: async () => ([{ id: 'g1', files: { 'sports-card-checklists.json': {} } }]) };
+        };
+
+        const result = await arrive({ csrf: 'match', returnUrl: 'https://evil.example/?x=.pages.dev' });
+
+        // Completing here rather than redirecting is the observable difference:
+        // the redirect branch returns before findOrCreateGist and never resolves
+        // to true on this origin.
+        expect(result).toBe(true);
+        expect(seen.some(u => u.includes('/gists'))).toBe(true);
+        expect(localStorage.getItem('github_token')).toBe('tok');
+    });
+});

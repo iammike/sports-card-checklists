@@ -26,6 +26,9 @@ const MIN_WRITE_SPACING_MS = 1000;
 // for - see _rejectIfNotOwner.
 const OWNER_USERNAME = 'iammike';
 
+// Cloudflare serves branch previews at <branch>.<project>.pages.dev.
+const PREVIEW_HOST = 'sports-card-checklists.pages.dev';
+
 // Storage keys
 const TOKEN_KEY = 'github_token';
 const GIST_ID_KEY = 'github_gist_id';
@@ -86,6 +89,20 @@ class GitHubSync {
     _clearStaleNonOwnerSession() {
         if (this.token && this.user?.login !== OWNER_USERNAME) {
             this.logout();
+        }
+    }
+
+    // Is this a URL we are willing to hand a token to? Parsed, not substring
+    // matched: "https://evil.example/?x=.pages.dev" contains the preview domain
+    // and is not it. Restricted to this project's own subdomains rather than
+    // *.pages.dev, because anyone can create a Pages project.
+    isProjectPreviewUrl(url) {
+        try {
+            const { protocol, hostname } = new URL(url);
+            return protocol === 'https:'
+                && (hostname === PREVIEW_HOST || hostname.endsWith('.' + PREVIEW_HOST));
+        } catch (e) {
+            return false;
         }
     }
 
@@ -159,19 +176,25 @@ class GitHubSync {
             stateData = { csrf: state, returnUrl: null };
         }
 
-        // Verify CSRF token - check both sessionStorage (same-origin) and allow branch previews
+        // A branch preview starts the flow on <branch>.<project>.pages.dev and lands
+        // here on <project>.pages.dev - a different origin, so sessionStorage is
+        // empty and the CSRF token cannot be checked. That exemption stays, but it
+        // is now decided by parsing the return URL's origin rather than by looking
+        // for ".pages.dev" anywhere in an attacker-supplied string.
+        //
+        // What made the old test dangerous was not the exemption itself but where
+        // it led: the token was then written into that URL's fragment. With the
+        // origin pinned to this project's own previews, the exemption can no longer
+        // route a token off-site, and a forged code merely authenticates as someone
+        // who is not the owner - which _rejectIfNotOwner then refuses.
+        const returnUrl = this.isProjectPreviewUrl(stateData.returnUrl) ? stateData.returnUrl : null;
         const expectedState = sessionStorage.getItem('oauth_state');
         sessionStorage.removeItem('oauth_state');
-        // For branch preview redirects, we won't have sessionStorage, so trust the state if it has a valid returnUrl
-        const isBranchRedirect = stateData.returnUrl && stateData.returnUrl.includes('.pages.dev');
-        if (!isBranchRedirect && (!stateData.csrf || stateData.csrf !== expectedState)) {
+        if (!returnUrl && (!stateData.csrf || stateData.csrf !== expectedState)) {
             console.error('OAuth state mismatch - possible CSRF attack');
             window.history.replaceState({}, document.title, window.location.pathname);
             return false;
         }
-
-        // Store return URL for after auth completes
-        const returnUrl = stateData.returnUrl;
 
         // Clean URL
         window.history.replaceState({}, document.title, window.location.pathname);
