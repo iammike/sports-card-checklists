@@ -336,6 +336,8 @@ describe('GitHubSync owner-only sign-in', () => {
         expect(result).toBe(false);
         expect(sync.token).toBeNull();
         expect(localStorage.getItem('github_token')).toBeNull();
+        expect(window.location.search).toBe('?id=jd');
+        expect(window.location.hash).toBe('');
     });
 
     // fetchUser() sits between the token write and the gate, and the outer catch
@@ -453,6 +455,7 @@ describe('GitHubSync owner-only sign-in', () => {
         expect(sync.token).toBe('owner-tok');
         // Success strips the auth fragment but must keep the checklist id.
         expect(window.location.search).toBe('?id=jayden-daniels');
+        expect(window.location.hash).toBe('');
     });
 
     // An attacker can hand the victim any link. Before the fragment carried a csrf,
@@ -472,8 +475,10 @@ describe('GitHubSync owner-only sign-in', () => {
         expect(sync.token).toBeNull();
         expect(localStorage.getItem('github_token')).toBeNull();
         // The checklist id must survive: stripping it leaves a reload with
-        // nothing to load.
+        // nothing to load. The token-bearing fragment must not survive - asserting
+        // only on search is satisfied by the cleanup never running.
         expect(window.location.search).toBe('?id=jayden-daniels');
+        expect(window.location.hash).toBe('');
     });
 
     // csrf:null specifically. On a fresh tab sessionStorage returns null, so an
@@ -688,6 +693,13 @@ describe('GitHubSync OAuth CSRF verification', () => {
         sync.user = null;
     });
 
+    const happyFetch = (seen) => async (url) => {
+        seen.push(String(url));
+        if (String(url).includes('/token')) return { json: async () => ({ access_token: 'tok' }) };
+        if (String(url).includes('api.github.com/user')) return { json: async () => ({ login: 'iammike' }) };
+        return { ok: true, json: async () => ([{ id: 'g1', files: { 'sports-card-checklists.json': {} } }]) };
+    };
+
     const arrive = async (stateObj) => {
         const state = btoa(JSON.stringify(stateObj));
         window.history.replaceState({}, '', `${window.location.pathname}?code=abc&state=${encodeURIComponent(state)}`);
@@ -755,6 +767,11 @@ describe('GitHubSync OAuth CSRF verification', () => {
     // The query path's own search IS the OAuth response, so it must go - while
     // anything else in the query must stay. Neither direction was pinned, which is
     // how a helper that preserved the whole query passed.
+    //
+    // The mixed shape below cannot arise on the query path in production, because
+    // login() builds redirect_uri from origin+pathname and drops the search. It is
+    // here to pin the helper itself, which the fragment path - where returnUrl does
+    // carry the query - genuinely depends on.
     it('strips code and state from the URL but keeps the rest', async () => {
         sessionStorage.setItem('oauth_state', 'match');
         globalThis.fetch = happyFetch([]);
@@ -811,12 +828,6 @@ describe('GitHubSync OAuth CSRF verification', () => {
     // true, so every such assertion holds just as well while the token is being
     // written into evil.example's fragment. Only the redirect itself distinguishes
     // them, so _redirect is a seam we can watch.
-    const happyFetch = (seen) => async (url) => {
-        seen.push(String(url));
-        if (String(url).includes('/token')) return { json: async () => ({ access_token: 'tok' }) };
-        if (String(url).includes('api.github.com/user')) return { json: async () => ({ login: 'iammike' }) };
-        return { ok: true, json: async () => ([{ id: 'g1', files: { 'sports-card-checklists.json': {} } }]) };
-    };
 
     it('never redirects a token to a foreign return URL', async () => {
         // On a preview origin, where a redirect is possible at all - otherwise
