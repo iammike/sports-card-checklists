@@ -368,7 +368,7 @@ describe('ChecklistExport dialog', () => {
         expect(downloads[0].filename).toBe('jayden-daniels-checklist.csv');
     });
 
-    it('includes every card, owned or not, with an empty Owned column', () => {
+    it('includes every card, owned or not, with Owned unticked', () => {
         openAndExport();
 
         // Excel on Windows needs the BOM to decode accented names correctly.

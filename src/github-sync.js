@@ -119,10 +119,11 @@ class GitHubSync {
         window.location.href = url;
     }
 
-    // Drop the OAuth response from the address bar and keep everything else. Both
-    // halves matter: leaving code/state behind makes every reload re-enter this
-    // callback with a spent code, and dropping the whole query takes ?id= with it
-    // so the reload has no checklist to load.
+    // Drop the OAuth response from the address bar - the code/state query on one
+    // path, the #auth= fragment on the other - and keep everything else. All three
+    // matter: a leftover code makes every reload re-enter this callback, a
+    // leftover fragment leaves the token in history and the next Referer, and
+    // dropping the whole query takes ?id= with it so a reload has nothing to load.
     _cleanAuthFromUrl() {
         const params = new URLSearchParams(window.location.search);
         params.delete('code');

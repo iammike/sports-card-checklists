@@ -614,6 +614,8 @@ describe('GitHubSync.login branch-preview classification', () => {
     afterEach(() => {
         delete sync.isPreview;
         delete sync._redirect;
+        expect(sync.isPreview).toBe(Object.getPrototypeOf(sync).isPreview);
+        expect(sync._redirect).toBe(Object.getPrototypeOf(sync)._redirect);
         sessionStorage.clear();
     });
 
@@ -884,5 +886,25 @@ describe('GitHubSync OAuth CSRF verification', () => {
 
         expect(redirects).toHaveLength(1);
         expect(redirects[0]).toContain('https://fix-x.sports-card-checklists.pages.dev/#auth=');
+    });
+});
+
+// Not an auth guard but the same function's gate: without it every ordinary page
+// load consumes oauth_state and logs a spurious CSRF error, and the #card- deep
+// link that _scrollToHashCard reads is cleaned away before it is used.
+describe('GitHubSync.handleCallback without an OAuth response', () => {
+    afterEach(() => {
+        window.history.replaceState({}, '', window.location.pathname);
+        sessionStorage.clear();
+    });
+
+    it('leaves the URL alone when there is no code', async () => {
+        sessionStorage.setItem('oauth_state', 'untouched');
+        window.history.replaceState({}, '', `${window.location.pathname}?id=jd#card-abc`);
+
+        expect(await sync.handleCallback()).toBe(false);
+
+        expect(window.location.hash).toBe('#card-abc');
+        expect(sessionStorage.getItem('oauth_state')).toBe('untouched');
     });
 });
