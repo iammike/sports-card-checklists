@@ -445,12 +445,14 @@ describe('GitHubSync owner-only sign-in', () => {
         const authData = btoa(JSON.stringify({
             token: 'owner-tok', user: { login: 'iammike' }, gistId: 'g1', csrf: 'csrf-y',
         }));
-        window.history.replaceState({}, '', `${window.location.pathname}#auth=${authData}`);
+        window.history.replaceState({}, '', `${window.location.pathname}?id=jayden-daniels#auth=${authData}`);
 
         const result = await sync.handleCallback();
 
         expect(result).toBe(true);
         expect(sync.token).toBe('owner-tok');
+        // Success strips the auth fragment but must keep the checklist id.
+        expect(window.location.search).toBe('?id=jayden-daniels');
     });
 
     // An attacker can hand the victim any link. Before the fragment carried a csrf,
@@ -714,6 +716,26 @@ describe('GitHubSync OAuth CSRF verification', () => {
         sessionStorage.setItem('oauth_state', 'the-real-one');
 
         expect(await arrive({ returnUrl: null })).toBe(false);
+        expect(requests).toEqual([]);
+    });
+
+    // The simplest unsolicited link there is: ?code= with no state at all. The
+    // parse fails, csrf falls to null, and on a fresh tab the stored value is null
+    // too - so an equality check alone gives null !== null === false and exchanges
+    // the attacker's code. Only !stateData.csrf stops it. This mirrors the same
+    // null-vs-null cover the fragment path already has.
+    it('rejects a callback with no state parameter on a fresh tab', async () => {
+        sessionStorage.clear();
+        window.history.replaceState({}, '', `${window.location.pathname}?code=attacker-code`);
+
+        expect(await sync.handleCallback()).toBe(false);
+        expect(requests).toEqual([]);
+    });
+
+    it('rejects a callback whose csrf is null on a fresh tab', async () => {
+        sessionStorage.clear();
+
+        expect(await arrive({ csrf: null, returnUrl: null })).toBe(false);
         expect(requests).toEqual([]);
     });
 

@@ -119,6 +119,13 @@ class GitHubSync {
         window.location.href = url;
     }
 
+    // Strip the OAuth code/fragment from the address bar but keep the query:
+    // dropping it takes ?id= with it, and a reload then has no checklist to load.
+    _cleanAuthFromUrl() {
+        window.history.replaceState({}, document.title,
+            window.location.pathname + window.location.search);
+    }
+
     isLoggedIn() {
         return !!this.token;
     }
@@ -164,14 +171,11 @@ class GitHubSync {
                 sessionStorage.removeItem('oauth_state');
                 if (!this.isPreview() || !authData.csrf || authData.csrf !== expected) {
                     console.error('Rejected auth fragment: not a redirect this tab started');
-                    // Keep the query: dropping it would strip ?id= and leave a
-                    // reload with no checklist to load.
-                    window.history.replaceState({}, document.title,
-                        window.location.pathname + window.location.search);
+                    this._cleanAuthFromUrl();
                     return false;
                 }
                 if (this._rejectIfNotOwner(authData.user)) {
-                    window.history.replaceState({}, document.title, window.location.pathname);
+                    this._cleanAuthFromUrl();
                     return false;
                 }
                 this.token = authData.token;
@@ -181,7 +185,7 @@ class GitHubSync {
                 localStorage.setItem(USER_KEY, JSON.stringify(this.user));
                 localStorage.setItem(GIST_ID_KEY, this.gistId);
                 // Clean URL
-                window.history.replaceState({}, document.title, window.location.pathname);
+                this._cleanAuthFromUrl();
                 if (this.onAuthChange) this.onAuthChange(true);
                 return true;
             } catch (e) {
@@ -206,8 +210,8 @@ class GitHubSync {
 
         // A branch preview starts on <branch>.<project>.pages.dev and lands here on
         // <project>.pages.dev - a different origin, so sessionStorage is empty and
-        // the csrf cannot be matched. That exemption is why the origin check below
-        // carries the weight: it decides who may be handed a token.
+        // the csrf cannot be matched. That exemption is why isProjectPreviewUrl
+        // below carries the weight: it decides who may be handed a token.
         //
         // Residual on a preview origin: a forged code still gets exchanged, and
         // _rejectIfNotOwner then logs out, so a link can end the owner's preview
@@ -221,12 +225,12 @@ class GitHubSync {
         sessionStorage.removeItem('oauth_state');
         if (!returnUrl && (!stateData.csrf || stateData.csrf !== expectedState)) {
             console.error('OAuth state mismatch - possible CSRF attack');
-            window.history.replaceState({}, document.title, window.location.pathname);
+            this._cleanAuthFromUrl();
             return false;
         }
 
         // Clean URL
-        window.history.replaceState({}, document.title, window.location.pathname);
+        this._cleanAuthFromUrl();
 
         const priorToken = this.token;
         let tokenCommitted = false;
