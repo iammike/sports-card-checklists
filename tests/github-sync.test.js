@@ -243,6 +243,10 @@ describe('GitHubSync owner-only sign-in', () => {
         globalThis.fetch = realFetch;
         globalThis.alert = realAlert;
         window.history.replaceState({}, '', window.location.pathname + realSearch);
+        // Drop the own-property stub; the prototype method must resurface, or a
+        // later test silently runs against a fake preview flag.
+        delete sync.isPreview;
+        expect(sync.isPreview).toBe(Object.getPrototypeOf(sync).isPreview);
         sessionStorage.clear();
         sync.token = null;
         sync.user = null;
@@ -315,8 +319,10 @@ describe('GitHubSync owner-only sign-in', () => {
     // The branch-preview redirect path stores token/user/gistId straight from the
     // URL fragment, so it needs the same gate as the code-exchange path above.
     it('rejects a non-owner arriving via the #auth= fragment', async () => {
+        sync.isPreview = () => true;
+        sessionStorage.setItem('oauth_state', 'csrf-x');
         const authData = btoa(JSON.stringify({
-            token: 'tok', user: { login: 'someone-else' }, gistId: 'gist1',
+            token: 'tok', user: { login: 'someone-else' }, gistId: 'gist1', csrf: 'csrf-x',
         }));
         window.history.replaceState({}, '', `${window.location.pathname}#auth=${authData}`);
         // A pre-existing value the gate must clear, so disabling the whole
@@ -432,8 +438,10 @@ describe('GitHubSync owner-only sign-in', () => {
     });
 
     it('accepts the owner arriving via the #auth= fragment', async () => {
+        sync.isPreview = () => true;
+        sessionStorage.setItem('oauth_state', 'csrf-y');
         const authData = btoa(JSON.stringify({
-            token: 'owner-tok', user: { login: 'iammike' }, gistId: 'g1',
+            token: 'owner-tok', user: { login: 'iammike' }, gistId: 'g1', csrf: 'csrf-y',
         }));
         window.history.replaceState({}, '', `${window.location.pathname}#auth=${authData}`);
 
@@ -441,6 +449,49 @@ describe('GitHubSync owner-only sign-in', () => {
 
         expect(result).toBe(true);
         expect(sync.token).toBe('owner-tok');
+    });
+
+    // An attacker can hand the victim any link. Before the fragment carried a csrf,
+    // this planted the attacker's token and gist in the owner's browser - and the
+    // ownership check was no defence, because it read a login from the same blob.
+    it('ignores an auth fragment this tab never asked for', async () => {
+        sync.isPreview = () => true;
+        sessionStorage.clear();
+        const authData = btoa(JSON.stringify({
+            token: 'attacker-tok', user: { login: 'iammike' }, gistId: 'attacker-gist',
+        }));
+        window.history.replaceState({}, '', `${window.location.pathname}#auth=${authData}`);
+
+        const result = await sync.handleCallback();
+
+        expect(result).toBe(false);
+        expect(sync.token).toBeNull();
+        expect(localStorage.getItem('github_token')).toBeNull();
+    });
+
+    it('ignores an auth fragment whose csrf does not match this tab', async () => {
+        sync.isPreview = () => true;
+        sessionStorage.setItem('oauth_state', 'mine');
+        const authData = btoa(JSON.stringify({
+            token: 'attacker-tok', user: { login: 'iammike' }, gistId: 'g', csrf: 'theirs',
+        }));
+        window.history.replaceState({}, '', `${window.location.pathname}#auth=${authData}`);
+
+        expect(await sync.handleCallback()).toBe(false);
+        expect(localStorage.getItem('github_token')).toBeNull();
+    });
+
+    // Production never uses the fragment hop at all.
+    it('ignores an auth fragment outside a preview origin', async () => {
+        sync.isPreview = () => false;
+        sessionStorage.setItem('oauth_state', 'mine');
+        const authData = btoa(JSON.stringify({
+            token: 'tok', user: { login: 'iammike' }, gistId: 'g', csrf: 'mine',
+        }));
+        window.history.replaceState({}, '', `${window.location.pathname}#auth=${authData}`);
+
+        expect(await sync.handleCallback()).toBe(false);
+        expect(localStorage.getItem('github_token')).toBeNull();
     });
 
     // The behaviour that matters: the rejection lands before findOrCreateGist(),
@@ -492,6 +543,9 @@ describe('GitHubSync branch-preview return URL', () => {
     it('rejects another Pages project', () => {
         expect(ok('https://evil.pages.dev/')).toBe(false);
         expect(ok('https://sports-card-checklists.pages.dev.evil.com/')).toBe(false);
+        // No dot before the host: a Pages project literally named
+        // "evilsports-card-checklists" is registrable by anyone.
+        expect(ok('https://evilsports-card-checklists.pages.dev/')).toBe(false);
     });
 
     // The substring test that shipped: .pages.dev anywhere in the URL passed.
@@ -574,25 +628,44 @@ describe('GitHubSync OAuth CSRF verification', () => {
         expect(requests.some(u => u.includes('/token'))).toBe(true);
     });
 
-    // The exploit end to end: a valid flow whose state names a foreign host must
-    // complete against this origin and never treat that host as a return target.
-    it('does not treat a foreign return URL as a redirect target', async () => {
+    // The exploit end to end. Asserting on the return value or on /gists cannot
+    // show this: the redirect branch runs AFTER findOrCreateGist and also returns
+    // true, so every such assertion holds just as well while the token is being
+    // written into evil.example's fragment. Only the redirect itself distinguishes
+    // them, so _redirect is a seam we can watch.
+    const happyFetch = (seen) => async (url) => {
+        seen.push(String(url));
+        if (String(url).includes('/token')) return { json: async () => ({ access_token: 'tok' }) };
+        if (String(url).includes('api.github.com/user')) return { json: async () => ({ login: 'iammike' }) };
+        return { ok: true, json: async () => ([{ id: 'g1', files: { 'sports-card-checklists.json': {} } }]) };
+    };
+
+    it('never redirects a token to a foreign return URL', async () => {
         sessionStorage.setItem('oauth_state', 'match');
         const seen = [];
-        globalThis.fetch = async (url) => {
-            seen.push(String(url));
-            if (String(url).includes('/token')) return { json: async () => ({ access_token: 'tok' }) };
-            if (String(url).includes('api.github.com/user')) return { json: async () => ({ login: 'iammike' }) };
-            return { ok: true, json: async () => ([{ id: 'g1', files: { 'sports-card-checklists.json': {} } }]) };
-        };
+        globalThis.fetch = happyFetch(seen);
+        const redirects = [];
+        const realRedirect = sync._redirect;
+        sync._redirect = (url) => redirects.push(url);
 
-        const result = await arrive({ csrf: 'match', returnUrl: 'https://evil.example/?x=.pages.dev' });
+        await arrive({ csrf: 'match', returnUrl: 'https://evil.example/?x=.pages.dev' });
 
-        // Completing here rather than redirecting is the observable difference:
-        // the redirect branch returns before findOrCreateGist and never resolves
-        // to true on this origin.
-        expect(result).toBe(true);
-        expect(seen.some(u => u.includes('/gists'))).toBe(true);
-        expect(localStorage.getItem('github_token')).toBe('tok');
+        sync._redirect = realRedirect;
+        expect(redirects).toEqual([]);
+    });
+
+    it('redirects back to a genuine project preview', async () => {
+        sessionStorage.setItem('oauth_state', 'match');
+        const seen = [];
+        globalThis.fetch = happyFetch(seen);
+        const redirects = [];
+        const realRedirect = sync._redirect;
+        sync._redirect = (url) => redirects.push(url);
+
+        await arrive({ csrf: 'match', returnUrl: 'https://fix-x.sports-card-checklists.pages.dev/' });
+
+        sync._redirect = realRedirect;
+        expect(redirects).toHaveLength(1);
+        expect(redirects[0]).toContain('https://fix-x.sports-card-checklists.pages.dev/#auth=');
     });
 });

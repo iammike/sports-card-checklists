@@ -106,6 +106,12 @@ class GitHubSync {
         }
     }
 
+    // Extracted so tests can observe where a token is sent. Asserting on the
+    // callback's return value cannot: the redirect branch also returns true.
+    _redirect(url) {
+        window.location.href = url;
+    }
+
     isLoggedIn() {
         return !!this.token;
     }
@@ -142,6 +148,18 @@ class GitHubSync {
         if (hash.startsWith('#auth=')) {
             try {
                 const authData = JSON.parse(atob(hash.slice(6)));
+                // Only a preview origin ever receives one of these, and only as the
+                // tail of a flow this tab started: the csrf must match the value
+                // login() put in sessionStorage before navigating away. Without
+                // that, any link could plant a token - and the ownership check
+                // below is no help, since the login it reads is in the same blob.
+                const expected = sessionStorage.getItem('oauth_state');
+                sessionStorage.removeItem('oauth_state');
+                if (!this.isPreview() || !authData.csrf || authData.csrf !== expected) {
+                    console.error('Rejected auth fragment: not a redirect this tab started');
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    return false;
+                }
                 if (this._rejectIfNotOwner(authData.user)) {
                     window.history.replaceState({}, document.title, window.location.pathname);
                     return false;
@@ -237,12 +255,17 @@ class GitHubSync {
             // Check if we need to redirect back to a branch preview
             if (returnUrl) {
                 // Pass auth data via URL fragment (not sent to server)
+                // The csrf goes back with it so the receiving origin can tell this
+                // payload apart from one an attacker pasted into a link. That origin
+                // set the value in sessionStorage before navigating away, and
+                // sessionStorage survives the round trip in the same tab.
                 const authData = btoa(JSON.stringify({
                     token: this.token,
                     user: this.user,
-                    gistId: this.gistId
+                    gistId: this.gistId,
+                    csrf: stateData.csrf,
                 }));
-                window.location.href = returnUrl + '#auth=' + authData;
+                this._redirect(returnUrl + '#auth=' + authData);
                 return true;
             }
 

@@ -231,12 +231,28 @@ describe('ChecklistExport.toCSV', () => {
     // FALSE on every row regardless of what the owner owns - the column is the
     // visitor's to fill in, and TRUE anywhere would leak the owner's collection.
     it('writes FALSE in Owned on every row', () => {
-        const csv = ChecklistExport.toCSV([row(), row({ num: '2' }), row({ num: '3' })]);
+        // Rows carry an ownership flag here on purpose: without one, an Owned
+        // accessor that read ownership would emit FALSE anyway and this would
+        // pass while leaking the owner's collection.
+        const csv = ChecklistExport.toCSV([
+            { ...row(), owned: true },
+            { ...row({ num: '2' }), owned: false },
+            { ...row({ num: '3' }), owned: true },
+        ]);
         const lines = csv.split('\r\n').slice(1);
 
         expect(lines).toHaveLength(3);
         lines.forEach(l => expect(l.split(',').pop()).toBe('FALSE'));
         expect(csv).not.toContain('TRUE');
+    });
+
+    // Structural backstop: no ownership ever reaches a row in the first place.
+    it('never puts an ownership field on a collected row', () => {
+        const cards = [{ set: '2024 Prizm', num: '1', owned: true }];
+
+        const [r] = ChecklistExport.collectRows(cards, { dataShape: 'flat' }, true);
+
+        expect(Object.keys(r)).not.toContain('owned');
     });
 
     it('keeps field order matching the header', () => {
