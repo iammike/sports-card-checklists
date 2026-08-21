@@ -92,10 +92,6 @@ class GitHubSync {
         }
     }
 
-    // Is this a URL we are willing to hand a token to? Parsed, not substring
-    // matched: "https://evil.example/?x=.pages.dev" contains the preview domain
-    // and is not it. Restricted to this project's own subdomains rather than
-    // *.pages.dev, because anyone can create a Pages project.
     // A branch preview, as opposed to the apex preview that receives the OAuth
     // callback. Takes the hostname so it can be exercised for hosts the test
     // environment cannot actually be served from.
@@ -103,6 +99,10 @@ class GitHubSync {
         return this.isPreview() && hostname !== PREVIEW_HOST;
     }
 
+    // Is this a URL we are willing to hand a token to? Parsed, not substring
+    // matched: "https://evil.example/?x=.pages.dev" contains the preview domain
+    // and is not it. Restricted to this project's own subdomains rather than
+    // *.pages.dev, because anyone can create a Pages project.
     isProjectPreviewUrl(url) {
         try {
             const { protocol, hostname } = new URL(url);

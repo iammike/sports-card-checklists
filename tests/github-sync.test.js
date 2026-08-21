@@ -462,13 +462,16 @@ describe('GitHubSync owner-only sign-in', () => {
         const authData = btoa(JSON.stringify({
             token: 'attacker-tok', user: { login: 'iammike' }, gistId: 'attacker-gist',
         }));
-        window.history.replaceState({}, '', `${window.location.pathname}#auth=${authData}`);
+        window.history.replaceState({}, '', `${window.location.pathname}?id=jayden-daniels#auth=${authData}`);
 
         const result = await sync.handleCallback();
 
         expect(result).toBe(false);
         expect(sync.token).toBeNull();
         expect(localStorage.getItem('github_token')).toBeNull();
+        // The checklist id must survive: stripping it leaves a reload with
+        // nothing to load.
+        expect(window.location.search).toBe('?id=jayden-daniels');
     });
 
     // csrf:null specifically. On a fresh tab sessionStorage returns null, so an
@@ -671,6 +674,12 @@ describe('GitHubSync OAuth CSRF verification', () => {
         globalThis.fetch = realFetch;
         globalThis.alert = realAlert;
         window.history.replaceState({}, '', window.location.pathname + realSearch);
+        // Same discipline as the owner-only block: a leaked stub leaves later
+        // tests running on a fake preview flag or a swallowed redirect.
+        delete sync.isPreview;
+        delete sync._redirect;
+        expect(sync.isPreview).toBe(Object.getPrototypeOf(sync).isPreview);
+        expect(sync._redirect).toBe(Object.getPrototypeOf(sync)._redirect);
         sessionStorage.clear();
         localStorage.clear();
         sync.token = null;
@@ -750,8 +759,10 @@ describe('GitHubSync OAuth CSRF verification', () => {
         const redirects = [];
         sync._redirect = (url) => redirects.push(url);
 
-        // Leg one, on the apex origin: the branch set this before navigating away.
-        sessionStorage.setItem('oauth_state', 'round-trip');
+        // Leg one, on the apex origin. Its sessionStorage is empty - the branch's
+        // copy belongs to another origin - so this leg genuinely exercises the
+        // returnUrl exemption, which is what production does here.
+        sessionStorage.clear();
         await arrive({ csrf: 'round-trip', returnUrl: 'https://fix-x.sports-card-checklists.pages.dev/' });
         expect(redirects).toHaveLength(1);
 
