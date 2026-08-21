@@ -695,6 +695,10 @@ describe('GitHubSync OAuth CSRF verification', () => {
     // The heart of it: a mismatched CSRF token must not be excused by anything
     // the attacker put in the state.
     it('rejects a mismatched csrf even with a preview-looking returnUrl', async () => {
+        // On a preview origin, where the exemption is actually live - otherwise the
+        // gate short-circuits on isPreview() and the returnUrl in this test is
+        // inert, leaving the attacker-relevant case uncovered.
+        sync.isPreview = () => true;
         sessionStorage.setItem('oauth_state', 'the-real-one');
 
         const result = await arrive({ csrf: 'forged', returnUrl: 'https://evil.example/?x=.pages.dev' });

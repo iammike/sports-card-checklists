@@ -204,22 +204,17 @@ class GitHubSync {
             stateData = { csrf: state, returnUrl: null };
         }
 
-        // A branch preview starts the flow on <branch>.<project>.pages.dev and lands
-        // here on <project>.pages.dev - a different origin, so sessionStorage is
-        // empty and the CSRF token cannot be checked. That exemption stays, but it
-        // is now decided by parsing the return URL's origin rather than by looking
-        // for ".pages.dev" anywhere in an attacker-supplied string.
+        // A branch preview starts on <branch>.<project>.pages.dev and lands here on
+        // <project>.pages.dev - a different origin, so sessionStorage is empty and
+        // the csrf cannot be matched. That exemption is why the origin check below
+        // carries the weight: it decides who may be handed a token.
         //
-        // What made the old test dangerous was not the exemption itself but where
-        // it led: the token was then written into that URL's fragment. With the
-        // origin pinned to this project's own previews, the exemption can no longer
-        // route a token off-site, and a forged code merely authenticates as someone
-        // who is not the owner - which _rejectIfNotOwner then refuses.
-        // Gated on isPreview() as well as the URL: the exemption exists because the
-        // apex preview cannot see the branch's sessionStorage, and that reason
-        // applies only there. Production has its own store and no handoff to make,
-        // so it verifies the csrf like anyone else and never redirects.
-        const returnUrl = (this.isPreview() && this.isProjectPreviewUrl(stateData.returnUrl))
+        // Residual on a preview origin: a forged code still gets exchanged, and
+        // _rejectIfNotOwner then logs out, so a link can end the owner's preview
+        // session. Nuisance-grade, owner-only, and inherent to the exemption.
+        // Gated on isPreview() too: the exemption's reason applies only on a
+        // preview origin. Production verifies the csrf and never redirects.
+        const returnUrl = this.isPreview() && this.isProjectPreviewUrl(stateData.returnUrl)
             ? stateData.returnUrl
             : null;
         const expectedState = sessionStorage.getItem('oauth_state');
