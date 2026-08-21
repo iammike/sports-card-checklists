@@ -4,9 +4,9 @@ const ChecklistEngine = globalThis.ChecklistEngine;
 const ChecklistManager = globalThis.ChecklistManager;
 
 // Logged out, AuthUI.update() renders nothing into #auth-content (nav.js), so
-// there is no dropdown and therefore no Shopping List entry - the export was
-// unreachable for every visitor who wasn't signed in, even though nothing in
-// ShoppingList needs a token. The filter row is where it lives for them.
+// there is no dropdown at all - which is where every export entry used to live.
+// The filter row is the only home the button has for a visitor who isn't signed
+// in, and it opens ChecklistExport rather than the owner's Shopping List.
 //
 // Harness mirrors tests/price-range-and-quick-filters.test.js: a real engine and
 // a real _renderFilters() DOM render, so these assert the markup a visitor
@@ -35,24 +35,21 @@ function makeEngine() {
 // getUser(), so both are needed for the render to complete either way.
 const loggedOut = () => ({ isLoggedIn: () => false, getUser: () => null });
 
-// The click handler is async and the listener discards its promise, so tests have
-// to let the microtask queue drain before asserting on what happened after it.
-const flush = () => new Promise(r => setTimeout(r, 0));
 const loggedIn = () => ({ isLoggedIn: () => true, getUser: () => ({ login: 'someone-else' }) });
 
-describe('Shopping List button in the filter row', () => {
+describe('Export button in the filter row', () => {
     let realGithubSync;
-    let realShoppingList;
+    let realChecklistExport;
 
     beforeEach(() => {
         document.body.innerHTML = '<div id="filters-container"></div><div id="sections-container"></div>';
         realGithubSync = window.githubSync;
-        realShoppingList = window.ShoppingList;
+        realChecklistExport = window.ChecklistExport;
     });
 
     afterEach(() => {
         window.githubSync = realGithubSync;
-        window.ShoppingList = realShoppingList;
+        window.ChecklistExport = realChecklistExport;
     });
 
     it('renders for a logged-out visitor, who has no nav dropdown to reach it from', () => {
@@ -60,10 +57,10 @@ describe('Shopping List button in the filter row', () => {
 
         makeEngine()._renderFilters();
 
-        expect(document.getElementById('shopping-list-filter-btn')).not.toBeNull();
+        expect(document.getElementById('checklist-export-btn')).not.toBeNull();
     });
 
-    it('does not render when signed in - the nav dropdown already carries it', () => {
+    it('does not render when signed in - the filter row is the logged-out home', () => {
         window.githubSync = loggedIn();
 
         makeEngine()._renderFilters();
@@ -71,95 +68,78 @@ describe('Shopping List button in the filter row', () => {
         // #reorder-btn proves the row rendered at all, so the absence below is a
         // real absence and not an empty container passing vacuously.
         expect(document.getElementById('reorder-btn')).not.toBeNull();
-        expect(document.getElementById('shopping-list-filter-btn')).toBeNull();
+        expect(document.getElementById('checklist-export-btn')).toBeNull();
     });
 
-    // Driven by a real click, not by calling the method: the click binding is the
-    // thing this behaviour lives in, and invoking _exportShoppingList by hand
-    // leaves a full revert to showOptionsModal passing green.
-    it('exports this checklist directly when clicked, without the options modal', async () => {
+    // Driven by a real click: the binding is where this behaviour lives, and
+    // calling the handler by hand leaves a revert of the wiring passing green.
+    it('opens the export dialog for this checklist when clicked', () => {
         window.githubSync = loggedOut();
-        const generate = vi.fn(async () => {});
-        const showOptionsModal = vi.fn();
-        window.ShoppingList = { generate, showOptionsModal };
+        const open = vi.fn();
+        window.ChecklistExport = { open };
+
+        const engine = makeEngine();
+        engine._renderFilters();
+        document.getElementById('checklist-export-btn').click();
+
+        expect(open).toHaveBeenCalledTimes(1);
+        const ctx = open.mock.calls[0][0];
+        expect(ctx.id).toBe('test');
+        // Reads the engine's already-loaded data - no gist refetch, so no
+        // dependence on the registry or on a checklist's hidden flag.
+        expect(ctx.cards).toBe(engine.cards);
+        expect(ctx.config).toBe(engine.config);
+    });
+
+    // Pins that the context carries a working sort, not merely that some function
+    // was passed: a wrong sort mode reorders every row and is otherwise silent.
+    it('passes a sort honouring the checklist default sort mode', () => {
+        window.githubSync = loggedOut();
+        const open = vi.fn();
+        window.ChecklistExport = { open };
+
+        const engine = makeEngine();
+        engine.config.defaultSortMode = 'price-high';
+        engine._renderFilters();
+        document.getElementById('checklist-export-btn').click();
+
+        const { sort } = open.mock.calls[0][0];
+        const input = [{ set: 'A', num: '1', price: 5 }, { set: 'B', num: '2', price: 90 }];
+        expect(sort(input).map(c => c.num)).toEqual(['2', '1']);
+        // The engine's own arrays must not be reordered as a side effect.
+        expect(input.map(c => c.num)).toEqual(['1', '2']);
+    });
+
+    it('leaves order alone when the checklist sets no default sort', () => {
+        window.githubSync = loggedOut();
+        const open = vi.fn();
+        window.ChecklistExport = { open };
+
+        const engine = makeEngine();
+        delete engine.config.defaultSortMode;
+        engine._renderFilters();
+        document.getElementById('checklist-export-btn').click();
+
+        const { sort } = open.mock.calls[0][0];
+        const input = [{ set: 'B', num: '2' }, { set: 'A', num: '1' }];
+        expect(sort(input).map(c => c.num)).toEqual(['2', '1']);
+    });
+
+    it('labels the button Export', () => {
+        window.githubSync = loggedOut();
 
         makeEngine()._renderFilters();
-        document.getElementById('shopping-list-filter-btn').click();
-        await flush();
 
-        expect(showOptionsModal).not.toHaveBeenCalled();
-        expect(generate).toHaveBeenCalledTimes(1);
-        const opts = generate.mock.calls[0][0];
-        expect([...opts.selectedChecklists]).toEqual(['test']);
-        // No options passed at all: generate() already defaults both to false, so
-        // naming them here would only be a chance to pass the wrong thing. The
-        // output side of this is pinned in tests/shopping-list.test.js - this end
-        // pins that the button is what asks for it.
-        expect(opts.includeExtra).toBeUndefined();
-        expect(opts.groupByChecklist).toBeUndefined();
+        expect(document.getElementById('checklist-export-btn').textContent).toBe('Export');
     });
 
-    // The disable is the only thing stopping a double-click, which would mean a
-    // second jsPDF load, a second full gist refetch and a second download. Asserted
-    // mid-flight - checking only that it is re-enabled afterwards passes just as
-    // well when it was never disabled.
-    it('disables the button while the export is in flight', async () => {
+    it('is omitted when the export module is absent, rather than rendering a dead button', () => {
         window.githubSync = loggedOut();
-        let finish;
-        window.ShoppingList = { generate: () => new Promise(r => { finish = r; }) };
-
-        makeEngine()._renderFilters();
-        const btn = document.getElementById('shopping-list-filter-btn');
-        const originalLabel = btn.textContent;
-        btn.click();
-
-        expect(btn.disabled).toBe(true);
-        expect(btn.textContent).toBe('Generating...');
-
-        finish();
-        await flush();
-
-        expect(btn.disabled).toBe(false);
-        expect(btn.textContent).toBe(originalLabel);
-    });
-
-    it('labels the button Export PDF', () => {
-        window.githubSync = loggedOut();
-
-        makeEngine()._renderFilters();
-
-        expect(document.getElementById('shopping-list-filter-btn').textContent).toBe('Export PDF');
-    });
-
-    it('re-enables the button after a failed export', async () => {
-        window.githubSync = loggedOut();
-        window.ShoppingList = { generate: async () => { throw new Error('boom'); } };
-        const realAlert = globalThis.alert;
-        let alerted = false;
-        globalThis.alert = () => { alerted = true; };
-
-        makeEngine()._renderFilters();
-        const btn = document.getElementById('shopping-list-filter-btn');
-        const originalLabel = btn.textContent;
-        try {
-            btn.click();
-            await flush();
-        } finally {
-            globalThis.alert = realAlert;
-        }
-
-        expect(alerted).toBe(true);
-        expect(btn.disabled).toBe(false);
-        expect(btn.textContent).toBe(originalLabel);
-    });
-
-    it('is omitted when the ShoppingList module is absent, rather than rendering a dead button', () => {
-        window.githubSync = loggedOut();
-        window.ShoppingList = undefined;
+        window.ChecklistExport = undefined;
 
         makeEngine()._renderFilters();
 
         expect(document.getElementById('reorder-btn')).not.toBeNull();
-        expect(document.getElementById('shopping-list-filter-btn')).toBeNull();
+        expect(document.getElementById('checklist-export-btn')).toBeNull();
     });
 });

@@ -99,7 +99,9 @@ const ShoppingList = {
 
         const modal = backdrop.querySelector('.card-editor-modal');
         modal.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
+            // Buttons activate on Enter natively; forwarding those would fire
+            // Generate twice, or fire it when Cancel had focus.
+            if (e.key === 'Enter' && !e.target.closest('button')) {
                 backdrop.querySelector('#sl-generate').click();
             }
         });
@@ -396,14 +398,7 @@ const ShoppingList = {
 
             let x = margin + 2;
 
-            const truncate = (text, maxWidth) => {
-                if (!text) return '';
-                let t = text;
-                while (doc.getTextWidth(t) > maxWidth - 2 && t.length > 0) {
-                    t = t.slice(0, -1);
-                }
-                return t.length < text.length ? t + '..' : t;
-            };
+            const truncate = (text, w) => this.truncateToWidth(doc, text, w);
 
             doc.text(truncate(item.set, cols[0].width), x, y + 3);
             x += cols[0].width;
@@ -433,6 +428,18 @@ const ShoppingList = {
         }
 
         doc.save('shopping-list.pdf');
+    },
+
+    // Shared with ChecklistExport's builder: a column that silently overruns its
+    // neighbour is the failure mode a fork of this layout loses first.
+    truncateToWidth(doc, text, maxWidth) {
+        if (!text) return '';
+        const str = String(text);
+        let t = str;
+        while (doc.getTextWidth(t) > maxWidth - 2 && t.length > 0) {
+            t = t.slice(0, -1);
+        }
+        return t.length < str.length ? t + '..' : t;
     },
 
     drawPageFooter(doc, pageWidth, pageHeight, margin, page, totalPages) {

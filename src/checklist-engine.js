@@ -1439,10 +1439,9 @@ class ChecklistEngine {
 
         // Logged out there is no nav dropdown at all (AuthUI.update() renders
         // nothing without a token), so this is the only place the export can live.
-        // It needs no auth - every read in ShoppingList.generate() already falls
-        // back to the public gist.
-        if (!window.githubSync?.isLoggedIn() && window.ShoppingList) {
-            html += `<button id="shopping-list-filter-btn" class="filter-btn">Export PDF</button>`;
+        // It needs no auth: the dialog exports the cards already in memory.
+        if (!window.githubSync?.isLoggedIn() && window.ChecklistExport) {
+            html += `<button id="checklist-export-btn" class="filter-btn">Export</button>`;
         }
 
         container.innerHTML = html;
@@ -1457,7 +1456,19 @@ class ChecklistEngine {
             if (input) { input.value = ''; input.focus(); this._onFilterChange(); }
         });
         container.querySelector('#reorder-btn')?.addEventListener('click', () => this._toggleReorderMode());
-        container.querySelector('#shopping-list-filter-btn')?.addEventListener('click', (e) => this._exportShoppingList(e.currentTarget));
+        container.querySelector('#checklist-export-btn')?.addEventListener('click', () => ChecklistExport.open({
+            id: this.id,
+            title: this.config?.title,
+            config: this.config,
+            cards: this.cards,
+            // The checklist's own default order - deliberately not the visitor's
+            // current #sort-filter choice, which also collapses the page into one
+            // flat section. An export should be the checklist, not a snapshot of
+            // one person's view of it.
+            sort: (list) => (this.config?.defaultSortMode
+                ? this.sortCards([...list], this.config.defaultSortMode)
+                : list),
+        }));
         container.querySelectorAll('.quick-filter-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const active = btn.classList.toggle('active');
@@ -1469,24 +1480,6 @@ class ChecklistEngine {
 
         // Show reorder button if applicable
         this._updateReorderButton();
-    }
-
-    // Straight to a PDF of this checklist's unowned cards. The options modal spans
-    // every checklist, which is not what a button in one checklist's filter row
-    // implies - and the dropdown still offers it for the signed-in case.
-    async _exportShoppingList(btn) {
-        const originalText = btn.textContent;
-        btn.disabled = true;
-        btn.textContent = 'Generating...';
-        try {
-            await ShoppingList.generate({ selectedChecklists: new Set([this.id]) });
-        } catch (e) {
-            console.error('Shopping list generation failed:', e);
-            alert('Failed to generate shopping list: ' + e.message);
-        } finally {
-            btn.disabled = false;
-            btn.textContent = originalText;
-        }
     }
 
     // Which attribute toggles apply to this checklist. Auto/Patch/Numbered mirror
