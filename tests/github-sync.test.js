@@ -243,6 +243,12 @@ describe('GitHubSync owner-only sign-in', () => {
         globalThis.fetch = realFetch;
         globalThis.alert = realAlert;
         window.history.replaceState({}, '', window.location.pathname + realSearch);
+        // Drop the own-property stub; the prototype method must resurface, or a
+        // later test silently runs against a fake preview flag.
+        delete sync.isPreview;
+        delete sync._redirect;
+        expect(sync.isPreview).toBe(Object.getPrototypeOf(sync).isPreview);
+        expect(sync._redirect).toBe(Object.getPrototypeOf(sync)._redirect);
         sessionStorage.clear();
         sync.token = null;
         sync.user = null;
@@ -315,10 +321,12 @@ describe('GitHubSync owner-only sign-in', () => {
     // The branch-preview redirect path stores token/user/gistId straight from the
     // URL fragment, so it needs the same gate as the code-exchange path above.
     it('rejects a non-owner arriving via the #auth= fragment', async () => {
+        sync.isPreview = () => true;
+        sessionStorage.setItem('oauth_state', 'csrf-x');
         const authData = btoa(JSON.stringify({
-            token: 'tok', user: { login: 'someone-else' }, gistId: 'gist1',
+            token: 'tok', user: { login: 'someone-else' }, gistId: 'gist1', csrf: 'csrf-x',
         }));
-        window.history.replaceState({}, '', `${window.location.pathname}#auth=${authData}`);
+        window.history.replaceState({}, '', `${window.location.pathname}?id=jd#auth=${authData}`);
         // A pre-existing value the gate must clear, so disabling the whole
         // fragment branch cannot leave this passing on absences alone.
         sync.token = 'pre-existing';
@@ -328,6 +336,8 @@ describe('GitHubSync owner-only sign-in', () => {
         expect(result).toBe(false);
         expect(sync.token).toBeNull();
         expect(localStorage.getItem('github_token')).toBeNull();
+        expect(window.location.search).toBe('?id=jd');
+        expect(window.location.hash).toBe('');
     });
 
     // fetchUser() sits between the token write and the gate, and the outer catch
@@ -432,15 +442,100 @@ describe('GitHubSync owner-only sign-in', () => {
     });
 
     it('accepts the owner arriving via the #auth= fragment', async () => {
+        sync.isPreview = () => true;
+        sessionStorage.setItem('oauth_state', 'csrf-y');
         const authData = btoa(JSON.stringify({
-            token: 'owner-tok', user: { login: 'iammike' }, gistId: 'g1',
+            token: 'owner-tok', user: { login: 'iammike' }, gistId: 'g1', csrf: 'csrf-y',
         }));
-        window.history.replaceState({}, '', `${window.location.pathname}#auth=${authData}`);
+        window.history.replaceState({}, '', `${window.location.pathname}?id=jayden-daniels#auth=${authData}`);
 
         const result = await sync.handleCallback();
 
         expect(result).toBe(true);
         expect(sync.token).toBe('owner-tok');
+        // Success strips the auth fragment but must keep the checklist id.
+        expect(window.location.search).toBe('?id=jayden-daniels');
+        expect(window.location.hash).toBe('');
+    });
+
+    // An attacker can hand the victim any link. Before the fragment carried a csrf,
+    // this planted the attacker's token and gist in the owner's browser - and the
+    // ownership check was no defence, because it read a login from the same blob.
+    it('ignores an auth fragment this tab never asked for', async () => {
+        sync.isPreview = () => true;
+        sessionStorage.clear();
+        const authData = btoa(JSON.stringify({
+            token: 'attacker-tok', user: { login: 'iammike' }, gistId: 'attacker-gist',
+        }));
+        window.history.replaceState({}, '', `${window.location.pathname}?id=jayden-daniels#auth=${authData}`);
+
+        const result = await sync.handleCallback();
+
+        expect(result).toBe(false);
+        expect(sync.token).toBeNull();
+        expect(localStorage.getItem('github_token')).toBeNull();
+        // The checklist id must survive: stripping it leaves a reload with
+        // nothing to load. The token-bearing fragment must not survive - asserting
+        // only on search is satisfied by the cleanup never running.
+        expect(window.location.search).toBe('?id=jayden-daniels');
+        expect(window.location.hash).toBe('');
+    });
+
+    // csrf:null specifically. On a fresh tab sessionStorage returns null, so an
+    // equality check alone gives null !== null === false and lets the fragment
+    // through - the whole fix defeated by one token. The !authData.csrf clause is
+    // what stops it, and omitting csrf entirely does not exercise that clause.
+    it('ignores an auth fragment whose csrf is null on a fresh tab', async () => {
+        sync.isPreview = () => true;
+        sessionStorage.clear();
+        const authData = btoa(JSON.stringify({
+            token: 'attacker-tok', user: { login: 'iammike' }, gistId: 'g', csrf: null,
+        }));
+        window.history.replaceState({}, '', `${window.location.pathname}#auth=${authData}`);
+
+        expect(await sync.handleCallback()).toBe(false);
+        expect(localStorage.getItem('github_token')).toBeNull();
+    });
+
+    it('ignores an auth fragment whose csrf does not match this tab', async () => {
+        sync.isPreview = () => true;
+        sessionStorage.setItem('oauth_state', 'mine');
+        const authData = btoa(JSON.stringify({
+            token: 'attacker-tok', user: { login: 'iammike' }, gistId: 'g', csrf: 'theirs',
+        }));
+        window.history.replaceState({}, '', `${window.location.pathname}#auth=${authData}`);
+
+        expect(await sync.handleCallback()).toBe(false);
+        expect(localStorage.getItem('github_token')).toBeNull();
+    });
+
+    // Production never uses the fragment hop at all.
+    it('consumes the stored csrf so a replayed fragment fails', async () => {
+        sync.isPreview = () => true;
+        sessionStorage.setItem('oauth_state', 'once');
+        const authData = btoa(JSON.stringify({
+            token: 'owner-tok', user: { login: 'iammike' }, gistId: 'g', csrf: 'once',
+        }));
+        const url = `${window.location.pathname}#auth=${authData}`;
+        window.history.replaceState({}, '', url);
+        expect(await sync.handleCallback()).toBe(true);
+
+        sync.logout();
+        window.history.replaceState({}, '', url);
+
+        expect(await sync.handleCallback()).toBe(false);
+    });
+
+    it('ignores an auth fragment outside a preview origin', async () => {
+        sync.isPreview = () => false;
+        sessionStorage.setItem('oauth_state', 'mine');
+        const authData = btoa(JSON.stringify({
+            token: 'tok', user: { login: 'iammike' }, gistId: 'g', csrf: 'mine',
+        }));
+        window.history.replaceState({}, '', `${window.location.pathname}#auth=${authData}`);
+
+        expect(await sync.handleCallback()).toBe(false);
+        expect(localStorage.getItem('github_token')).toBeNull();
     });
 
     // The behaviour that matters: the rejection lands before findOrCreateGist(),
@@ -471,5 +566,345 @@ describe('GitHubSync owner-only sign-in', () => {
         // Proves the callback really ran rather than bailing early for some
         // unrelated reason - otherwise the assertion above passes vacuously.
         expect(calls.some(c => c.url.includes('api.github.com/user'))).toBe(true);
+    });
+});
+
+// The branch-preview return path classified a redirect target by substring
+// (`returnUrl.includes('.pages.dev')`), skipped CSRF verification on that basis,
+// and then put the live token in the target's URL fragment. A crafted authorize
+// link therefore walked the OWNER through a genuine GitHub flow and delivered a
+// gist+public_repo token to a host of the attacker's choosing.
+describe('GitHubSync branch-preview return URL', () => {
+    const ok = (u) => sync.isProjectPreviewUrl(u);
+
+    it('accepts the project preview host and its branch subdomains', () => {
+        expect(ok('https://sports-card-checklists.pages.dev/')).toBe(true);
+        expect(ok('https://fix-something.sports-card-checklists.pages.dev/x?y=1')).toBe(true);
+    });
+
+    // Anyone can create a Cloudflare Pages project, so *.pages.dev is not a
+    // boundary - only this project's own subdomain is.
+    it('rejects another Pages project', () => {
+        expect(ok('https://evil.pages.dev/')).toBe(false);
+        expect(ok('https://sports-card-checklists.pages.dev.evil.com/')).toBe(false);
+        // No dot before the host: a Pages project literally named
+        // "evilsports-card-checklists" is registrable by anyone.
+        expect(ok('https://evilsports-card-checklists.pages.dev/')).toBe(false);
+    });
+
+    // The substring test that shipped: .pages.dev anywhere in the URL passed.
+    it('rejects a foreign host that merely mentions the preview domain', () => {
+        expect(ok('https://evil.example/?x=.pages.dev')).toBe(false);
+        expect(ok('https://evil.example/#sports-card-checklists.pages.dev')).toBe(false);
+        expect(ok('https://evil.example/.pages.dev')).toBe(false);
+    });
+
+    it('rejects non-https and unparseable values', () => {
+        expect(ok('http://fix-x.sports-card-checklists.pages.dev/')).toBe(false);
+        expect(ok('javascript:alert(1)//sports-card-checklists.pages.dev')).toBe(false);
+        expect(ok('not a url')).toBe(false);
+        expect(ok(null)).toBe(false);
+        expect(ok(undefined)).toBe(false);
+    });
+});
+
+// login() decides where GitHub sends the callback. Nothing covered it, so a
+// misclassification here would break preview sign-in with the suite green.
+describe('GitHubSync.login branch-preview classification', () => {
+    afterEach(() => {
+        delete sync.isPreview;
+        delete sync._redirect;
+        expect(sync.isPreview).toBe(Object.getPrototypeOf(sync).isPreview);
+        expect(sync._redirect).toBe(Object.getPrototypeOf(sync)._redirect);
+        sessionStorage.clear();
+    });
+
+    it('treats a branch subdomain as a branch preview', () => {
+        sync.isPreview = () => true;
+
+        expect(sync._isBranchPreview('fix-x.sports-card-checklists.pages.dev')).toBe(true);
+    });
+
+    it('does not treat the apex preview, which receives the callback, as one', () => {
+        sync.isPreview = () => true;
+
+        expect(sync._isBranchPreview('sports-card-checklists.pages.dev')).toBe(false);
+    });
+
+    it('does not treat production as a preview at all', () => {
+        sync.isPreview = () => false;
+
+        expect(sync._isBranchPreview('iammike.github.io')).toBe(false);
+    });
+
+    it('sends a branch preview through the apex and asks to be returned', () => {
+        sync.isPreview = () => true;
+        let authUrl;
+        sync._redirect = (u) => { authUrl = u; };
+
+        sync.login();
+
+        const params = new URL(authUrl).searchParams;
+        expect(params.get('redirect_uri')).toBe('https://sports-card-checklists.pages.dev/');
+        const state = JSON.parse(atob(params.get('state')));
+        expect(state.returnUrl).toBe(window.location.href);
+        expect(state.csrf).toBe(sessionStorage.getItem('oauth_state'));
+    });
+
+    it('keeps the callback on this origin when not a branch preview', () => {
+        sync.isPreview = () => false;
+        let authUrl;
+        sync._redirect = (u) => { authUrl = u; };
+
+        sync.login();
+
+        const params = new URL(authUrl).searchParams;
+        expect(params.get('redirect_uri')).toBe(window.location.origin + window.location.pathname);
+        expect(JSON.parse(atob(params.get('state'))).returnUrl).toBeNull();
+    });
+});
+
+describe('GitHubSync OAuth CSRF verification', () => {
+    const realFetch = globalThis.fetch;
+    const realAlert = globalThis.alert;
+    const realSearch = window.location.search;
+
+    let requests;
+    beforeEach(() => {
+        globalThis.alert = () => {};
+        requests = [];
+        globalThis.fetch = async (url) => {
+            requests.push(String(url));
+            throw new Error('no request should be made');
+        };
+    });
+
+    afterEach(() => {
+        globalThis.fetch = realFetch;
+        globalThis.alert = realAlert;
+        window.history.replaceState({}, '', window.location.pathname + realSearch);
+        // Same discipline as the owner-only block: a leaked stub leaves later
+        // tests running on a fake preview flag or a swallowed redirect.
+        delete sync.isPreview;
+        delete sync._redirect;
+        expect(sync.isPreview).toBe(Object.getPrototypeOf(sync).isPreview);
+        expect(sync._redirect).toBe(Object.getPrototypeOf(sync)._redirect);
+        sessionStorage.clear();
+        localStorage.clear();
+        sync.token = null;
+        sync.user = null;
+    });
+
+    const happyFetch = (seen) => async (url) => {
+        seen.push(String(url));
+        if (String(url).includes('/token')) return { json: async () => ({ access_token: 'tok' }) };
+        if (String(url).includes('api.github.com/user')) return { json: async () => ({ login: 'iammike' }) };
+        return { ok: true, json: async () => ([{ id: 'g1', files: { 'sports-card-checklists.json': {} } }]) };
+    };
+
+    const arrive = async (stateObj) => {
+        const state = btoa(JSON.stringify(stateObj));
+        window.history.replaceState({}, '', `${window.location.pathname}?code=abc&state=${encodeURIComponent(state)}`);
+        return sync.handleCallback();
+    };
+
+    // The heart of it: a mismatched CSRF token must not be excused by anything
+    // the attacker put in the state.
+    it('rejects a mismatched csrf even with a preview-looking returnUrl', async () => {
+        // On a preview origin, where the exemption is actually live - otherwise the
+        // gate short-circuits on isPreview() and the returnUrl in this test is
+        // inert, leaving the attacker-relevant case uncovered.
+        sync.isPreview = () => true;
+        sessionStorage.setItem('oauth_state', 'the-real-one');
+
+        const result = await arrive({ csrf: 'forged', returnUrl: 'https://evil.example/?x=.pages.dev' });
+
+        expect(result).toBe(false);
+        expect(sync.token).toBeNull();
+        // Rejected at the CSRF check, not merely failed later: the code is never
+        // exchanged. Without this the test passes on any downstream error.
+        expect(requests).toEqual([]);
+    });
+
+    it('rejects a callback carrying no csrf and no preview return URL', async () => {
+        sessionStorage.setItem('oauth_state', 'the-real-one');
+
+        expect(await arrive({ returnUrl: null })).toBe(false);
+        expect(requests).toEqual([]);
+    });
+
+    // The simplest unsolicited link there is: ?code= with no state at all. The
+    // parse fails, csrf falls to null, and on a fresh tab the stored value is null
+    // too - so an equality check alone gives null !== null === false and exchanges
+    // the attacker's code. Only !stateData.csrf stops it. This mirrors the same
+    // null-vs-null cover the fragment path already has.
+    it('rejects a callback with no state parameter on a fresh tab', async () => {
+        sessionStorage.clear();
+        window.history.replaceState({}, '', `${window.location.pathname}?code=attacker-code`);
+
+        expect(await sync.handleCallback()).toBe(false);
+        expect(requests).toEqual([]);
+    });
+
+    it('rejects a callback whose csrf is null on a fresh tab', async () => {
+        sessionStorage.clear();
+
+        expect(await arrive({ csrf: null, returnUrl: null })).toBe(false);
+        expect(requests).toEqual([]);
+    });
+
+    // A branch preview begins on <branch>.<project>.pages.dev and lands here on
+    // <project>.pages.dev, so sessionStorage is empty and the token cannot be
+    // matched. That exemption is deliberate and is why the origin check above
+    // carries the weight: it is the only thing deciding who may be handed a token.
+    it('exempts a genuine project preview return URL from the csrf check', async () => {
+        sync.isPreview = () => true;   // the apex; production is covered below
+        sessionStorage.clear();
+
+        await arrive({ csrf: 'unverifiable', returnUrl: 'https://fix-x.sports-card-checklists.pages.dev/' });
+
+        expect(requests.some(u => u.includes('/token'))).toBe(true);
+    });
+
+    // The query path's own search IS the OAuth response, so it must go - while
+    // anything else in the query must stay. Neither direction was pinned, which is
+    // how a helper that preserved the whole query passed.
+    //
+    // The mixed shape below cannot arise on the query path in production, because
+    // login() builds redirect_uri from origin+pathname and drops the search. It is
+    // here to pin the helper itself, which the fragment path - where returnUrl does
+    // carry the query - genuinely depends on.
+    it('strips code and state from the URL but keeps the rest', async () => {
+        sessionStorage.setItem('oauth_state', 'match');
+        globalThis.fetch = happyFetch([]);
+        const state = btoa(JSON.stringify({ csrf: 'match', returnUrl: null }));
+        window.history.replaceState({}, '',
+            `${window.location.pathname}?id=jayden-daniels&code=abc&state=${encodeURIComponent(state)}`);
+
+        await sync.handleCallback();
+
+        expect(window.location.search).toBe('?id=jayden-daniels');
+    });
+
+    it('leaves no query at all when the OAuth response was the whole query', async () => {
+        sessionStorage.clear();
+        window.history.replaceState({}, '', `${window.location.pathname}?code=abc`);
+
+        await sync.handleCallback();
+
+        expect(window.location.search).toBe('');
+    });
+
+    // The nonce is one-time on this path too; the fragment path already covers it.
+    it('consumes the stored csrf so a replayed query callback fails', async () => {
+        sessionStorage.setItem('oauth_state', 'once');
+        globalThis.fetch = happyFetch([]);
+        const url = `${window.location.pathname}?code=abc&state=`
+            + encodeURIComponent(btoa(JSON.stringify({ csrf: 'once', returnUrl: null })));
+        window.history.replaceState({}, '', url);
+        expect(await sync.handleCallback()).toBe(true);
+
+        sync.logout();
+        requests.length = 0;
+        window.history.replaceState({}, '', url);
+
+        expect(await sync.handleCallback()).toBe(false);
+        expect(requests).toEqual([]);
+    });
+
+    // The exemption is justified only by the apex's empty sessionStorage. On
+    // production that reason does not hold: an unsolicited ?code= with a
+    // preview-shaped returnUrl must still be refused.
+    it('grants no csrf exemption on a production origin', async () => {
+        sync.isPreview = () => false;
+        sessionStorage.setItem('oauth_state', 'mine');
+
+        const result = await arrive({ csrf: 'forged', returnUrl: 'https://sports-card-checklists.pages.dev/' });
+
+        expect(result).toBe(false);
+        expect(requests).toEqual([]);
+    });
+
+    // The exploit end to end. Asserting on the return value or on /gists cannot
+    // show this: the redirect branch runs AFTER findOrCreateGist and also returns
+    // true, so every such assertion holds just as well while the token is being
+    // written into evil.example's fragment. Only the redirect itself distinguishes
+    // them, so _redirect is a seam we can watch.
+
+    it('never redirects a token to a foreign return URL', async () => {
+        // On a preview origin, where a redirect is possible at all - otherwise
+        // returnUrl is null for the wrong reason and this proves nothing.
+        sync.isPreview = () => true;
+        sessionStorage.setItem('oauth_state', 'match');
+        const seen = [];
+        globalThis.fetch = happyFetch(seen);
+        const redirects = [];
+        sync._redirect = (url) => redirects.push(url);
+
+        await arrive({ csrf: 'match', returnUrl: 'https://evil.example/?x=.pages.dev' });
+
+        expect(redirects).toEqual([]);
+    });
+
+    // The whole hop, end to end: what the sender embeds must be what the receiver
+    // accepts. Without this, dropping the csrf from the payload breaks every
+    // preview login - silently, and only once deployed.
+    it('completes a branch-preview round trip', async () => {
+        sync.isPreview = () => true;   // both legs run on preview origins
+        const seen = [];
+        globalThis.fetch = happyFetch(seen);
+        const redirects = [];
+        sync._redirect = (url) => redirects.push(url);
+
+        // Leg one, on the apex origin. Its sessionStorage is empty - the branch's
+        // copy belongs to another origin - so this leg genuinely exercises the
+        // returnUrl exemption, which is what production does here.
+        sessionStorage.clear();
+        await arrive({ csrf: 'round-trip', returnUrl: 'https://fix-x.sports-card-checklists.pages.dev/' });
+        expect(redirects).toHaveLength(1);
+
+        // Leg two, back on the branch origin, whose own sessionStorage still holds
+        // the value - a separate store from the apex's, which was just consumed.
+        sessionStorage.setItem('oauth_state', 'round-trip');
+        sync.token = null;
+        window.history.replaceState({}, '', window.location.pathname
+            + redirects[0].slice(redirects[0].indexOf('#')));
+
+        expect(await sync.handleCallback()).toBe(true);
+        expect(sync.token).toBe('tok');
+    });
+
+    it('redirects back to a genuine project preview', async () => {
+        sync.isPreview = () => true;
+        sessionStorage.setItem('oauth_state', 'match');
+        const seen = [];
+        globalThis.fetch = happyFetch(seen);
+        const redirects = [];
+        sync._redirect = (url) => redirects.push(url);
+
+        await arrive({ csrf: 'match', returnUrl: 'https://fix-x.sports-card-checklists.pages.dev/' });
+
+        expect(redirects).toHaveLength(1);
+        expect(redirects[0]).toContain('https://fix-x.sports-card-checklists.pages.dev/#auth=');
+    });
+});
+
+// Not an auth guard but the same function's gate: without it every ordinary page
+// load consumes oauth_state and logs a spurious CSRF error, and the #card- deep
+// link that _scrollToHashCard reads is cleaned away before it is used.
+describe('GitHubSync.handleCallback without an OAuth response', () => {
+    afterEach(() => {
+        window.history.replaceState({}, '', window.location.pathname);
+        sessionStorage.clear();
+    });
+
+    it('leaves the URL alone when there is no code', async () => {
+        sessionStorage.setItem('oauth_state', 'untouched');
+        window.history.replaceState({}, '', `${window.location.pathname}?id=jd#card-abc`);
+
+        expect(await sync.handleCallback()).toBe(false);
+
+        expect(window.location.hash).toBe('#card-abc');
+        expect(sessionStorage.getItem('oauth_state')).toBe('untouched');
     });
 });

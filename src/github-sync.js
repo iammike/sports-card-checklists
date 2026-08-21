@@ -26,6 +26,9 @@ const MIN_WRITE_SPACING_MS = 1000;
 // for - see _rejectIfNotOwner.
 const OWNER_USERNAME = 'iammike';
 
+// Cloudflare serves branch previews at <branch>.<project>.pages.dev.
+const PREVIEW_HOST = 'sports-card-checklists.pages.dev';
+
 // Storage keys
 const TOKEN_KEY = 'github_token';
 const GIST_ID_KEY = 'github_gist_id';
@@ -89,6 +92,47 @@ class GitHubSync {
         }
     }
 
+    // A branch preview, as opposed to the apex preview that receives the OAuth
+    // callback. Takes the hostname so it can be exercised for hosts the test
+    // environment cannot actually be served from.
+    _isBranchPreview(hostname = window.location.hostname) {
+        return this.isPreview() && hostname !== PREVIEW_HOST;
+    }
+
+    // Is this a URL we are willing to hand a token to? Parsed, not substring
+    // matched: "https://evil.example/?x=.pages.dev" contains the preview domain
+    // and is not it. Restricted to this project's own subdomains rather than
+    // *.pages.dev, because anyone can create a Pages project.
+    isProjectPreviewUrl(url) {
+        try {
+            const { protocol, hostname } = new URL(url);
+            return protocol === 'https:'
+                && (hostname === PREVIEW_HOST || hostname.endsWith('.' + PREVIEW_HOST));
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // Extracted so tests can observe where a token is sent. Asserting on the
+    // callback's return value cannot: the redirect branch also returns true.
+    _redirect(url) {
+        window.location.href = url;
+    }
+
+    // Drop the OAuth response from the address bar - the code/state query on one
+    // path, the #auth= fragment on the other - and keep everything else. All three
+    // matter: a leftover code makes every reload re-enter this callback, a
+    // leftover fragment leaves the token in history and the next Referer, and
+    // dropping the whole query takes ?id= with it so a reload has nothing to load.
+    _cleanAuthFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        params.delete('code');
+        params.delete('state');
+        const query = params.toString();
+        window.history.replaceState({}, document.title,
+            window.location.pathname + (query ? '?' + query : ''));
+    }
+
     isLoggedIn() {
         return !!this.token;
     }
@@ -100,12 +144,12 @@ class GitHubSync {
     // Start OAuth flow
     login() {
         // For branch previews, use main pages.dev as OAuth callback, then redirect back
-        const isBranchPreview = IS_PREVIEW && !window.location.hostname.match(/^sports-card-checklists\.pages\.dev$/);
+        const isBranchPreview = this._isBranchPreview();
         let redirectUri;
         let returnUrl = null;
         if (isBranchPreview) {
             returnUrl = window.location.href;
-            redirectUri = 'https://sports-card-checklists.pages.dev/';
+            redirectUri = `https://${PREVIEW_HOST}/`;
         } else {
             redirectUri = window.location.origin + window.location.pathname;
         }
@@ -115,7 +159,7 @@ class GitHubSync {
         const state = btoa(JSON.stringify(stateData));
         sessionStorage.setItem('oauth_state', stateData.csrf);
         const authUrl = `https://github.com/login/oauth/authorize?client_id=${CONFIG.GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&state=${encodeURIComponent(state)}`;
-        window.location.href = authUrl;
+        this._redirect(authUrl);
     }
 
     // Handle OAuth callback (call this on page load)
@@ -125,8 +169,20 @@ class GitHubSync {
         if (hash.startsWith('#auth=')) {
             try {
                 const authData = JSON.parse(atob(hash.slice(6)));
+                // Only a preview origin ever receives one of these, and only as the
+                // tail of a flow this tab started: the csrf must match the value
+                // login() put in sessionStorage before navigating away. Without
+                // that, any link could plant a token - and the ownership check
+                // below is no help, since the login it reads is in the same blob.
+                const expected = sessionStorage.getItem('oauth_state');
+                sessionStorage.removeItem('oauth_state');
+                if (!this.isPreview() || !authData.csrf || authData.csrf !== expected) {
+                    console.error('Rejected auth fragment: not a redirect this tab started');
+                    this._cleanAuthFromUrl();
+                    return false;
+                }
                 if (this._rejectIfNotOwner(authData.user)) {
-                    window.history.replaceState({}, document.title, window.location.pathname);
+                    this._cleanAuthFromUrl();
                     return false;
                 }
                 this.token = authData.token;
@@ -136,7 +192,7 @@ class GitHubSync {
                 localStorage.setItem(USER_KEY, JSON.stringify(this.user));
                 localStorage.setItem(GIST_ID_KEY, this.gistId);
                 // Clean URL
-                window.history.replaceState({}, document.title, window.location.pathname);
+                this._cleanAuthFromUrl();
                 if (this.onAuthChange) this.onAuthChange(true);
                 return true;
             } catch (e) {
@@ -159,22 +215,29 @@ class GitHubSync {
             stateData = { csrf: state, returnUrl: null };
         }
 
-        // Verify CSRF token - check both sessionStorage (same-origin) and allow branch previews
+        // A branch preview starts on <branch>.<project>.pages.dev and lands here on
+        // <project>.pages.dev - a different origin, so sessionStorage is empty and
+        // the csrf cannot be matched. That exemption is why isProjectPreviewUrl
+        // below carries the weight: it decides who may be handed a token.
+        //
+        // Residual on a preview origin: a forged code still gets exchanged, and
+        // _rejectIfNotOwner then logs out, so a link can end the owner's preview
+        // session. Nuisance-grade, owner-only, and inherent to the exemption.
+        // Gated on isPreview() too: the exemption's reason applies only on a
+        // preview origin. Production verifies the csrf and never redirects.
+        const returnUrl = this.isPreview() && this.isProjectPreviewUrl(stateData.returnUrl)
+            ? stateData.returnUrl
+            : null;
         const expectedState = sessionStorage.getItem('oauth_state');
         sessionStorage.removeItem('oauth_state');
-        // For branch preview redirects, we won't have sessionStorage, so trust the state if it has a valid returnUrl
-        const isBranchRedirect = stateData.returnUrl && stateData.returnUrl.includes('.pages.dev');
-        if (!isBranchRedirect && (!stateData.csrf || stateData.csrf !== expectedState)) {
+        if (!returnUrl && (!stateData.csrf || stateData.csrf !== expectedState)) {
             console.error('OAuth state mismatch - possible CSRF attack');
-            window.history.replaceState({}, document.title, window.location.pathname);
+            this._cleanAuthFromUrl();
             return false;
         }
 
-        // Store return URL for after auth completes
-        const returnUrl = stateData.returnUrl;
-
         // Clean URL
-        window.history.replaceState({}, document.title, window.location.pathname);
+        this._cleanAuthFromUrl();
 
         const priorToken = this.token;
         let tokenCommitted = false;
@@ -214,12 +277,17 @@ class GitHubSync {
             // Check if we need to redirect back to a branch preview
             if (returnUrl) {
                 // Pass auth data via URL fragment (not sent to server)
+                // The csrf goes back with it so the receiving origin can tell this
+                // payload apart from one an attacker pasted into a link. That origin
+                // set the value in sessionStorage before navigating away, and
+                // sessionStorage survives the round trip in the same tab.
                 const authData = btoa(JSON.stringify({
                     token: this.token,
                     user: this.user,
-                    gistId: this.gistId
+                    gistId: this.gistId,
+                    csrf: stateData.csrf,
                 }));
-                window.location.href = returnUrl + '#auth=' + authData;
+                this._redirect(returnUrl + '#auth=' + authData);
                 return true;
             }
 

@@ -220,12 +220,39 @@ describe('ChecklistExport.toCSV', () => {
     // field array rather than a trailing comma: with an empty Price in the fixture
     // a trailing comma is satisfied even when the Owned field is gone entirely,
     // and dropping it silently shifts every column left of it.
-    it('emits one field per declared column, with Owned last and empty', () => {
+    it('emits one field per declared column, with Owned last and unticked', () => {
         const rows = [row({ variant: 'Silver', serial: '/99', price: 45 }), row({ num: '2', name: 'Other' })];
         const fields = ChecklistExport.toCSV(rows).split('\r\n')[1].split(',');
 
-        expect(fields).toEqual(['Base', '2024 Prizm', '1', 'Jayden Daniels', 'Silver', '/99', '45', '']);
+        expect(fields).toEqual(['Base', '2024 Prizm', '1', 'Jayden Daniels', 'Silver', '/99', '45', 'FALSE']);
         expect(fields).toHaveLength(ChecklistExport.CSV_COLUMNS.length);
+    });
+
+    // FALSE on every row regardless of what the owner owns - the column is the
+    // visitor's to fill in, and TRUE anywhere would leak the owner's collection.
+    it('writes FALSE in Owned on every row', () => {
+        // Rows carry an ownership flag here on purpose: without one, an Owned
+        // accessor that read ownership would emit FALSE anyway and this would
+        // pass while leaking the owner's collection.
+        const csv = ChecklistExport.toCSV([
+            { ...row(), owned: true },
+            { ...row({ num: '2' }), owned: false },
+            { ...row({ num: '3' }), owned: true },
+        ]);
+        const lines = csv.split('\r\n').slice(1);
+
+        expect(lines).toHaveLength(3);
+        lines.forEach(l => expect(l.split(',').pop()).toBe('FALSE'));
+        expect(csv).not.toContain('TRUE');
+    });
+
+    // Structural backstop: no ownership ever reaches a row in the first place.
+    it('never puts an ownership field on a collected row', () => {
+        const cards = [{ set: '2024 Prizm', num: '1', owned: true }];
+
+        const [r] = ChecklistExport.collectRows(cards, { dataShape: 'flat' }, true);
+
+        expect(Object.keys(r)).not.toContain('owned');
     });
 
     it('keeps field order matching the header', () => {
@@ -341,7 +368,7 @@ describe('ChecklistExport dialog', () => {
         expect(downloads[0].filename).toBe('jayden-daniels-checklist.csv');
     });
 
-    it('includes every card, owned or not, with an empty Owned column', () => {
+    it('includes every card, owned or not, with Owned unticked', () => {
         openAndExport();
 
         // Excel on Windows needs the BOM to decode accented names correctly.
@@ -351,7 +378,10 @@ describe('ChecklistExport dialog', () => {
         expect(lines[0]).toBe('Section,Set,Number,Variant,Serial,Price,Owned');
         expect(lines).toHaveLength(3);
         const cols = lines[0].split(',').length;
-        lines.slice(1).forEach(l => expect(l.split(',')).toHaveLength(cols));
+        lines.slice(1).forEach(l => {
+            expect(l.split(',')).toHaveLength(cols);
+            expect(l.split(',').pop()).toBe('FALSE');
+        });
     });
 
     it('drops extra categories when the box is unchecked', () => {

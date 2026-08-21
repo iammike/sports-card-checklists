@@ -18,7 +18,10 @@ const ChecklistExport = {
         Variant: r => r.variant,
         Serial: r => r.serial,
         Price: r => r.price || '',
-        Owned: () => '',   // the visitor's to fill in
+        // FALSE, not blank: select the column in Google Sheets and Insert -> Checkbox
+        // and these become real unticked boxes. Always the visitor's own tracking,
+        // never the owner's ownership.
+        Owned: () => 'FALSE',
     },
 
     // A checklist for one player repeats that name on every row. Dropped from both
