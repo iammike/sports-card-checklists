@@ -135,7 +135,7 @@ describe('ChecklistExport.collectRows', () => {
         const [row] = ChecklistExport.collectRows(cards, { dataShape: 'flat' }, true);
 
         expect(row).toMatchObject({
-            year: 2024, set: 'Panini Prizm', num: '17',
+            set: '2024 Panini Prizm', num: '17',
             name: 'Jayden Daniels', variant: 'Silver', serial: '/99', price: 45,
         });
     });
@@ -155,26 +155,21 @@ describe('ChecklistExport.collectRows', () => {
         expect(ChecklistExport.collectRows(cards, { dataShape: 'flat' }, true)[0].price).toBe(45);
     });
 
-    // "2024 Leaf Pro Set 1989" - the leading 2024 is the year, the trailing 1989 is
-    // part of the set's name. A global year match would eat both.
-    it('strips only a leading year from the set name', () => {
-        const cards = [{ set: '2024 Leaf Pro Set 1989', num: '1' }];
+    // Set is exported exactly as stored. No year extraction, so none of the
+    // year-shaped traps apply: a season span and a year that is part of the set's
+    // own name both survive untouched.
+    it('exports the set name exactly as stored', () => {
+        const cards = [
+            { set: '2012-13 Panini Prizm', num: '1' },
+            { set: '2024 Leaf Pro Set 1989', num: '2' },
+            { set: 'Topps Pro Set 1989', num: '3' },
+        ];
 
-        const [row] = ChecklistExport.collectRows(cards, { dataShape: 'flat' }, true);
+        const rows = ChecklistExport.collectRows(cards, { dataShape: 'flat' }, true);
 
-        expect(row.year).toBe(2024);
-        expect(row.set).toBe('Leaf Pro Set 1989');
-    });
-
-    // Contains a year but does not start with one. An unanchored strip would eat
-    // the 1989 and leave a set nobody would recognise.
-    it('leaves an embedded year alone when the set does not start with one', () => {
-        const cards = [{ set: 'Topps Pro Set 1989', num: '1' }];
-
-        const [row] = ChecklistExport.collectRows(cards, { dataShape: 'flat' }, true);
-
-        expect(row.year).toBe(0);
-        expect(row.set).toBe('Topps Pro Set 1989');
+        expect(rows.map(r => r.set)).toEqual([
+            '2012-13 Panini Prizm', '2024 Leaf Pro Set 1989', 'Topps Pro Set 1989',
+        ]);
     });
 
     it('prefers an explicit card name over the player', () => {
@@ -187,22 +182,29 @@ describe('ChecklistExport.collectRows', () => {
 
 describe('ChecklistExport.toCSV', () => {
     const row = (over = {}) => ({
-        section: 'Base', year: 2024, set: '2024 Prizm', num: '1',
+        section: 'Base', set: '2024 Prizm', num: '1',
         name: 'Jayden Daniels', variant: '', serial: '', price: 0, ...over,
     });
 
     it('starts with a header row naming every column', () => {
         const header = ChecklistExport.toCSV([row({ name: 'A' }), row({ name: 'B' })]).split('\r\n')[0];
 
-        expect(header).toBe('Section,Year,Set,Number,Name,Variant,Serial,Price,Owned');
+        expect(header).toBe('Section,Set,Number,Name,Variant,Serial,Price,Owned');
     });
 
     // Every row of a single-player checklist repeats the same name.
     it('drops the Name column when every card names the same player', () => {
         const csv = ChecklistExport.toCSV([row(), row({ num: '2' })]);
 
-        expect(csv.split('\r\n')[0]).toBe('Section,Year,Set,Number,Variant,Serial,Price,Owned');
+        expect(csv.split('\r\n')[0]).toBe('Section,Set,Number,Variant,Serial,Price,Owned');
         expect(csv).not.toContain('Jayden Daniels');
+    });
+
+    it('keeps the Name column when only some cards are named', () => {
+        const csv = ChecklistExport.toCSV([row({ name: '' }), row({ num: '2', name: 'Team Card' })]);
+
+        expect(csv.split('\r\n')[0]).toContain('Name');
+        expect(csv).toContain('Team Card');
     });
 
     it('keeps the Name column as soon as one card names someone else', () => {
@@ -222,7 +224,7 @@ describe('ChecklistExport.toCSV', () => {
         const rows = [row({ variant: 'Silver', serial: '/99', price: 45 }), row({ num: '2', name: 'Other' })];
         const fields = ChecklistExport.toCSV(rows).split('\r\n')[1].split(',');
 
-        expect(fields).toEqual(['Base', '2024', '2024 Prizm', '1', 'Jayden Daniels', 'Silver', '/99', '45', '']);
+        expect(fields).toEqual(['Base', '2024 Prizm', '1', 'Jayden Daniels', 'Silver', '/99', '45', '']);
         expect(fields).toHaveLength(ChecklistExport.CSV_COLUMNS.length);
     });
 
@@ -270,6 +272,18 @@ describe('ChecklistExport.toCSV', () => {
         // Indexed off the declared columns: ',,' appears anyway for the empty
         // variant and serial, so a substring check proves nothing here.
         expect(fields[ChecklistExport.CSV_COLUMNS.indexOf('Price')]).toBe('');
+    });
+});
+
+describe('ChecklistExport.CSV_FIELDS', () => {
+    // A column without an accessor throws a TypeError inside the click handler,
+    // which the CSV branch does not catch - the modal would just sit there.
+    it('has an accessor for every declared column', () => {
+        ChecklistExport.CSV_COLUMNS.forEach(c => {
+            expect(typeof ChecklistExport.CSV_FIELDS[c]).toBe('function');
+        });
+        expect(Object.keys(ChecklistExport.CSV_FIELDS).sort())
+            .toEqual([...ChecklistExport.CSV_COLUMNS].sort());
     });
 });
 
@@ -324,7 +338,7 @@ describe('ChecklistExport dialog', () => {
         expect(downloads[0].content.startsWith('\uFEFF')).toBe(true);
         const lines = downloads[0].content.slice(1).split('\r\n');
         // One player throughout, so Name is dropped.
-        expect(lines[0]).toBe('Section,Year,Set,Number,Variant,Serial,Price,Owned');
+        expect(lines[0]).toBe('Section,Set,Number,Variant,Serial,Price,Owned');
         expect(lines).toHaveLength(3);
         const cols = lines[0].split(',').length;
         lines.slice(1).forEach(l => expect(l.split(',')).toHaveLength(cols));
@@ -467,16 +481,16 @@ describe('ChecklistExport.buildPDF', () => {
     const strings = () => doc.calls.text.map(t => t.str);
 
     const ROWS = [
-        { section: 'Base Set', year: 2024, year: 2024, set: '2024 Prizm', num: '1', name: 'Daniels', variant: '', serial: '', price: 45 },
-        { section: 'Base Set', year: 2024, set: '2024 Prizm', num: '2', name: 'Daniels', variant: '', serial: '', price: 0 },
-        { section: 'Inserts', year: 2024, set: '2024 Kaboom', num: 'K1', name: 'Daniels', variant: '', serial: '', price: 120 },
+        { section: 'Base Set', set: '2024 Prizm', num: '1', name: 'Daniels', variant: '', serial: '', price: 45 },
+        { section: 'Base Set', set: '2024 Prizm', num: '2', name: 'Daniels', variant: '', serial: '', price: 0 },
+        { section: 'Inserts', set: '2024 Kaboom', num: 'K1', name: 'Daniels', variant: '', serial: '', price: 120 },
         // Sub-dollar: rounding this to whole dollars is what printed a real card
         // as $0, and without it the $0 assertion below never exercises the sink.
-        { section: 'Inserts', year: 2024, set: '2024 Wave', num: 'W1', name: 'Daniels', variant: '', serial: '', price: 0.4 },
+        { section: 'Inserts', set: '2024 Wave', num: 'W1', name: 'Daniels', variant: '', serial: '', price: 0.4 },
     ];
 
     const manyRows = (n) => Array.from({ length: n }, (_, i) => ({
-        section: 'Base Set', year: 2024, set: '2024 Prizm', num: String(i + 1),
+        section: 'Base Set', set: '2024 Prizm', num: String(i + 1),
         name: 'Daniels', variant: '', serial: '', price: 0,
     }));
 
@@ -518,10 +532,8 @@ describe('ChecklistExport.buildPDF', () => {
         // ROWS is one player throughout, so Name is dropped and Year is its own
         // column: Year | Set | # | Variant | Price, left to right.
         expect(strings()).not.toContain('Daniels');
-        const yearX = doc.calls.text.filter(t => t.str === '2024')[1].x;
         const setX = doc.calls.text.filter(t => t.str === '2024 Prizm')[0].x;
         const numX = doc.calls.text.find(t => t.str === '1').x;
-        expect(yearX).toBeLessThan(setX);
         expect(setX).toBeLessThan(numX);
         expect(strings()).toContain('$45');
         // A zero price is blank, and a sub-dollar one keeps its cents rather than
@@ -562,7 +574,7 @@ describe('ChecklistExport.buildPDF', () => {
         await ChecklistExport.buildPDF(ROWS, { title: 'Jayden Daniels', filename: 'x.pdf' });
 
         expect(strings()).not.toContain('Name');
-        expect(strings()).toContain('Year');
+        expect(strings()).toContain('Set');
     });
 
     it('keeps the Name column as soon as one card names someone else', async () => {
@@ -572,6 +584,31 @@ describe('ChecklistExport.buildPDF', () => {
 
         expect(strings()).toContain('Name');
         expect(strings()).toContain('Team Card');
+    });
+
+    // Neither layout was pinned: widening Set to 188mm, shrinking Variant to 8mm,
+    // reordering, or dropping Year from the with-Name array all passed.
+    it('lays out both column sets across the same usable width', async () => {
+        await ChecklistExport.buildPDF(ROWS, { title: 'T', filename: 'x.pdf' });
+        // Header cells advance strictly left to right and stay on the page.
+        const headers = doc.calls.text.filter(t => ['Set', '#', 'Variant', 'Price'].includes(t.str));
+        const xs = [...new Set(headers.map(h => h.x))].sort((a, b) => a - b);
+        expect(xs).toHaveLength(4);
+        expect(xs).toEqual([...xs].sort((a, b) => a - b));
+        expect(Math.max(...xs)).toBeLessThan(203.9);
+    });
+
+    it('keeps every column ordered when Name is present', async () => {
+        const mixed = [...ROWS, { ...ROWS[0], num: '9', name: 'Team Card' }];
+
+        await ChecklistExport.buildPDF(mixed, { title: 'T', filename: 'x.pdf' });
+
+        const order = ['Set', '#', 'Name', 'Variant', 'Price']
+            .map(l => doc.calls.text.find(t => t.str === l));
+        expect(order.every(Boolean)).toBe(true);
+        const xs = order.map(h => h.x);
+        expect(xs).toEqual([...xs].sort((a, b) => a - b));
+        expect(Math.max(...xs)).toBeLessThan(203.9);
     });
 
     it('loads jsPDF before building', async () => {
@@ -600,5 +637,34 @@ describe('ChecklistExport._formatPrice', () => {
     it('rounds to whole dollars at a dollar and above', () => {
         expect(ChecklistExport._formatPrice(45.6)).toBe('46');
         expect(ChecklistExport._formatPrice(1)).toBe('1');
+    });
+});
+
+describe('ChecklistExport.columnLayout', () => {
+    const total = (cols) => cols.reduce((sum, c) => sum + c.width, 0);
+
+    // A collapsed or over-wide column still draws headers in ascending order and
+    // still fits on the page, so only the arithmetic catches it.
+    it('spans exactly the usable width with and without Name', () => {
+        expect(total(ChecklistExport.columnLayout(true))).toBeCloseTo(ChecklistExport.USABLE_WIDTH, 5);
+        expect(total(ChecklistExport.columnLayout(false))).toBeCloseTo(ChecklistExport.USABLE_WIDTH, 5);
+    });
+
+    it('gives Name\'s width to Set and Variant when it is dropped', () => {
+        const withName = ChecklistExport.columnLayout(true);
+        const without = ChecklistExport.columnLayout(false);
+        const w = (cols, key) => cols.find(c => c.key === key).width;
+
+        expect(without.some(c => c.key === 'name')).toBe(false);
+        expect(w(without, 'set')).toBeGreaterThan(w(withName, 'set'));
+        expect(w(without, 'variant')).toBeGreaterThan(w(withName, 'variant'));
+    });
+
+    it('keeps every column at a usable width', () => {
+        [true, false].forEach(showName => {
+            ChecklistExport.columnLayout(showName).forEach(c => {
+                expect(c.width).toBeGreaterThanOrEqual(8);
+            });
+        });
     });
 });

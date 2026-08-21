@@ -6,13 +6,12 @@
  * reads the engine's already-loaded cards rather than re-fetching the gist.
  */
 const ChecklistExport = {
-    CSV_COLUMNS: ['Section', 'Year', 'Set', 'Number', 'Name', 'Variant', 'Serial', 'Price', 'Owned'],
+    CSV_COLUMNS: ['Section', 'Set', 'Number', 'Name', 'Variant', 'Serial', 'Price', 'Owned'],
 
     // Column -> value, so a header and its data cannot drift apart. Reordering or
     // removing a column is one edit to the list above, not two that must agree.
     CSV_FIELDS: {
         Section: r => r.section,
-        Year: r => r.year || '',
         Set: r => r.set,
         Number: r => r.num,
         Name: r => r.name,
@@ -27,7 +26,7 @@ const ChecklistExport = {
     // 192mm line. Any card naming someone else - a team card, a dual auto - brings
     // the column back, so this follows the data rather than a config flag.
     _namesVary(rows) {
-        return new Set(rows.map(r => r.name).filter(Boolean)).size > 1;
+        return new Set(rows.map(r => r.name || '')).size > 1;
     },
 
     columnsFor(rows) {
@@ -45,8 +44,7 @@ const ChecklistExport = {
                 if (card.collectionLink || card.noCard) return;
                 rows.push({
                     section,
-                    year: CardRenderer.getYear(card),
-                    set: (card.set || '').replace(/^\d{4}\s*/, ''),
+                    set: card.set || '',
                     num: card.num || '',
                     name: card.name || card.player || '',
                     variant: card.variant || '',
@@ -98,6 +96,29 @@ const ChecklistExport = {
         return p < 1 ? p.toFixed(2) : p.toFixed(0);
     },
 
+    // Both layouts must span the same line, or one of them silently runs off the
+    // page. USABLE_WIDTH is pageWidth - 2*margin for letter at 12mm margins.
+    USABLE_WIDTH: 191.9,
+
+    columnLayout(showName) {
+        return showName
+            ? [
+                { key: null, label: '', width: 8 },
+                { key: 'set', label: 'Set', width: 76 },
+                { key: 'num', label: '#', width: 14 },
+                { key: 'name', label: 'Name', width: 40 },
+                { key: 'variant', label: 'Variant', width: 38 },
+                { key: 'price', label: 'Price', width: 15.9 },
+            ]
+            : [
+                { key: null, label: '', width: 8 },
+                { key: 'set', label: 'Set', width: 102 },
+                { key: 'num', label: '#', width: 14 },
+                { key: 'variant', label: 'Variant', width: 52 },
+                { key: 'price', label: 'Price', width: 15.9 },
+            ];
+    },
+
     // A separate builder from ShoppingList.buildPDF rather than a mode flag on it.
     // The documents differ in title, summary, column set and grouping axis, so
     // parameterising would thread branches through the export the owner relies on.
@@ -112,27 +133,10 @@ const ChecklistExport = {
         const usableWidth = pageWidth - margin * 2;
 
         const boxSize = 3.2;
-        // Widths sum to the 191.9mm usable line either way; dropping Name gives its
-        // space to Set and Variant, the two that actually run long.
+        // Both layouts sum to 192mm; dropping Name gives its space to Set and
+        // Variant, the two that actually run long.
         const showName = this._namesVary(rows);
-        const cols = showName
-            ? [
-                { key: null, label: '', width: 8 },
-                { key: 'year', label: 'Year', width: 14 },
-                { key: 'set', label: 'Set', width: 62 },
-                { key: 'num', label: '#', width: 14 },
-                { key: 'name', label: 'Name', width: 40 },
-                { key: 'variant', label: 'Variant', width: 38 },
-                { key: 'price', label: 'Price', width: 16 },
-            ]
-            : [
-                { key: null, label: '', width: 8 },
-                { key: 'year', label: 'Year', width: 14 },
-                { key: 'set', label: 'Set', width: 88 },
-                { key: 'num', label: '#', width: 14 },
-                { key: 'variant', label: 'Variant', width: 52 },
-                { key: 'price', label: 'Price', width: 16 },
-            ];
+        const cols = this.columnLayout(showName);
         const rowHeight = 5.5;
         const headerHeight = 7;
         const sectionHeaderHeight = 7;
