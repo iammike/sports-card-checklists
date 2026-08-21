@@ -718,11 +718,25 @@ describe('GitHubSync OAuth CSRF verification', () => {
     // matched. That exemption is deliberate and is why the origin check above
     // carries the weight: it is the only thing deciding who may be handed a token.
     it('exempts a genuine project preview return URL from the csrf check', async () => {
+        sync.isPreview = () => true;   // the apex; production is covered below
         sessionStorage.clear();
 
         await arrive({ csrf: 'unverifiable', returnUrl: 'https://fix-x.sports-card-checklists.pages.dev/' });
 
         expect(requests.some(u => u.includes('/token'))).toBe(true);
+    });
+
+    // The exemption is justified only by the apex's empty sessionStorage. On
+    // production that reason does not hold: an unsolicited ?code= with a
+    // preview-shaped returnUrl must still be refused.
+    it('grants no csrf exemption on a production origin', async () => {
+        sync.isPreview = () => false;
+        sessionStorage.setItem('oauth_state', 'mine');
+
+        const result = await arrive({ csrf: 'forged', returnUrl: 'https://sports-card-checklists.pages.dev/' });
+
+        expect(result).toBe(false);
+        expect(requests).toEqual([]);
     });
 
     // The exploit end to end. Asserting on the return value or on /gists cannot
@@ -738,6 +752,9 @@ describe('GitHubSync OAuth CSRF verification', () => {
     };
 
     it('never redirects a token to a foreign return URL', async () => {
+        // On a preview origin, where a redirect is possible at all - otherwise
+        // returnUrl is null for the wrong reason and this proves nothing.
+        sync.isPreview = () => true;
         sessionStorage.setItem('oauth_state', 'match');
         const seen = [];
         globalThis.fetch = happyFetch(seen);
@@ -753,7 +770,7 @@ describe('GitHubSync OAuth CSRF verification', () => {
     // accepts. Without this, dropping the csrf from the payload breaks every
     // preview login - silently, and only once deployed.
     it('completes a branch-preview round trip', async () => {
-        sync.isPreview = () => true;
+        sync.isPreview = () => true;   // both legs run on preview origins
         const seen = [];
         globalThis.fetch = happyFetch(seen);
         const redirects = [];
@@ -778,6 +795,7 @@ describe('GitHubSync OAuth CSRF verification', () => {
     });
 
     it('redirects back to a genuine project preview', async () => {
+        sync.isPreview = () => true;
         sessionStorage.setItem('oauth_state', 'match');
         const seen = [];
         globalThis.fetch = happyFetch(seen);

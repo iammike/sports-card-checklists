@@ -215,7 +215,13 @@ class GitHubSync {
         // origin pinned to this project's own previews, the exemption can no longer
         // route a token off-site, and a forged code merely authenticates as someone
         // who is not the owner - which _rejectIfNotOwner then refuses.
-        const returnUrl = this.isProjectPreviewUrl(stateData.returnUrl) ? stateData.returnUrl : null;
+        // Gated on isPreview() as well as the URL: the exemption exists because the
+        // apex preview cannot see the branch's sessionStorage, and that reason
+        // applies only there. Production has its own store and no handoff to make,
+        // so it verifies the csrf like anyone else and never redirects.
+        const returnUrl = (this.isPreview() && this.isProjectPreviewUrl(stateData.returnUrl))
+            ? stateData.returnUrl
+            : null;
         const expectedState = sessionStorage.getItem('oauth_state');
         sessionStorage.removeItem('oauth_state');
         if (!returnUrl && (!stateData.csrf || stateData.csrf !== expectedState)) {
