@@ -99,7 +99,9 @@ const ShoppingList = {
 
         const modal = backdrop.querySelector('.card-editor-modal');
         modal.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
+            // Buttons activate on Enter natively; forwarding those would fire
+            // Generate twice, or fire it when Cancel had focus.
+            if (e.key === 'Enter' && !e.target.closest('button')) {
                 backdrop.querySelector('#sl-generate').click();
             }
         });

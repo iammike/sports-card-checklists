@@ -25,7 +25,7 @@ const ChecklistExport = {
                     name: card.name || card.player || '',
                     variant: card.variant || '',
                     serial: card.serial || '',
-                    price: card.price || 0,
+                    price: Number(card.price) || 0,
                 });
             });
         };
@@ -265,7 +265,11 @@ const ChecklistExport = {
         });
         backdrop.querySelector('#ce-export').onclick = () => this._onExport();
         backdrop.querySelector('.card-editor-modal').addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') backdrop.querySelector('#ce-export').click();
+            // Buttons activate on Enter natively; forwarding those would fire
+            // Export twice, or fire it when Cancel had focus.
+            if (e.key === 'Enter' && !e.target.closest('button')) {
+                backdrop.querySelector('#ce-export').click();
+            }
         });
 
         document.body.appendChild(backdrop);

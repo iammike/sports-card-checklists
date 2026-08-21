@@ -1465,7 +1465,7 @@ class ChecklistEngine {
             // current #sort-filter choice, which also collapses the page into one
             // flat section. An export should be the checklist, not a snapshot of
             // one person's view of it.
-            sort: (list) => (this.config.defaultSortMode
+            sort: (list) => (this.config?.defaultSortMode
                 ? this.sortCards([...list], this.config.defaultSortMode)
                 : list),
         }));

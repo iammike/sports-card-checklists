@@ -140,6 +140,21 @@ describe('ChecklistExport.collectRows', () => {
         });
     });
 
+    // Gist prices are hand-edited and can be strings or garbage - getPrice in the
+    // engine says so explicitly. Without coercion a junk value lands in the CSV
+    // verbatim and an importing spreadsheet inherits it.
+    it('coerces a non-numeric price to zero', () => {
+        const cards = [{ set: '2024 Prizm', num: '1', price: 'ask' }];
+
+        expect(ChecklistExport.collectRows(cards, { dataShape: 'flat' }, true)[0].price).toBe(0);
+    });
+
+    it('keeps a numeric string price as a number', () => {
+        const cards = [{ set: '2024 Prizm', num: '1', price: '45' }];
+
+        expect(ChecklistExport.collectRows(cards, { dataShape: 'flat' }, true)[0].price).toBe(45);
+    });
+
     it('prefers an explicit card name over the player', () => {
         const cards = [{ set: '2024 Prizm', num: '1', name: 'Team Card' }];
 
@@ -317,6 +332,40 @@ describe('ChecklistExport dialog', () => {
         expect(document.getElementById('ce-format-csv').checked).toBe(true);
     });
 
+    // Both ends of the sort were pinned but not the seam: dropping the argument
+    // in _onExport silently exported gist storage order and passed every test.
+    it('forwards the context sort into the exported rows', () => {
+        const ctx = CONTEXT();
+        ctx.cards = { base: [{ set: 'B', num: '2' }, { set: 'A', num: '1' }] };
+        ctx.config = { categories: [{ id: 'base', label: 'Base Set', isMain: true }] };
+        ctx.sort = (list) => [...list].sort((a, b) => a.num.localeCompare(b.num));
+
+        ChecklistExport.open(ctx);
+        document.getElementById('ce-export').click();
+
+        const lines = downloads[0].content.slice(1).split('\r\n');
+        expect(lines[1]).toContain(',1,');
+        expect(lines[2]).toContain(',2,');
+    });
+
+    // Enter is forwarded so the radios and checkbox submit, but buttons already
+    // activate natively - forwarding those exported from Cancel.
+    it('does not export when Enter is pressed on a button', () => {
+        ChecklistExport.open(CONTEXT());
+        const cancel = document.getElementById('ce-cancel');
+        cancel.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+
+        expect(downloads).toHaveLength(0);
+    });
+
+    it('exports when Enter is pressed on an option control', () => {
+        ChecklistExport.open(CONTEXT());
+        const box = document.getElementById('ce-include-extra');
+        box.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+
+        expect(downloads).toHaveLength(1);
+    });
+
     it('closes without exporting when cancelled', () => {
         ChecklistExport.open(CONTEXT());
         document.getElementById('ce-cancel').click();
@@ -380,6 +429,9 @@ describe('ChecklistExport.buildPDF', () => {
         { section: 'Base Set', year: 2024, set: '2024 Prizm', num: '1', name: 'Daniels', variant: '', serial: '', price: 45 },
         { section: 'Base Set', year: 2024, set: '2024 Prizm', num: '2', name: 'Daniels', variant: '', serial: '', price: 0 },
         { section: 'Inserts', year: 2024, set: '2024 Kaboom', num: 'K1', name: 'Daniels', variant: '', serial: '', price: 120 },
+        // Sub-dollar: rounding this to whole dollars is what printed a real card
+        // as $0, and without it the $0 assertion below never exercises the sink.
+        { section: 'Inserts', year: 2024, set: '2024 Wave', num: 'W1', name: 'Daniels', variant: '', serial: '', price: 0.4 },
     ];
 
     const manyRows = (n) => Array.from({ length: n }, (_, i) => ({
@@ -390,7 +442,7 @@ describe('ChecklistExport.buildPDF', () => {
     it('draws one empty checkbox per card', async () => {
         await ChecklistExport.buildPDF(ROWS, { title: 'Jayden Daniels', filename: 'x.pdf' });
 
-        expect(doc.calls.strokedRects).toHaveLength(3);
+        expect(doc.calls.strokedRects).toHaveLength(4);
     });
 
     it('saves under the requested filename', async () => {
@@ -404,7 +456,7 @@ describe('ChecklistExport.buildPDF', () => {
 
         const text = strings().join('|');
         expect(text).toContain('Jayden Daniels');
-        expect(text).toContain('3 cards');
+        expect(text).toContain('4 cards');
         // This is not the shopping list: nothing is "needed" and no cost is totalled.
         expect(text).not.toContain('needed');
         expect(text).not.toContain('Est. cost');
@@ -431,8 +483,10 @@ describe('ChecklistExport.buildPDF', () => {
         expect(setX).toBeLessThan(numX);
         expect(numX).toBeLessThan(nameX);
         expect(strings()).toContain('$45');
-        // A zero price is left blank rather than printed as $0.
+        // A zero price is blank, and a sub-dollar one keeps its cents rather than
+        // rounding down to $0.
         expect(strings()).not.toContain('$0');
+        expect(strings()).toContain('$0.40');
     });
 
     it('repeats the column header on every page of a long checklist', async () => {
