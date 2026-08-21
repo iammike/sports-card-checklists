@@ -99,11 +99,17 @@ const ChecklistExport = {
     },
 
     // The content block. buildPDF derives its horizontal margin from this, so both
-    // layouts span exactly this width or one of them runs off the page. Column
-    // widths are sized from the longest real values in the gist: card numbers run
-    // to ~21mm (MOCPA-JD), set names to ~78mm, variants to ~52mm.
+    // layouts span exactly this width or one of them runs off the page.
+    //
+    // Columns are sized from the longest values in the live gist, measured at
+    // Helvetica 8pt: numbers 18.7mm ("#34 / 139 / 174"), set names 77.2mm on the
+    // no-Name layout and 49.1mm with Name, variants 51.3mm, names 32.2mm. The #
+    // column carries ~2mm more than it needs on purpose - truncating a card number
+    // costs a reader the identifier, so it is the one column to over-provision.
     USABLE_WIDTH: 191.9,
 
+    // No Serial column: it matters to an importer, but on paper the print run is
+    // already on the card and the width is better spent on Set.
     columnLayout(showName) {
         return showName
             ? [
@@ -138,8 +144,6 @@ const ChecklistExport = {
         const usableWidth = this.USABLE_WIDTH;
         const margin = (pageWidth - usableWidth) / 2;
 
-        // Serial is CSV-only: it matters to an importer but costs a column here,
-        // and the print run is already visible on the card itself.
         const boxSize = 3.2;
         // Both layouts sum to USABLE_WIDTH; dropping Name gives its space to Set and
         // Variant, the two that actually run long.

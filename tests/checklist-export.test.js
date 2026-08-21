@@ -470,6 +470,26 @@ describe('ChecklistExport dialog', () => {
 
         const row = document.getElementById('ce-include-extra').closest('.shopping-list-option');
         expect(row.style.display).not.toBe('none');
+        // Without these, hiding the section unconditionally passes.
+        expect(document.getElementById('ce-options-label').style.display).not.toBe('none');
+        expect(document.getElementById('ce-options-divider').style.display).not.toBe('none');
+    });
+
+    // The modal is a singleton, so a checklist with a hidden section followed by a
+    // normal one must get the section back.
+    it('restores the options section on a later checklist that has main categories', () => {
+        const hidden = CONTEXT();
+        hidden.config = { categories: [{ id: 'a', label: 'A', isMain: false }] };
+        ChecklistExport.open(hidden);
+        ChecklistExport.close();
+
+        ChecklistExport.open(CONTEXT());
+
+        // All three parts, or a guard on any single line survives.
+        expect(document.getElementById('ce-options-label').style.display).not.toBe('none');
+        expect(document.getElementById('ce-options-divider').style.display).not.toBe('none');
+        expect(document.getElementById('ce-include-extra')
+            .closest('.shopping-list-option').style.display).not.toBe('none');
     });
 
     // N4: closing after a CSV download was untested, so it could regress into
@@ -657,7 +677,7 @@ describe('ChecklistExport.buildPDF', () => {
         const xs = [...new Set(headers.map(h => h.x))].sort((a, b) => a - b);
         expect(xs).toHaveLength(4);
         expect(xs).toEqual([...xs].sort((a, b) => a - b));
-        expect(Math.max(...xs)).toBeLessThan(203.9);
+        expect(Math.max(...xs)).toBeLessThan(215.9 - (215.9 - ChecklistExport.USABLE_WIDTH) / 2);
     });
 
     it('keeps every column ordered when Name is present', async () => {
@@ -670,7 +690,7 @@ describe('ChecklistExport.buildPDF', () => {
         expect(order.every(Boolean)).toBe(true);
         const xs = order.map(h => h.x);
         expect(xs).toEqual([...xs].sort((a, b) => a - b));
-        expect(Math.max(...xs)).toBeLessThan(203.9);
+        expect(Math.max(...xs)).toBeLessThan(215.9 - (215.9 - ChecklistExport.USABLE_WIDTH) / 2);
     });
 
     // USABLE_WIDTH was only ever compared against itself, so the margin could
@@ -681,8 +701,12 @@ describe('ChecklistExport.buildPDF', () => {
 
         const bands = doc.calls.filledRects.filter(r => Math.abs(r.w - ChecklistExport.USABLE_WIDTH) < 0.01);
         expect(bands.length).toBeGreaterThan(0);
-        const rightEdge = 215.9 - (215.9 - ChecklistExport.USABLE_WIDTH) / 2;
-        expect(doc.calls.filledRects.every(r => r.x + r.w <= rightEdge + 0.01)).toBe(true);
+        // Both edges: a smaller margin keeps the band on the page while shifting
+        // the whole content block off centre, and the right-edge check alone
+        // passes for that.
+        const m = (215.9 - ChecklistExport.USABLE_WIDTH) / 2;
+        expect(bands.every(r => Math.abs(r.x - m) < 0.01)).toBe(true);
+        expect(doc.calls.filledRects.every(r => r.x + r.w <= 215.9 - m + 0.01)).toBe(true);
     });
 
     it('loads jsPDF before building', async () => {
@@ -750,18 +774,18 @@ describe('ChecklistExport.columnLayout', () => {
         ]);
     });
 
-    // Sized from the longest values actually in the gist, with the 2mm gutter
-    // truncateToWidth reserves. Card numbers run to ~21mm (MOCPA-JD), set names to
-    // ~78mm on the no-Name layout and ~50mm with Name, variants to ~52mm.
+    // Every threshold is a raw text width measured over the live gist at Helvetica
+    // 8pt - w() has already taken off the 2mm gutter truncateToWidth reserves.
+    // Widest number is "#34 / 139 / 174" (18.7mm), not a prefixed code.
     it('fits the longest real values in each column', () => {
         const w = (showName, key) => ChecklistExport.columnLayout(showName).find(c => c.key === key).width - 2;
 
-        expect(w(false, 'set')).toBeGreaterThanOrEqual(78);
-        expect(w(true, 'set')).toBeGreaterThanOrEqual(50);
-        expect(w(true, 'num')).toBeGreaterThanOrEqual(21);
-        expect(w(false, 'num')).toBeGreaterThanOrEqual(21);
-        expect(w(false, 'variant')).toBeGreaterThanOrEqual(52);
-        expect(w(true, 'variant')).toBeGreaterThanOrEqual(36);
-        expect(w(true, 'name')).toBeGreaterThanOrEqual(33);
+        expect(w(false, 'set')).toBeGreaterThanOrEqual(78);      // 77.2
+        expect(w(true, 'set')).toBeGreaterThanOrEqual(50);       // 49.1
+        expect(w(true, 'num')).toBeGreaterThanOrEqual(19);       // 18.7
+        expect(w(false, 'num')).toBeGreaterThanOrEqual(17);      // 16.2
+        expect(w(false, 'variant')).toBeGreaterThanOrEqual(52);  // 51.3
+        expect(w(true, 'variant')).toBeGreaterThanOrEqual(36);   // 34.9
+        expect(w(true, 'name')).toBeGreaterThanOrEqual(33);      // 32.2
     });
 });
