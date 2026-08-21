@@ -119,11 +119,17 @@ class GitHubSync {
         window.location.href = url;
     }
 
-    // Strip the OAuth code/fragment from the address bar but keep the query:
-    // dropping it takes ?id= with it, and a reload then has no checklist to load.
+    // Drop the OAuth response from the address bar and keep everything else. Both
+    // halves matter: leaving code/state behind makes every reload re-enter this
+    // callback with a spent code, and dropping the whole query takes ?id= with it
+    // so the reload has no checklist to load.
     _cleanAuthFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        params.delete('code');
+        params.delete('state');
+        const query = params.toString();
         window.history.replaceState({}, document.title,
-            window.location.pathname + window.location.search);
+            window.location.pathname + (query ? '?' + query : ''));
     }
 
     isLoggedIn() {

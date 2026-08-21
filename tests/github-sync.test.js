@@ -326,7 +326,7 @@ describe('GitHubSync owner-only sign-in', () => {
         const authData = btoa(JSON.stringify({
             token: 'tok', user: { login: 'someone-else' }, gistId: 'gist1', csrf: 'csrf-x',
         }));
-        window.history.replaceState({}, '', `${window.location.pathname}#auth=${authData}`);
+        window.history.replaceState({}, '', `${window.location.pathname}?id=jd#auth=${authData}`);
         // A pre-existing value the gate must clear, so disabling the whole
         // fragment branch cannot leave this passing on absences alone.
         sync.token = 'pre-existing';
@@ -750,6 +750,47 @@ describe('GitHubSync OAuth CSRF verification', () => {
         await arrive({ csrf: 'unverifiable', returnUrl: 'https://fix-x.sports-card-checklists.pages.dev/' });
 
         expect(requests.some(u => u.includes('/token'))).toBe(true);
+    });
+
+    // The query path's own search IS the OAuth response, so it must go - while
+    // anything else in the query must stay. Neither direction was pinned, which is
+    // how a helper that preserved the whole query passed.
+    it('strips code and state from the URL but keeps the rest', async () => {
+        sessionStorage.setItem('oauth_state', 'match');
+        globalThis.fetch = happyFetch([]);
+        const state = btoa(JSON.stringify({ csrf: 'match', returnUrl: null }));
+        window.history.replaceState({}, '',
+            `${window.location.pathname}?id=jayden-daniels&code=abc&state=${encodeURIComponent(state)}`);
+
+        await sync.handleCallback();
+
+        expect(window.location.search).toBe('?id=jayden-daniels');
+    });
+
+    it('leaves no query at all when the OAuth response was the whole query', async () => {
+        sessionStorage.clear();
+        window.history.replaceState({}, '', `${window.location.pathname}?code=abc`);
+
+        await sync.handleCallback();
+
+        expect(window.location.search).toBe('');
+    });
+
+    // The nonce is one-time on this path too; the fragment path already covers it.
+    it('consumes the stored csrf so a replayed query callback fails', async () => {
+        sessionStorage.setItem('oauth_state', 'once');
+        globalThis.fetch = happyFetch([]);
+        const url = `${window.location.pathname}?code=abc&state=`
+            + encodeURIComponent(btoa(JSON.stringify({ csrf: 'once', returnUrl: null })));
+        window.history.replaceState({}, '', url);
+        expect(await sync.handleCallback()).toBe(true);
+
+        sync.logout();
+        requests.length = 0;
+        window.history.replaceState({}, '', url);
+
+        expect(await sync.handleCallback()).toBe(false);
+        expect(requests).toEqual([]);
     });
 
     // The exemption is justified only by the apex's empty sessionStorage. On
