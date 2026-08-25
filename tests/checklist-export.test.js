@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { fakeDoc } from './fake-jspdf.js';
 
 const ChecklistExport = globalThis.ChecklistExport;
 const ShoppingList = globalThis.ShoppingList;
@@ -550,32 +551,6 @@ describe('ChecklistExport dialog', () => {
 });
 
 describe('ChecklistExport.buildPDF', () => {
-    // Models the jsPDF surface the builder actually uses, including getTextWidth
-    // and setPage. A stub that omits those only looks faithful while the code
-    // never asks for them - which is how the fork of this layout lost truncation.
-    // Width is ~2mm per character, close enough to 8pt Helvetica to exercise the
-    // column limits.
-    function fakeDoc() {
-        const calls = { text: [], strokedRects: [], filledRects: [], saved: null, pages: 1, page: 1 };
-        return {
-            calls,
-            setFont() {}, setFontSize() {}, setTextColor() {}, setFillColor() {},
-            setDrawColor() {}, setLineWidth() {},
-            getTextWidth(t) { return String(t).length * 2; },
-            rect(x, y, w, h, style) {
-                (style === 'S' ? calls.strokedRects : calls.filledRects).push({ x, y, w, h });
-            },
-            text(str, x, y) { calls.text.push({ str: String(str), x, y, page: calls.page }); },
-            addPage() { calls.pages++; calls.page = calls.pages; },
-            setPage(p) { calls.page = p; },
-            save(name) { calls.saved = name; },
-            internal: {
-                pageSize: { getWidth: () => 215.9, getHeight: () => 279.4 },
-                getNumberOfPages: () => calls.pages,
-            },
-        };
-    }
-
     let doc;
     let realLoad;
     beforeEach(() => {
@@ -753,18 +728,6 @@ describe('ChecklistExport.buildPDF', () => {
 
         expect(doc.calls.saved).toBe('x.pdf');
         expect(doc.calls.strokedRects).toHaveLength(0);
-    });
-});
-
-describe('ChecklistExport._formatPrice', () => {
-    // Rounding to whole dollars printed a real 40c card as $0.
-    it('keeps cents below a dollar', () => {
-        expect(ChecklistExport._formatPrice(0.4)).toBe('0.40');
-    });
-
-    it('rounds to whole dollars at a dollar and above', () => {
-        expect(ChecklistExport._formatPrice(45.6)).toBe('46');
-        expect(ChecklistExport._formatPrice(1)).toBe('1');
     });
 });
 

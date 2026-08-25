@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { fakeDoc } from './fake-jspdf.js';
 
 const ShoppingList = globalThis.ShoppingList;
 
@@ -303,5 +304,82 @@ describe('ShoppingList modal Enter handling', () => {
         pressEnterOn('sl-include-extra');
 
         expect(ShoppingList._onGenerate).toHaveBeenCalledTimes(1);
+    });
+});
+
+// Both sinks below were fixed in checklist-export.js by #753 and left here (#755).
+describe('ShoppingList prices', () => {
+    let doc;
+    let realLoad;
+    beforeEach(() => {
+        doc = fakeDoc();
+        window.jspdf = { jsPDF: function () { return doc; } };
+        realLoad = ShoppingList.loadJsPDF;
+        ShoppingList.loadJsPDF = async () => {};
+    });
+
+    afterEach(() => {
+        ShoppingList.loadJsPDF = realLoad;
+        delete window.jspdf;
+    });
+
+    const strings = () => doc.calls.text.map(t => t.str);
+
+    const item = (over) => ({
+        year: 2024, setName: 'prizm', set: '2024 Prizm', num: '1',
+        name: 'Daniels', variant: '', price: 0, checklist: 'a', ...over,
+    });
+
+    it('keeps cents on a sub-dollar card instead of printing $0', () => {
+        ShoppingList.buildPDF([item({ price: 0.4 })], {});
+
+        expect(strings()).toContain('$0.40');
+        expect(strings()).not.toContain('$0');
+    });
+
+    it('still prints whole dollars at a dollar and above', () => {
+        ShoppingList.buildPDF([item({ price: 45.6 })], {});
+
+        expect(strings()).toContain('$46');
+    });
+
+    // Gist prices are hand-edited and come back as strings. A string reached the
+    // summary reduce, which concatenated instead of adding, and the toFixed(2)
+    // on the result threw - _onGenerate caught it and alerted a TypeError that
+    // names no card.
+    it('coerces a string price when collecting an unowned card', async () => {
+        const realRegistry = DynamicNav.loadRegistry;
+        const realSync = window.githubSync;
+        const realBuild = ShoppingList.buildPDF;
+        ShoppingList.buildPDF = vi.fn();
+        DynamicNav.loadRegistry = async () => ({ checklists: [{ id: 'a' }] });
+        window.githubSync = {
+            clearDataCache: vi.fn(),
+            loadData: async () => null,
+            loadPublicData: async () => ({ checklists: {} }),
+            loadChecklistConfig: async () => null,
+            loadPublicChecklistConfig: async () => ({ dataShape: 'flat', cardDisplay: {} }),
+            loadCardData: async () => null,
+            loadPublicCardData: async () => ({ cards: [{ id: 'a1', set: '2024 Prizm', price: '0.40' }] }),
+        };
+        try {
+            await ShoppingList.generate();
+            const items = ShoppingList.buildPDF.mock.calls[0][0];
+            expect(items[0].price).toBe(0.4);
+        } finally {
+            ShoppingList.buildPDF = realBuild;
+            DynamicNav.loadRegistry = realRegistry;
+            window.githubSync = realSync;
+        }
+    });
+
+    // The summary line is where the string price actually blew up: its reduce
+    // concatenated and the toFixed(2) threw. buildPDF is only ever called with
+    // items generate() built, so the coercion above is the fix and this is the
+    // arithmetic that has to keep working.
+    it('sums prices into the summary line', () => {
+        ShoppingList.buildPDF([item({ price: 10 }), item({ price: 5 })], {});
+
+        expect(strings().some(t => t.includes('Est. cost: $15.00'))).toBe(true);
     });
 });

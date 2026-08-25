@@ -250,7 +250,12 @@ const ShoppingList = {
                         name: card.name || card.player
                             || (entry.navLabel || entry.title || '').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()),
                         variant: card.variant || '',
-                        price: card.price || 0,
+                        // Number() first: gist prices are hand-edited and can be
+                        // strings, and a string here makes the reduce below
+                        // concatenate instead of add, so toFixed throws and the
+                        // whole export dies on one quoted price - the user gets
+                        // a TypeError in an alert, naming no card.
+                        price: Number(card.price) || 0,
                         checklist: entry.title || id
                     });
                 }
@@ -413,7 +418,8 @@ const ShoppingList = {
             x += cols[3].width;
 
             if (item.price > 0) {
-                doc.text('$' + item.price.toFixed(0), x, y + 3);
+                // Shared with the checklist export so a 40c card does not print as $0.
+                doc.text('$' + CardRenderer.formatPrice(item.price), x, y + 3);
             }
 
             y += rowHeight;

@@ -98,6 +98,17 @@ const CardRenderer = {
         return (card.set || '').replace(/^\d{4}(?:-\d{2,4})?\s*/, '').toLowerCase();
     },
 
+    // Whole dollars, except under $1 where rounding would show a real card as $0.
+    // Every per-card price display goes through here - both PDF exports and the
+    // on-card badge. Aggregate totals still round on their own (#761), as does
+    // the price-range filter label. The editor stores whole dollars
+    // (card-editor.js rounds on save), so the sub-dollar branch only ever sees
+    // gist data edited by hand.
+    formatPrice(price) {
+        const p = Number(price) || 0;
+        return p < 1 ? p.toFixed(2) : p.toFixed(0);
+    },
+
     // Get price badge CSS class based on thresholds
     getPriceClass(price, thresholds = this.defaultThresholds) {
         if (price < thresholds.mid) return '';
@@ -109,7 +120,7 @@ const CardRenderer = {
     renderPriceBadge(price, thresholds = this.defaultThresholds) {
         if (!price || price <= 0) return '';
         const priceClass = this.getPriceClass(price, thresholds);
-        const displayPrice = Math.round(price);
+        const displayPrice = this.formatPrice(price);
         return `<span class="price-badge ${priceClass}">$${displayPrice}</span>`;
     },
 

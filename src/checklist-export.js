@@ -95,11 +95,6 @@ const ChecklistExport = {
         });
         return lines.join('\r\n');
     },
-    // Whole dollars, except under $1 where rounding would print a real card as $0.
-    _formatPrice(price) {
-        const p = Number(price);
-        return p < 1 ? p.toFixed(2) : p.toFixed(0);
-    },
 
     // The content block. buildPDF derives its horizontal margin from this, so both
     // layouts span exactly this width or one of them runs off the page.
@@ -241,7 +236,7 @@ const ChecklistExport = {
             let x = margin + 2;
             cols.forEach(col => {
                 const v = col.key === 'price'
-                    ? (row.price > 0 ? '$' + this._formatPrice(row.price) : '')
+                    ? (row.price > 0 ? '$' + CardRenderer.formatPrice(row.price) : '')
                     : (col.key ? (row[col.key] || '') : '');
                 if (v) doc.text(ShoppingList.truncateToWidth(doc, String(v), col.width), x, y + 3);
                 x += col.width;
