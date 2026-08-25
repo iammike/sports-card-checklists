@@ -90,9 +90,12 @@ const CardRenderer = {
         return match ? parseInt(match[1]) : 0;
     },
 
-    // Get set name without year
+    // Get set name without the leading year. Season sets are written
+    // "2012-13 Panini Prizm" or "1980-1981 Topps", so the second half has to go
+    // too or the name collates under "-". The anchor is load-bearing: a set like
+    // "2024 Leaf Pro Set 1989" carries a trailing year that is part of its name.
     getSetName(card) {
-        return (card.set || '').replace(/^\d{4}\s*/, '').toLowerCase();
+        return (card.set || '').replace(/^\d{4}(?:-\d{2,4})?\s*/, '').toLowerCase();
     },
 
     // Get price badge CSS class based on thresholds
