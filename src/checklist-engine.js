@@ -1704,8 +1704,12 @@ class ChecklistEngine {
         return match ? parseInt(match[1]) : 9999;
     }
 
+    // Delegates so the year-*stripping* rule lives in exactly one place - it had
+    // drifted into three copies before. Year *extraction* is still two copies that
+    // deliberately differ: _getYear below is unanchored and defaults to 9999 so
+    // undated cards sort last, CardRenderer.getYear is anchored and defaults to 0.
     _getSetName(card) {
-        return (card.set || '').replace(/^\d{4}\s*/, '').toLowerCase();
+        return CardRenderer.getSetName(card);
     }
 
     sortCards(cardsToSort, sortBy) {
