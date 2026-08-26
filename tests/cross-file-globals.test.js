@@ -167,18 +167,19 @@ function crossFileSymbols() {
 }
 
 describe('cross-file top-level const/let must be reachable as globals', () => {
-    // The nine that cross files today. Pinned by name rather than as an exact
+    // The ten that cross files today. Pinned by name rather than as an exact
     // count: this still fails if the scanner stops finding references (a count of
     // zero, or a desync that drops one), which is the vacuity this has to rule out
-    // - see external-link-rel.test.js - but a tenth symbol that is exported
-    // properly does not have to touch this list. A tenth that is *not* exported
-    // fails the resolution test below, which is the point.
+    // - see external-link-rel.test.js - but an eleventh symbol that is exported
+    // properly does not have to touch this list. One that is *not* exported fails
+    // the resolution test below, which is the point.
     const KNOWN_CROSS_FILE = [
         'AuthUI',
         'CARD_TYPES',
         'CardRenderer',
         'CollapsibleSections',
         'DynamicNav',
+        'OWNER_USERNAME',
         'R2_IMAGE_BASE',
         'ShoppingList',
         'StatsAnimator',
@@ -216,5 +217,73 @@ describe('cross-file top-level const/let must be reachable as globals', () => {
     it('leaves no stray quotes behind, which would mean the scanner desynced', () => {
         const desynced = files.filter(f => /['"`]/.test(sources.get(f)));
         expect(desynced).toEqual([]);
+    });
+});
+
+// #758. The owner login was spelled out at seven sites across four files, and a
+// login gate that disagrees with the others is not a cosmetic problem: #751
+// wrote the sign-in check case-insensitively, which would have let a
+// differently-cased account sign in and then land read-only everywhere. Review
+// caught it before it shipped. The copies have to agree.
+//
+// worker.js is deliberately out of scope - a separate deployment that cannot see
+// the browser bundle's constant. It carries its own, checked below.
+describe('the owner login has one definition per deployment', () => {
+    const OWNER = ['iammike'].join('');
+
+    // Places the string appears as part of a URL rather than as an account to
+    // compare a login against. Matched on the surrounding characters, so a new
+    // login check cannot hide behind one of these.
+    const URL_CONTEXTS = [
+        'github.com/' + OWNER,
+        'cards.' + OWNER + '.org',
+        OWNER + 'c.workers.dev',
+        OWNER + '.github.io',
+    ];
+
+    const occurrences = (source) => {
+        let stripped = source;
+        for (const ctx of URL_CONTEXTS) stripped = stripped.split(ctx).join('');
+        return stripped.split(OWNER).length - 1;
+    };
+
+    it('appears once in the browser bundle, in github-sync.js', () => {
+        const counts = {};
+        for (const file of files) {
+            counts[file] = occurrences(readFileSync(resolve(SRC, file), 'utf-8'));
+        }
+        // Globbed, not listed: a third page added later would otherwise escape
+        // this silently, and the floor below is too loose to notice.
+        const pages = readdirSync(resolve(SRC, '..')).filter(f => f.endsWith('.html'));
+        for (const page of pages) {
+            counts[page] = occurrences(readFileSync(resolve(SRC, '..', page), 'utf-8'));
+        }
+
+        expect(counts['github-sync.js']).toBe(1);
+        const others = Object.entries(counts).filter(([f]) => f !== 'github-sync.js');
+        // Counts, not just values: an empty file list would pass vacuously, and so
+        // would a glob that stopped matching.
+        expect(pages).toEqual(expect.arrayContaining(['index.html', 'checklist.html']));
+        expect(others.length).toBeGreaterThanOrEqual(10);
+        expect(others.filter(([, n]) => n > 0)).toEqual([]);
+    });
+
+    it('appears once in the worker, which cannot share the bundle constant', () => {
+        const worker = readFileSync(resolve(SRC, '..', 'worker.js'), 'utf-8');
+
+        expect(occurrences(worker)).toBe(1);
+        // Three gates read it today, plus the definition. Asserted as a floor, not
+        // an equality: a fourth owner-gated endpoint is a normal thing to add, and
+        // counting reads rather than one comparison form catches a gate written as
+        // `=== OWNER_USERNAME` too. The floor is what rules out a vacuous pass.
+        //
+        // Comment lines are dropped first, or a future comment naming the symbol
+        // twice would pay for a deleted gate. Whole lines only - worker.js has URLs
+        // in string literals, and cutting at the first `//` would eat real code
+        // sitting after one.
+        const code = worker.split('\n')
+            .filter(line => !/^\s*(\/\/|\*|\/\*)/.test(line))
+            .join('\n');
+        expect(code.split('OWNER_USERNAME').length - 1).toBeGreaterThanOrEqual(4);
     });
 });

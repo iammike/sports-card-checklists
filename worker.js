@@ -7,6 +7,11 @@
 // 3. Add environment variables: GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET
 // 4. Deploy and note your worker URL (e.g., https://your-worker.your-subdomain.workers.dev)
 
+// The one account allowed to write. A separate deployment from the browser
+// bundle, so it cannot share src/github-sync.js's copy - these two must be kept
+// in step by hand, and a rename of the account needs both.
+const OWNER_USERNAME = 'iammike';
+
 const ALLOWED_ORIGINS = [
   'https://cards.iammike.org',
   'https://iammike.github.io',
@@ -96,7 +101,7 @@ async function handleUploadImage(request, env, corsOrigin) {
       });
     }
     const user = await userResponse.json();
-    if (user.login !== 'iammike') {
+    if (user.login !== OWNER_USERNAME) {
       return new Response(JSON.stringify({ error: 'Unauthorized user' }), {
         status: 403, headers: corsHeaders,
       });
@@ -206,7 +211,7 @@ async function handleDeleteImage(request, env, corsOrigin) {
       });
     }
     const user = await userResponse.json();
-    if (user.login !== 'iammike') {
+    if (user.login !== OWNER_USERNAME) {
       return new Response(JSON.stringify({ error: 'Unauthorized user' }), {
         status: 403, headers: corsHeaders,
       });
@@ -283,7 +288,7 @@ async function handleListImages(request, env, corsOrigin) {
       });
     }
     const user = await userResponse.json();
-    if (user.login !== 'iammike') {
+    if (user.login !== OWNER_USERNAME) {
       return new Response(JSON.stringify({ error: 'Unauthorized user' }), {
         status: 403, headers: corsHeaders,
       });

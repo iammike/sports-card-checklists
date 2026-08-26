@@ -991,7 +991,7 @@
             // Add "Create New Checklist" to dropdown menu (owner-only)
             if (githubSync.isLoggedIn()) {
                 const user = githubSync.getUser();
-                if (user && user.login === 'iammike') {
+                if (user && user.login === OWNER_USERNAME) {
                     const checklistCreator = new ChecklistCreatorModal({
                         onCreated: (config) => {
                             window.location.href = `checklist.html?id=${config.id}`;

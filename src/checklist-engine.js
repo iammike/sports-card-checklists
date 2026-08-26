@@ -164,7 +164,7 @@ class ChecklistEngine {
     _managerOptions() {
         return {
             checklistId: this.id,
-            ownerUsername: 'iammike',
+            ownerUsername: OWNER_USERNAME,
             localStorageKey: `${this.id}-owned`,
             onOwnedChange: () => this.renderCards(),
             getStats: () => this.computeStats(),
@@ -179,7 +179,7 @@ class ChecklistEngine {
     _initDeleteButton() {
         if (!window.githubSync || !githubSync.isLoggedIn()) return;
         const user = githubSync.getUser();
-        if (!user || user.login !== 'iammike') return;
+        if (!user || user.login !== OWNER_USERNAME) return;
 
         const dropdown = document.querySelector('.nav-dropdown');
         if (!dropdown) return;
@@ -415,7 +415,7 @@ class ChecklistEngine {
     async _refreshStatsIfStale() {
         if (!window.githubSync?.isLoggedIn()) return;
         const user = githubSync.getUser();
-        if (!user || user.login !== 'iammike') return;
+        if (!user || user.login !== OWNER_USERNAME) return;
 
         const current = this.computeStats();
         const saved = this._savedStatsSnapshot;
