@@ -458,6 +458,105 @@ describe('GitHubSync owner-only sign-in', () => {
         expect(window.location.hash).toBe('');
     });
 
+    // Left in the address bar, an error response is both untidy and a stale state
+    // sitting where the next callback will parse it. _returnQuery keeps it from
+    // reaching GitHub; this clears it at the source.
+    it('clears a denied authorization out of the address bar', async () => {
+        window.history.replaceState({}, '',
+            `${window.location.pathname}?id=busts&error=access_denied&state=STALE`);
+
+        expect(await sync.handleCallback()).toBe(false);
+
+        expect(window.location.search).toBe('?id=busts');
+    });
+
+    // ?error= with an empty value is still an error response, and the stale state
+    // sits beside it. `params.get` is falsy there; `params.has` is not.
+    it('clears a denied authorization whose error value is empty', async () => {
+        window.history.replaceState({}, '',
+            `${window.location.pathname}?id=busts&error=&state=STALE`);
+
+        expect(await sync.handleCallback()).toBe(false);
+
+        expect(window.location.search).toBe('?id=busts');
+    });
+
+    // A payload that will not decode is still a real token in history if it
+    // happens to be one. The catch used to only log.
+    it('clears the address bar when an auth fragment will not decode', async () => {
+        sync.isPreview = () => true;
+        sessionStorage.setItem('oauth_state', 'csrf-y');
+        window.history.replaceState({}, '', `${window.location.pathname}?id=busts#auth=%%%not-base64`);
+
+        expect(await sync.handleCallback()).toBe(false);
+
+        expect(window.location.hash).toBe('');
+        expect(window.location.search).toBe('?id=busts');
+    });
+
+    // The fragment is all it should drop. A code beside it is a callback this same
+    // pass has not read yet - the query is parsed a few lines below the catch, so
+    // clearing it there makes `code` null and the callback returns having done
+    // nothing. Asserted on the exchange rather than on the address bar, because
+    // the normal path cleans the query itself once it has read it.
+    it('still exchanges a concurrent code when the fragment will not decode', async () => {
+        sync.isPreview = () => true;
+        sessionStorage.setItem('oauth_state', 'st');
+        const state = btoa(JSON.stringify({ csrf: 'st', returnUrl: null }));
+        window.history.replaceState({}, '',
+            `${window.location.pathname}?code=REAL&state=${state}#auth=%%%not-base64`);
+        const seen = [];
+        globalThis.fetch = async (url) => {
+            seen.push(String(url));
+            return { json: async () => ({ error: 'stop_here' }) };
+        };
+
+        await sync.handleCallback();
+
+        expect(window.location.hash).toBe('');
+        expect(seen.some(u => u.includes('/token'))).toBe(true);
+    });
+
+    // _redirect appends the real payload last, so an earlier "#auth=" came from
+    // the returnUrl prefix - and isProjectPreviewUrl accepts a preview URL that
+    // already carries one. Reading the first would decode the attacker's text,
+    // throw, and (before the catch cleaned up) strand the owner's live token.
+    it('reads the last auth fragment, not a planted earlier one', async () => {
+        sync.isPreview = () => true;
+        sessionStorage.setItem('oauth_state', 'csrf-y');
+        const real = btoa(JSON.stringify({
+            token: 'owner-tok', user: { login: 'iammike' }, gistId: 'g1', csrf: 'csrf-y',
+        }));
+        window.history.replaceState({}, '',
+            `${window.location.pathname}#auth=${btoa('planted')}#auth=${real}`);
+
+        const result = await sync.handleCallback();
+
+        expect(result).toBe(true);
+        expect(sync.token).toBe('owner-tok');
+        expect(window.location.hash).toBe('');
+    });
+
+    // The other half of #757: even with login() stripping the fragment, a receiver
+    // that requires #auth= to be the whole hash fails silently on anything that
+    // appends one, and silence here means a live token resting in the address bar.
+    it('consumes an auth fragment that is not the whole hash', async () => {
+        sync.isPreview = () => true;
+        sessionStorage.setItem('oauth_state', 'csrf-y');
+        const authData = btoa(JSON.stringify({
+            token: 'owner-tok', user: { login: 'iammike' }, gistId: 'g1', csrf: 'csrf-y',
+        }));
+        window.history.replaceState({}, '',
+            `${window.location.pathname}?id=busts#card-abc#auth=${authData}`);
+
+        const result = await sync.handleCallback();
+
+        expect(result).toBe(true);
+        expect(sync.token).toBe('owner-tok');
+        expect(window.location.hash).toBe('');
+        expect(window.location.search).toBe('?id=busts');
+    });
+
     // An attacker can hand the victim any link. Before the fragment carried a csrf,
     // this planted the attacker's token and gist in the owner's browser - and the
     // ownership check was no defence, because it read a login from the same blob.
@@ -647,7 +746,10 @@ describe('GitHubSync.login branch-preview classification', () => {
         const params = new URL(authUrl).searchParams;
         expect(params.get('redirect_uri')).toBe('https://sports-card-checklists.pages.dev/');
         const state = JSON.parse(atob(params.get('state')));
-        expect(state.returnUrl).toBe(window.location.href);
+        // Not window.location.href: login() builds this from origin + pathname +
+        // the allowlisted query, and the two happen to match only because the test
+        // environment's URL is bare. See the fragment test below.
+        expect(state.returnUrl).toBe(window.location.origin + window.location.pathname);
         expect(state.csrf).toBe(sessionStorage.getItem('oauth_state'));
     });
 
@@ -661,6 +763,108 @@ describe('GitHubSync.login branch-preview classification', () => {
         const params = new URL(authUrl).searchParams;
         expect(params.get('redirect_uri')).toBe(window.location.origin + window.location.pathname);
         expect(JSON.parse(atob(params.get('state'))).returnUrl).toBeNull();
+    });
+
+    // #757. The ?id= and #card- cases are unreachable today - checklist.html has
+    // no sign-in button, so those two go live only when one is added. The stale
+    // OAuth params below are reachable right now, from index.html, by clicking
+    // Cancel on GitHub's authorize screen.
+    describe('the address bar a sign-in starts from', () => {
+        const realHref = window.location.href;
+        afterEach(() => {
+            window.history.replaceState({}, '', realHref);
+        });
+
+        const loginFrom = (url) => {
+            window.history.replaceState({}, '', url);
+            let authUrl;
+            sync._redirect = (u) => { authUrl = u; };
+            sync.login();
+            return new URL(authUrl).searchParams;
+        };
+
+        it('keeps ?id= on the callback, without which the return lands on "No checklist ID specified"', () => {
+            sync.isPreview = () => false;
+
+            const params = loginFrom('/checklist.html?id=jayden-daniels');
+
+            expect(params.get('redirect_uri'))
+                .toBe(window.location.origin + '/checklist.html?id=jayden-daniels');
+        });
+
+        it('drops a deep-link fragment from the preview return URL', () => {
+            // "<returnUrl>#auth=<payload>" with a fragment already present yields
+            // two, the receiver's check fails, and a live token is left parked in
+            // the address bar and history.
+            sync.isPreview = () => true;
+
+            const params = loginFrom('/checklist.html?id=busts#card-abc');
+
+            const { returnUrl } = JSON.parse(atob(params.get('state')));
+            expect(returnUrl).toBe(window.location.origin + '/checklist.html?id=busts');
+            expect(returnUrl).not.toContain('#');
+        });
+
+        it('keeps the query on the preview return URL', () => {
+            sync.isPreview = () => true;
+
+            const params = loginFrom('/checklist.html?id=busts');
+
+            expect(JSON.parse(atob(params.get('state'))).returnUrl)
+                .toBe(window.location.origin + '/checklist.html?id=busts');
+        });
+
+        // The failure this closed: denying authorization returns ?error=...&
+        // state=<old> with no code, handleCallback returned before cleaning, and
+        // the stale state rode back out to arrive ahead of the fresh one GitHub
+        // appends - params.get('state') reads the first, so the retry died on a
+        // CSRF mismatch and only self-healed on a third attempt. The allowlist
+        // below is what prevents it now; this pins that no OAuth parameter, by
+        // any route, reaches redirect_uri.
+        it('never sends an OAuth response parameter back out', () => {
+            sync.isPreview = () => false;
+
+            const params = loginFrom(
+                '/?id=busts&error=access_denied&error_description=no&state=STALE&code=OLD');
+
+            const redirectUri = new URL(params.get('redirect_uri'));
+            expect(redirectUri.searchParams.get('id')).toBe('busts');
+            for (const p of ['code', 'state', 'error', 'error_description']) {
+                expect(redirectUri.searchParams.has(p)).toBe(false);
+            }
+        });
+
+        // An allowlist, not a denylist: nothing stops a third party handing the
+        // owner a link to this site with any query they like, and the sign-in
+        // link is one click away on every page. Whatever they put there would
+        // otherwise ride into redirect_uri - and if GitHub is strict about extra
+        // query parameters, that is a sign-in that keeps failing until the owner
+        // notices the address bar.
+        it('sends only the checklist id, not whatever else is in the address bar', () => {
+            sync.isPreview = () => false;
+
+            const params = loginFrom('/?id=busts&utm_source=x&anything=%3Cscript%3E');
+
+            expect(params.get('redirect_uri'))
+                .toBe(window.location.origin + '/?id=busts');
+        });
+
+        it('sends a bare callback when there is no id', () => {
+            sync.isPreview = () => false;
+
+            const params = loginFrom('/?utm_source=x');
+
+            expect(params.get('redirect_uri')).toBe(window.location.origin + '/');
+        });
+
+        it('strips them from the preview return URL too', () => {
+            sync.isPreview = () => true;
+
+            const params = loginFrom('/checklist.html?id=busts&state=STALE');
+
+            expect(JSON.parse(atob(params.get('state'))).returnUrl)
+                .toBe(window.location.origin + '/checklist.html?id=busts');
+        });
     });
 });
 
