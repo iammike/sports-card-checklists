@@ -1154,12 +1154,32 @@ describe('nothing that holds the token uses a repo endpoint', () => {
     //
     // Whole-line comments are dropped first: a link to docs.github.com/rest/repos
     // in prose would otherwise fail this and name a file with no repo call in it.
-    // A doc URL trailing a line of code still trips it - that fails closed, which
-    // is the right direction to be wrong in.
+    //
+    // Block comments are tracked across lines rather than matched per line. The
+    // per-line version treated any line starting with `*` as a continuation, which
+    // also drops real code - `index.html`'s CSS `* { box-sizing: ... }`, or a
+    // generator method - and dropping a real line is the one direction this must
+    // not be wrong in. Everything left unstripped (a doc URL trailing a line of
+    // code, a multi-line HTML comment) fails the guard instead, which is noise
+    // rather than a hole.
+    const stripComments = (source) => {
+        let inBlock = false;
+        return source.split('\n').filter((line) => {
+            const t = line.trim();
+            if (inBlock) {
+                if (t.includes('*/')) inBlock = false;
+                return false;
+            }
+            if (t.startsWith('/*')) {
+                if (!t.includes('*/')) inBlock = true;
+                return false;
+            }
+            return !t.startsWith('//') && !t.startsWith('<!--');
+        }).join('\n');
+    };
+
     const usesRepoApi = (source) => {
-        const code = source.split('\n')
-            .filter(line => !/^\s*(\/\/|\*|\/\*|<!--)/.test(line))
-            .join('\n');
+        const code = stripComments(source);
         return code.includes('api.github.com/repos') || /['"`/]repos\b/.test(code);
     };
 
