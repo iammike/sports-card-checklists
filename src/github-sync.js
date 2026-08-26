@@ -512,7 +512,16 @@ class GitHubSync {
         const response = await fetch('https://api.github.com/gists', {
             headers: { 'Authorization': `Bearer ${this.token}` },
         });
-        const gists = await response.json();
+        // GitHub answers an error with a JSON *object*, not an array, so the
+        // unchecked for...of below threw "gists is not iterable" on any non-2xx
+        // - and every caller treats this method as returning null, not
+        // throwing. saveCardData reaches it from a path the engine fires
+        // un-awaited, where that throw became an unhandled rejection and left
+        // the status chip on "Saving..." forever (#767). Returning null on a
+        // failed listing also avoids creating a duplicate gist we could not
+        // rule out already existing.
+        const gists = response.ok ? await response.json() : null;
+        if (!Array.isArray(gists)) return null;
 
         for (const gist of gists) {
             // Skip the preview gist when searching on production
@@ -542,7 +551,11 @@ class GitHubSync {
             }),
         });
 
+        if (!createResponse.ok) return null;
         const newGist = await createResponse.json();
+        // Without this the id is undefined and the string "undefined" is what
+        // lands in localStorage, poisoning every later read.
+        if (!newGist?.id) return null;
         this.gistId = newGist.id;
         localStorage.setItem(GIST_ID_KEY, this.gistId);
         return this.gistId;
@@ -573,8 +586,10 @@ class GitHubSync {
             if (!response.ok) {
                 // Order matters here, and mirrors _patchGistFiles: GitHub's
                 // secondary rate limit answers 403, so the rate-limit check has
-                // to come first or a throttled read is misread as expired auth
-                // and sends the caller to a different collection entirely (#768).
+                // to come first or a throttled read is indistinguishable from
+                // expired auth. _loadDataForWrite needs the two apart - both
+                // must abort the write, but only one means the session is dead
+                // and only one is worth retrying shortly (#768).
                 if (await this._isRateLimited(response)) {
                     return { ok: false, reason: 'rate_limited' };
                 }
@@ -601,15 +616,24 @@ class GitHubSync {
 
     // Load all collection data from gist (uses cache if available).
     //
-    // Read-only callers keep the original contract: the data, or null when there
-    // is none to show. A genuine auth failure still falls back to the public
-    // collection so a stale session renders something rather than an empty page.
-    // A rate-limited 403 deliberately does not - it is not an auth problem, and
-    // on production the public gist is a different collection (#768).
+    // Read-only callers keep the original contract exactly: the data, or null
+    // when there is none to show, with any 401/403 falling back to the public
+    // read. That fallback is not a different collection - sign-in is owner-only
+    // (_rejectIfNotOwner) and the owner's gist is PRODUCTION_GIST_ID, which is
+    // what loadPublicData fetches; on preview getActiveGistId() returns
+    // PUBLIC_GIST_ID outright. It is an unauthenticated read of the very gist
+    // the caller asked for, so it is worth keeping for a throttled read too:
+    // dropping it would hand loadChecklist() an empty list, which loadOwned()
+    // cannot tell from "nothing owned" and would report as Synced (#768).
+    //
+    // The value of splitting the read is entirely on the write side, where
+    // _loadDataForWrite refuses to build a payload on a read it did not get.
     async loadData() {
         const result = await this._readCollectionData();
         if (result.ok) return result.data;
-        if (result.reason === 'auth_expired') return this.loadPublicData();
+        if (result.reason === 'auth_expired' || result.reason === 'rate_limited') {
+            return this.loadPublicData();
+        }
         return null;
     }
 
@@ -1069,6 +1093,31 @@ class GitHubSync {
         return this._readGistFile('checklists-registry.json');
     }
 
+    // The registry read for the paths that rewrite the whole file. loadRegistry()
+    // cannot tell "there is no registry yet" from "the read failed" - both come
+    // back null - and the create path seeded an empty registry from that null,
+    // so one failed read republished a registry holding only the new checklist
+    // and dropped every other one from the index and the nav. Same hazard as
+    // _loadDataForWrite, same answer (#768).
+    async loadRegistryForWrite() {
+        const gist = this.token ? await this._fetchGist() : await this._fetchGist(true);
+        if (!gist) return { ok: false, reason: 'read_failed' };
+
+        const content = gist.files['checklists-registry.json']?.content;
+        // No registry file yet is a real, writable state - unlike a failed read.
+        if (!content) return { ok: true, registry: { checklists: [] } };
+
+        try {
+            const registry = JSON.parse(content);
+            // A registry we cannot recognise is not one we may overwrite.
+            if (!Array.isArray(registry?.checklists)) return { ok: false, reason: 'malformed' };
+            return { ok: true, registry };
+        } catch (error) {
+            console.error('Failed to parse checklists registry:', error);
+            return { ok: false, reason: 'malformed' };
+        }
+    }
+
     // Save checklists registry to gist
     async saveRegistry(registry) {
         return this._writeGistFile('checklists-registry.json', registry);
@@ -1217,10 +1266,17 @@ class GitHubSync {
         let mergedData = null;
         if (stats) {
             const result = await this._loadDataForWrite();
-            // Card data is the point of this call; stats are the freeloader. If
-            // the collection read failed we cannot rebuild that file safely, so
-            // drop the stats half and still write the cards rather than PATCH a
-            // blank collection over the real one (#768).
+            // Card data is the point of this call; the bundled stats are an
+            // optimisation. Report a read that failed for a reason the PATCH
+            // would only run into as well - a dead session, or a limit this
+            // write would add pressure to - rather than firing it blind.
+            if (result.reason === 'auth_expired' || result.reason === 'rate_limited') {
+                return { ok: false, reason: result.reason };
+            }
+            // Any other failure just drops the stats half: the cards still get
+            // written, instead of a blank collection landing on the real one
+            // (#768). The stats stay stale until _refreshStatsIfStale picks
+            // them up on the next page load - nothing re-saves them in-session.
             if (result.ok) {
                 mergedData = result.data;
                 if (!mergedData.stats) mergedData.stats = {};

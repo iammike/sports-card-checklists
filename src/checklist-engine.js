@@ -2376,9 +2376,16 @@ class ChecklistEngine {
         const [moved] = arr.splice(oldIndex, 1);
         arr.splice(newIndex, 0, moved);
 
-        // Save to gist
+        // Save to gist. This is the engine's only un-awaited _saveCardData()
+        // call - the reorder has already landed in the DOM and there is nothing
+        // to block on - so it has to carry its own rejection handler. Without
+        // one a throw is an unhandled rejection and the chip sits on
+        // "Saving..." forever, telling the user nothing (#767).
         this.checklistManager.setSyncStatus('syncing', 'Saving...');
-        this._saveCardData();
+        this._saveCardData().catch(error => {
+            console.error('Failed to save card order:', error);
+            this._applySaveResult({ ok: false, reason: 'network_error' });
+        });
     }
 
     // ========================================

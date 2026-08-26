@@ -85,11 +85,11 @@ describe('GitHubSync — a failed collection read must not become a blank write 
         expect(patches()).toHaveLength(0);
     });
 
-    // The damaging case: on production getActiveGistId() is the user's personal
-    // gist while loadPublicData() fetches a different, public one. Falling back
-    // on a throttled read and then writing meant copying a stranger's
-    // collection over your own.
-    it('does not fall back to the public gist when a 403 is really a rate limit', async () => {
+    // The write path takes no fallback at all: a payload must be built on the
+    // authenticated read it actually got, or not built. (The read path is
+    // different - see the loadData tests below, where the public fallback is an
+    // unauthenticated read of this very gist and worth keeping.)
+    it('takes no fallback read when building a write payload', async () => {
         stubFetch(() => errorResponse(403, { 'Retry-After': '60' }));
 
         expect(await sync.saveChecklist('jd', ['a'])).toBe(false);
@@ -99,16 +99,21 @@ describe('GitHubSync — a failed collection read must not become a blank write 
         expect(calls[0].url).toContain(PERSONAL_GIST);
     });
 
-    it('leaves loadData returning null on a rate-limited 403 rather than public data', async () => {
-        stubFetch(() => errorResponse(403, { 'X-RateLimit-Remaining': '0' }));
+    // loadData's contract is unchanged, and deliberately so. The public gist is
+    // the same collection read without a token, so falling back beats handing
+    // loadChecklist() an empty list - loadOwned() cannot tell that from
+    // "nothing owned" and would report it as Synced, after which the next
+    // toggle would write that truncated list back.
+    it('still falls back to public data on a rate-limited 403', async () => {
+        const publicCollection = { checklists: { jd: ['real', 'cards'] } };
+        stubFetch((url) => (url.includes(PERSONAL_GIST)
+            ? errorResponse(403, { 'X-RateLimit-Remaining': '0' })
+            : gistResponse(publicCollection)));
 
-        expect(await sync.loadData()).toBeNull();
-        expect(calls).toHaveLength(1);
-        expect(calls[0].url).toContain(PERSONAL_GIST);
+        expect(await sync.loadData()).toEqual(publicCollection);
+        expect(await sync.loadChecklist('jd')).toEqual(['real', 'cards']);
     });
 
-    // Unchanged behaviour, pinned so the rate-limit branch above can't be
-    // "fixed" by dropping the auth fallback the read-only callers rely on.
     it('still falls back to public data on a genuine 401', async () => {
         const publicCollection = { checklists: { jd: ['pub'] } };
         stubFetch((url) => (url.includes(PERSONAL_GIST)
@@ -147,6 +152,45 @@ describe('GitHubSync — a failed collection read must not become a blank write 
         expect(written.stats.wqb).toEqual({ owned: 1 });
     });
 
+    // Reached only when there is no gist id yet - every other test here sets
+    // one in beforeEach, so this branch of _loadDataForWrite was untested.
+    it('creates the gist first when there is none, then builds on what it reads', async () => {
+        sync.gistId = null;
+        localStorage.clear();
+        stubFetch((url, opts) => {
+            if (opts.method === 'PATCH') return { ok: true, status: 200, json: async () => ({}) };
+            if (opts.method === 'POST') {
+                return { ok: true, status: 201, json: async () => ({ id: 'made-up-gist' }) };
+            }
+            if (url.endsWith('/gists')) return { ok: true, status: 200, json: async () => [] };
+            return gistResponse({ checklists: { wqb: ['keep'] } });
+        });
+
+        expect(await sync.saveChecklist('jd', ['a'])).toBe(true);
+
+        const written = JSON.parse(JSON.parse(patches()[0].body).files[GIST_FILENAME].content);
+        expect(written.checklists.jd).toEqual(['a']);
+        expect(written.checklists.wqb).toEqual(['keep']);
+    });
+
+    // findOrCreateGist is documented as returning null, never throwing, and one
+    // caller runs un-awaited - GitHub answers an error with an object, not the
+    // array the listing loop expects (#767).
+    it('aborts rather than throwing when the gist listing fails', async () => {
+        sync.gistId = null;
+        localStorage.clear();
+        stubFetch(() => ({
+            ok: false,
+            status: 500,
+            headers: { get: () => null },
+            clone: () => ({ text: async () => '' }),
+            json: async () => ({ message: 'Server Error' }),
+        }));
+
+        expect(await sync.saveChecklist('jd', ['a'])).toBe(false);
+        expect(patches()).toHaveLength(0);
+    });
+
     it('aborts saveChecklistStats on a failed read', async () => {
         stubFetch(() => errorResponse(500));
 
@@ -168,5 +212,31 @@ describe('GitHubSync — a failed collection read must not become a blank write 
         const files = JSON.parse(patches()[0].body).files;
         expect(Object.keys(files)).toEqual(['jd-cards.json']);
         expect(files[GIST_FILENAME]).toBeUndefined();
+    });
+
+    // A doomed or pressure-adding PATCH is reported instead of being fired.
+    it('reports the reason instead of writing when the stats read hits a dead session', async () => {
+        stubFetch(() => errorResponse(401, {}, 'Bad credentials'));
+
+        const result = await sync.saveCardData('jd', [{ set: 'x' }], { owned: 3 });
+        expect(result).toEqual({ ok: false, reason: 'auth_expired' });
+        expect(patches()).toHaveLength(0);
+    });
+
+    it('reports the reason instead of writing when the stats read is rate limited', async () => {
+        stubFetch(() => errorResponse(403, { 'Retry-After': '60' }));
+
+        const result = await sync.saveCardData('jd', [{ set: 'x' }], { owned: 3 });
+        expect(result).toEqual({ ok: false, reason: 'rate_limited' });
+        expect(patches()).toHaveLength(0);
+    });
+
+    // The read-only contract, pinned rather than asserted by inspection.
+    it('leaves the read-only helpers reading through unchanged', async () => {
+        stubFetch(() => gistResponse({ checklists: { jd: ['a'] }, stats: { jd: { owned: 1 } } }));
+
+        expect(await sync.loadChecklist('jd')).toEqual(['a']);
+        expect(await sync.loadAllStats()).toEqual({ jd: { owned: 1 } });
+        expect(await sync.loadChecklist('missing')).toEqual([]);
     });
 });

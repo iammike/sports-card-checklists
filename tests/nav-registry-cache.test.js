@@ -53,6 +53,7 @@ beforeEach(() => {
         isLoggedIn: () => true,
         getUser: () => ({ login: 'iammike' }),
         loadRegistry: vi.fn(async () => structuredClone(FRESH)),
+        loadRegistryForWrite: vi.fn(async () => ({ ok: true, registry: structuredClone(FRESH) })),
         saveRegistry: vi.fn(async () => true),
         saveChecklistConfig: vi.fn(async () => true),
         createChecklist: vi.fn(async () => true),
@@ -260,7 +261,7 @@ describe('the checklist creator modal', () => {
     });
 
     it('clears the cached registry when a checklist is created', async () => {
-        githubSync.loadRegistry = vi.fn(async () => structuredClone(STALE));
+        githubSync.loadRegistryForWrite = vi.fn(async () => ({ ok: true, registry: structuredClone(STALE) }));
         seedCache();
         const creator = openCreator();
         creator.backdrop.querySelector('#creator-title').value = 'Brand New';
@@ -271,5 +272,20 @@ describe('the checklist creator modal', () => {
         expect(githubSync.createChecklist).toHaveBeenCalled();
         expect(cachedRegistry()).toBeNull();
         expect(DynamicNav._registry).toBeNull();
+    });
+
+    // #768: createChecklist republishes the whole registry file. Seeding an
+    // empty one from a failed read dropped every checklist already in it.
+    it('creates nothing when the registry read fails', async () => {
+        githubSync.loadRegistryForWrite = vi.fn(async () => ({ ok: false, reason: 'read_failed' }));
+        window.alert = vi.fn();
+        const creator = openCreator();
+        creator.backdrop.querySelector('#creator-title').value = 'Brand New';
+        creator.backdrop.querySelector('#creator-nav-label').value = 'Brand New';
+
+        await creator.save();
+
+        expect(githubSync.createChecklist).not.toHaveBeenCalled();
+        expect(window.alert).toHaveBeenCalled();
     });
 });

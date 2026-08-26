@@ -98,3 +98,39 @@ describe('ChecklistManager._syncOwnedNow — a throw must reach the status chip 
         expect(chip.textContent).toBe('Synced');
     });
 });
+
+describe('ChecklistEngine._onReorderEnd — the one un-awaited save (#767)', () => {
+    const ChecklistEngine = globalThis.ChecklistEngine;
+
+    // Called on the real prototype so this exercises the shipped method, not a
+    // re-implementation of it. Only what _onReorderEnd actually reads is stubbed.
+    function reorderWith(saveCardData) {
+        const statuses = [];
+        const applied = [];
+        const engine = {
+            _isFlat: () => true,
+            cards: [{ set: 'a' }, { set: 'b' }],
+            checklistManager: { setSyncStatus: (status, text) => statuses.push([status, text]) },
+            _saveCardData: saveCardData,
+            _applySaveResult: result => applied.push(result),
+        };
+        ChecklistEngine.prototype._onReorderEnd.call(engine, { oldIndex: 0, newIndex: 1 }, { id: 'x-cards' });
+        return { statuses, applied, engine };
+    }
+
+    it('reports the failure instead of leaving the chip on "Saving..."', async () => {
+        const { statuses, applied } = reorderWith(async () => { throw new Error('gists is not iterable'); });
+
+        expect(statuses).toEqual([['syncing', 'Saving...']]);
+        await vi.waitFor(() => expect(applied).toHaveLength(1));
+        expect(applied[0].ok).toBe(false);
+    });
+
+    it('still reorders and saves on the happy path', async () => {
+        const saveCardData = vi.fn(async () => ({ ok: true }));
+        const { engine } = reorderWith(saveCardData);
+
+        expect(engine.cards.map(c => c.set)).toEqual(['b', 'a']);
+        expect(saveCardData).toHaveBeenCalledTimes(1);
+    });
+});
