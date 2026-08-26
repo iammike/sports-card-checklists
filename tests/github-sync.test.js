@@ -1,4 +1,7 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
+import { readFileSync, readdirSync } from 'fs';
+import { resolve } from 'path';
+import { createRequire } from 'module';
 
 // The shared setup loads github-sync.js along with the rest of the bundle (#719),
 // so this exercises the real singleton rather than a re-loaded copy. Constructing
@@ -672,7 +675,8 @@ describe('GitHubSync owner-only sign-in', () => {
 // (`returnUrl.includes('.pages.dev')`), skipped CSRF verification on that basis,
 // and then put the live token in the target's URL fragment. A crafted authorize
 // link therefore walked the OWNER through a genuine GitHub flow and delivered a
-// gist+public_repo token to a host of the attacker's choosing.
+// gist+public_repo token - the scope at the time; `gist` alone now - to a host
+// of the attacker's choosing.
 describe('GitHubSync branch-preview return URL', () => {
     const ok = (u) => sync.isProjectPreviewUrl(u);
 
@@ -709,7 +713,7 @@ describe('GitHubSync branch-preview return URL', () => {
 
 // login() decides where GitHub sends the callback. Nothing covered it, so a
 // misclassification here would break preview sign-in with the suite green.
-describe('GitHubSync.login branch-preview classification', () => {
+describe('GitHubSync.login', () => {
     afterEach(() => {
         delete sync.isPreview;
         delete sync._redirect;
@@ -751,6 +755,20 @@ describe('GitHubSync.login branch-preview classification', () => {
         // environment's URL is bare. See the fragment test below.
         expect(state.returnUrl).toBe(window.location.origin + window.location.pathname);
         expect(state.csrf).toBe(sessionStorage.getItem('oauth_state'));
+    });
+
+    // #764. The token this asks for is the one an attacker gets if they ever get
+    // one, so it should buy as little as possible. public_repo was here for card
+    // data edits through the repo Contents API; that API is gone, card data lives
+    // in the gist, and the Worker only ever calls /user with this token.
+    it('asks for no more scope than the gist it writes', () => {
+        sync.isPreview = () => false;
+        let authUrl;
+        sync._redirect = (u) => { authUrl = u; };
+
+        sync.login();
+
+        expect(new URL(authUrl).searchParams.get('scope')).toBe('gist');
     });
 
     it('keeps the callback on this origin when not a branch preview', () => {
@@ -1110,5 +1128,57 @@ describe('GitHubSync.handleCallback without an OAuth response', () => {
 
         expect(window.location.hash).toBe('#card-abc');
         expect(sessionStorage.getItem('oauth_state')).toBe('untouched');
+    });
+});
+
+// The `gist` scope is only honest while nothing reaches for a repo endpoint. A
+// re-added repo call would fail at runtime against a gist-only token, which is a
+// confusing way to find out - this says so at the source instead.
+//
+// Every surface the token reaches, not just src/: worker.js is the deployment that
+// actually receives and forwards it, and is the likeliest home for a future
+// "commit this to the repo" endpoint. Same shape as the owner-login guard in
+// cross-file-globals.test.js, for the same reason - a file nobody thought to scan
+// is how one of these stops guarding.
+describe('nothing that holds the token uses a repo endpoint', () => {
+    const ROOT = resolve(import.meta.dirname, '..');
+    // The manifest is the canonical src list and bundle-file-lists.test.js already
+    // pins it against readdirSync, so this inherits that coverage instead of
+    // carrying its own magic floor.
+    const { sharedFiles, engineFile } = createRequire(import.meta.url)('../build-manifest.js');
+
+    // Both spellings: the literal host string, and a bare /repos path for a call
+    // assembled from a base-URL constant. No trailing slash in the pattern -
+    // `POST /user/repos` creates a repository and is exactly what this promises to
+    // catch, and it has no path segment after it.
+    //
+    // Whole-line comments are dropped first: a link to docs.github.com/rest/repos
+    // in prose would otherwise fail this and name a file with no repo call in it.
+    // A doc URL trailing a line of code still trips it - that fails closed, which
+    // is the right direction to be wrong in.
+    const usesRepoApi = (source) => {
+        const code = source.split('\n')
+            .filter(line => !/^\s*(\/\/|\*|\/\*|<!--)/.test(line))
+            .join('\n');
+        return code.includes('api.github.com/repos') || /['"`/]repos\b/.test(code);
+    };
+
+    it('finds no repo endpoint in any file that handles the token', () => {
+        const scanned = [
+            ...[...sharedFiles, engineFile].map(f => ['src/' + f, resolve(ROOT, 'src', f)]),
+            ['worker.js', resolve(ROOT, 'worker.js')],
+            ...readdirSync(ROOT).filter(f => f.endsWith('.html'))
+                .map(f => [f, resolve(ROOT, f)]),
+        ];
+        const offenders = scanned
+            .filter(([, path]) => usesRepoApi(readFileSync(path, 'utf-8')))
+            .map(([name]) => name);
+
+        // Counts, not just values: an empty list, or a glob that stopped matching,
+        // would pass vacuously.
+        expect(scanned.length).toBeGreaterThanOrEqual(12);
+        expect(scanned.map(([n]) => n)).toEqual(
+            expect.arrayContaining(['worker.js', 'index.html', 'checklist.html']));
+        expect(offenders).toEqual([]);
     });
 });

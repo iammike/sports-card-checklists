@@ -208,12 +208,15 @@ class GitHubSync {
         } else {
             redirectUri = here;
         }
-        const scope = 'gist public_repo'; // gist for owned cards, public_repo for card data edits
+        // Just the gist. public_repo went with the repo-file API in #764 - card
+        // data lives in the gist, and images go to R2 through the Worker, which
+        // only ever calls /user with this token.
+        const scope = 'gist';
         // Generate state parameter for CSRF protection (include return URL if branch preview)
         const stateData = { csrf: crypto.randomUUID(), returnUrl };
         const state = btoa(JSON.stringify(stateData));
         sessionStorage.setItem('oauth_state', stateData.csrf);
-        const authUrl = `https://github.com/login/oauth/authorize?client_id=${CONFIG.GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&state=${encodeURIComponent(state)}`;
+        const authUrl = `https://github.com/login/oauth/authorize?client_id=${CONFIG.GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(state)}`;
         this._redirect(authUrl);
     }
 
@@ -775,97 +778,6 @@ class GitHubSync {
     async loadPublicStats() {
         const data = await this.loadPublicData();
         return data?.stats || {};
-    }
-
-    // ========================================
-    // Repo File Operations (for card data)
-    // ========================================
-
-    // Get repo info from current page URL (assumes GitHub Pages)
-    getRepoInfo() {
-        // For GitHub Pages: https://username.github.io/repo-name/
-        // Or custom domain pointing to GitHub Pages
-        // We'll use a config value for reliability
-        return {
-            owner: OWNER_USERNAME,
-            repo: 'sports-card-checklists'
-        };
-    }
-
-    // Get a file from the repo (returns content and SHA for updates)
-    async getRepoFile(path) {
-        if (!this.token) return null;
-
-        const { owner, repo } = this.getRepoInfo();
-        try {
-            // Add timestamp to bust browser cache and get latest SHA
-            const response = await fetch(
-                `https://api.github.com/repos/${owner}/${repo}/contents/${path}?t=${Date.now()}`,
-                {
-                    headers: { 'Authorization': `Bearer ${this.token}` }
-                }
-            );
-
-            if (!response.ok) {
-                console.error('Failed to get repo file:', response.status);
-                return null;
-            }
-
-            const data = await response.json();
-            // Content is base64 encoded
-            const content = atob(data.content);
-            return {
-                content,
-                sha: data.sha,
-                path: data.path
-            };
-        } catch (error) {
-            console.error('Failed to get repo file:', error);
-            return null;
-        }
-    }
-
-    // Update a file in the repo
-    async updateRepoFile(path, content, message) {
-        if (!this.token) return false;
-
-        const { owner, repo } = this.getRepoInfo();
-
-        // First get the current file to get its SHA
-        const currentFile = await this.getRepoFile(path);
-        if (!currentFile) {
-            console.error('Could not get current file SHA');
-            return false;
-        }
-
-        try {
-            const response = await fetch(
-                `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
-                {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': `Bearer ${this.token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        message: message || `Update ${path}`,
-                        content: btoa(content), // Base64 encode
-                        sha: currentFile.sha
-                    })
-                }
-            );
-
-            if (!response.ok) {
-                const error = await response.json();
-                console.error('Failed to update repo file:', error);
-                return false;
-            }
-
-            return true;
-        } catch (error) {
-            console.error('Failed to update repo file:', error);
-            return false;
-        }
     }
 
     // Build an error flagged as an expired session so callers can prompt a
