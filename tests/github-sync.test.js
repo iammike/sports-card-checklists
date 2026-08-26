@@ -1164,19 +1164,24 @@ describe('nothing that holds the token uses a repo endpoint', () => {
     };
 
     it('finds no repo endpoint in any file that handles the token', () => {
+        const bundle = [...sharedFiles, engineFile];
+        const pages = readdirSync(ROOT).filter(f => f.endsWith('.html'));
         const scanned = [
-            ...[...sharedFiles, engineFile].map(f => ['src/' + f, resolve(ROOT, 'src', f)]),
+            ...bundle.map(f => ['src/' + f, resolve(ROOT, 'src', f)]),
             ['worker.js', resolve(ROOT, 'worker.js')],
-            ...readdirSync(ROOT).filter(f => f.endsWith('.html'))
-                .map(f => [f, resolve(ROOT, f)]),
+            ...pages.map(f => [f, resolve(ROOT, f)]),
         ];
         const offenders = scanned
             .filter(([, path]) => usesRepoApi(readFileSync(path, 'utf-8')))
             .map(([name]) => name);
 
-        // Counts, not just values: an empty list, or a glob that stopped matching,
-        // would pass vacuously.
-        expect(scanned.length).toBeGreaterThanOrEqual(12);
+        // Non-vacuity, without a magic number that a legitimate new file breaks.
+        // The size is an identity against what it was built from, so a dropped or
+        // duplicated entry fails; the manifest behind `bundle` is itself pinned
+        // against readdirSync by bundle-file-lists.test.js, so an empty one cannot
+        // quietly shrink this. The named three are the surfaces most likely to be
+        // forgotten, which is why they are asserted rather than counted.
+        expect(scanned.length).toBe(bundle.length + 1 + pages.length);
         expect(scanned.map(([n]) => n)).toEqual(
             expect.arrayContaining(['worker.js', 'index.html', 'checklist.html']));
         expect(offenders).toEqual([]);
