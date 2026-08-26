@@ -1,19 +1,35 @@
 // GitHub OAuth + Gist Storage for Sports Card Checklists
 //
 // Configuration: Set these values after creating your GitHub OAuth App and Cloudflare Worker
-const IS_PREVIEW = window.location.hostname.endsWith('.pages.dev');
+// Two notions of "preview", deliberately not the same test. Kept together because
+// apart they read as duplicates of each other, and the next person to make them
+// agree would be widening a trust boundary without noticing.
+//
+// The deployment question - are we on Cloudflare Pages rather than production?
+// Picks the OAuth app and the gist, so it has to hold on every preview host,
+// branch subdomains included. Any Pages project satisfies it, so it is never
+// sufficient for trust on its own - but it is a necessary half of both the
+// #auth= acceptance check and the CSRF exemption below, so loosening it loosens
+// those.
+const IS_PREVIEW_DEPLOY = window.location.hostname.endsWith('.pages.dev');
+
+// The identity question - is this *our* project's apex preview, the one that
+// receives the OAuth callback? Decides where a token may be sent. Anyone can
+// create a Pages project, so "somewhere on pages.dev" is not an answer to this.
+const PROJECT_PREVIEW_HOST = 'sports-card-checklists.pages.dev';
+
 const PREVIEW_GIST_ID = 'ec645b5e213447ac37de95ffada2d31b';
 const PRODUCTION_GIST_ID = '5f2b43f0588d72892273ae8f24f68c2d';
 const CONFIG = {
     // Use preview OAuth app for pages.dev, production app for github.io
-    GITHUB_CLIENT_ID: IS_PREVIEW
+    GITHUB_CLIENT_ID: IS_PREVIEW_DEPLOY
         ? 'Ov23limT2ZxKxthkupeT'  // Preview app
         : 'Ov23liik9Fs5C6RCeTgf', // Production app
     OAUTH_PROXY_URL: 'https://cards-oauth.iammikec.workers.dev',
     GIST_FILENAME: 'sports-card-checklists.json',
     GIST_DESCRIPTION: 'Sports Card Checklist Collection Data',
     // Preview uses separate gist so testing doesn't affect production
-    PUBLIC_GIST_ID: IS_PREVIEW ? PREVIEW_GIST_ID : PRODUCTION_GIST_ID,
+    PUBLIC_GIST_ID: IS_PREVIEW_DEPLOY ? PREVIEW_GIST_ID : PRODUCTION_GIST_ID,
     PRODUCTION_GIST_ID: PRODUCTION_GIST_ID, // For syncing preview from prod
 };
 
@@ -25,9 +41,6 @@ const MIN_WRITE_SPACING_MS = 1000;
 // Anyone can authorize the OAuth app, but only the owner has anything to sign in
 // for - see _rejectIfNotOwner.
 const OWNER_USERNAME = 'iammike';
-
-// Cloudflare serves branch previews at <branch>.<project>.pages.dev.
-const PREVIEW_HOST = 'sports-card-checklists.pages.dev';
 
 // Everything an OAuth response adds to the address bar, dropped by
 // _cleanAuthFromUrl once the callback has read what it needs. Address-bar hygiene
@@ -52,7 +65,7 @@ class GitHubSync {
         this.gistId = localStorage.getItem(GIST_ID_KEY);
 
         // Guard: clear preview gist ID if it leaked into production localStorage
-        if (!IS_PREVIEW && this.gistId === PREVIEW_GIST_ID) {
+        if (!IS_PREVIEW_DEPLOY && this.gistId === PREVIEW_GIST_ID) {
             this.gistId = null;
             localStorage.removeItem(GIST_ID_KEY);
         }
@@ -108,7 +121,7 @@ class GitHubSync {
     // callback. Takes the hostname so it can be exercised for hosts the test
     // environment cannot actually be served from.
     _isBranchPreview(hostname = window.location.hostname) {
-        return this.isPreview() && hostname !== PREVIEW_HOST;
+        return this.isPreview() && hostname !== PROJECT_PREVIEW_HOST;
     }
 
     // Is this a URL we are willing to hand a token to? Parsed, not substring
@@ -119,7 +132,7 @@ class GitHubSync {
         try {
             const { protocol, hostname } = new URL(url);
             return protocol === 'https:'
-                && (hostname === PREVIEW_HOST || hostname.endsWith('.' + PREVIEW_HOST));
+                && (hostname === PROJECT_PREVIEW_HOST || hostname.endsWith('.' + PROJECT_PREVIEW_HOST));
         } catch (e) {
             return false;
         }
@@ -191,7 +204,7 @@ class GitHubSync {
         const here = window.location.origin + window.location.pathname + this._returnQuery();
         if (isBranchPreview) {
             returnUrl = here;
-            redirectUri = `https://${PREVIEW_HOST}/`;
+            redirectUri = `https://${PROJECT_PREVIEW_HOST}/`;
         } else {
             redirectUri = here;
         }
@@ -389,12 +402,12 @@ class GitHubSync {
 
     // Check if running on preview environment
     isPreview() {
-        return IS_PREVIEW;
+        return IS_PREVIEW_DEPLOY;
     }
 
     // Sync preview gist from production (only works on preview sites)
     async syncFromProduction() {
-        if (!IS_PREVIEW) {
+        if (!IS_PREVIEW_DEPLOY) {
             throw new Error('Sync only available on preview sites');
         }
         if (!this.token) {
@@ -462,7 +475,7 @@ class GitHubSync {
     // On preview sites, always use the preview gist (even when logged in)
     // On production, use the user's personal gist
     getActiveGistId() {
-        if (IS_PREVIEW) {
+        if (IS_PREVIEW_DEPLOY) {
             return CONFIG.PUBLIC_GIST_ID; // Preview gist
         }
         return this.gistId; // User's personal gist
@@ -474,7 +487,7 @@ class GitHubSync {
 
         // On preview sites, always use the preview gist - don't search
         // This prevents finding the wrong gist when multiple exist with same filename
-        if (IS_PREVIEW) {
+        if (IS_PREVIEW_DEPLOY) {
             this.gistId = CONFIG.PUBLIC_GIST_ID;
             localStorage.setItem(GIST_ID_KEY, this.gistId);
             return this.gistId;
@@ -500,7 +513,7 @@ class GitHubSync {
 
         for (const gist of gists) {
             // Skip the preview gist when searching on production
-            if (!IS_PREVIEW && gist.id === PREVIEW_GIST_ID) continue;
+            if (!IS_PREVIEW_DEPLOY && gist.id === PREVIEW_GIST_ID) continue;
             if (gist.files[CONFIG.GIST_FILENAME]) {
                 this.gistId = gist.id;
                 localStorage.setItem(GIST_ID_KEY, this.gistId);
@@ -774,7 +787,7 @@ class GitHubSync {
         // Or custom domain pointing to GitHub Pages
         // We'll use a config value for reliability
         return {
-            owner: 'iammike',
+            owner: OWNER_USERNAME,
             repo: 'sports-card-checklists'
         };
     }
@@ -1275,6 +1288,12 @@ class GitHubSync {
     }
 
 }
+
+// Exported because the other bundle and index.html check it too - a login gate
+// that disagrees with this one is how a differently-cased account signs in and
+// then lands read-only everywhere. #751 wrote exactly that and caught it in
+// review before it shipped; the copies have to agree.
+window.OWNER_USERNAME = OWNER_USERNAME;
 
 // Export singleton
 window.githubSync = new GitHubSync();

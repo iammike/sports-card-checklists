@@ -279,16 +279,6 @@ class CardEditorModal {
         this.customFields = options.customFields || {};
     }
 
-    // Check if running on a preview site (not production)
-    isPreviewSite() {
-        const hostname = window.location.hostname;
-        // Preview sites are on .pages.dev but not the main domain
-        if (hostname.endsWith('.pages.dev') && !hostname.startsWith('sports-card-checklists.')) {
-            return true;
-        }
-        return false;
-    }
-
     // The swatch next to a custom field's label. Its color comes from the
     // checklist config and lands in a CSS declaration, so it is validated rather
     // than escaped - see isSafeColor in shared.js. A color that fails renders no

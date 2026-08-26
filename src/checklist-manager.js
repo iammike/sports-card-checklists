@@ -12,7 +12,7 @@ const OWNED_SYNC_DEBOUNCE_MS = 1500;
 class ChecklistManager {
     constructor(config) {
         this.checklistId = config.checklistId;
-        this.ownerUsername = config.ownerUsername || 'iammike';
+        this.ownerUsername = config.ownerUsername || OWNER_USERNAME;
         this.localStorageKey = config.localStorageKey;
         this.ownedCards = [];
         this.isReadOnly = true;
