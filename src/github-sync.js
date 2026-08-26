@@ -258,7 +258,13 @@ class GitHubSync {
                 this.gistId = authData.gistId;
                 localStorage.setItem(TOKEN_KEY, this.token);
                 localStorage.setItem(USER_KEY, JSON.stringify(this.user));
-                localStorage.setItem(GIST_ID_KEY, this.gistId);
+                // Guard for the same reason findOrCreateGist guards its create
+                // response: a null here stores the string "null", and the
+                // constructor's stale-id check only special-cases the preview
+                // id. Not reachable today - this callback only runs on a branch
+                // preview, where findOrCreateGist short-circuits to
+                // PUBLIC_GIST_ID - but it is one gate move away from being so.
+                if (this.gistId) localStorage.setItem(GIST_ID_KEY, this.gistId);
                 // Clean URL
                 this._cleanAuthFromUrl();
                 if (this.onAuthChange) this.onAuthChange(true);
@@ -1100,6 +1106,13 @@ class GitHubSync {
     // and dropped every other one from the index and the nav. Same hazard as
     // _loadDataForWrite, same answer (#768).
     async loadRegistryForWrite() {
+        // Read past _fetchGist's session cache. That cache survives until a
+        // write or a visibilitychange, so without this the create path could
+        // republish a snapshot taken minutes ago and drop a checklist another
+        // tab added since - which is the very thing this function exists to
+        // prevent. _mergeWithFreshGistData clears it before its read for the
+        // same reason.
+        this.clearGistCache();
         const gist = this.token ? await this._fetchGist() : await this._fetchGist(true);
         if (!gist) return { ok: false, reason: 'read_failed' };
 
@@ -1259,6 +1272,12 @@ class GitHubSync {
         if (!this.getActiveGistId()) {
             await this.findOrCreateGist();
         }
+        // findOrCreateGist answers null instead of throwing now, so this is
+        // reachable. Without it _patchGist returns a bare `false`, whose
+        // .reason is undefined - the engine's noRetry() check reads that as a
+        // transient failure and burns a 1.5s retry on a call that cannot
+        // succeed, and _applySaveResult shows a generic error (#767).
+        if (!this.getActiveGistId()) return { ok: false, reason: 'no_gist' };
 
         const filesMap = { [`${checklistId}-cards.json`]: cardData };
 

@@ -288,4 +288,19 @@ describe('the checklist creator modal', () => {
         expect(githubSync.createChecklist).not.toHaveBeenCalled();
         expect(window.alert).toHaveBeenCalled();
     });
+
+    // Retrying fixes a failed read but never a corrupt file, so the two must
+    // not share one message.
+    it('tells the user to repair the file when the registry is malformed', async () => {
+        githubSync.loadRegistryForWrite = vi.fn(async () => ({ ok: false, reason: 'malformed' }));
+        window.alert = vi.fn();
+        const creator = openCreator();
+        creator.backdrop.querySelector('#creator-title').value = 'Brand New';
+        creator.backdrop.querySelector('#creator-nav-label').value = 'Brand New';
+
+        await creator.save();
+
+        expect(githubSync.createChecklist).not.toHaveBeenCalled();
+        expect(window.alert.mock.calls[0][0]).toMatch(/corrupt/i);
+    });
 });

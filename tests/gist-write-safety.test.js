@@ -191,6 +191,26 @@ describe('GitHubSync — a failed collection read must not become a blank write 
         expect(patches()).toHaveLength(0);
     });
 
+    // saveCardData has its own gist-id path, and it must report a reason: the
+    // engine's noRetry() check reads an undefined reason as retryable.
+    it('reports no_gist rather than a bare false when the listing fails', async () => {
+        sync.gistId = null;
+        localStorage.clear();
+        stubFetch(() => ({
+            ok: false,
+            status: 500,
+            headers: { get: () => null },
+            clone: () => ({ text: async () => '' }),
+            json: async () => ({ message: 'Server Error' }),
+        }));
+
+        expect(await sync.saveCardData('jd', [{ set: 'x' }], { owned: 1 }))
+            .toEqual({ ok: false, reason: 'no_gist' });
+        expect(await sync.saveCardData('jd', [{ set: 'x' }]))
+            .toEqual({ ok: false, reason: 'no_gist' });
+        expect(patches()).toHaveLength(0);
+    });
+
     it('aborts saveChecklistStats on a failed read', async () => {
         stubFetch(() => errorResponse(500));
 
