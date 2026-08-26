@@ -548,14 +548,21 @@ class GitHubSync {
         return this.gistId;
     }
 
-    // Load all collection data from gist (uses cache if available)
-    async loadData() {
+    // The read behind loadData(), reporting *why* a read came back empty so that
+    // callers who intend to write can tell "this gist has no collection yet"
+    // (safe to seed) from "the read failed" (must not overwrite). loadData()
+    // flattens this back to value-or-null for the read-only callers; the write
+    // paths go through _loadDataForWrite() instead (#768).
+    //
+    // Returns { ok: true, data } - data being null for a gist that carries no
+    // collection file yet - or { ok: false, reason } when the read failed.
+    async _readCollectionData() {
         const gistId = this.getActiveGistId();
-        if (!this.token || !gistId) return null;
+        if (!this.token || !gistId) return { ok: false, reason: 'not_authenticated' };
 
         // Use cache if available (prevents stale reads during save operations)
         if (this._cachedData) {
-            return this._cachedData;
+            return { ok: true, data: this._cachedData };
         }
 
         try {
@@ -563,23 +570,67 @@ class GitHubSync {
                 headers: { 'Authorization': `Bearer ${this.token}` },
             });
 
-            // If auth failed, fall back to public data
-            if (!response.ok && (response.status === 401 || response.status === 403)) {
-                return this.loadPublicData();
+            if (!response.ok) {
+                // Order matters here, and mirrors _patchGistFiles: GitHub's
+                // secondary rate limit answers 403, so the rate-limit check has
+                // to come first or a throttled read is misread as expired auth
+                // and sends the caller to a different collection entirely (#768).
+                if (await this._isRateLimited(response)) {
+                    return { ok: false, reason: 'rate_limited' };
+                }
+                if (response.status === 401 || response.status === 403) {
+                    return { ok: false, reason: 'auth_expired' };
+                }
+                return { ok: false, reason: 'api_error', status: response.status };
             }
-            if (!response.ok) return null;
 
             const gist = await response.json();
             const content = gist.files[CONFIG.GIST_FILENAME]?.content;
 
-            if (!content) return null;
+            // A gist that exists but has no collection file yet is a real,
+            // writable state - not a failure.
+            if (!content) return { ok: true, data: null };
 
             this._cachedData = JSON.parse(content);
-            return this._cachedData;
+            return { ok: true, data: this._cachedData };
         } catch (error) {
             console.error('Failed to load from gist:', error);
-            return null;
+            return { ok: false, reason: 'network_error' };
         }
+    }
+
+    // Load all collection data from gist (uses cache if available).
+    //
+    // Read-only callers keep the original contract: the data, or null when there
+    // is none to show. A genuine auth failure still falls back to the public
+    // collection so a stale session renders something rather than an empty page.
+    // A rate-limited 403 deliberately does not - it is not an auth problem, and
+    // on production the public gist is a different collection (#768).
+    async loadData() {
+        const result = await this._readCollectionData();
+        if (result.ok) return result.data;
+        if (result.reason === 'auth_expired') return this.loadPublicData();
+        return null;
+    }
+
+    // The read-modify-write base for every path that PATCHes the collection
+    // file. Returns { ok: true, data } - a fresh empty collection when the gist
+    // genuinely has none yet - or { ok: false, reason } when the read failed, in
+    // which case the caller MUST abort. Treating a failed read as "nothing is
+    // stored" is what let a single transient error overwrite the whole
+    // collection with a blank one (#768).
+    async _loadDataForWrite() {
+        if (!this.token) return { ok: false, reason: 'not_authenticated' };
+
+        // Having no gist yet is the first-save case, not a failure: create it,
+        // then read back whatever findOrCreateGist found or seeded.
+        if (!this.getActiveGistId()) {
+            await this.findOrCreateGist();
+        }
+
+        const result = await this._readCollectionData();
+        if (!result.ok) return result;
+        return { ok: true, data: result.data || { checklists: {}, stats: {} } };
     }
 
     // Load from public gist (no auth required)
@@ -745,10 +796,10 @@ class GitHubSync {
     }
 
     async saveChecklist(checklistId, ownedCards, stats = null) {
-        let data = await this.loadData();
-        if (!data) {
-            data = { checklists: {}, stats: {} };
-        }
+        const result = await this._loadDataForWrite();
+        if (!result.ok) return false;
+        const data = result.data;
+        if (!data.checklists) data.checklists = {};
         data.checklists[checklistId] = ownedCards;
         // Save stats too if provided (avoids race condition)
         if (stats) {
@@ -762,10 +813,9 @@ class GitHubSync {
     // Save computed stats for a checklist (for index page aggregate)
     // NOTE: Prefer passing stats to saveChecklist() to avoid race conditions
     async saveChecklistStats(checklistId, stats) {
-        let data = await this.loadData();
-        if (!data) {
-            data = { checklists: {}, stats: {} };
-        }
+        const result = await this._loadDataForWrite();
+        if (!result.ok) return false;
+        const data = result.data;
         if (!data.stats) {
             data.stats = {};
         }
@@ -1166,12 +1216,18 @@ class GitHubSync {
         // Bundle stats into the same write so we don't spend a second request.
         let mergedData = null;
         if (stats) {
-            mergedData = await this.loadData();
-            if (!mergedData) mergedData = { checklists: {}, stats: {} };
-            if (!mergedData.stats) mergedData.stats = {};
-            mergedData.stats[checklistId] = stats;
-            mergedData.lastUpdated = new Date().toISOString();
-            filesMap[CONFIG.GIST_FILENAME] = mergedData;
+            const result = await this._loadDataForWrite();
+            // Card data is the point of this call; stats are the freeloader. If
+            // the collection read failed we cannot rebuild that file safely, so
+            // drop the stats half and still write the cards rather than PATCH a
+            // blank collection over the real one (#768).
+            if (result.ok) {
+                mergedData = result.data;
+                if (!mergedData.stats) mergedData.stats = {};
+                mergedData.stats[checklistId] = stats;
+                mergedData.lastUpdated = new Date().toISOString();
+                filesMap[CONFIG.GIST_FILENAME] = mergedData;
+            }
         }
 
         const result = await this._patchGistFiles(filesMap);
