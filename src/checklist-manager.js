@@ -118,13 +118,18 @@ class ChecklistManager {
         this._ownedSyncTimer = setTimeout(() => this._syncOwnedNow(), OWNED_SYNC_DEBOUNCE_MS);
     }
 
+    // Nothing awaits this - saveOwned() fires it from a bare setTimeout - so it
+    // has to swallow its own failures. An escaping rejection left the chip stuck
+    // on "Syncing..." forever and told the user nothing, which is exactly how a
+    // dead session looked like a working one (#767).
     async _syncOwnedNow() {
-        // Get stats if callback provided (saves both atomically to avoid race condition)
-        const stats = this.getStats ? this.getStats() : null;
-        const success = await githubSync.saveChecklist(this.checklistId, this.ownedCards, stats);
-        if (success) {
-            this.setSyncStatus('synced', 'Synced');
-        } else {
+        try {
+            // Get stats if callback provided (saves both atomically to avoid race condition)
+            const stats = this.getStats ? this.getStats() : null;
+            const success = await githubSync.saveChecklist(this.checklistId, this.ownedCards, stats);
+            this.setSyncStatus(success ? 'synced' : 'error', success ? 'Synced' : 'Sync failed');
+        } catch (error) {
+            console.error('Failed to sync owned cards:', error);
             this.setSyncStatus('error', 'Sync failed');
         }
     }

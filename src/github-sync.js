@@ -605,7 +605,7 @@ class GitHubSync {
     //   done:true  = stop retrying, return value
     //   done:false = retryable failure, status is the HTTP status
     _patchGist(fn) {
-        this._saveQueue = this._saveQueue.then(async () => {
+        const run = this._saveQueue.then(async () => {
             const gistId = this.getActiveGistId();
             if (!gistId) return false;
 
@@ -635,7 +635,12 @@ class GitHubSync {
                 return result.value;
             }
         });
-        return this._saveQueue;
+        // Chain the *settled* promise back into the queue, never the rejectable
+        // one. A rejected _saveQueue makes every later .then() short-circuit, so
+        // a single throw would silently kill every gist write for the rest of
+        // the session without fn ever being called again (#767).
+        this._saveQueue = run.catch(() => {});
+        return run;
     }
 
     // Distinguish a GitHub rate-limit 403 from a genuine auth 403.
