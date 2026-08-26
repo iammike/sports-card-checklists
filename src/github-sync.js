@@ -29,6 +29,18 @@ const OWNER_USERNAME = 'iammike';
 // Cloudflare serves branch previews at <branch>.<project>.pages.dev.
 const PREVIEW_HOST = 'sports-card-checklists.pages.dev';
 
+// Everything an OAuth response adds to the address bar, dropped by
+// _cleanAuthFromUrl once the callback has read what it needs. Address-bar hygiene
+// only - what keeps a stale state from riding back out to GitHub is _returnQuery's
+// allowlist, which never picks these up in the first place. Reaching for this list
+// as the defense is the mistake that shipped once already.
+const OAUTH_RESPONSE_PARAMS = ['code', 'state', 'error', 'error_description', 'error_uri'];
+
+// The only query parameter this app reads - ChecklistEngine's constructor, and
+// DynamicNav.isActive to mark the current page. Everything else in the address
+// bar belongs to whoever put it there.
+const APP_QUERY_PARAMS = ['id'];
+
 // Storage keys
 const TOKEN_KEY = 'github_token';
 const GIST_ID_KEY = 'github_gist_id';
@@ -126,11 +138,27 @@ class GitHubSync {
     // dropping the whole query takes ?id= with it so a reload has nothing to load.
     _cleanAuthFromUrl() {
         const params = new URLSearchParams(window.location.search);
-        params.delete('code');
-        params.delete('state');
+        OAUTH_RESPONSE_PARAMS.forEach(p => params.delete(p));
         const query = params.toString();
         window.history.replaceState({}, document.title,
             window.location.pathname + (query ? '?' + query : ''));
+    }
+
+    // The query to ask GitHub to send us back to. An allowlist, where the cleaner
+    // above is a denylist, because the two point in opposite directions: leaving
+    // an unrecognised parameter alone in our own address bar costs nothing, while
+    // this one crosses a trust boundary. Nothing stops a third party handing the
+    // owner a link to this site carrying any query they like, and login() is one
+    // click away on every page. Sending only the parameter the app actually reads
+    // means redirect_uri is bare in every path that exists today.
+    _returnQuery() {
+        const params = new URLSearchParams(window.location.search);
+        const kept = new URLSearchParams();
+        for (const name of APP_QUERY_PARAMS) {
+            if (params.has(name)) kept.set(name, params.get(name));
+        }
+        const query = kept.toString();
+        return query ? '?' + query : '';
     }
 
     isLoggedIn() {
@@ -147,11 +175,25 @@ class GitHubSync {
         const isBranchPreview = this._isBranchPreview();
         let redirectUri;
         let returnUrl = null;
+        // The checklist id rides along, nothing else does.
+        //
+        // The id matters because checklist.html is nothing without ?id=, and
+        // ChecklistEngine reads it in its constructor - before init() calls
+        // handleCallback() - so putting it back after the callback would arrive
+        // too late. GitHub matches redirect_uri on host and path and permits
+        // extra query parameters.
+        //
+        // The fragment has to go because _copyCardLink hands out "#card-<id>"
+        // share URLs and the receiver is handed "<returnUrl>#auth=<payload>":
+        // with a fragment already there the result has two, and a token ends up
+        // parked in the address bar and history instead of being consumed. The
+        // deep link is what is worth losing.
+        const here = window.location.origin + window.location.pathname + this._returnQuery();
         if (isBranchPreview) {
-            returnUrl = window.location.href;
+            returnUrl = here;
             redirectUri = `https://${PREVIEW_HOST}/`;
         } else {
-            redirectUri = window.location.origin + window.location.pathname;
+            redirectUri = here;
         }
         const scope = 'gist public_repo'; // gist for owned cards, public_repo for card data edits
         // Generate state parameter for CSRF protection (include return URL if branch preview)
@@ -165,10 +207,20 @@ class GitHubSync {
     // Handle OAuth callback (call this on page load)
     async handleCallback() {
         // Check for auth data passed via URL fragment (from branch preview redirect)
+        // Located rather than required to be the whole fragment. login() now
+        // strips the fragment from returnUrl so this is the only one, but a
+        // receiver that silently no-ops leaves a live token in the address bar,
+        // which is too quiet a failure to leave resting on that.
+        //
+        // Last occurrence, not first: _redirect appends the real payload at the
+        // end, so anything that looks like one earlier in the hash came from the
+        // prefix - the part an attacker could influence.
         const hash = window.location.hash;
-        if (hash.startsWith('#auth=')) {
+        const AUTH_PREFIX = '#auth=';
+        const authAt = hash.lastIndexOf(AUTH_PREFIX);
+        if (authAt !== -1) {
             try {
-                const authData = JSON.parse(atob(hash.slice(6)));
+                const authData = JSON.parse(atob(hash.slice(authAt + AUTH_PREFIX.length)));
                 // Only a preview origin ever receives one of these, and only as the
                 // tail of a flow this tab started: the csrf must match the value
                 // login() put in sessionStorage before navigating away. Without
@@ -196,7 +248,14 @@ class GitHubSync {
                 if (this.onAuthChange) this.onAuthChange(true);
                 return true;
             } catch (e) {
+                // Clean up even here. A payload that will not decode is still a
+                // token in the address bar and in history if it happens to be a
+                // real one, and leaving it is the exact failure this branch
+                // exists to prevent. The fragment only: a code/state alongside it
+                // is a callback this pass has not read yet.
                 console.error('Failed to parse auth data from URL:', e);
+                window.history.replaceState({}, document.title,
+                    window.location.pathname + window.location.search);
             }
         }
 
@@ -204,7 +263,14 @@ class GitHubSync {
         const code = params.get('code');
         const state = params.get('state');
 
-        if (!code) return false;
+        if (!code) {
+            // A denied authorization lands here with ?error= and no code. Clear it
+            // rather than leaving the error sitting in the address bar. This drops
+            // any fragment along with it, which a real denial never carries -
+            // GitHub does not send one - so only a hand-built URL loses anything.
+            if (params.has('error')) this._cleanAuthFromUrl();
+            return false;
+        }
 
         // Parse state parameter (contains CSRF token and optional return URL)
         let stateData = { csrf: null, returnUrl: null };
