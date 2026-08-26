@@ -1163,11 +1163,15 @@ describe('nothing that holds the token uses a repo endpoint', () => {
     // The cost is that a link to docs.github.com/rest/repos in a comment fails
     // this. That is a loud one-line fix; a missed repo call is silent.
     //
-    // Both spellings: the literal host string, and a bare /repos for a call
-    // assembled from a base-URL constant. A word boundary rather than a slash -
-    // `POST /user/repos` creates a repository and has no path segment after it.
-    const usesRepoApi = (source) =>
-        source.includes('api.github.com/repos') || /['"`/]repos\b/.test(source);
+    // One pattern for both spellings. It covers the full host form too, since
+    // `api.github.com/repos` has the same leading slash a base-URL-assembled
+    // `${API}/repos/...` does - a separate substring check for the host was
+    // redundant, and disagreed with this one about `/repositories`.
+    //
+    // Trailing word boundary rather than a slash: `POST /user/repos` creates a
+    // repository and has no path segment after it. It also keeps `/repositories`,
+    // a public unscoped endpoint, from reading as a hit.
+    const usesRepoApi = (source) => /['"`/]repos\b/.test(source);
 
     it('finds no repo endpoint in any file that handles the token', () => {
         const bundle = [...sharedFiles, engineFile];
