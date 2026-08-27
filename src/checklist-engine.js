@@ -1614,6 +1614,11 @@ class ChecklistEngine {
             scheduleFilterChange();
         });
 
+        // _clearFilters resets the two <input> values, but the fill, the label
+        // and the z-index stacking all live in this closure - without a handle
+        // on it the slider would read "$0 - $500" while showing the old handles.
+        this._syncPriceSliderUI = update;
+
         update();
     }
 
@@ -1888,17 +1893,85 @@ class ChecklistEngine {
             : null;
 
         // Toggle visibility on individual cards
+        let visibleCount = 0;
         container.querySelectorAll('.card').forEach(cardEl => {
             const idx = parseInt(cardEl.dataset.cardIdx);
             const card = this._renderedCards[idx];
             if (!card) return;
             const visible = this._filterCard(card, statusFilter, searchTerm, customFilterValues, quickFilters, priceRange);
             cardEl.classList.toggle('filter-hidden', !visible);
+            if (visible) visibleCount++;
         });
 
         // Update section visibility
         this._updateSectionVisibility(container);
+        this._updateNoMatchesState(container, visibleCount);
         this.updateStats();
+    }
+
+    // Say so when the filters have hidden everything. _updateSectionVisibility
+    // has just hidden every section, group header and note, so without this the
+    // page is blank space and reads as broken rather than as an empty result.
+    //
+    // Deliberately not _renderEmptyState's job: that one is about a checklist
+    // with no cards at all and is rendered *instead of* the sections, so it must
+    // never be second-guessed here - hence the _renderedCards gate.
+    _updateNoMatchesState(container, visibleCount) {
+        const existing = container.querySelector('.no-matches-state');
+        if (visibleCount > 0 || this._renderedCards.length === 0) {
+            existing?.remove();
+            return;
+        }
+        // Already showing - leave the node alone rather than rebuilding it, so a
+        // keyboard user's focus on Clear filters survives the next keystroke in
+        // the search box.
+        if (existing) return;
+
+        const el = document.createElement('div');
+        el.className = 'no-matches-state';
+        el.innerHTML = '<div class="no-matches-text">No cards match these filters</div>'
+            + '<button type="button" class="filter-btn no-matches-clear">Clear filters</button>';
+        el.querySelector('.no-matches-clear').addEventListener('click', () => this._clearFilters());
+        container.appendChild(el);
+    }
+
+    // Reset every control _applyFilters reads, then re-filter.
+    //
+    // #sort-filter is deliberately left alone: sorting is not filtering, and
+    // clearing the filters that hid everything should not also discard the order
+    // the visitor chose.
+    _clearFilters() {
+        const statusFilter = document.getElementById('status-filter');
+        if (statusFilter) statusFilter.value = 'all';
+
+        const search = document.getElementById('search');
+        if (search) search.value = '';
+
+        // 'all' is the first option every custom filter renders, and the value
+        // _filterCard short-circuits on.
+        (this.config.customFilters || []).forEach(f => {
+            const el = document.getElementById(`${f.id}-filter`);
+            if (el) el.value = 'all';
+        });
+
+        document.querySelectorAll('.quick-filter-btn.active').forEach(btn => {
+            btn.classList.remove('active');
+            btn.setAttribute('aria-pressed', 'false');
+        });
+
+        const priceMin = document.getElementById('price-min-filter');
+        const priceMax = document.getElementById('price-max-filter');
+        if (priceMin && priceMax) {
+            priceMin.value = 0;
+            priceMax.value = PRICE_SLIDER_RESOLUTION;
+            // The cap marker has to go with the cap. _applyFilters reads a
+            // touched max as a deliberate ceiling even when it sits at the top,
+            // so leaving it would keep filtering by a range nobody set anymore.
+            delete priceMax.dataset.touched;
+            this._syncPriceSliderUI?.();
+        }
+
+        this._onFilterChange();
     }
 
     // Hide sections and group headers when all their cards are filtered out

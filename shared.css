@@ -942,6 +942,26 @@ select, input[type="text"] {
 }
 
 /* ============================================
+   No Filter Matches
+   ============================================ */
+/* Shown inside #sections-container once every section has been hidden, so it
+   sits where the cards were rather than above the collapsed page. */
+.no-matches-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 48px 16px;
+    text-align: center;
+}
+
+.no-matches-text {
+    font-size: 15px;
+    color: var(--color-text-muted);
+}
+
+/* ============================================
    Card Component
    ============================================ */
 .card.filter-hidden {
