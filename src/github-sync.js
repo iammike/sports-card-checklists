@@ -514,57 +514,66 @@ class GitHubSync {
             }
         }
 
-        // Search for existing gist (production only)
-        const response = await fetch('https://api.github.com/gists', {
-            headers: { 'Authorization': `Bearer ${this.token}` },
-        });
-        // GitHub answers an error with a JSON *object*, not an array, so the
-        // unchecked for...of below threw "gists is not iterable" on any non-2xx
-        // - and every caller treats this method as returning null, not
-        // throwing. saveCardData reaches it from a path the engine fires
-        // un-awaited, where that throw became an unhandled rejection and left
-        // the status chip on "Saving..." forever (#767). Returning null on a
-        // failed listing also avoids creating a duplicate gist we could not
-        // rule out already existing.
-        const gists = response.ok ? await response.json() : null;
-        if (!Array.isArray(gists)) return null;
+        // Everything below is network work, and this method's contract is to
+        // answer null, never to throw: callers check the return, and one of them
+        // (saveCardData, reached from the engine's un-awaited reorder save)
+        // turns an escaping rejection into a status chip stuck on "Saving..."
+        // forever (#767). A bare `await fetch` rejects on any network-layer
+        // failure - offline, DNS, a blocked request - and `await json()` rejects
+        // on a body that will not parse, so both live inside the try. The cached-id
+        // probe above already had its own catch; this closes the other two.
+        try {
+            // Search for existing gist (production only)
+            const response = await fetch('https://api.github.com/gists', {
+                headers: { 'Authorization': `Bearer ${this.token}` },
+            });
+            // GitHub answers an error with a JSON *object*, not an array, so the
+            // unchecked for...of below threw "gists is not iterable" on any
+            // non-2xx. Returning null on a failed listing also avoids creating a
+            // duplicate gist we could not rule out already existing.
+            const gists = response.ok ? await response.json() : null;
+            if (!Array.isArray(gists)) return null;
 
-        for (const gist of gists) {
-            // Skip the preview gist when searching on production
-            if (!IS_PREVIEW_DEPLOY && gist.id === PREVIEW_GIST_ID) continue;
-            if (gist.files[CONFIG.GIST_FILENAME]) {
-                this.gistId = gist.id;
-                localStorage.setItem(GIST_ID_KEY, this.gistId);
-                return this.gistId;
+            for (const gist of gists) {
+                // Skip the preview gist when searching on production
+                if (!IS_PREVIEW_DEPLOY && gist.id === PREVIEW_GIST_ID) continue;
+                if (gist.files[CONFIG.GIST_FILENAME]) {
+                    this.gistId = gist.id;
+                    localStorage.setItem(GIST_ID_KEY, this.gistId);
+                    return this.gistId;
+                }
             }
-        }
 
-        // Create new gist
-        const createResponse = await fetch('https://api.github.com/gists', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${this.token}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                description: CONFIG.GIST_DESCRIPTION,
-                public: true,
-                files: {
-                    [CONFIG.GIST_FILENAME]: {
-                        content: JSON.stringify({ checklists: {} }, null, 2),
-                    },
+            // Create new gist
+            const createResponse = await fetch('https://api.github.com/gists', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.token}`,
+                    'Content-Type': 'application/json',
                 },
-            }),
-        });
+                body: JSON.stringify({
+                    description: CONFIG.GIST_DESCRIPTION,
+                    public: true,
+                    files: {
+                        [CONFIG.GIST_FILENAME]: {
+                            content: JSON.stringify({ checklists: {} }, null, 2),
+                        },
+                    },
+                }),
+            });
 
-        if (!createResponse.ok) return null;
-        const newGist = await createResponse.json();
-        // Without this the id is undefined and the string "undefined" is what
-        // lands in localStorage, poisoning every later read.
-        if (!newGist?.id) return null;
-        this.gistId = newGist.id;
-        localStorage.setItem(GIST_ID_KEY, this.gistId);
-        return this.gistId;
+            if (!createResponse.ok) return null;
+            const newGist = await createResponse.json();
+            // Without this the id is undefined and the string "undefined" is
+            // what lands in localStorage, poisoning every later read.
+            if (!newGist?.id) return null;
+            this.gistId = newGist.id;
+            localStorage.setItem(GIST_ID_KEY, this.gistId);
+            return this.gistId;
+        } catch (error) {
+            console.error('Failed to find or create gist:', error);
+            return null;
+        }
     }
 
     // The read behind loadData(), reporting *why* a read came back empty so that
@@ -577,7 +586,13 @@ class GitHubSync {
     // collection file yet - or { ok: false, reason } when the read failed.
     async _readCollectionData() {
         const gistId = this.getActiveGistId();
-        if (!this.token || !gistId) return { ok: false, reason: 'not_authenticated' };
+        // Two different states, and from _loadDataForWrite - which checks the
+        // token itself first - only the second is possible, where it means
+        // findOrCreateGist could not produce a gist. Collapsing both into
+        // 'not_authenticated' made that indistinguishable from a signed-out
+        // caller in the logs.
+        if (!this.token) return { ok: false, reason: 'not_authenticated' };
+        if (!gistId) return { ok: false, reason: 'no_gist' };
 
         // Use cache if available (prevents stale reads during save operations)
         if (this._cachedData) {

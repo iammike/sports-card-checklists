@@ -211,6 +211,52 @@ describe('GitHubSync — a failed collection read must not become a blank write 
         expect(patches()).toHaveLength(0);
     });
 
+    // Copilot review: the listing and create fetches were bare awaits, so a
+    // network-layer rejection escaped a method every caller treats as
+    // non-throwing - the same contract violation #767 is about.
+    it('returns null rather than throwing when the gist listing rejects', async () => {
+        sync.gistId = null;
+        localStorage.clear();
+        stubFetch(() => { throw new TypeError('Failed to fetch'); });
+
+        await expect(sync.findOrCreateGist()).resolves.toBeNull();
+        expect(await sync.saveChecklist('jd', ['a'])).toBe(false);
+        expect(patches()).toHaveLength(0);
+    });
+
+    it('returns null rather than throwing when gist creation rejects', async () => {
+        sync.gistId = null;
+        localStorage.clear();
+        stubFetch((url, opts) => {
+            if (opts.method === 'POST') throw new TypeError('Failed to fetch');
+            return { ok: true, status: 200, json: async () => [] };
+        });
+
+        await expect(sync.findOrCreateGist()).resolves.toBeNull();
+    });
+
+    it('returns null rather than throwing when the listing body will not parse', async () => {
+        sync.gistId = null;
+        localStorage.clear();
+        stubFetch(() => ({
+            ok: true,
+            status: 200,
+            json: async () => { throw new SyntaxError('Unexpected token <'); },
+        }));
+
+        await expect(sync.findOrCreateGist()).resolves.toBeNull();
+    });
+
+    // A missing gist id and a missing token are different problems; from the
+    // write path only the first is reachable, and it means findOrCreateGist failed.
+    it('separates "no gist" from "not authenticated"', async () => {
+        sync.gistId = null;
+        expect(await sync._readCollectionData()).toEqual({ ok: false, reason: 'no_gist' });
+
+        sync.token = null;
+        expect(await sync._readCollectionData()).toEqual({ ok: false, reason: 'not_authenticated' });
+    });
+
     it('aborts saveChecklistStats on a failed read', async () => {
         stubFetch(() => errorResponse(500));
 
