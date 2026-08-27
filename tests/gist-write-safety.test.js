@@ -338,6 +338,18 @@ describe('GitHubSync — a failed collection read must not become a blank write 
         expect(await sync.loadRegistryForWrite()).toEqual({ ok: true, registry: { checklists: [] } });
     });
 
+    // Copilot review: with no token this read the public gist and could still
+    // answer ok:true - an unauthenticated snapshot as the merge base for a
+    // full-file rewrite. The owner gate makes it unreachable; the function
+    // should not rely on that.
+    it('refuses a registry write base with no token, without reading anything', async () => {
+        sync.token = null;
+        stubFetch(() => { throw new Error('should not have been called'); });
+
+        expect(await sync.loadRegistryForWrite()).toEqual({ ok: false, reason: 'not_authenticated' });
+        expect(calls).toHaveLength(0);
+    });
+
     it('aborts saveChecklistStats on a failed read', async () => {
         stubFetch(() => errorResponse(500));
 

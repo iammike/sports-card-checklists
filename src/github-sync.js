@@ -1144,22 +1144,30 @@ class GitHubSync {
     // and dropped every other one from the index and the nav. Same hazard as
     // _loadDataForWrite, same answer (#768).
     async loadRegistryForWrite() {
+        // Gate on the token the way _loadDataForWrite does. Without this a
+        // caller with none read the *public* gist and could still be handed
+        // ok:true - an unauthenticated snapshot serving as the merge base for a
+        // full-file rewrite that cannot succeed anyway. Unreachable today, since
+        // the creator sits behind _initSettingsButton's isOwner() check, but a
+        // function named for writing should not need a gate elsewhere to be safe.
+        if (!this.token) return { ok: false, reason: 'not_authenticated' };
+
+        // Having no gist yet is the first-create case, not a failed read -
+        // create it first, exactly as _loadDataForWrite does. logout() clears
+        // the stored gist id, so a freshly signed-in owner hits this every
+        // time, and without it they are told to check a connection that is fine.
+        if (!this.getActiveGistId()) {
+            await this.findOrCreateGist();
+        }
+
         // Read past _fetchGist's session cache. That cache survives until a
         // write or a visibilitychange, so without this the create path could
         // republish a snapshot taken minutes ago and drop a checklist another
         // tab added since - which is the very thing this function exists to
         // prevent. _mergeWithFreshGistData clears it before its read for the
         // same reason.
-        // Having no gist yet is the first-create case, not a failed read -
-        // create it first, exactly as _loadDataForWrite does. logout() clears
-        // the stored gist id, so a freshly signed-in owner hits this every
-        // time, and without it they are told to check a connection that is fine.
-        if (this.token && !this.getActiveGistId()) {
-            await this.findOrCreateGist();
-        }
-
         this.clearGistCache();
-        const gist = this.token ? await this._fetchGist() : await this._fetchGist(true);
+        const gist = await this._fetchGist();
         if (!gist) return { ok: false, reason: 'read_failed' };
 
         const content = gist.files['checklists-registry.json']?.content;
