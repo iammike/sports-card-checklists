@@ -944,8 +944,9 @@ select, input[type="text"] {
 /* ============================================
    No Filter Matches
    ============================================ */
-/* Shown inside #sections-container once every section has been hidden, so it
-   sits where the cards were rather than above the collapsed page. */
+/* Sits just after #sections-container, so it lands where the cards were once
+   every section has been hidden. Permanent in the markup and empty when quiet -
+   see the :empty rule below and the comment in checklist.html. */
 .no-matches-state {
     display: flex;
     flex-direction: column;
@@ -954,6 +955,14 @@ select, input[type="text"] {
     gap: 12px;
     padding: 48px 16px;
     text-align: center;
+}
+
+/* The message is a live region, so it stays in the DOM (and the accessibility
+   tree) even with nothing to say. Taking the empty one out of flow keeps its
+   padding from opening a gap under the last section. */
+.no-matches-state:empty {
+    position: absolute;
+    padding: 0;
 }
 
 .no-matches-text {

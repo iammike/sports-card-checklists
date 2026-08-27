@@ -44,11 +44,16 @@ function makeEngine(cards = CARDS, config = {}) {
 }
 
 const container = () => document.getElementById('sections-container');
-const banner = () => container().querySelector('.no-matches-state');
+// The region is permanent, so "showing" means it has contents - not that it exists.
+const region = () => document.getElementById('no-matches-state');
+const banner = () => (region()?.childElementCount ? region() : null);
+const clearBtn = () => region().querySelector('.no-matches-clear');
 const visibleCards = () => [...container().querySelectorAll('.card:not(.filter-hidden)')];
 
 beforeEach(() => {
-    document.body.innerHTML = '<div id="filters-container"></div><div id="sections-container"></div>';
+    document.body.innerHTML = '<div id="filters-container"></div>'
+        + '<div id="sections-container"></div>'
+        + '<div class="no-matches-state" id="no-matches-state" role="status"></div>';
     localStorage.clear();
 });
 
@@ -69,6 +74,8 @@ describe('ChecklistEngine — the no-matches state (#769)', () => {
         expect(visibleCards()).toHaveLength(0);
         expect(banner()).not.toBeNull();
         expect(banner().textContent).toMatch(/no cards match/i);
+        // The pattern this mirrors: permanent node, in the tree before it speaks.
+        expect(region().getAttribute('role')).toBe('status');
     });
 
     it('goes away again when a filter change brings cards back', () => {
@@ -95,20 +102,64 @@ describe('ChecklistEngine — the no-matches state (#769)', () => {
         expect(container().querySelector('.empty-state-card')).not.toBeNull();
     });
 
+    it('stays quiet while a quick filter still matches something', () => {
+        const engine = makeEngine(
+            [...CARDS, { set: '2024 Prizm', num: '3', player: 'Signed Card', price: 10, auto: true }],
+            { customFields: { auto: {} } },
+        );
+        document.querySelector('.quick-filter-btn').classList.add('active');
+        engine._applyFilters();
+
+        expect(visibleCards()).toHaveLength(1);
+        expect(banner()).toBeNull();
+    });
+
+    // The category shape is where sections, group headers and .section-group all
+    // live; every other test here uses the flat shape.
+    it('lands after the last section on a category-shaped checklist', () => {
+        // categories is an array of { id, label } - not a keyed object. Read
+        // _renderCategoryCards before touching this fixture.
+        const engine = makeEngine(
+            { rookies: [CARDS[0]], inserts: [CARDS[1]] },
+            {
+                dataShape: 'categories',
+                categories: [
+                    { id: 'rookies', label: 'Rookies' },
+                    { id: 'inserts', label: 'Inserts' },
+                ],
+            },
+        );
+        expect(visibleCards()).toHaveLength(2);
+
+        document.getElementById('search').value = 'nobody named this';
+        engine._applyFilters();
+
+        expect(banner()).not.toBeNull();
+        expect(container().querySelectorAll('.section:not([style*="display: none"])')).toHaveLength(0);
+
+        clearBtn().click();
+        expect(visibleCards()).toHaveLength(2);
+    });
+
     // Rebuilding on every keystroke would drop focus from the Clear button.
     it('keeps the same node across re-filters while it stays empty', () => {
         const engine = makeEngine();
         document.getElementById('search').value = 'nobody named this';
         engine._applyFilters();
 
-        const first = banner();
-        // Without this the assertion below is null === null, which holds just as
-        // well when the banner never appears at all.
+        const first = clearBtn();
+        // Identity alone is not enough twice over: banner() is null before the
+        // feature exists, and a querySelector holds its identity even with a
+        // second copy stacked behind it. Pin the count, and pin the button rather
+        // than the region - the region is permanent, so only its contents move.
         expect(first).not.toBeNull();
 
         engine._applyFilters();
+        engine._applyFilters();
 
-        expect(banner()).toBe(first);
+        expect(region().querySelectorAll('.no-matches-clear')).toHaveLength(1);
+        expect(region().querySelectorAll('.no-matches-text')).toHaveLength(1);
+        expect(clearBtn()).toBe(first);
     });
 });
 
@@ -118,7 +169,7 @@ describe('ChecklistEngine._clearFilters (#769)', () => {
         document.getElementById('search').value = 'nobody named this';
         engine._applyFilters();
 
-        banner().querySelector('.no-matches-clear').click();
+        clearBtn().click();
 
         expect(document.getElementById('search').value).toBe('');
         expect(visibleCards()).toHaveLength(2);
@@ -172,24 +223,11 @@ describe('ChecklistEngine._clearFilters (#769)', () => {
         expect(visibleCards()).toHaveLength(0);
         expect(banner()).not.toBeNull();
 
-        banner().querySelector('.no-matches-clear').click();
+        clearBtn().click();
 
         expect(btn.classList.contains('active')).toBe(false);
         expect(btn.getAttribute('aria-pressed')).toBe('false');
         expect(visibleCards()).toHaveLength(2);
-        expect(banner()).toBeNull();
-    });
-
-    it('leaves a quick filter that still matches something able to match again', () => {
-        const engine = makeEngine(
-            [...CARDS, { set: '2024 Prizm', num: '3', player: 'Signed Card', price: 10, auto: true }],
-            { customFields: { auto: {} } },
-        );
-        const btn = document.querySelector('.quick-filter-btn');
-        btn.classList.add('active');
-        engine._applyFilters();
-
-        expect(visibleCards()).toHaveLength(1);
         expect(banner()).toBeNull();
     });
 
@@ -211,7 +249,7 @@ describe('ChecklistEngine._clearFilters (#769)', () => {
 
         expect(max.dataset.touched).toBeUndefined();
         expect(Number(min.value)).toBe(0);
-        expect(Number(max.value)).toBeGreaterThan(0);
+        expect(max.value).toBe(max.max);
         expect(visibleCards()).toHaveLength(2);
     });
 
@@ -228,7 +266,23 @@ describe('ChecklistEngine._clearFilters (#769)', () => {
         engine._clearFilters();
 
         expect(display.textContent).not.toBe(capped);
-        expect(display.textContent).toMatch(/\$0 - \$50/);
+        expect(display.textContent).toMatch(/^\$0 - \$50$/);
+    });
+
+    // The button removes itself as part of clearing, so without a deliberate
+    // move focus lands on <body> and a keyboard user is dumped to the top.
+    it('moves focus to the search box instead of dropping it on the body', () => {
+        const engine = makeEngine();
+        document.getElementById('search').value = 'nobody named this';
+        engine._applyFilters();
+
+        const btn = clearBtn();
+        btn.focus();
+        expect(document.activeElement).toBe(btn);
+
+        btn.click();
+
+        expect(document.activeElement).toBe(document.getElementById('search'));
     });
 
     // Sorting is not filtering; clearing filters should not discard the order.

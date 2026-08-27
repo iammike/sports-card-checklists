@@ -61,6 +61,13 @@
         <div class="page-content" id="page-content">
             <div class="filters" id="filters-container"></div>
             <div id="sections-container"></div>
+            <!-- Always present, so the live region is in the accessibility tree
+                 before its text is set - a region inserted at the same moment as
+                 its text is not reliably announced. Mirrors #checklist-no-results
+                 on the index page, including the :empty rule that keeps the quiet
+                 one out of flow. It sits outside #sections-container because
+                 renderCards() replaces that element's innerHTML on every render. -->
+            <div class="no-matches-state" id="no-matches-state" role="status"></div>
         </div>
     </div>
 

@@ -1363,6 +1363,10 @@ class ChecklistEngine {
 
     _renderFilters() {
         const container = document.getElementById('filters-container');
+        // Dropped up front so it cannot outlive the slider it repaints - a
+        // re-render for a checklist with no priced cards omits the slider
+        // entirely, and a stale closure here would point at detached inputs.
+        this._syncPriceSliderUI = null;
         let sorts = this.config.sortOptions || ['default', 'year', 'set', 'price-low', 'price-high', 'owned', 'needed'];
         const defaultSort = this.config.defaultSortMode;
         // Remove the defaultSortMode from the list since "Default" already applies it
@@ -1905,7 +1909,7 @@ class ChecklistEngine {
 
         // Update section visibility
         this._updateSectionVisibility(container);
-        this._updateNoMatchesState(container, visibleCount);
+        this._updateNoMatchesState(visibleCount);
         this.updateStats();
     }
 
@@ -1913,26 +1917,37 @@ class ChecklistEngine {
     // has just hidden every section, group header and note, so without this the
     // page is blank space and reads as broken rather than as an empty result.
     //
+    // Writes into the permanent #no-matches-state region rather than creating a
+    // node, the same way the index page drives #checklist-no-results: a live
+    // region inserted at the same moment as its text is not reliably announced.
+    //
     // Deliberately not _renderEmptyState's job: that one is about a checklist
     // with no cards at all and is rendered *instead of* the sections, so it must
     // never be second-guessed here - hence the _renderedCards gate.
-    _updateNoMatchesState(container, visibleCount) {
-        const existing = container.querySelector('.no-matches-state');
+    _updateNoMatchesState(visibleCount) {
+        const region = document.getElementById('no-matches-state');
+        if (!region) return;
+
+        const showing = region.childElementCount > 0;
         if (visibleCount > 0 || this._renderedCards.length === 0) {
-            existing?.remove();
+            // Emptying it is what the :empty rule keys on to take it out of flow.
+            if (showing) region.textContent = '';
             return;
         }
-        // Already showing - leave the node alone rather than rebuilding it, so a
-        // keyboard user's focus on Clear filters survives the next keystroke in
-        // the search box.
-        if (existing) return;
+        // Already showing - leave the contents alone rather than rebuilding them,
+        // so a keyboard user's focus on Clear filters survives the next keystroke
+        // in the search box.
+        if (showing) return;
 
-        const el = document.createElement('div');
-        el.className = 'no-matches-state';
-        el.innerHTML = '<div class="no-matches-text">No cards match these filters</div>'
+        region.innerHTML = '<div class="no-matches-text">No cards match these filters</div>'
             + '<button type="button" class="filter-btn no-matches-clear">Clear filters</button>';
-        el.querySelector('.no-matches-clear').addEventListener('click', () => this._clearFilters());
-        container.appendChild(el);
+        region.querySelector('.no-matches-clear').addEventListener('click', () => {
+            this._clearFilters();
+            // Clearing empties this region, so the button that was just activated
+            // leaves the DOM and focus would fall to <body>. The search box is
+            // where the .search-clear button sends it too.
+            document.getElementById('search')?.focus();
+        });
     }
 
     // Reset every control _applyFilters reads, then re-filter.
@@ -1954,7 +1969,10 @@ class ChecklistEngine {
             if (el) el.value = 'all';
         });
 
-        document.querySelectorAll('.quick-filter-btn.active').forEach(btn => {
+        // Scoped the same way _applyFilters reads them; a stray active button
+        // outside the filter bar is not one this filters on.
+        const filtersContainer = document.getElementById('filters-container');
+        filtersContainer?.querySelectorAll('.quick-filter-btn.active').forEach(btn => {
             btn.classList.remove('active');
             btn.setAttribute('aria-pressed', 'false');
         });
