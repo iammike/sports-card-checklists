@@ -258,7 +258,13 @@ class GitHubSync {
                 this.gistId = authData.gistId;
                 localStorage.setItem(TOKEN_KEY, this.token);
                 localStorage.setItem(USER_KEY, JSON.stringify(this.user));
-                localStorage.setItem(GIST_ID_KEY, this.gistId);
+                // Guard for the same reason findOrCreateGist guards its create
+                // response: a null here stores the string "null", and the
+                // constructor's stale-id check only special-cases the preview
+                // id. Not reachable today - this callback only runs on a branch
+                // preview, where findOrCreateGist short-circuits to
+                // PUBLIC_GIST_ID - but it is one gate move away from being so.
+                if (this.gistId) localStorage.setItem(GIST_ID_KEY, this.gistId);
                 // Clean URL
                 this._cleanAuthFromUrl();
                 if (this.onAuthChange) this.onAuthChange(true);
@@ -508,54 +514,89 @@ class GitHubSync {
             }
         }
 
-        // Search for existing gist (production only)
-        const response = await fetch('https://api.github.com/gists', {
-            headers: { 'Authorization': `Bearer ${this.token}` },
-        });
-        const gists = await response.json();
+        // Everything below is network work, and this method's contract is to
+        // answer null, never to throw: callers check the return, and one of them
+        // (saveCardData, reached from the engine's un-awaited reorder save)
+        // turns an escaping rejection into a status chip stuck on "Saving..."
+        // forever (#767). A bare `await fetch` rejects on any network-layer
+        // failure - offline, DNS, a blocked request - and `await json()` rejects
+        // on a body that will not parse, so both live inside the try. The cached-id
+        // probe above already had its own catch; this closes the other two.
+        try {
+            // Search for existing gist (production only)
+            const response = await fetch('https://api.github.com/gists', {
+                headers: { 'Authorization': `Bearer ${this.token}` },
+            });
+            // GitHub answers an error with a JSON *object*, not an array, so the
+            // unchecked for...of below threw "gists is not iterable" on any
+            // non-2xx. Returning null on a failed listing also avoids creating a
+            // duplicate gist we could not rule out already existing.
+            const gists = response.ok ? await response.json() : null;
+            if (!Array.isArray(gists)) return null;
 
-        for (const gist of gists) {
-            // Skip the preview gist when searching on production
-            if (!IS_PREVIEW_DEPLOY && gist.id === PREVIEW_GIST_ID) continue;
-            if (gist.files[CONFIG.GIST_FILENAME]) {
-                this.gistId = gist.id;
-                localStorage.setItem(GIST_ID_KEY, this.gistId);
-                return this.gistId;
+            for (const gist of gists) {
+                // Skip the preview gist when searching on production
+                if (!IS_PREVIEW_DEPLOY && gist.id === PREVIEW_GIST_ID) continue;
+                if (gist.files[CONFIG.GIST_FILENAME]) {
+                    this.gistId = gist.id;
+                    localStorage.setItem(GIST_ID_KEY, this.gistId);
+                    return this.gistId;
+                }
             }
-        }
 
-        // Create new gist
-        const createResponse = await fetch('https://api.github.com/gists', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${this.token}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                description: CONFIG.GIST_DESCRIPTION,
-                public: true,
-                files: {
-                    [CONFIG.GIST_FILENAME]: {
-                        content: JSON.stringify({ checklists: {} }, null, 2),
-                    },
+            // Create new gist
+            const createResponse = await fetch('https://api.github.com/gists', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.token}`,
+                    'Content-Type': 'application/json',
                 },
-            }),
-        });
+                body: JSON.stringify({
+                    description: CONFIG.GIST_DESCRIPTION,
+                    public: true,
+                    files: {
+                        [CONFIG.GIST_FILENAME]: {
+                            content: JSON.stringify({ checklists: {} }, null, 2),
+                        },
+                    },
+                }),
+            });
 
-        const newGist = await createResponse.json();
-        this.gistId = newGist.id;
-        localStorage.setItem(GIST_ID_KEY, this.gistId);
-        return this.gistId;
+            if (!createResponse.ok) return null;
+            const newGist = await createResponse.json();
+            // Without this the id is undefined and the string "undefined" is
+            // what lands in localStorage, poisoning every later read.
+            if (!newGist?.id) return null;
+            this.gistId = newGist.id;
+            localStorage.setItem(GIST_ID_KEY, this.gistId);
+            return this.gistId;
+        } catch (error) {
+            console.error('Failed to find or create gist:', error);
+            return null;
+        }
     }
 
-    // Load all collection data from gist (uses cache if available)
-    async loadData() {
+    // The read behind loadData(), reporting *why* a read came back empty so that
+    // callers who intend to write can tell "this gist has no collection yet"
+    // (safe to seed) from "the read failed" (must not overwrite). loadData()
+    // flattens this back to value-or-null for the read-only callers; the write
+    // paths go through _loadDataForWrite() instead (#768).
+    //
+    // Returns { ok: true, data } - data being null for a gist that carries no
+    // collection file yet - or { ok: false, reason } when the read failed.
+    async _readCollectionData() {
         const gistId = this.getActiveGistId();
-        if (!this.token || !gistId) return null;
+        // Two different states, and from _loadDataForWrite - which checks the
+        // token itself first - only the second is possible, where it means
+        // findOrCreateGist could not produce a gist. Collapsing both into
+        // 'not_authenticated' made that indistinguishable from a signed-out
+        // caller in the logs.
+        if (!this.token) return { ok: false, reason: 'not_authenticated' };
+        if (!gistId) return { ok: false, reason: 'no_gist' };
 
         // Use cache if available (prevents stale reads during save operations)
         if (this._cachedData) {
-            return this._cachedData;
+            return { ok: true, data: this._cachedData };
         }
 
         try {
@@ -563,23 +604,101 @@ class GitHubSync {
                 headers: { 'Authorization': `Bearer ${this.token}` },
             });
 
-            // If auth failed, fall back to public data
-            if (!response.ok && (response.status === 401 || response.status === 403)) {
-                return this.loadPublicData();
+            if (!response.ok) {
+                // Order matters here, and mirrors _patchGistFiles: GitHub's
+                // secondary rate limit answers 403, so the rate-limit check has
+                // to come first or a throttled read is indistinguishable from
+                // expired auth. _loadDataForWrite needs the two apart - both
+                // must abort the write, but only one means the session is dead
+                // and only one is worth retrying shortly (#768).
+                if (await this._isRateLimited(response)) {
+                    return { ok: false, reason: 'rate_limited' };
+                }
+                if (response.status === 401 || response.status === 403) {
+                    return { ok: false, reason: 'auth_expired' };
+                }
+                return { ok: false, reason: 'api_error', status: response.status };
             }
-            if (!response.ok) return null;
 
             const gist = await response.json();
             const content = gist.files[CONFIG.GIST_FILENAME]?.content;
 
-            if (!content) return null;
+            // A gist that exists but has no collection file yet is a real,
+            // writable state - not a failure. Only an absent file counts: a
+            // present-but-empty one is not something to seed over silently, and
+            // `!content` swept the two together. Blank content now falls through
+            // to the parse below and reports 'malformed', which is already where
+            // whitespace-only content landed.
+            if (content == null) return { ok: true, data: null };
 
-            this._cachedData = JSON.parse(content);
-            return this._cachedData;
+            let parsed;
+            try {
+                parsed = JSON.parse(content);
+            } catch (error) {
+                console.error('Failed to parse collection data:', error);
+                return { ok: false, reason: 'malformed' };
+            }
+
+            // Valid JSON is not necessarily a collection. An array slips past
+            // saveChecklist's `if (!data.checklists)` guard, but JSON.stringify
+            // drops the non-index properties we just set, so the PATCH would
+            // silently write back a collection containing nothing. A primitive
+            // is no better. Only a plain object may be used as a merge base -
+            // the same rule loadRegistryForWrite applies to the registry.
+            if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+                console.error('Collection data is not an object; refusing to build a write on it');
+                return { ok: false, reason: 'malformed' };
+            }
+
+            this._cachedData = parsed;
+            return { ok: true, data: this._cachedData };
         } catch (error) {
             console.error('Failed to load from gist:', error);
-            return null;
+            return { ok: false, reason: 'network_error' };
         }
+    }
+
+    // Load all collection data from gist (uses cache if available).
+    //
+    // Read-only callers keep the original contract exactly: the data, or null
+    // when there is none to show, with any 401/403 falling back to the public
+    // read. That fallback is not a different collection - sign-in is owner-only
+    // (_rejectIfNotOwner) and the owner's gist is PRODUCTION_GIST_ID, which is
+    // what loadPublicData fetches; on preview getActiveGistId() returns
+    // PUBLIC_GIST_ID outright. It is an unauthenticated read of the very gist
+    // the caller asked for, so it is worth keeping for a throttled read too:
+    // dropping it would hand loadChecklist() an empty list, which loadOwned()
+    // cannot tell from "nothing owned" and would report as Synced (#768).
+    //
+    // The value of splitting the read is entirely on the write side, where
+    // _loadDataForWrite refuses to build a payload on a read it did not get.
+    async loadData() {
+        const result = await this._readCollectionData();
+        if (result.ok) return result.data;
+        if (result.reason === 'auth_expired' || result.reason === 'rate_limited') {
+            return this.loadPublicData();
+        }
+        return null;
+    }
+
+    // The read-modify-write base for every path that PATCHes the collection
+    // file. Returns { ok: true, data } - a fresh empty collection when the gist
+    // genuinely has none yet - or { ok: false, reason } when the read failed, in
+    // which case the caller MUST abort. Treating a failed read as "nothing is
+    // stored" is what let a single transient error overwrite the whole
+    // collection with a blank one (#768).
+    async _loadDataForWrite() {
+        if (!this.token) return { ok: false, reason: 'not_authenticated' };
+
+        // Having no gist yet is the first-save case, not a failure: create it,
+        // then read back whatever findOrCreateGist found or seeded.
+        if (!this.getActiveGistId()) {
+            await this.findOrCreateGist();
+        }
+
+        const result = await this._readCollectionData();
+        if (!result.ok) return result;
+        return { ok: true, data: result.data || { checklists: {}, stats: {} } };
     }
 
     // Load from public gist (no auth required)
@@ -605,7 +724,7 @@ class GitHubSync {
     //   done:true  = stop retrying, return value
     //   done:false = retryable failure, status is the HTTP status
     _patchGist(fn) {
-        this._saveQueue = this._saveQueue.then(async () => {
+        const run = this._saveQueue.then(async () => {
             const gistId = this.getActiveGistId();
             if (!gistId) return false;
 
@@ -635,7 +754,12 @@ class GitHubSync {
                 return result.value;
             }
         });
-        return this._saveQueue;
+        // Chain the *settled* promise back into the queue, never the rejectable
+        // one. A rejected _saveQueue makes every later .then() short-circuit, so
+        // a single throw would silently kill every gist write for the rest of
+        // the session without fn ever being called again (#767).
+        this._saveQueue = run.catch(() => {});
+        return run;
     }
 
     // Distinguish a GitHub rate-limit 403 from a genuine auth 403.
@@ -740,10 +864,10 @@ class GitHubSync {
     }
 
     async saveChecklist(checklistId, ownedCards, stats = null) {
-        let data = await this.loadData();
-        if (!data) {
-            data = { checklists: {}, stats: {} };
-        }
+        const result = await this._loadDataForWrite();
+        if (!result.ok) return false;
+        const data = result.data;
+        if (!data.checklists) data.checklists = {};
         data.checklists[checklistId] = ownedCards;
         // Save stats too if provided (avoids race condition)
         if (stats) {
@@ -757,10 +881,9 @@ class GitHubSync {
     // Save computed stats for a checklist (for index page aggregate)
     // NOTE: Prefer passing stats to saveChecklist() to avoid race conditions
     async saveChecklistStats(checklistId, stats) {
-        let data = await this.loadData();
-        if (!data) {
-            data = { checklists: {}, stats: {} };
-        }
+        const result = await this._loadDataForWrite();
+        if (!result.ok) return false;
+        const data = result.data;
         if (!data.stats) {
             data.stats = {};
         }
@@ -1014,6 +1137,56 @@ class GitHubSync {
         return this._readGistFile('checklists-registry.json');
     }
 
+    // The registry read for the paths that rewrite the whole file. loadRegistry()
+    // cannot tell "there is no registry yet" from "the read failed" - both come
+    // back null - and the create path seeded an empty registry from that null,
+    // so one failed read republished a registry holding only the new checklist
+    // and dropped every other one from the index and the nav. Same hazard as
+    // _loadDataForWrite, same answer (#768).
+    async loadRegistryForWrite() {
+        // Gate on the token the way _loadDataForWrite does. Without this a
+        // caller with none read the *public* gist and could still be handed
+        // ok:true - an unauthenticated snapshot serving as the merge base for a
+        // full-file rewrite that cannot succeed anyway. Unreachable today, since
+        // the creator sits behind _initSettingsButton's isOwner() check, but a
+        // function named for writing should not need a gate elsewhere to be safe.
+        if (!this.token) return { ok: false, reason: 'not_authenticated' };
+
+        // Having no gist yet is the first-create case, not a failed read -
+        // create it first, exactly as _loadDataForWrite does. logout() clears
+        // the stored gist id, so a freshly signed-in owner hits this every
+        // time, and without it they are told to check a connection that is fine.
+        if (!this.getActiveGistId()) {
+            await this.findOrCreateGist();
+        }
+
+        // Read past _fetchGist's session cache. That cache survives until a
+        // write or a visibilitychange, so without this the create path could
+        // republish a snapshot taken minutes ago and drop a checklist another
+        // tab added since - which is the very thing this function exists to
+        // prevent. _mergeWithFreshGistData clears it before its read for the
+        // same reason.
+        this.clearGistCache();
+        const gist = await this._fetchGist();
+        if (!gist) return { ok: false, reason: 'read_failed' };
+
+        const content = gist.files['checklists-registry.json']?.content;
+        // No registry file yet is a real, writable state - unlike a failed read.
+        // Same distinction as _readCollectionData: absent is seedable, blank is
+        // not, and blank falls through to the parse below as 'malformed'.
+        if (content == null) return { ok: true, registry: { checklists: [] } };
+
+        try {
+            const registry = JSON.parse(content);
+            // A registry we cannot recognise is not one we may overwrite.
+            if (!Array.isArray(registry?.checklists)) return { ok: false, reason: 'malformed' };
+            return { ok: true, registry };
+        } catch (error) {
+            console.error('Failed to parse checklists registry:', error);
+            return { ok: false, reason: 'malformed' };
+        }
+    }
+
     // Save checklists registry to gist
     async saveRegistry(registry) {
         return this._writeGistFile('checklists-registry.json', registry);
@@ -1155,18 +1328,37 @@ class GitHubSync {
         if (!this.getActiveGistId()) {
             await this.findOrCreateGist();
         }
+        // findOrCreateGist answers null instead of throwing now, so this is
+        // reachable. Without it _patchGist returns a bare `false`, whose
+        // .reason is undefined - the engine's noRetry() check reads that as a
+        // transient failure and burns a 1.5s retry on a call that cannot
+        // succeed, and _applySaveResult shows a generic error (#767).
+        if (!this.getActiveGistId()) return { ok: false, reason: 'no_gist' };
 
         const filesMap = { [`${checklistId}-cards.json`]: cardData };
 
         // Bundle stats into the same write so we don't spend a second request.
         let mergedData = null;
         if (stats) {
-            mergedData = await this.loadData();
-            if (!mergedData) mergedData = { checklists: {}, stats: {} };
-            if (!mergedData.stats) mergedData.stats = {};
-            mergedData.stats[checklistId] = stats;
-            mergedData.lastUpdated = new Date().toISOString();
-            filesMap[CONFIG.GIST_FILENAME] = mergedData;
+            const result = await this._loadDataForWrite();
+            // Card data is the point of this call; the bundled stats are an
+            // optimisation. Report a read that failed for a reason the PATCH
+            // would only run into as well - a dead session, or a limit this
+            // write would add pressure to - rather than firing it blind.
+            if (result.reason === 'auth_expired' || result.reason === 'rate_limited') {
+                return { ok: false, reason: result.reason };
+            }
+            // Any other failure just drops the stats half: the cards still get
+            // written, instead of a blank collection landing on the real one
+            // (#768). The stats stay stale until _refreshStatsIfStale picks
+            // them up on the next page load - nothing re-saves them in-session.
+            if (result.ok) {
+                mergedData = result.data;
+                if (!mergedData.stats) mergedData.stats = {};
+                mergedData.stats[checklistId] = stats;
+                mergedData.lastUpdated = new Date().toISOString();
+                filesMap[CONFIG.GIST_FILENAME] = mergedData;
+            }
         }
 
         const result = await this._patchGistFiles(filesMap);

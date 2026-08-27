@@ -1070,11 +1070,21 @@ class ChecklistCreatorModal {
                 }
                 return;
             } else {
-                // Load or create registry
-                let registry = await githubSync.loadRegistry();
-                if (!registry) {
-                    registry = { checklists: [] };
+                // Load or create registry. A failed read must not turn into an
+                // empty one: createChecklist republishes the whole file, so
+                // seeding { checklists: [] } here dropped every checklist that
+                // was already registered - off the index and out of the nav
+                // (#768). loadRegistryForWrite tells the two apart.
+                const registryResult = await githubSync.loadRegistryForWrite();
+                if (!registryResult.ok) {
+                    // Retrying fixes a failed read; it will never fix a corrupt
+                    // file, which needs repairing in the gist by hand.
+                    alert(registryResult.reason === 'malformed'
+                        ? 'The checklist registry file is corrupt, so nothing was created. It needs to be repaired in the gist before new checklists can be added.'
+                        : 'Could not read the checklist registry, so nothing was created. Check your connection and try again.');
+                    return;
                 }
+                const registry = registryResult.registry;
 
                 // Check for ID conflict
                 if (registry.checklists.find(c => c.id === config.id)) {
