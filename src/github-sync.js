@@ -624,8 +624,12 @@ class GitHubSync {
             const content = gist.files[CONFIG.GIST_FILENAME]?.content;
 
             // A gist that exists but has no collection file yet is a real,
-            // writable state - not a failure.
-            if (!content) return { ok: true, data: null };
+            // writable state - not a failure. Only an absent file counts: a
+            // present-but-empty one is not something to seed over silently, and
+            // `!content` swept the two together. Blank content now falls through
+            // to the parse below and reports 'malformed', which is already where
+            // whitespace-only content landed.
+            if (content == null) return { ok: true, data: null };
 
             let parsed;
             try {
@@ -1160,7 +1164,9 @@ class GitHubSync {
 
         const content = gist.files['checklists-registry.json']?.content;
         // No registry file yet is a real, writable state - unlike a failed read.
-        if (!content) return { ok: true, registry: { checklists: [] } };
+        // Same distinction as _readCollectionData: absent is seedable, blank is
+        // not, and blank falls through to the parse below as 'malformed'.
+        if (content == null) return { ok: true, registry: { checklists: [] } };
 
         try {
             const registry = JSON.parse(content);

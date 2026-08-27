@@ -309,6 +309,35 @@ describe('GitHubSync — a failed collection read must not become a blank write 
         expect(await sync.loadRegistryForWrite()).toEqual({ ok: false, reason: 'read_failed' });
     });
 
+    // Copilot review: `!content` treated a present-but-empty file the same as an
+    // absent one, so the write path would seed over it. Whitespace-only content
+    // already reported malformed, via the parse; the empty string did not.
+    it('treats a blank collection file as malformed, not as an absent one', async () => {
+        stubFetch((url, opts) => (opts.method === 'PATCH'
+            ? { ok: true, status: 200, json: async () => ({}) }
+            : { ok: true, status: 200, json: async () => ({ files: { [GIST_FILENAME]: { content: '' } } }) }));
+
+        expect(await sync.saveChecklist('jd', ['a'])).toBe(false);
+        expect(patches()).toHaveLength(0);
+    });
+
+    it('treats a blank registry file as malformed, not as an absent one', async () => {
+        stubFetch(() => ({
+            ok: true,
+            status: 200,
+            json: async () => ({ files: { 'checklists-registry.json': { content: '' } } }),
+        }));
+
+        expect(await sync.loadRegistryForWrite()).toEqual({ ok: false, reason: 'malformed' });
+    });
+
+    // Still seedable when the file genuinely is not there.
+    it('still seeds a registry when the file is absent', async () => {
+        stubFetch(() => ({ ok: true, status: 200, json: async () => ({ files: {} }) }));
+
+        expect(await sync.loadRegistryForWrite()).toEqual({ ok: true, registry: { checklists: [] } });
+    });
+
     it('aborts saveChecklistStats on a failed read', async () => {
         stubFetch(() => errorResponse(500));
 
