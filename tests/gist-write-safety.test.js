@@ -257,6 +257,58 @@ describe('GitHubSync — a failed collection read must not become a blank write 
         expect(await sync._readCollectionData()).toEqual({ ok: false, reason: 'not_authenticated' });
     });
 
+    // Copilot review: valid JSON is not necessarily a collection. An array got
+    // past saveChecklist's `if (!data.checklists)` guard, then JSON.stringify
+    // dropped the properties we had just set - a silent write of nothing.
+    it('refuses to build a write on a collection file that is not an object', async () => {
+        for (const bad of ['[]', '[1,2,3]', '"hello"', '42', 'true']) {
+            sync.clearDataCache();
+            calls = [];
+            stubFetch((url, opts) => (opts.method === 'PATCH'
+                ? { ok: true, status: 200, json: async () => ({}) }
+                : { ok: true, status: 200, json: async () => ({ files: { [GIST_FILENAME]: { content: bad } } }) }));
+
+            expect(await sync.saveChecklist('jd', ['a'])).toBe(false);
+            expect(patches(), `wrote on top of ${bad}`).toHaveLength(0);
+        }
+    });
+
+    it('refuses to build a write on a collection file that will not parse', async () => {
+        stubFetch(() => ({
+            ok: true,
+            status: 200,
+            json: async () => ({ files: { [GIST_FILENAME]: { content: '{not json' } } }),
+        }));
+
+        expect(await sync.saveChecklist('jd', ['a'])).toBe(false);
+        expect(patches()).toHaveLength(0);
+    });
+
+    // Copilot review: logout() clears the stored gist id, so a freshly signed-in
+    // owner creating their first checklist has none. That is the first-create
+    // case, not a failed read, and it was being reported as a connection problem.
+    it('creates the gist first when the registry read finds no gist id', async () => {
+        sync.gistId = null;
+        localStorage.clear();
+        stubFetch((url, opts) => {
+            if (opts.method === 'POST') {
+                return { ok: true, status: 201, json: async () => ({ id: 'made-up-gist' }) };
+            }
+            if (url.endsWith('/gists')) return { ok: true, status: 200, json: async () => [] };
+            return { ok: true, status: 200, json: async () => ({ files: {} }) };
+        });
+
+        expect(await sync.loadRegistryForWrite()).toEqual({ ok: true, registry: { checklists: [] } });
+    });
+
+    it('still reports a failed registry read when the gist cannot be created', async () => {
+        sync.gistId = null;
+        localStorage.clear();
+        stubFetch(() => { throw new TypeError('Failed to fetch'); });
+
+        expect(await sync.loadRegistryForWrite()).toEqual({ ok: false, reason: 'read_failed' });
+    });
+
     it('aborts saveChecklistStats on a failed read', async () => {
         stubFetch(() => errorResponse(500));
 

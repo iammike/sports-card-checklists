@@ -627,7 +627,26 @@ class GitHubSync {
             // writable state - not a failure.
             if (!content) return { ok: true, data: null };
 
-            this._cachedData = JSON.parse(content);
+            let parsed;
+            try {
+                parsed = JSON.parse(content);
+            } catch (error) {
+                console.error('Failed to parse collection data:', error);
+                return { ok: false, reason: 'malformed' };
+            }
+
+            // Valid JSON is not necessarily a collection. An array slips past
+            // saveChecklist's `if (!data.checklists)` guard, but JSON.stringify
+            // drops the non-index properties we just set, so the PATCH would
+            // silently write back a collection containing nothing. A primitive
+            // is no better. Only a plain object may be used as a merge base -
+            // the same rule loadRegistryForWrite applies to the registry.
+            if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+                console.error('Collection data is not an object; refusing to build a write on it');
+                return { ok: false, reason: 'malformed' };
+            }
+
+            this._cachedData = parsed;
             return { ok: true, data: this._cachedData };
         } catch (error) {
             console.error('Failed to load from gist:', error);
@@ -1127,6 +1146,14 @@ class GitHubSync {
         // tab added since - which is the very thing this function exists to
         // prevent. _mergeWithFreshGistData clears it before its read for the
         // same reason.
+        // Having no gist yet is the first-create case, not a failed read -
+        // create it first, exactly as _loadDataForWrite does. logout() clears
+        // the stored gist id, so a freshly signed-in owner hits this every
+        // time, and without it they are told to check a connection that is fine.
+        if (this.token && !this.getActiveGistId()) {
+            await this.findOrCreateGist();
+        }
+
         this.clearGistCache();
         const gist = this.token ? await this._fetchGist() : await this._fetchGist(true);
         if (!gist) return { ok: false, reason: 'read_failed' };
