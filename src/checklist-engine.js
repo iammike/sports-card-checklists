@@ -1406,9 +1406,17 @@ class ChecklistEngine {
         }
         const customFilters = this.config.customFilters || [];
 
+        // The row holds what is reached for constantly; `panel` holds everything
+        // that narrows, behind one disclosure (#785). The row had grown to 13
+        // controls with no hierarchy and no responsive rules at all.
+        //
+        // Every control keeps the id it had. _applyFilters reads them by id from
+        // `document`, not by position, so this is a layout change and the
+        // filtering logic is untouched.
         let html = '';
+        let panel = '';
 
-        // Sort dropdown
+        // Sort dropdown - ordering, not narrowing, so it stays in the row.
         if (sorts.length > 1) {
             html += `<select id="sort-filter">`;
             sorts.forEach(s => {
@@ -1418,31 +1426,40 @@ class ChecklistEngine {
             html += `</select>`;
         }
 
+        // Status filter
+        panel += `<div class="filter-row"><span class="filter-row-label" id="status-filter-label">Status</span>
+            <select id="status-filter" aria-labelledby="status-filter-label">
+                <option value="all">All Cards</option>
+                <option value="owned">Owned Only</option>
+                <option value="need">Needed Only</option>
+            </select></div>`;
+
         // Custom filter dropdowns (sport, era, etc.)
         customFilters.forEach(f => {
-            html += `<select id="${sanitizeAttr(f.id)}-filter">`;
-            html += `<option value="all">${sanitizeText(f.allLabel || 'All')}</option>`;
+            const labelId = `${sanitizeAttr(f.id)}-filter-label`;
+            panel += `<div class="filter-row"><span class="filter-row-label" id="${labelId}">${sanitizeText(ChecklistEngine._customFilterHeading(f))}</span>`;
+            // aria-labelledby, not just a neighbouring span: the Price and Type
+            // rows name their groups that way and these selects had no
+            // accessible name at all.
+            panel += `<select id="${sanitizeAttr(f.id)}-filter" aria-labelledby="${labelId}">`;
+            panel += `<option value="all">${sanitizeText(f.allLabel || 'All')}</option>`;
             f.options.forEach(opt => {
-                html += `<option value="${sanitizeAttr(opt.value)}">${sanitizeText(opt.label)}</option>`;
+                panel += `<option value="${sanitizeAttr(opt.value)}">${sanitizeText(opt.label)}</option>`;
             });
-            html += `</select>`;
+            panel += `</select></div>`;
         });
-
-        // Status filter
-        html += `<select id="status-filter">
-            <option value="all">All Cards</option>
-            <option value="owned">Owned Only</option>
-            <option value="need">Needed Only</option>
-        </select>`;
 
         // Attribute toggle filters (Auto / Patch / Numbered / Rookie). Unlike the
         // dropdowns above, these are checkboxes: any combination can be active at
         // once and they AND together with every other filter in _filterCard.
         // Both helpers below take the flattened card list so it's only built once.
         const allCards = this._getAllCardsFlat();
-        this._quickFilterDefs(allCards).forEach(d => {
-            html += `<button type="button" class="filter-btn quick-filter-btn" data-quick-filter="${sanitizeAttr(d.key)}" aria-pressed="false">${sanitizeText(d.label)}</button>`;
-        });
+        const quickDefs = this._quickFilterDefs(allCards);
+        if (quickDefs.length > 0) {
+            const toggles = quickDefs.map(d => `<button type="button" class="filter-btn quick-filter-btn" data-quick-filter="${sanitizeAttr(d.key)}" aria-pressed="false">${sanitizeText(d.label)}</button>`).join('');
+            panel += `<div class="filter-row"><span class="filter-row-label" id="quick-filter-label">Type</span>
+                <div class="filter-row-group" role="group" aria-labelledby="quick-filter-label">${toggles}</div></div>`;
+        }
 
         // Price bands, plus exact fields. Omitted entirely when nothing on this
         // checklist has a price, so it never shows up as a dead control.
@@ -1465,21 +1482,31 @@ class ChecklistEngine {
         if (priceBounds) {
             const chips = priceBands.map((b, i) => `<button type="button" class="filter-btn price-band-btn" data-band="${i}" aria-pressed="false">${sanitizeText(b.label)}</button>`).join('');
             const bandGroup = chips
-                ? `<div class="price-band-group" role="group" aria-labelledby="price-filter-label">${chips}</div>`
+                ? `<div class="filter-row-group" role="group" aria-labelledby="price-filter-label">${chips}</div>`
                 : '';
-            html += `<div class="price-filter" id="price-filter">
-                <span class="price-filter-label" id="price-filter-label">Price</span>
+            panel += `<div class="filter-row" id="price-filter">
+                <span class="filter-row-label" id="price-filter-label">Price</span>
+                <div class="price-filter-controls">
                 ${bandGroup}
                 <div class="price-exact">
                     <input type="text" id="price-min-filter" inputmode="decimal" placeholder="Min" aria-label="Minimum price in dollars">
                     <span class="price-exact-sep" aria-hidden="true">to</span>
                     <input type="text" id="price-max-filter" inputmode="decimal" placeholder="Max" aria-label="Maximum price in dollars">
                 </div>
+                </div>
             </div>`;
         }
 
-        // Search
-        html += `<span class="search-wrapper"><input type="text" id="search" placeholder="Search cards..." aria-label="Search cards"><button class="search-clear" type="button" aria-label="Clear search">&times;</button></span>`;
+        // Search first: it is the control reached for most, and the only one
+        // that grows to fill what the others leave.
+        html = `<span class="search-wrapper"><input type="text" id="search" placeholder="Search cards..." aria-label="Search cards"><button class="search-clear" type="button" aria-label="Clear search">&times;</button></span>` + html;
+
+        if (panel) {
+            html += `<div class="filter-disclosure">
+                <button type="button" class="filter-btn filter-toggle" id="filters-toggle" aria-expanded="false" aria-controls="filters-panel" aria-label="Filters">Filters<span class="filter-count" id="filter-count" aria-hidden="true" hidden></span></button>
+                <div class="filter-panel" id="filters-panel" role="group" aria-labelledby="filters-toggle" hidden>${panel}</div>
+            </div>`;
+        }
 
         // Reorder button (visible when sort=Manual and user is owner)
         html += `<button id="reorder-btn" class="filter-btn" style="display:none">Reorder</button>`;
@@ -1491,7 +1518,9 @@ class ChecklistEngine {
             html += `<button id="checklist-export-btn" class="filter-btn">Export</button>`;
         }
 
-        container.innerHTML = html;
+        // The active-filter chips live outside the bar so hiding the controls
+        // never hides the state - the part that makes a disclosure safe.
+        container.innerHTML = `<div class="filter-bar">${html}</div><div class="active-filters" id="active-filters"></div>`;
 
         // Bind events
         container.querySelectorAll('select').forEach(sel => {
@@ -1524,6 +1553,7 @@ class ChecklistEngine {
             });
         });
         this._initPriceFilter(container, priceBands);
+        this._initFilterDisclosure(container);
 
         // Show reorder button if applicable
         this._updateReorderButton();
@@ -1607,6 +1637,162 @@ class ChecklistEngine {
         return { min: 0, max: Math.max(1, Math.ceil(sortedPrices[sortedPrices.length - 1])) };
     }
 
+    // The Filters button and its panel. Mirrors the nav dropdown's mechanics
+    // (button with aria-expanded, click-outside and Escape to close) rather than
+    // introducing a second popover pattern.
+    _initFilterDisclosure(container) {
+        const toggle = container.querySelector('#filters-toggle');
+        const panel = container.querySelector('#filters-panel');
+        if (!toggle || !panel) return;
+
+        const setOpen = (open) => {
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            panel.hidden = !open;
+            toggle.classList.toggle('open', open);
+        };
+
+        toggle.addEventListener('click', () => {
+            setOpen(toggle.getAttribute('aria-expanded') !== 'true');
+        });
+
+        // Deliberately no stopPropagation, on either the toggle or the panel.
+        // The nav dropdown (nav.js) and the card context menu both close on a
+        // bubbling document click, so swallowing it here left them floating on
+        // the page whenever the filter panel was touched. Containment is what
+        // keeps this panel open instead - the panel is a working surface, not a
+        // menu that dismisses on its first selection.
+        if (!this._filterDisclosureBound) {
+            this._filterDisclosureBound = true;
+            document.addEventListener('click', (e) => {
+                const t = document.getElementById('filters-toggle');
+                const p = document.getElementById('filters-panel');
+                if (!t || !p || t.getAttribute('aria-expanded') !== 'true') return;
+                if (t.contains(e.target) || p.contains(e.target)) return;
+                t.setAttribute('aria-expanded', 'false');
+                t.classList.remove('open');
+                p.hidden = true;
+            });
+            document.addEventListener('keydown', (e) => {
+                if (e.key !== 'Escape') return;
+                const t = document.getElementById('filters-toggle');
+                const p = document.getElementById('filters-panel');
+                if (t && p && t.getAttribute('aria-expanded') === 'true') {
+                    t.setAttribute('aria-expanded', 'false');
+                    t.classList.remove('open');
+                    p.hidden = true;
+                    // Focus follows the panel it closed, or it lands on nothing.
+                    t.focus();
+                }
+            });
+        }
+    }
+
+    // Every filter currently narrowing the view, as {label, clear}. Read from the
+    // same controls _applyFilters reads, so the chips cannot claim a filter that
+    // is not applied or miss one that is (#785).
+    _activeFilters() {
+        const active = [];
+        const push = (label, clear) => active.push({ label, clear });
+
+        const status = document.getElementById('status-filter');
+        if (status && status.value !== 'all') {
+            const chosen = status.options[status.selectedIndex];
+            push(chosen ? chosen.textContent : status.value, () => { status.value = 'all'; });
+        }
+
+        (this.config.customFilters || []).forEach(f => {
+            const el = document.getElementById(`${f.id}-filter`);
+            if (!el || el.value === 'all') return;
+            const chosen = el.options[el.selectedIndex];
+            push(chosen ? chosen.textContent : el.value, () => { el.value = 'all'; });
+        });
+
+        const filtersContainer = document.getElementById('filters-container');
+        filtersContainer?.querySelectorAll('.quick-filter-btn.active').forEach(btn => {
+            push(btn.textContent, () => {
+                btn.classList.remove('active');
+                btn.setAttribute('aria-pressed', 'false');
+            });
+        });
+
+        const search = document.getElementById('search');
+        if (search && search.value.trim() !== '') {
+            push(`"${search.value.trim()}"`, () => { search.value = ''; });
+        }
+
+        // One chip for the price, whether it came from a band or from typing:
+        // two chips for one range would suggest the bounds filter independently.
+        const min = document.getElementById('price-min-filter');
+        const max = document.getElementById('price-max-filter');
+        // A min of 0 is the default, not a filter: parsed it is 0, which is not
+        // null, so it used to raise a "$0+" chip and a count of 1 over a range
+        // narrowing nothing.
+        const rawMin = this._parsePriceBound(min?.value);
+        const minSet = rawMin === 0 ? null : rawMin;
+        const maxSet = this._parsePriceBound(max?.value);
+        if (minSet !== null || maxSet !== null) {
+            const band = filtersContainer?.querySelector('.price-band-btn.active');
+            const label = band ? band.textContent
+                : minSet === null ? `Under $${maxSet}`
+                : maxSet === null ? `$${minSet}+`
+                : `$${minSet}-${maxSet}`;
+            push(label, () => {
+                if (min) min.value = '';
+                if (max) max.value = '';
+                this._setActivePriceBand(null);
+            });
+        }
+
+        return active;
+    }
+
+    // The chips under the bar, and the count on the Filters button. Rendered from
+    // _applyFilters so they track every path that changes a filter, including
+    // _clearFilters and the no-matches state's own Clear button.
+    _renderActiveFilters() {
+        const host = document.getElementById('active-filters');
+        if (!host) return;
+
+        const active = this._activeFilters();
+        const count = document.getElementById('filter-count');
+        if (count) {
+            count.textContent = active.length ? String(active.length) : '';
+            count.hidden = active.length === 0;
+        }
+        // The badge is inside the button, so without this the button announces
+        // as "Filters2" and the panel it labels inherits that.
+        const toggle = document.getElementById('filters-toggle');
+        if (toggle) {
+            toggle.setAttribute('aria-label', active.length
+                ? `Filters, ${active.length} active`
+                : 'Filters');
+        }
+
+        if (active.length === 0) {
+            host.textContent = '';
+            return;
+        }
+
+        host.innerHTML = active
+            .map((f, i) => `<button type="button" class="active-filter" data-active-filter="${i}">${sanitizeText(f.label)}<span class="active-filter-x" aria-hidden="true">&times;</span></button>`)
+            .join('')
+            + '<button type="button" class="active-filter-clear" id="active-filters-clear">Clear all</button>';
+
+        host.querySelectorAll('[data-active-filter]').forEach(btn => {
+            const f = active[Number(btn.dataset.activeFilter)];
+            btn.setAttribute('aria-label', `Remove filter: ${f.label}`);
+            btn.addEventListener('click', () => {
+                f.clear();
+                this._onFilterChange();
+                // The chip removed itself along with every other one - this list
+                // is rebuilt wholesale - so focus would land on <body>. Same
+                // reasoning as the no-matches Clear button.
+                document.getElementById('search')?.focus();
+            });
+        });
+        host.querySelector('#active-filters-clear')?.addEventListener('click', () => this._clearFilters());
+    }
+
     // Chips and the exact fields are one control over two inputs: a chip is a
     // shortcut that fills them, and typing is what happens when no band says
     // what you meant. Keeping the min/max fields as the only state means
@@ -1667,6 +1853,18 @@ class ChecklistEngine {
         if (cleaned === '' || cleaned === '.') return null;
         const n = Number(cleaned);
         return Number.isFinite(n) ? n : null;
+    }
+
+    // The heading over a custom filter's dropdown in the panel.
+    //
+    // Derived from allLabel, which is the only name these carry - the config
+    // shape is {id, allLabel, cardField, multiMatch, options} and there is no
+    // `label`. Rendering allLabel as-is put "ALL SPORTS" over the Sport
+    // dropdown, so the leading "All " comes off; the id is the last resort.
+    static _customFilterHeading(f) {
+        const allLabel = String(f.allLabel ?? '').trim();
+        const stripped = allLabel.replace(/^all\s+/i, '').trim();
+        return stripped || allLabel || String(f.id ?? '');
     }
 
     // Which band, if any, a typed pair spells out. Returns the band's index as a
@@ -1962,6 +2160,7 @@ class ChecklistEngine {
         // Update section visibility
         this._updateSectionVisibility(container);
         this._updateNoMatchesState(visibleCount);
+        this._renderActiveFilters();
         this.updateStats();
     }
 

@@ -647,11 +647,139 @@ h1 {
     border-radius: var(--radius-md);
     margin-bottom: 24px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+/* Search first and growing, everything else sized to its content. Before #785
+   this selector was the whole bar - up to 13 controls wrapping into three
+   ragged rows, with no media query anywhere in the file. */
+.filter-bar {
     display: flex;
     flex-wrap: wrap;
     gap: 12px;
     align-items: center;
+}
+
+.filter-bar .search-wrapper {
+    flex: 1 1 220px;
+    min-width: 0;
+}
+
+.filter-bar .search-wrapper input {
+    width: 100%;
+}
+
+/* ---- Filters disclosure ---- */
+.filter-disclosure {
+    position: relative;
+}
+
+.filter-toggle.open {
+    border-color: var(--color-accent);
+}
+
+.filter-count {
+    display: inline-flex;
+    align-items: center;
     justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    margin-left: 6px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: var(--color-accent);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+/* An author `display` beats the UA [hidden] rule, so without this the badge is
+   a bare accent dot beside "Filters" at all times - the opposite of its job.
+   Declared after the rule it overrides, like .filter-panel[hidden] below. */
+.filter-count[hidden] {
+    display: none;
+}
+
+.filter-panel {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 280px;
+    max-width: min(360px, calc(100vw - 32px));
+    padding: 14px 16px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: var(--radius-md);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    text-align: left;
+}
+
+.filter-panel[hidden] {
+    display: none;
+}
+
+.filter-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.filter-row-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text-light);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.filter-row-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+/* ---- Active filter chips ---- */
+/* Outside the panel on purpose: a disclosure that hides which filters are on
+   would be worse than the crowded row it replaced. */
+.active-filters:not(:empty) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--color-border, #eee);
+}
+
+.active-filter,
+.active-filter-clear {
+    font-family: 'Barlow', sans-serif;
+    font-size: 12px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--color-border, #ddd);
+    background: var(--color-surface-alt, #f4f4f4);
+    color: var(--color-text);
+    cursor: pointer;
+}
+
+.active-filter-x {
+    margin-left: 6px;
+    font-weight: 700;
+    color: var(--color-text-light);
+}
+
+.active-filter:hover .active-filter-x {
+    color: var(--color-text);
+}
+
+.active-filter-clear {
+    border-style: dashed;
+    background: none;
+    color: var(--color-text-light);
 }
 
 select, input[type="text"] {
@@ -715,19 +843,11 @@ select, input[type="text"] {
 /* ============================================
    Price Filter (bands + exact range)
    ============================================ */
-.price-filter {
+/* The bands and the exact fields stack inside the panel's Price row. */
+.price-filter-controls {
     display: flex;
-    align-items: center;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: 6px;
-}
-
-.price-filter-label {
-    font-family: 'Barlow', sans-serif;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--color-text-light);
-    white-space: nowrap;
 }
 
 /* Without this a pressed chip renders identically to an unpressed one, so
@@ -742,12 +862,6 @@ select, input[type="text"] {
 
 .price-band-btn.active:hover {
     background: var(--color-accent);
-}
-
-.price-band-group {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
 }
 
 .price-exact {
@@ -787,15 +901,34 @@ select, input[type="text"] {
    sat on a control with no responsive rule at all. Chips inherit .filter-btn's
    sizing, and this floors the tap target on the coarse pointers that need it. */
 @media (pointer: coarse) {
+    .active-filter,
+    .active-filter-clear,
     .price-band-btn,
     .price-exact input {
         min-height: 40px;
     }
 }
 
+/* The bar had no responsive rule at all before #785. Below this the row stacks
+   rather than wrapping into a wall, and the panel spans the screen instead of
+   hanging off one end of it. */
 @media (max-width: 600px) {
-    .price-filter {
+    .filter-bar .search-wrapper {
+        flex: 1 1 100%;
+    }
+
+    .filter-disclosure {
+        flex: 1;
+    }
+
+    .filter-toggle {
         width: 100%;
+    }
+
+    .filter-panel {
+        left: 0;
+        right: 0;
+        max-width: none;
     }
 
     .price-exact {
