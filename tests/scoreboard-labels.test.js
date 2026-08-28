@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 
 const ChecklistEngine = globalThis.ChecklistEngine;
 const ChecklistCreatorModal = globalThis.ChecklistCreatorModal;
+const StatsAnimator = globalThis.StatsAnimator;
 
 // #773: the four header tiles do not all count the same cards. computeStats
 // counts main categories only - unless none is marked main, in which case it
@@ -28,6 +31,28 @@ beforeEach(() => {
         + '<div class="stat-label" id="value-label">Est. Value</div>';
 });
 
+describe('checklist.html carries the elements the labels are written into', () => {
+    const html = () => readFileSync(resolve(import.meta.dirname, '..', 'checklist.html'), 'utf-8');
+
+    // The engine guards on `if (valueLabel)`, and every other test here builds
+    // its own fixture - so without this, removing the id from the page leaves a
+    // silent no-op and a green suite.
+    it('has the value label id the engine writes to', () => {
+        expect(html()).toContain('id="value-label"');
+    });
+
+    it('has the count label id, and the default text the engine restores', () => {
+        const source = html();
+        expect(source).toContain('id="total-label"');
+        // _setPageMeta falls back to this exact string when no label is configured.
+        expect(source).toContain('>Total Cards<');
+    });
+
+    it('has the needed-value element the breakdown suffix is written into', () => {
+        expect(html()).toContain('id="needed-value"');
+    });
+});
+
 describe('ChecklistEngine._countExcludesExtras (#773)', () => {
     it('is true when the checklist has both main and extra categories', () => {
         const engine = makeEngine({ categories: [{ id: 'base' }, { id: 'inserts', isMain: false }] });
@@ -49,9 +74,22 @@ describe('ChecklistEngine._countExcludesExtras (#773)', () => {
         expect(engine._countExcludesExtras()).toBe(false);
     });
 
-    it('is false for a flat checklist with no categories at all', () => {
+    it('is false when there are no categories to compare', () => {
         expect(makeEngine({ dataShape: 'flat' })._countExcludesExtras()).toBe(false);
         expect(makeEngine({ categories: [] })._countExcludesExtras()).toBe(false);
+    });
+
+    // The two above pass whether or not the flat branch is handled, because
+    // `categories` is absent either way. This is the case that needs the guard:
+    // computeStats takes the flat branch and counts every card, so leftover
+    // categories on a hand-edited flat config exclude nothing.
+    it('is false for a flat checklist that still carries categories', () => {
+        const engine = makeEngine({
+            dataShape: 'flat',
+            categories: [{ id: 'a' }, { id: 'b', isMain: false }],
+        });
+
+        expect(engine._countExcludesExtras()).toBe(false);
     });
 });
 
@@ -77,12 +115,24 @@ describe('ChecklistEngine — scoreboard labels (#773)', () => {
         expect(valueLabel()).toBe('Est. Value');
     });
 
-    it('leaves Est. Value unqualified on a flat checklist', () => {
+    it('leaves Est. Value unqualified with no categories to compare', () => {
         const engine = makeEngine({ title: 'T', dataShape: 'flat' });
 
         engine._setPageMeta();
 
         expect(valueLabel()).toBe('Est. Value');
+    });
+
+    // BLOCKING 1 from review: the count label was only ever assigned when the
+    // config carried one, so clearing the new field in the settings modal left
+    // the old heading on screen until a reload, contradicting the saved config.
+    it('puts the default count label back when the config no longer sets one', () => {
+        makeEngine({ title: 'T', totalLabel: 'Main Cards' })._setPageMeta();
+        expect(totalLabel()).toBe('Main Cards');
+
+        makeEngine({ title: 'T' })._setPageMeta();
+
+        expect(totalLabel()).toBe('Total Cards');
     });
 
     // Set from a stale render, the label must go back rather than stick.
@@ -103,6 +153,58 @@ describe('ChecklistEngine — scoreboard labels (#773)', () => {
     it('leaves the default count label alone when the config sets none', () => {
         makeEngine({ title: 'T' })._setPageMeta();
         expect(totalLabel()).toBe('Total Cards');
+    });
+});
+
+// BLOCKING 2 from review: "$X to complete" is accumulated in the counted-
+// categories loop only, so it shares the count's scope, not the value's. Sitting
+// directly under "Est. Value (all cards)" it read as covering everything.
+describe('ChecklistEngine._neededValueSuffix (#773)', () => {
+    it('names its own scope where it differs from the value above it', () => {
+        const engine = makeEngine({
+            totalLabel: 'Main Cards',
+            categories: [{ id: 'base' }, { id: 'inserts', isMain: false }],
+        });
+
+        expect(engine._neededValueSuffix()).toBe(' to complete (main cards)');
+    });
+
+    it('falls back to the default label name when none is configured', () => {
+        const engine = makeEngine({ categories: [{ id: 'base' }, { id: 'x', isMain: false }] });
+
+        expect(engine._neededValueSuffix()).toBe(' to complete (total cards)');
+    });
+
+    // Unqualified wherever the scopes match - the same rule the value label uses.
+    it('stays plain when nothing is excluded', () => {
+        expect(makeEngine({ categories: [{ id: 'a' }] })._neededValueSuffix()).toBe(' to complete');
+        expect(makeEngine({ dataShape: 'flat' })._neededValueSuffix()).toBe(' to complete');
+    });
+
+    // The suffix has to survive the trip through StatsAnimator, which hardcoded
+    // ' to complete' in both of its branches.
+    it('reaches the DOM through the animator', () => {
+        document.body.innerHTML += '<span id="needed-value"></span>';
+        const el = document.getElementById('needed-value');
+        // hasAnimated true takes the no-animation branch, which is synchronous;
+        // the animated branch defers behind setTimeout and rAF.
+        StatsAnimator.hasAnimated = true;
+
+        StatsAnimator.animateStats({
+            neededValue: { el, value: 50, text: null, suffix: ' to complete (main cards)' },
+        });
+
+        expect(el.textContent).toBe('$50 to complete (main cards)');
+    });
+
+    it('still renders the plain default when no suffix is passed', () => {
+        document.body.innerHTML += '<span id="needed-value"></span>';
+        const el = document.getElementById('needed-value');
+        StatsAnimator.hasAnimated = true;
+
+        StatsAnimator.animateStats({ neededValue: { el, value: 50, text: null } });
+
+        expect(el.textContent).toBe('$50 to complete');
     });
 });
 
