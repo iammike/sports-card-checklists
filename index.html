@@ -656,18 +656,20 @@
             // sums several and theirs disagree - so it says what is true of all
             // of them (#779).
             //
-            // "Counted", not "tracked": the excluded extras are tracked, and
-            // visibly so - they have owned checkboxes, they feed the Est. Value
-            // in the very next tile (which says "all cards"), and they get their
-            // own pills on the cards below. What is true is that this sum does
-            // not count them.
+            // "Targeted", not "tracked" and not "counted". Tracked was false -
+            // the excluded extras have owned checkboxes, feed the Est. Value in
+            // the very next tile, and get their own pills on the cards below.
+            // Counted was true but read as machinery: it described what the code
+            // does rather than what the number means. These are the cards being
+            // chased, which is also the word the checklists themselves use -
+            // jayden-daniels names its own count "Target Cards".
             //
             // Unqualified when nothing is excluded, same rule as the value label.
             // "Cards Owned" beside it is left alone: it is main-only and
             // de-duplicated too, so it is accurate as a pair with this number
             // rather than neutral on its own.
             document.getElementById('agg-total-label').textContent =
-                anyExcludes ? 'Cards Counted' : 'Total Cards';
+                anyExcludes ? 'Cards Targeted' : 'Total Cards';
 
             // A finished collection suppresses the "to complete" line rather than
             // reading "$0 to complete", the same way a completed checklist card

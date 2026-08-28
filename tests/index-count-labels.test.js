@@ -123,11 +123,12 @@ describe('index aggregate — the count label follows the scope (#779)', () => {
     const stats = { jd: { owned: 45, total: 60, ownedValue: 1200, neededValue: 210 } };
 
     // It sums checklists whose labels disagree, so it cannot borrow one.
-    // "Counted", not "tracked": the excluded extras are tracked and visibly so.
-    it('says Cards Counted when any checklist excludes cards from its count', () => {
+    // "Targeted": the excluded extras are tracked and visibly so, and
+    // "counted" described the machinery rather than the number.
+    it('says Cards Targeted when any checklist excludes cards from its count', () => {
         loadAggregate()(stats, null, { jd: SPLIT });
 
-        expect(label()).toBe('Cards Counted');
+        expect(label()).toBe('Cards Targeted');
     });
 
     it('stays Total Cards when nothing anywhere is excluded', () => {
@@ -143,7 +144,7 @@ describe('index aggregate — the count label follows the scope (#779)', () => {
             { a: WHOLE, b: SPLIT },
         );
 
-        expect(label()).toBe('Cards Counted');
+        expect(label()).toBe('Cards Targeted');
     });
 
     // Same gate as the value label: a checklist contributing nothing to the sum
@@ -159,7 +160,7 @@ describe('index aggregate — the count label follows the scope (#779)', () => {
     it('goes back to Total Cards when re-run without an excluding checklist', () => {
         const aggregate = loadAggregate();
         aggregate(stats, null, { jd: SPLIT });
-        expect(label()).toBe('Cards Counted');
+        expect(label()).toBe('Cards Targeted');
 
         aggregate(stats, null, { jd: WHOLE });
 
