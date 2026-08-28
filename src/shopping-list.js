@@ -250,12 +250,14 @@ const ShoppingList = {
                         name: card.name || card.player
                             || (entry.navLabel || entry.title || '').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()),
                         variant: card.variant || '',
-                        // Number() first: gist prices are hand-edited and can be
-                        // strings, and a string here makes the reduce below
-                        // concatenate instead of add, so toFixed throws and the
-                        // whole export dies on one quoted price - the user gets
-                        // a TypeError in an alert, naming no card.
-                        price: Number(card.price) || 0,
+                        // Normalized here, which coerces as well as applying the
+                        // whole-dollar rule (#761). The coercion is what keeps a
+                        // hand-edited string price from making the summary's
+                        // reduce concatenate instead of add - one quoted price
+                        // used to kill the whole export with a TypeError in an
+                        // alert that named no card. The whole-dollar half is what
+                        // keeps the total agreeing with the rows it totals.
+                        price: CardRenderer.normalizePrice(card.price),
                         checklist: entry.title || id
                     });
                 }
@@ -317,11 +319,18 @@ const ShoppingList = {
         y += 12;
 
         // Summary line
-        const totalPrice = items.reduce((sum, item) => sum + item.price, 0);
-        const priceCount = items.filter(i => i.price > 0).length;
+        // Normalized here as well as at the source: the line items above render
+        // through CardRenderer.formatPrice, which normalizes whatever it is
+        // given, so a total summing raw values contradicts the rows it is
+        // totalling. A single 40c card printed a "$1" row over "Est. cost: $0"
+        // (#761).
+        const totalPrice = items.reduce((sum, item) => sum + CardRenderer.normalizePrice(item.price), 0);
+        const priceCount = items.filter(i => CardRenderer.normalizePrice(i.price) > 0).length;
         let summary = items.length + ' cards needed';
         if (priceCount > 0) {
-            summary += '  |  Est. cost: $' + totalPrice.toFixed(2) + ' (' + priceCount + ' priced)';
+            // Whole dollars, like every line item above it (#761) - this used to
+            // print "Est. cost: $0.40" under a line item reading "$1".
+            summary += '  |  Est. cost: $' + totalPrice + ' (' + priceCount + ' priced)';
         }
         doc.setFontSize(9);
         doc.text(summary, margin, y);

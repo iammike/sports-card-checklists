@@ -623,10 +623,10 @@ describe('ChecklistExport.buildPDF', () => {
         const numX = doc.calls.text.find(t => t.str === '1').x;
         expect(setX).toBeLessThan(numX);
         expect(strings()).toContain('$45');
-        // A zero price is blank, and a sub-dollar one keeps its cents rather than
-        // rounding down to $0.
+        // A zero price is blank, and a sub-dollar one prints as the smallest
+        // supported price rather than rounding down to $0 (#761).
         expect(strings()).not.toContain('$0');
-        expect(strings()).toContain('$0.40');
+        expect(strings()).toContain('$1');
     });
 
     it('repeats the column header on every page of a long checklist', async () => {

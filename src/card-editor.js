@@ -809,14 +809,16 @@ class CardEditorModal {
             this.setDirty(true);
         };
 
-        // Price field validation - strip non-numeric, round to whole number on blur
+        // Price field validation - snap to whole dollars on blur. Shares
+        // CardRenderer.parsePriceInput with the save path, so tabbing out of the
+        // field cannot leave it showing something the save would store
+        // differently. It used to blank any sub-dollar value here, which meant
+        // merely focusing and leaving the field destroyed a 40c price (#761).
         const priceInput = this.backdrop.querySelector('#editor-price');
         if (priceInput) {
             priceInput.addEventListener('blur', () => {
-                let val = priceInput.value.trim().replace(/[^0-9.]/g, '');
-                if (val === '' || val === '.') { priceInput.value = ''; return; }
-                const num = Math.round(parseFloat(val));
-                priceInput.value = isNaN(num) || num <= 0 ? '' : num;
+                const num = CardRenderer.parsePriceInput(priceInput.value);
+                priceInput.value = num <= 0 ? '' : num;
             });
         }
 
@@ -1774,7 +1776,11 @@ class CardEditorModal {
         // the input is hidden, never cleared.
         const priceVal = this.backdrop.querySelector('#editor-price').value.trim();
         if (priceVal !== '' && !noCardChecked && !link) {
-            data.price = Math.round(parseFloat(priceVal)) || 0;
+            // The same parser the blur handler uses, deliberately: Enter-to-save
+            // calls save() straight from the focused field, so blur never runs
+            // and this is the only thing standing between "$0.40" and a deleted
+            // price (#761).
+            data.price = CardRenderer.parsePriceInput(priceVal);
         }
 
         // eBay search term - only include if explicitly set

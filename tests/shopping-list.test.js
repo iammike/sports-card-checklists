@@ -330,10 +330,12 @@ describe('ShoppingList prices', () => {
         name: 'Daniels', variant: '', price: 0, checklist: 'a', ...over,
     });
 
-    it('keeps cents on a sub-dollar card instead of printing $0', () => {
+    // #761: whole dollars, so a sub-dollar card prints as $1. The thing that
+    // must not come back is "$0" against a card that has a price.
+    it('prints a sub-dollar card as $1, never as $0', () => {
         ShoppingList.buildPDF([item({ price: 0.4 })], {});
 
-        expect(strings()).toContain('$0.40');
+        expect(strings()).toContain('$1');
         expect(strings()).not.toContain('$0');
     });
 
@@ -365,7 +367,11 @@ describe('ShoppingList prices', () => {
         try {
             await ShoppingList.generate();
             const items = ShoppingList.buildPDF.mock.calls[0][0];
-            expect(items[0].price).toBe(0.4);
+            // A real number, not a string - that is what this test is for. The
+            // value is 1 rather than 0.4 because collection normalizes to whole
+            // dollars now (#761).
+            expect(typeof items[0].price).toBe('number');
+            expect(items[0].price).toBe(1);
         } finally {
             ShoppingList.buildPDF = realBuild;
             DynamicNav.loadRegistry = realRegistry;
@@ -380,6 +386,25 @@ describe('ShoppingList prices', () => {
     it('sums prices into the summary line', () => {
         ShoppingList.buildPDF([item({ price: 10 }), item({ price: 5 })], {});
 
-        expect(strings().some(t => t.includes('Est. cost: $15.00'))).toBe(true);
+        // Whole dollars, matching the line items above it (#761).
+        expect(strings().some(t => t.includes('Est. cost: $15'))).toBe(true);
+        expect(strings().some(t => t.includes('$15.00'))).toBe(false);
+    });
+
+    // The line items render through formatPrice, which normalizes; a total that
+    // summed the raw values printed "$1" in the row and "Est. cost: $0"
+    // underneath it - the same "no price" reading #761 is about.
+    it('totals the same numbers the rows print', () => {
+        ShoppingList.buildPDF([item({ price: 0.4 })], {});
+
+        expect(strings()).toContain('$1');
+        expect(strings().some(t => t.includes('Est. cost: $1'))).toBe(true);
+        expect(strings().some(t => t.includes('Est. cost: $0'))).toBe(false);
+    });
+
+    it('counts a sub-dollar card as priced', () => {
+        ShoppingList.buildPDF([item({ price: 0.4 }), item({ price: 0 })], {});
+
+        expect(strings().some(t => t.includes('(1 priced)'))).toBe(true);
     });
 });

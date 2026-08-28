@@ -36,24 +36,50 @@ describe('CardRenderer.getSetName', () => {
   });
 });
 
-// Moved here from checklist-export.test.js when the helper became shared: the
-// shopping-list PDF had its own toFixed(0) and printed sub-dollar cards as $0.
-describe('CardRenderer.formatPrice', () => {
-  it('keeps cents below a dollar', () => {
-    expect(CardRenderer.formatPrice(0.4)).toBe('0.40');
+// Moved here from checklist-export.test.js when the helper became shared.
+// #755 made these keep cents; #761 reversed that decision - prices are whole
+// dollars and cents are deliberately unsupported - so what they pin now is that
+// a sub-dollar value normalizes UP to $1 rather than down to $0. Zero is not
+// "cheap" anywhere in this app: getPrice, renderPriceBadge and the shopping list
+// all read it as "no price at all".
+describe('CardRenderer.normalizePrice', () => {
+  it('lifts a positive sub-dollar price to the smallest supported one', () => {
+    expect(CardRenderer.normalizePrice(0.4)).toBe(1);
+    expect(CardRenderer.normalizePrice(0.01)).toBe(1);
+    expect(CardRenderer.normalizePrice(0.99)).toBe(1);
   });
 
   it('rounds to whole dollars at a dollar and above', () => {
+    expect(CardRenderer.normalizePrice(45.6)).toBe(46);
+    expect(CardRenderer.normalizePrice(45.4)).toBe(45);
+    expect(CardRenderer.normalizePrice(1)).toBe(1);
+  });
+
+  // Zero has to survive as zero, or "no price" becomes "$1" everywhere.
+  it('leaves no-price alone rather than inventing one', () => {
+    expect(CardRenderer.normalizePrice(0)).toBe(0);
+    expect(CardRenderer.normalizePrice(null)).toBe(0);
+    expect(CardRenderer.normalizePrice(undefined)).toBe(0);
+    expect(CardRenderer.normalizePrice('not a price')).toBe(0);
+    expect(CardRenderer.normalizePrice(-5)).toBe(0);
+  });
+});
+
+describe('CardRenderer.formatPrice', () => {
+  it('prints whole dollars, with no decimal point', () => {
     expect(CardRenderer.formatPrice(45.6)).toBe('46');
     expect(CardRenderer.formatPrice(1)).toBe('1');
+  });
+
+  it('shows a sub-dollar price as what the next save would store', () => {
+    expect(CardRenderer.formatPrice(0.4)).toBe('1');
   });
 
   // A totality guard, not a live path: every caller gates on `price > 0` and
   // coerces upstream. It pins what the helper does if that ever stops being true.
   it('coerces a non-numeric price rather than printing NaN', () => {
-    expect(CardRenderer.formatPrice('0.40')).toBe('0.40');
     expect(CardRenderer.formatPrice('12')).toBe('12');
-    expect(CardRenderer.formatPrice('not a price')).toBe('0.00');
+    expect(CardRenderer.formatPrice('not a price')).toBe('0');
   });
 });
 
@@ -136,13 +162,12 @@ describe('CardRenderer.renderPriceBadge', () => {
     expect(html).toContain('high');
   });
 
-  // The third instance of #755's class: Math.round here showed a real 40c card
-  // as a $0 badge. The badge is absolutely positioned with no width constraint,
-  // so the two extra characters cost nothing.
-  it('keeps cents on a sub-dollar card instead of showing $0', () => {
+  // #755 made this print $0.40; #761 chose whole dollars instead. What must not
+  // come back either way is the "$0" badge on a card that does have a price.
+  it('shows a sub-dollar card as $1, never as $0', () => {
     const html = CardRenderer.renderPriceBadge(0.4);
-    expect(html).toContain('$0.40');
-    expect(html).not.toContain('$0<');
+    expect(html).toContain('$1');
+    expect(html).not.toContain('$0');
   });
 });
 
