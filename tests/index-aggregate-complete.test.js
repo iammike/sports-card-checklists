@@ -13,7 +13,7 @@ import { resolve } from 'path';
 const INDEX_HTML = readFileSync(resolve(import.meta.dirname, '..', 'index.html'), 'utf-8');
 
 function loadUpdateAggregateStats() {
-    const marker = 'function updateAggregateStats(allStats, uniqueOwned) {';
+    const marker = 'function updateAggregateStats(allStats, uniqueOwned, configs = {}) {';
     const start = INDEX_HTML.indexOf(marker);
     if (start === -1) throw new Error('updateAggregateStats not found in index.html');
 

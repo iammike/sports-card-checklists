@@ -41,6 +41,7 @@ function loadRenderCard() {
         'PROGRESS_RING_CIRCUMFERENCE',
         'grid',
         'dynamicStats',
+        'configs',
         'sanitizeText',
         'isSafeColor',
         `return (entry) => ${body};`,
@@ -51,13 +52,14 @@ const buildRenderCard = loadRenderCard();
 
 // Run the extracted builder for one registry entry and hand back the card it
 // appended, so assertions can read either the markup or the rendered text.
-function renderCard(entry, stats) {
+function renderCard(entry, stats, config = null) {
     const grid = document.createElement('div');
     buildRenderCard(
         { [entry.id]: stats },
         2 * Math.PI * 20,
         grid,
         {},
+        { [entry.id]: config },
         sanitizeText,
         isSafeColor,
     )(entry);

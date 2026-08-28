@@ -109,6 +109,7 @@ const buildRenderCard = (() => {
         'PROGRESS_RING_CIRCUMFERENCE',
         'grid',
         'dynamicStats',
+        'configs',
         'sanitizeText',
         'isSafeColor',
         `return (entry) => ${INDEX_HTML.slice(bodyStart, end)};`,
@@ -124,12 +125,13 @@ export const loadInitChecklistFilters = () => {
 // The sanitize helpers come off globalThis at call time, not module load: setup.js
 // evals src/*.js before test modules, but reading them lazily keeps this module
 // importable regardless of that ordering.
-export function renderCard(entry, stats, grid = document.createElement('div')) {
+export function renderCard(entry, stats, grid = document.createElement('div'), config = null) {
     buildRenderCard(
         { [entry.id]: stats },
         CIRCUMFERENCE,
         grid,
         {},
+        { [entry.id]: config },
         globalThis.sanitizeText,
         globalThis.isSafeColor,
     )(entry);

@@ -133,6 +133,33 @@ function isSafeColor(value) {
     return typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value);
 }
 
+// Whether a checklist's card count leaves cards out of its own total.
+//
+// computeStats counts categories marked main (isMain !== false), but falls back
+// to counting every category when none is marked - so it excludes something only
+// when both kinds are present. The flat shape counts every card before any of
+// that runs, so leftover categories on a hand-edited flat config exclude nothing.
+//
+// Lives here rather than on the engine because the checklist header and the
+// index card both label numbers that one computeStats produced, and the index
+// page loads only app.min.js. A second copy of this rule would be free to drift
+// from the function it describes (#773, #775).
+function countExcludesExtras(config) {
+    if (!config || config.dataShape === 'flat') return false;
+    const categories = config.categories || [];
+    return categories.some(c => c.isMain !== false) && categories.some(c => c.isMain === false);
+}
+
+// The scope suffix for a "to complete" figure, which shares the *count's* scope
+// rather than the value's. `countLabel` is whatever names the count on that
+// surface - a checklist's totalLabel, or "Total Cards" for the index aggregate.
+// String() because config is hand-editable JSON and a bare .toLowerCase() on a
+// number throws.
+function completionScopeSuffix(config, countLabel) {
+    if (!countExcludesExtras(config)) return '';
+    return ` (${String(countLabel || 'Total Cards').toLowerCase()})`;
+}
+
 // Export for use in pages
 window.CARD_TYPES = CARD_TYPES;
 window.R2_IMAGE_BASE = R2_IMAGE_BASE;
