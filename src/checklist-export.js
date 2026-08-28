@@ -1,9 +1,14 @@
 /**
  * ChecklistExport - Download a checklist as CSV or a printable PDF.
  *
- * Distinct from ShoppingList, which exports what the *owner* still needs across
- * every checklist. This exports one checklist in full, carries no ownership, and
- * reads the engine's already-loaded cards rather than re-fetching the gist.
+ * Distinct from ShoppingList, which spans every checklist and reports real
+ * ownership. This exports the one checklist on screen, carries no ownership (a
+ * blank column to fill in, not a claim about anyone's collection), and reads the
+ * engine's already-loaded cards rather than re-fetching the gist. It is the
+ * visitor's export; ShoppingList is the owner's.
+ *
+ * They share this file's CSV writer, escaping and BOM - see toCSV and
+ * downloadCSV, which ShoppingList calls with its own column map.
  */
 const ChecklistExport = {
     CSV_COLUMNS: ['Section', 'Set', 'Number', 'Name', 'Variant', 'Serial', 'Price', 'Owned'],

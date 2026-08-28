@@ -15,9 +15,8 @@ A modern web app for tracking sports card collections with cloud sync, real-time
 - **Card attribute badges** - AUTO (autograph), PATCH (relic), serial number (/99), and price badges rendered on each card
 - **Serial tracking** - Record numbered cards (/99, /25, /1) with scarcity-based sorting
 - **Drag-and-drop reordering** - Reorder cards within sections via drag (desktop) or touch-drag (mobile) when using Manual sort
-- **Shopping List PDF** - Export all unowned cards as a printable PDF checklist (owner)
-- **Checklist export** - Logged-out visitors can download a whole checklist as CSV or a printable PDF with blank checkboxes
-- **Export (signed in)** - one dialog across every checklist: needed, owned or all cards, as PDF or CSV
+- **Export (owner)** - one dialog across every checklist: needed, owned or all cards, as PDF or CSV
+- **Checklist export (visitors)** - a logged-out visitor can download the checklist they are looking at, as CSV or a printable PDF with blank checkboxes
 
 ### Cloud Sync
 - **GitHub OAuth authentication** - Secure login via GitHub
@@ -178,7 +177,7 @@ No code changes needed to add a new checklist.
 │   ├── checklist-creator.js #   Checklist creation/settings modal
 │   ├── collapsible-sections.js # Expandable section headers
 │   ├── image-editor.js      #   Image crop/rotate, perspective correction, upload
-│   ├── shopping-list.js     #   Shopping List PDF export (owner)
+│   ├── shopping-list.js     #   Cross-checklist export: needed/owned/all, PDF or CSV (owner)
 │   ├── checklist-export.js  #   CSV / printable PDF export of a whole checklist
 │   ├── nav.js               #   Dynamic navigation, auth UI, dropdown menus
 │   └── checklist-engine.js  #   Checklist engine (loads config from gist)

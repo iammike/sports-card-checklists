@@ -1,5 +1,13 @@
 /**
- * ShoppingList - Generate a PDF of all unowned cards across every checklist
+ * ShoppingList - Export cards across every checklist, as PDF or CSV.
+ *
+ * Named for what it produced when it only did one thing. It now picks a scope
+ * too - needed, owned, or all - so a shopping list is one of its outputs rather
+ * than the whole of it (#745). The element id and this file name stayed put
+ * because several modules anchor on them; the user-facing labels did not.
+ *
+ * Distinct from ChecklistExport, which exports one checklist in full for a
+ * visitor and carries no ownership.
  */
 const ShoppingList = {
     backdrop: null,
@@ -60,7 +68,7 @@ const ShoppingList = {
                 '<div class="card-editor-header">' +
                     '<div class="card-editor-header-left">' +
                         '<div class="card-editor-title">EXPORT</div>' +
-                        '<div class="card-editor-subtitle" id="sl-subtitle">Cards across every checklist</div>' +
+                        '<div class="card-editor-subtitle">Cards from the checklists you pick</div>' +
                     '</div>' +
                     '<button class="card-editor-close" title="Close">&times;</button>' +
                 '</div>' +
@@ -142,6 +150,19 @@ const ShoppingList = {
             checkboxes.forEach(cb => { cb.checked = !allChecked; });
             updateToggleText();
         };
+
+        // Est. Value on the site spans every owned card, extras included
+        // (computeStats in checklist-engine.js), so an Owned or All export has
+        // to as well or its total silently disagrees with the number the owner
+        // is comparing it against. Ticked on their behalf, not forced: they can
+        // still untick it for a main-set-only view.
+        backdrop.querySelectorAll('input[name="sl-scope"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                if (radio.id !== 'sl-scope-needed' && radio.checked) {
+                    backdrop.querySelector('#sl-include-extra').checked = true;
+                }
+            });
+        });
 
         // Update toggle text when individual checkboxes change
         backdrop.querySelector('#sl-checklist-list').addEventListener('change', updateToggleText);
@@ -238,8 +259,11 @@ const ShoppingList = {
         const scope = options?.scope || 'needed';
         const format = options?.format || 'pdf';
 
-        // Only the PDF path needs it, and it is the expensive import.
-        if (format === 'pdf') await this.loadJsPDF();
+        // Only the CSV path can skip it, and it is the expensive import. Phrased
+        // against 'csv' so it matches the routing below - an unrecognised format
+        // falls through to the PDF in both places rather than skipping the load
+        // and then throwing on window.jspdf.
+        if (format !== 'csv') await this.loadJsPDF();
 
         // Load registry (use DynamicNav which has session caching)
         const registryData = await DynamicNav.loadRegistry();
@@ -275,7 +299,12 @@ const ShoppingList = {
             const owned = ownedByChecklist[id] || [];
 
             for (const card of allCards) {
-                // Skip cards with no set name (incomplete data)
+                // Skip cards with no set name (incomplete data). Note this and
+                // flattenCards' collectionLink drop both make an Owned export's
+                // card *count* fall short of the site's owned count. Neither
+                // affects the money: computeStats returns before adding a
+                // collection link's price, and a card with no set has nothing to
+                // identify it in an export anyway.
                 if (!card.set) continue;
                 const cardId = this.generateCardId(card, config);
                 const isOwned = owned.includes(cardId);
@@ -336,6 +365,12 @@ const ShoppingList = {
     // checklist and carries a Section, while these rows span checklists and
     // carry the one they came from. The writer, the escaping and the BOM are
     // shared - only the columns differ (#745).
+    //
+    // Passed to toCSV as an explicit list, so columnsFor's drop-Name-when-nobody-
+    // has-one rule does not apply. That rule suits a document a person reads; a
+    // file meant for a spreadsheet or a re-import wants the same header every
+    // time. Name is never empty here anyway - it falls back to the checklist's
+    // own label when a card has neither name nor player.
     CSV_FIELDS: {
         Checklist: r => r.checklist,
         Set: r => r.set,
@@ -349,12 +384,17 @@ const ShoppingList = {
         Owned: r => (r.owned ? 'TRUE' : 'FALSE'),
     },
 
+    // File name, from the same source as the heading. Both formats go through
+    // here, or a collection export downloads as shopping-list.pdf.
+    _scopeSlug(scope) {
+        return (this.SCOPE_LABELS[scope] || 'export').toLowerCase().replace(/\s+/g, '-');
+    },
+
     buildCSV(items, options) {
         const scope = options?.scope || 'needed';
         const cols = Object.keys(this.CSV_FIELDS);
         const csv = ChecklistExport.toCSV(items, this.CSV_FIELDS, cols);
-        const slug = (this.SCOPE_LABELS[scope] || 'export').toLowerCase().replace(/\s+/g, '-');
-        ChecklistExport.downloadCSV(`${slug}.csv`, csv);
+        ChecklistExport.downloadCSV(`${this._scopeSlug(scope)}.csv`, csv);
     },
 
     buildPDF(items, options) {
@@ -367,13 +407,19 @@ const ShoppingList = {
         const margin = 12;
         const usableWidth = pageWidth - margin * 2;
 
-        // Column layout: Set | # | Name | Variant | Price
+        // Column layout: Set | # | Name | Variant | Price, plus Owned when the
+        // rows can differ on it. A 'needed' export is entirely unowned and an
+        // 'owned' one entirely owned, so the column would be a constant; only
+        // 'all' mixes them, and without it that PDF prints an owned and an
+        // unowned card identically. The width comes off Set, the widest column.
+        const showOwned = scope === 'all';
         const cols = [
-            { label: 'Set', width: 76 },
+            { label: 'Set', width: showOwned ? 66 : 76 },
             { label: '#', width: 16 },
             { label: 'Name', width: 42 },
             { label: 'Variant', width: 42 },
-            { label: 'Price', width: 18 }
+            { label: 'Price', width: 18 },
+            ...(showOwned ? [{ label: 'Owned', width: 10 }] : []),
         ];
 
         const rowHeight = 5.5;
@@ -406,7 +452,8 @@ const ShoppingList = {
         if (priceCount > 0) {
             // Whole dollars, like every line item above it (#761) - this used to
             // print "Est. cost: $0.40" under a line item reading "$1".
-            summary += '  |  Est. cost: $' + totalPrice + ' (' + priceCount + ' priced)';
+            const moneyLabel = scope === 'needed' ? 'Est. cost' : 'Est. value';
+            summary += '  |  ' + moneyLabel + ': $' + totalPrice + ' (' + priceCount + ' priced)';
         }
         doc.setFontSize(9);
         doc.text(summary, margin, y);
@@ -506,6 +553,13 @@ const ShoppingList = {
                 // Shared with the checklist export so a 40c card does not print as $0.
                 doc.text('$' + CardRenderer.formatPrice(item.price), x, y + 3);
             }
+            x += cols[4].width;
+
+            if (showOwned) {
+                // A tick, not a checkbox: this reports what is owned rather than
+                // offering something to fill in.
+                doc.text(item.owned ? '\u2713' : '', x, y + 3);
+            }
 
             y += rowHeight;
             rowIndex++;
@@ -518,7 +572,7 @@ const ShoppingList = {
             this.drawPageFooter(doc, pageWidth, pageHeight, margin, p, totalPages);
         }
 
-        doc.save('shopping-list.pdf');
+        doc.save(`${this._scopeSlug(scope)}.pdf`);
     },
 
     // Shared with ChecklistExport's builder: a column that silently overruns its

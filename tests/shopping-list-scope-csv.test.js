@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { fakeDoc } from './fake-jspdf.js';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 
 const ShoppingList = globalThis.ShoppingList;
 const ChecklistExport = globalThis.ChecklistExport;
@@ -200,6 +202,53 @@ describe('ShoppingList PDF — scope wording (#745)', () => {
         expect(strings().some(t => t.includes('1 cards owned'))).toBe(true);
     });
 
+    // Every export downloaded as shopping-list.pdf, so a collection and a
+    // shopping list collided in the downloads folder.
+    it('names the file for the scope, like the CSV does', () => {
+        // fake-jspdf records the last filename in calls.saved.
+        ShoppingList.buildPDF([item()], { scope: 'owned' });
+        expect(doc.calls.saved).toBe('collection.pdf');
+
+        ShoppingList.buildPDF([item()], { scope: 'all' });
+        expect(doc.calls.saved).toBe('every-card.pdf');
+
+        ShoppingList.buildPDF([item()], {});
+        expect(doc.calls.saved).toBe('shopping-list.pdf');
+    });
+
+    // The All radio promises an owned column; without one an owned and an
+    // unowned card print identically.
+    it('distinguishes an owned row from an unowned one in an all export', () => {
+        ShoppingList.buildPDF(
+            [item({ num: '1', owned: true }), item({ num: '2', owned: false })],
+            { scope: 'all' },
+        );
+
+        expect(strings()).toContain('Owned');
+        expect(strings().filter(t => t === '\u2713')).toHaveLength(1);
+    });
+
+    // A constant column is noise: needed is all-unowned, owned is all-owned.
+    it('leaves the owned column out where it could only be a constant', () => {
+        ShoppingList.buildPDF([item({ owned: true })], { scope: 'owned' });
+
+        expect(strings()).not.toContain('Owned');
+        expect(strings()).not.toContain('\u2713');
+    });
+
+    // "Est. cost" is the needed side's word; #776 settled on value for the rest.
+    it('calls the money what the scope makes it', () => {
+        ShoppingList.buildPDF([item({ owned: true })], { scope: 'owned' });
+        expect(strings().some(t => t.includes('Est. value: $10'))).toBe(true);
+        expect(strings().some(t => t.includes('Est. cost'))).toBe(false);
+    });
+
+    it('still says Est. cost for a shopping list', () => {
+        ShoppingList.buildPDF([item()], {});
+
+        expect(strings().some(t => t.includes('Est. cost: $10'))).toBe(true);
+    });
+
     it('still says shopping list, and needed, by default', () => {
         ShoppingList.buildPDF([item()], {});
 
@@ -266,6 +315,41 @@ describe('ShoppingList modal — scope and format controls (#745)', () => {
         expect((await optionsFrom()).format).toBe('csv');
     });
 
+    // The site's Est. Value spans extras deliberately, so an Owned export that
+    // skipped them would report a different number for the same collection.
+    it('ticks include-extra when the scope stops being needed', () => {
+        const extras = document.getElementById('sl-include-extra');
+        expect(extras.checked).toBe(false);
+
+        const owned = document.getElementById('sl-scope-owned');
+        owned.checked = true;
+        owned.dispatchEvent(new window.Event('change'));
+
+        expect(extras.checked).toBe(true);
+    });
+
+    it('leaves include-extra alone for a needed export', () => {
+        const extras = document.getElementById('sl-include-extra');
+
+        const needed = document.getElementById('sl-scope-needed');
+        needed.checked = true;
+        needed.dispatchEvent(new window.Event('change'));
+
+        expect(extras.checked).toBe(false);
+    });
+
+    // Ticked on the user's behalf, not forced - they can still untick it.
+    it('does not re-tick include-extra after the user clears it', () => {
+        const extras = document.getElementById('sl-include-extra');
+        const all = document.getElementById('sl-scope-all');
+        all.checked = true;
+        all.dispatchEvent(new window.Event('change'));
+
+        extras.checked = false;
+
+        expect((document.getElementById('sl-include-extra')).checked).toBe(false);
+    });
+
     // Reopening must not carry the last run's choices back in. Driven through
     // the real showOptionsModal, which is where the resets live.
     it('resets to needed and PDF when reopened', async () => {
@@ -287,5 +371,27 @@ describe('ShoppingList modal — scope and format controls (#745)', () => {
         expect(document.getElementById('sl-format-pdf').checked).toBe(true);
         expect(document.getElementById('sl-scope-all').checked).toBe(false);
         expect(document.getElementById('sl-format-csv').checked).toBe(false);
+    });
+});
+
+// The comment in nav.js says #shopping-list-btn is load-bearing - three modules
+// anchor inserts or handlers on it, and the label moved on without it. Make the
+// comment executable rather than trusting the next reader to honour it.
+describe('the export entry keeps the id other modules anchor on (#745)', () => {
+    const read = f => readFileSync(resolve(import.meta.dirname, '..', 'src', f), 'utf-8');
+
+    it('still renders the anchor id, under its new label', () => {
+        const nav = read('nav.js');
+
+        expect(nav).toContain('id="shopping-list-btn"');
+        expect(nav).toContain('Export');
+    });
+
+    it('is still the id its consumers look for', () => {
+        // Non-vacuous: fails if a consumer is renamed away as well as the source.
+        const consumers = ['checklist-manager.js', 'nav.js'];
+        for (const f of consumers) {
+            expect(read(f), f).toContain('shopping-list-btn');
+        }
     });
 });
