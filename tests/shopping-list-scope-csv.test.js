@@ -87,7 +87,7 @@ describe('ShoppingList — scope and format (#745)', () => {
     });
 
     // Without this the CSV's Owned column has nothing truthful to report.
-    it('records each card own owned state', async () => {
+    it("records each card's owned state", async () => {
         const items = await itemsFrom({ scope: 'all' });
 
         expect(items.find(i => i.num === '2').owned).toBe(true);

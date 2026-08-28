@@ -240,8 +240,10 @@ const ShoppingList = {
             await this.generate({ selectedChecklists, includeExtra, groupByChecklist, scope, format });
             this.closeModal();
         } catch (e) {
-            console.error('Shopping list generation failed:', e);
-            alert('Failed to generate shopping list: ' + e.message);
+            // Named for the dialog, not for one of its outputs: this fires just
+            // as readily on a Collection CSV as on a shopping list.
+            console.error('Export failed:', e);
+            alert('Failed to generate export: ' + e.message);
         } finally {
             genBtn.disabled = false;
             genBtn.textContent = originalText;
