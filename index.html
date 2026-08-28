@@ -546,7 +546,7 @@
                 </div>
                 <div class="aggregate-stat">
                     <div class="aggregate-stat-value" id="agg-total">0</div>
-                    <div class="aggregate-stat-label">Total Cards</div>
+                    <div class="aggregate-stat-label" id="agg-total-label">Total Cards</div>
                 </div>
                 <div class="aggregate-stat">
                     <div class="aggregate-stat-value highlight" id="agg-value">$0</div>
@@ -651,6 +651,23 @@
             document.getElementById('agg-value-label').textContent =
                 anyExcludes ? 'Est. Value (all cards)' : 'Est. Value';
             const aggCompletionScope = anyExcludes ? ' (total cards)' : '';
+            // "Total Cards" over a sum that leaves cards out. It cannot borrow a
+            // checklist's own label the way the cards above it do, because it
+            // sums several and theirs disagree - so it says what is true of all
+            // of them (#779).
+            //
+            // "Counted", not "tracked": the excluded extras are tracked, and
+            // visibly so - they have owned checkboxes, they feed the Est. Value
+            // in the very next tile (which says "all cards"), and they get their
+            // own pills on the cards below. What is true is that this sum does
+            // not count them.
+            //
+            // Unqualified when nothing is excluded, same rule as the value label.
+            // "Cards Owned" beside it is left alone: it is main-only and
+            // de-duplicated too, so it is accurate as a pair with this number
+            // rather than neutral on its own.
+            document.getElementById('agg-total-label').textContent =
+                anyExcludes ? 'Cards Counted' : 'Total Cards';
 
             // A finished collection suppresses the "to complete" line rather than
             // reading "$0 to complete", the same way a completed checklist card
@@ -879,6 +896,11 @@
                 const config = configs[entry.id];
                 const valueScope = countExcludesExtras(config) ? ' (all cards)' : '';
                 const completionScope = completionScopeSuffix(config, config?.totalLabel);
+                // "45 of 60 cards" called a target count plain cards, while the
+                // checklist's own header called it Target Cards (#779). Shared
+                // with nothing else today, but it lives in shared.js beside the
+                // rule it is built on rather than being inlined here.
+                const countNoun = countNounFor(config);
 
                 const isComplete = hasStats && stats.total > 0 && stats.owned >= stats.total;
                 // The ring draws a checkmark instead of the percentage once complete,
@@ -897,7 +919,7 @@
                     ${entry.hideMainCount ? '' : hasStats ? `
                     <div class="progress-section" style="display:block">
                         <div class="main-progress">
-                            <div class="progress-ring" role="progressbar" aria-label="Cards collected"
+                            <div class="progress-ring" role="progressbar" aria-label="${sanitizeAttr(countNoun)} collected"
                                 aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-valuetext="${ringText}">
                                 <svg viewBox="0 0 48 48" aria-hidden="true">
                                     <circle class="bg" cx="24" cy="24" r="20"/>
@@ -908,7 +930,7 @@
                             </div>
                             <div class="progress-details">
                                 <div class="progress-main-text">
-                                    ${sanitizeText(stats.owned)} of ${sanitizeText(stats.total)} cards
+                                    ${sanitizeText(stats.owned)} of ${sanitizeText(stats.total)} ${sanitizeText(countNoun)}
                                 </div>
                                 <div class="value-line">
                                     <span class="value-owned"${valueScope ? ` data-value-scope="${sanitizeAttr(valueScope)}"` : ''}>$${sanitizeText(stats.ownedValue || 0)} value${sanitizeText(valueScope)}</span>${isComplete ? '' : ` · <span class="value-needed">$${sanitizeText(stats.neededValue || 0)} to complete${sanitizeText(completionScope)}</span>`}

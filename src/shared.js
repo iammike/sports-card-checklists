@@ -133,6 +133,11 @@ function isSafeColor(value) {
     return typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value);
 }
 
+// The heading a checklist's card count carries when it names none of its own.
+// Shared so the page that renders it and the rule that declines to splice it
+// into a sentence cannot disagree about what "unset" looks like.
+const DEFAULT_COUNT_LABEL = 'Total Cards';
+
 // Whether a checklist's card count leaves cards out of its own total.
 //
 // computeStats counts categories marked main (isMain !== false), but falls back
@@ -161,9 +166,35 @@ function countExcludesExtras(config) {
 // number throws.
 function completionScopeSuffix(config, countLabel) {
     if (!countExcludesExtras(config)) return '';
-    return ` (${String(countLabel || 'Total Cards').toLowerCase()})`;
+    return ` (${String(countLabel || DEFAULT_COUNT_LABEL).toLowerCase()})`;
+}
+
+// What to call this checklist's cards in a sentence - "45 of 60 target cards".
+//
+// Only when the count actually leaves something out AND the checklist named it
+// itself. The "Total Cards" default is a column heading on the checklist page,
+// where it sits beside "Owned" and reads as a header; spliced mid-sentence,
+// "total" becomes a claim, and claiming 60 is the total on a card that also
+// shows extra-category pills is the very thing #779 set out to remove.
+//
+// Labels that do not end in "cards" are skipped too: "45 of 60 rookie card"
+// reads as a bug, where the parenthetical form "(rookie card)" reads as a scope
+// tag. Degrading to the plain noun is always safe.
+function countNounFor(config) {
+    if (!countExcludesExtras(config)) return 'cards';
+
+    const label = String(config?.totalLabel ?? '').trim().toLowerCase();
+    // The default spelled out explicitly is not a name the checklist chose -
+    // blazers-legends and washington-legends both carry it, from before the
+    // field was editable at all. Reading it as custom put "45 of 60 total
+    // cards" back on two live checklists, which is what this rule exists to
+    // prevent.
+    if (label === DEFAULT_COUNT_LABEL.toLowerCase()) return 'cards';
+
+    return label.endsWith('cards') ? label : 'cards';
 }
 
 // Export for use in pages
+window.DEFAULT_COUNT_LABEL = DEFAULT_COUNT_LABEL;
 window.CARD_TYPES = CARD_TYPES;
 window.R2_IMAGE_BASE = R2_IMAGE_BASE;

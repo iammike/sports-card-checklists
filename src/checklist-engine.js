@@ -1002,7 +1002,7 @@ class ChecklistEngine {
         // put the default back rather than leave the old text on screen (#773).
         const totalLabel = document.getElementById('total-label');
         if (totalLabel) {
-            totalLabel.textContent = this.config.totalLabel || 'Total Cards';
+            totalLabel.textContent = this.config.totalLabel || DEFAULT_COUNT_LABEL;
         }
 
         // Est. Value counts every owned card, including the extra categories the

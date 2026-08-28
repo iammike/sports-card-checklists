@@ -51,7 +51,10 @@ describe('index.html progress ring — role and value', () => {
     it('gives the progressbar a name, which the role requires', () => {
         const card = renderCard(ENTRY, STATS);
 
-        expect(accessibleName(card.querySelector('[role="progressbar"]'))).toBe('Cards collected');
+        // Names the same cards the count line beside it does (#779), so a screen
+        // reader and a sighted user are told about the same set. Plain "cards"
+        // with no config, which is this fixture.
+        expect(accessibleName(card.querySelector('[role="progressbar"]'))).toBe('cards collected');
     });
 
     it('says "Complete" rather than leaving a bare checkmark to speak for itself', () => {
