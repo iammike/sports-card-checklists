@@ -998,10 +998,50 @@ class ChecklistEngine {
         }
 
         // Total label
+        // Always assigned, never only-when-set: the settings modal can now
+        // clear this field, and a config that no longer carries a label has to
+        // put the default back rather than leave the old text on screen (#773).
         const totalLabel = document.getElementById('total-label');
-        if (this.config.totalLabel) {
-            totalLabel.textContent = this.config.totalLabel;
+        if (totalLabel) {
+            totalLabel.textContent = this.config.totalLabel || 'Total Cards';
         }
+
+        // Est. Value counts every owned card, including the extra categories the
+        // count beside it deliberately leaves out - so under a heading reading
+        // "Main Cards" it looks like it covers only those (#773). Qualified only
+        // where the two actually differ: with no extras, or with no main
+        // categories at all (computeStats then counts everything), the two
+        // scopes are identical and the qualifier would be noise.
+        const valueLabel = document.getElementById('value-label');
+        if (valueLabel) {
+            valueLabel.textContent = this._countExcludesExtras()
+                ? 'Est. Value (all cards)'
+                : 'Est. Value';
+        }
+    }
+
+    // Whether stats.total leaves cards out. computeStats counts main categories
+    // only, but falls back to every category when none is marked main - so it
+    // excludes something only when both kinds are present. The flat branch runs
+    // before any of that and counts every card, so a hand-edited flat config
+    // that still carries categories excludes nothing either.
+    _countExcludesExtras() {
+        if (this._isFlat()) return false;
+        const categories = this.config.categories || [];
+        return categories.some(c => c.isMain !== false) && categories.some(c => c.isMain === false);
+    }
+
+    // "$X to complete" is accumulated in the counted-categories loop only, so it
+    // shares the count's scope, not the value's. Directly under a heading
+    // reading "Est. Value (all cards)" that is the very conflation #773 is
+    // about, one line lower - so where the scopes differ it names its own.
+    _neededValueSuffix() {
+        if (!this._countExcludesExtras()) return ' to complete';
+        // String() first: the config is hand-editable JSON, so totalLabel can be
+        // a number or worse, and a bare .toLowerCase() on one throws out of
+        // updateStats - which runs on every render, so the page renders nothing.
+        // _setPageMeta survives the same value because textContent coerces.
+        return ` to complete (${String(this.config.totalLabel || 'Total Cards').toLowerCase()})`;
     }
 
     // ========================================
@@ -2374,6 +2414,7 @@ class ChecklistEngine {
                 el: document.getElementById('needed-value'),
                 value: stats.neededValue,
                 text: isComplete ? 'Collection complete!' : null,
+                suffix: this._neededValueSuffix(),
             },
         });
         const header = document.getElementById('page-header');

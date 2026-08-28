@@ -63,6 +63,10 @@ class ChecklistCreatorModal {
                             <input type="text" class="card-editor-input" id="creator-nav-label" placeholder="e.g. MY CARDS" maxlength="20" title="Short label shown in the top navigation bar">
                         </div>
                         <div class="card-editor-field full-width">
+                            <label class="card-editor-label">Count Label</label>
+                            <input type="text" class="card-editor-input" id="creator-total-label" placeholder="Total Cards" maxlength="24" title="Heading over the card count in the header. The count covers only sections with 'Counts' ticked, so name it for those - e.g. 'Main Cards' - when some sections are excluded">
+                        </div>
+                        <div class="card-editor-field full-width">
                             <label class="card-editor-label">Description</label>
                             <textarea class="card-editor-input creator-textarea" id="creator-description" rows="2" placeholder="Short description shown on the home page" title="Brief text shown on the index page card for this checklist"></textarea>
                         </div>
@@ -757,6 +761,7 @@ class ChecklistCreatorModal {
         this.backdrop.querySelector('#creator-search-prefix').value = '';
         this.backdrop.querySelector('#creator-subtitle').value = '';
         this.backdrop.querySelector('#creator-nav-label').value = '';
+        this.backdrop.querySelector('#creator-total-label').value = '';
         this.backdrop.querySelector('#creator-primary-color').value = '#667eea';
         this.backdrop.querySelector('#creator-primary-hex').textContent = '#667eea';
         this.backdrop.querySelector('#creator-accent-color').value = '#f39c12';
@@ -801,6 +806,7 @@ class ChecklistCreatorModal {
         this.backdrop.querySelector('#creator-search-prefix').value = config.searchPrefix || '';
         this.backdrop.querySelector('#creator-subtitle').value = config.subtitle || '';
         this.backdrop.querySelector('#creator-nav-label').value = config.navLabel || '';
+        this.backdrop.querySelector('#creator-total-label').value = config.totalLabel || '';
         this.backdrop.querySelector('#creator-primary-color').value = primaryColor;
         this.backdrop.querySelector('#creator-primary-hex').textContent = primaryColor;
         this.backdrop.querySelector('#creator-accent-color').value = accentColor;
@@ -901,6 +907,8 @@ class ChecklistCreatorModal {
         const searchPrefixVal = this.backdrop.querySelector('#creator-search-prefix').value.trim();
         if (searchPrefixVal) config.searchPrefix = searchPrefixVal; else delete config.searchPrefix;
         config.navLabel = navLabel;
+        const totalLabelVal = this.backdrop.querySelector('#creator-total-label').value.trim();
+        if (totalLabelVal) config.totalLabel = totalLabelVal; else delete config.totalLabel;
         const primaryColor = this.backdrop.querySelector('#creator-primary-color').value;
         config.theme = {
             ...(config.theme || {}),
