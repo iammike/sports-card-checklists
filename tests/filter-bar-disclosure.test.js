@@ -387,6 +387,29 @@ describe('the bar finally has responsive rules (#785)', () => {
         expect(narrow).toContain('.filter-panel');
     });
 
+    // With only four controls left in the row, an uncapped search box spans most
+    // of a desktop screen and reads as a mistake.
+    it('caps the search box on a wide screen', () => {
+        expect(block(css(), '.filter-bar .search-wrapper {')).toContain('max-width: 360px');
+    });
+
+    // Scoped to the search-wrapper rule *inside* the narrow block, not to the
+    // block: .filter-panel carries an identical `max-width: none` there, so a
+    // whole-block assertion is satisfied by a rule this test is not about, and
+    // deleting the line it means to guard leaves the suite green.
+    it('uncaps it on a narrow screen, where the room is not there anyway', () => {
+        const narrow = block(css(), '@media (max-width: 600px)');
+
+        expect(block(narrow, '.filter-bar .search-wrapper {')).toContain('max-width: none');
+    });
+
+    // The row wrapped at ~690px, well above the breakpoint, because an input's
+    // automatic minimum size ignores the wrapper's min-width - leaving Export
+    // alone and centred on a second line across that whole band.
+    it('lets the search input shrink, so the row does not wrap above the breakpoint', () => {
+        expect(block(css(), '.filter-bar .search-wrapper input {')).toContain('min-width: 0');
+    });
+
     it('gives the panel and the chips real tap targets', () => {
         expect(block(css(), '@media (pointer: coarse)')).toContain('.active-filter');
     });

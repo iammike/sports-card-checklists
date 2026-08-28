@@ -649,23 +649,35 @@ h1 {
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
-/* Search first and growing, everything else sized to its content. Before #785
-   this selector was the whole bar - up to 13 controls wrapping into three
-   ragged rows, with no media query anywhere in the file. */
+/* Search first, everything else sized to its content. Before #785 this
+   selector was the whole bar - up to 13 controls wrapping into three ragged
+   rows, with no media query anywhere in the file.
+   Centred as a group, which is how this bar sat before that rewrite. */
 .filter-bar {
     display: flex;
     flex-wrap: wrap;
     gap: 12px;
     align-items: center;
+    justify-content: center;
 }
 
+/* Grows, but not without limit. With only four controls left in the row there
+   is a lot of space to take, and a search box spanning most of a desktop
+   screen reads as a mistake rather than as emphasis. */
 .filter-bar .search-wrapper {
     flex: 1 1 220px;
+    max-width: 360px;
     min-width: 0;
 }
 
+/* min-width: 0 on the input, not only on the wrapper. An input's automatic
+   minimum size does not inherit the wrapper's, so search bottomed out around
+   205px and the row wrapped at ~690px - well above the 600px breakpoint,
+   leaving Export alone and centred on a second line in between. Letting the
+   input keep shrinking closes that band entirely. */
 .filter-bar .search-wrapper input {
     width: 100%;
+    min-width: 0;
 }
 
 /* ---- Filters disclosure ---- */
@@ -915,6 +927,8 @@ select, input[type="text"] {
 @media (max-width: 600px) {
     .filter-bar .search-wrapper {
         flex: 1 1 100%;
+        /* The cap is about a wide screen having too much room; a phone does not. */
+        max-width: none;
     }
 
     .filter-disclosure {
