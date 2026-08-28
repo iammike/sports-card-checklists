@@ -713,16 +713,16 @@ select, input[type="text"] {
 }
 
 /* ============================================
-   Price Range Filter (dual-handle slider)
+   Price Filter (bands + exact range)
    ============================================ */
-.price-range-filter {
+.price-filter {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    flex-wrap: wrap;
     gap: 6px;
-    min-width: 180px;
 }
 
-.price-range-label {
+.price-filter-label {
     font-family: 'Barlow', sans-serif;
     font-size: 12px;
     font-weight: 600;
@@ -730,76 +730,74 @@ select, input[type="text"] {
     white-space: nowrap;
 }
 
-.price-range-track {
-    position: relative;
-    height: 20px;
+.price-band-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
 }
 
-.price-range-track::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 0;
-    right: 0;
-    height: 4px;
-    transform: translateY(-50%);
-    background: rgba(128, 128, 128, 0.3);
-    border-radius: 2px;
+.price-exact {
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
-.price-range-fill {
-    position: absolute;
-    top: 50%;
-    height: 4px;
-    transform: translateY(-50%);
-    background: var(--color-accent);
-    border-radius: 2px;
+/* Wide enough for four digits at the inherited size, so "$1000" does not
+   scroll inside its own box. The spinners go because a price is typed, not
+   nudged, and they cost width the number needs. */
+.price-exact input[type="number"] {
+    width: 68px;
+    padding: 6px 8px;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--color-text);
+    background: var(--color-surface, #fff);
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: var(--radius-sm, 4px);
+    -moz-appearance: textfield;
+    appearance: textfield;
 }
 
-.price-range-track input[type="range"] {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 20px;
+.price-exact input[type="number"]::-webkit-outer-spin-button,
+.price-exact input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
     margin: 0;
-    background: none;
-    pointer-events: none;
-    -webkit-appearance: none;
-    appearance: none;
 }
 
-.price-range-track input[type="range"]::-webkit-slider-runnable-track {
-    -webkit-appearance: none;
-    background: none;
+.price-exact input[type="number"]:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
 }
 
-.price-range-track input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    pointer-events: auto;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: var(--color-accent);
-    border: 2px solid var(--color-surface, #fff);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-    cursor: pointer;
+.price-exact-sep {
+    font-family: 'Barlow', sans-serif;
+    font-size: 12px;
+    color: var(--color-text-light);
 }
 
-.price-range-track input[type="range"]::-moz-range-track {
-    background: none;
-    border: none;
+/* The old slider's 16px thumbs were well under the ~44px touch guideline and
+   sat on a control with no responsive rule at all. Chips inherit .filter-btn's
+   sizing, and this floors the tap target on the coarse pointers that need it. */
+@media (pointer: coarse) {
+    .price-band-btn,
+    .price-exact input[type="number"] {
+        min-height: 40px;
+    }
 }
 
-.price-range-track input[type="range"]::-moz-range-thumb {
-    pointer-events: auto;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: var(--color-accent);
-    border: 2px solid var(--color-surface, #fff);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-    cursor: pointer;
+@media (max-width: 600px) {
+    .price-filter {
+        width: 100%;
+    }
+
+    .price-exact {
+        flex: 1;
+    }
+
+    .price-exact input[type="number"] {
+        flex: 1;
+        min-width: 0;
+    }
 }
 
 /* ============================================
