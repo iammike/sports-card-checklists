@@ -15,10 +15,15 @@ const CONFIG = {
     dataShape: 'flat',
     customFields: { auto: { type: 'checkbox' } },
     cardDisplay: {},
-    sortOptions: ['default'],
+    // Two entries, or _renderFilters skips the sort dropdown entirely and the
+    // test that pins where sort lives has nothing to find.
+    sortOptions: ['default', 'year'],
+    // The real shape, from jmu-pro-players: {id, allLabel, cardField, options}.
+    // There is no `label` - inventing one hid a heading reading "ALL SPORTS".
     customFilters: [{
         id: 'sport',
-        label: 'Sport',
+        allLabel: 'All Sports',
+        cardField: 'sport',
         options: [{ value: 'nfl', label: 'NFL' }, { value: 'nba', label: 'NBA' }],
     }],
 };
@@ -71,6 +76,10 @@ describe('the filter row holds only what is reached for constantly (#785)', () =
 
         expect(onTheRow(document.getElementById('search'))).toBe(true);
         expect(onTheRow(toggle())).toBe(true);
+        // Ordering, not narrowing - and rendered at all only because the fixture
+        // offers more than one sort.
+        expect(document.getElementById('sort-filter')).not.toBeNull();
+        expect(onTheRow(document.getElementById('sort-filter'))).toBe(true);
 
         for (const id of ['status-filter', 'sport-filter', 'price-filter']) {
             expect(onTheRow(document.getElementById(id)), id).toBe(false);
@@ -108,13 +117,25 @@ describe('the filter row holds only what is reached for constantly (#785)', () =
         expect(visible(engine)).toEqual(['B']);
     });
 
-    it('offers no disclosure when there is nothing to put behind it', () => {
+    // Status is unconditional, so there is always something behind the button.
+    // Named for what is actually true rather than for a gate that cannot fire.
+    it('still offers the disclosure on the barest checklist, because Status is always there', () => {
         makeEngine([{ set: 'A', num: '1' }], { customFields: {}, customFilters: [] });
 
-        // Status is always present, so the panel always has something - this
-        // pins that the button is gated on the panel rather than rendered blindly.
         expect(toggle()).not.toBeNull();
-        expect(panel().children.length).toBeGreaterThan(0);
+        expect(panel().querySelector('#status-filter')).not.toBeNull();
+        // Nothing else earned a row: no priced cards, no custom fields.
+        expect(panel().querySelectorAll('.filter-row')).toHaveLength(1);
+    });
+
+    it('heads a custom filter with its name, not with its All option', () => {
+        makeEngine();
+
+        const label = document.getElementById('sport-filter-label');
+        expect(label.textContent).toBe('Sports');
+        // And the select is actually named by it.
+        expect(document.getElementById('sport-filter').getAttribute('aria-labelledby'))
+            .toBe('sport-filter-label');
     });
 });
 
@@ -259,6 +280,54 @@ describe('active filters stay visible outside the panel (#785)', () => {
         expect(visible(engine)).toEqual(['A', 'B', 'C']);
     });
 
+    // A min of 0 is the default, not a filter.
+    it('raises no chip for a price floor of zero', () => {
+        makeEngine();
+        const min = document.getElementById('price-min-filter');
+        min.value = '0';
+        min.dispatchEvent(new Event('input'));
+
+        expect(chips()).toHaveLength(0);
+        expect(count().hidden).toBe(true);
+    });
+
+    // Clear all wipes the search box, so the chips have to account for it.
+    it('shows the search term as a chip, since Clear all clears it', () => {
+        makeEngine();
+        const search = document.getElementById('search');
+        search.value = 'prizm';
+        search.dispatchEvent(new Event('input'));
+
+        expect(chips().map(c => c.textContent.replace('×', ''))).toEqual(['"prizm"']);
+
+        chips()[0].click();
+        expect(document.getElementById('search').value).toBe('');
+    });
+
+    // The list is rebuilt wholesale, so the activated chip takes focus with it.
+    it('moves focus somewhere real after a chip removes itself', () => {
+        makeEngine();
+        const sport = document.getElementById('sport-filter');
+        sport.value = 'nba';
+        sport.dispatchEvent(new Event('change'));
+
+        chips()[0].click();
+
+        expect(document.activeElement).toBe(document.getElementById('search'));
+    });
+
+    it('names the toggle for its count, since the badge is inside it', () => {
+        makeEngine();
+        expect(toggle().getAttribute('aria-label')).toBe('Filters');
+
+        const sport = document.getElementById('sport-filter');
+        sport.value = 'nba';
+        sport.dispatchEvent(new Event('change'));
+
+        expect(toggle().getAttribute('aria-label')).toBe('Filters, 1 active');
+        expect(count().getAttribute('aria-hidden')).toBe('true');
+    });
+
     it('names each chip for assistive tech, since the glyph carries the action', () => {
         makeEngine();
         const sport = document.getElementById('sport-filter');
@@ -273,6 +342,14 @@ describe('active filters stay visible outside the panel (#785)', () => {
     // _clearFilters, so neither can leave the chips behind.
     it('empties when the no-matches Clear button is used', () => {
         const engine = makeEngine();
+        // A real filter as well as the search, or there are no chips to empty
+        // and this only asserts that the cards came back.
+        const sport = document.getElementById('sport-filter');
+        sport.value = 'nfl';
+        sport.dispatchEvent(new Event('change'));
+        document.querySelector('.quick-filter-btn').click();
+        expect(chips()).toHaveLength(2);
+
         document.getElementById('search').value = 'nothing matches this';
         document.getElementById('search').dispatchEvent(new Event('input'));
         expect(document.querySelector('.no-matches-clear')).not.toBeNull();
@@ -280,6 +357,7 @@ describe('active filters stay visible outside the panel (#785)', () => {
         document.querySelector('.no-matches-clear').click();
 
         expect(chips()).toHaveLength(0);
+        expect(count().hidden).toBe(true);
         expect(visible(engine)).toEqual(['A', 'B', 'C']);
     });
 });
@@ -289,18 +367,41 @@ describe('the bar finally has responsive rules (#785)', () => {
 
     // It had none at all: .filters was a bare flex-wrap, so 13 controls became a
     // wall on a phone. jsdom applies no cascade, so this is read from source.
+    // Sliced to the block's own closing brace: to EOF, these would pass just as
+    // well with the rules sitting outside the media query entirely.
+    const block = (sheet, opener) => {
+        const start = sheet.indexOf(opener);
+        expect(start, opener).toBeGreaterThan(-1);
+        let depth = 0;
+        for (let i = sheet.indexOf('{', start); i < sheet.length; i++) {
+            if (sheet[i] === '{') depth++;
+            else if (sheet[i] === '}' && --depth === 0) return sheet.slice(start, i + 1);
+        }
+        throw new Error(`unbalanced ${opener}`);
+    };
+
     it('stacks the row on a narrow screen', () => {
-        const sheet = css();
-        const narrow = sheet.slice(sheet.indexOf('@media (max-width: 600px)'));
+        const narrow = block(css(), '@media (max-width: 600px)');
 
         expect(narrow).toContain('.filter-bar .search-wrapper');
         expect(narrow).toContain('.filter-panel');
     });
 
     it('gives the panel and the chips real tap targets', () => {
-        const sheet = css();
-        const coarse = sheet.slice(sheet.indexOf('@media (pointer: coarse)'));
+        expect(block(css(), '@media (pointer: coarse)')).toContain('.active-filter');
+    });
 
-        expect(coarse.slice(0, 300)).toContain('.active-filter');
+    // An author `display` beats the UA [hidden] rule, so the badge was an accent
+    // dot beside "Filters" at all times. jsdom applies no cascade in the other
+    // tests, so the attribute assertion there gave false confidence.
+    it('actually hides the count badge, rather than only marking it hidden', () => {
+        const sheet = css();
+        const base = sheet.indexOf('.filter-count {');
+        const override = sheet.indexOf('.filter-count[hidden]');
+
+        expect(override).toBeGreaterThan(-1);
+        expect(sheet.slice(override, override + 60)).toContain('display: none');
+        // After the rule it overrides, like .filter-panel[hidden].
+        expect(override).toBeGreaterThan(base);
     });
 });

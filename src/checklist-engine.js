@@ -1427,8 +1427,8 @@ class ChecklistEngine {
         }
 
         // Status filter
-        panel += `<div class="filter-row"><span class="filter-row-label">Status</span>
-            <select id="status-filter">
+        panel += `<div class="filter-row"><span class="filter-row-label" id="status-filter-label">Status</span>
+            <select id="status-filter" aria-labelledby="status-filter-label">
                 <option value="all">All Cards</option>
                 <option value="owned">Owned Only</option>
                 <option value="need">Needed Only</option>
@@ -1436,8 +1436,12 @@ class ChecklistEngine {
 
         // Custom filter dropdowns (sport, era, etc.)
         customFilters.forEach(f => {
-            panel += `<div class="filter-row"><span class="filter-row-label">${sanitizeText(f.label || f.allLabel || f.id)}</span>`;
-            panel += `<select id="${sanitizeAttr(f.id)}-filter">`;
+            const labelId = `${sanitizeAttr(f.id)}-filter-label`;
+            panel += `<div class="filter-row"><span class="filter-row-label" id="${labelId}">${sanitizeText(ChecklistEngine._customFilterHeading(f))}</span>`;
+            // aria-labelledby, not just a neighbouring span: the Price and Type
+            // rows name their groups that way and these selects had no
+            // accessible name at all.
+            panel += `<select id="${sanitizeAttr(f.id)}-filter" aria-labelledby="${labelId}">`;
             panel += `<option value="all">${sanitizeText(f.allLabel || 'All')}</option>`;
             f.options.forEach(opt => {
                 panel += `<option value="${sanitizeAttr(opt.value)}">${sanitizeText(opt.label)}</option>`;
@@ -1480,7 +1484,7 @@ class ChecklistEngine {
             const bandGroup = chips
                 ? `<div class="filter-row-group" role="group" aria-labelledby="price-filter-label">${chips}</div>`
                 : '';
-            panel += `<div class="filter-row price-filter" id="price-filter">
+            panel += `<div class="filter-row" id="price-filter">
                 <span class="filter-row-label" id="price-filter-label">Price</span>
                 <div class="price-filter-controls">
                 ${bandGroup}
@@ -1499,7 +1503,7 @@ class ChecklistEngine {
 
         if (panel) {
             html += `<div class="filter-disclosure">
-                <button type="button" class="filter-btn filter-toggle" id="filters-toggle" aria-expanded="false" aria-controls="filters-panel">Filters<span class="filter-count" id="filter-count" hidden></span></button>
+                <button type="button" class="filter-btn filter-toggle" id="filters-toggle" aria-expanded="false" aria-controls="filters-panel" aria-label="Filters">Filters<span class="filter-count" id="filter-count" aria-hidden="true" hidden></span></button>
                 <div class="filter-panel" id="filters-panel" role="group" aria-labelledby="filters-toggle" hidden>${panel}</div>
             </div>`;
         }
@@ -1647,25 +1651,26 @@ class ChecklistEngine {
             toggle.classList.toggle('open', open);
         };
 
-        toggle.addEventListener('click', (e) => {
-            e.stopPropagation();
+        toggle.addEventListener('click', () => {
             setOpen(toggle.getAttribute('aria-expanded') !== 'true');
         });
 
-        // Clicks inside must not close it - the panel is a working surface, not
-        // a menu that dismisses on its first selection.
-        panel.addEventListener('click', e => e.stopPropagation());
-
+        // Deliberately no stopPropagation, on either the toggle or the panel.
+        // The nav dropdown (nav.js) and the card context menu both close on a
+        // bubbling document click, so swallowing it here left them floating on
+        // the page whenever the filter panel was touched. Containment is what
+        // keeps this panel open instead - the panel is a working surface, not a
+        // menu that dismisses on its first selection.
         if (!this._filterDisclosureBound) {
             this._filterDisclosureBound = true;
-            document.addEventListener('click', () => {
+            document.addEventListener('click', (e) => {
                 const t = document.getElementById('filters-toggle');
                 const p = document.getElementById('filters-panel');
-                if (t && p && t.getAttribute('aria-expanded') === 'true') {
-                    t.setAttribute('aria-expanded', 'false');
-                    t.classList.remove('open');
-                    p.hidden = true;
-                }
+                if (!t || !p || t.getAttribute('aria-expanded') !== 'true') return;
+                if (t.contains(e.target) || p.contains(e.target)) return;
+                t.setAttribute('aria-expanded', 'false');
+                t.classList.remove('open');
+                p.hidden = true;
             });
             document.addEventListener('keydown', (e) => {
                 if (e.key !== 'Escape') return;
@@ -1710,11 +1715,20 @@ class ChecklistEngine {
             });
         });
 
+        const search = document.getElementById('search');
+        if (search && search.value.trim() !== '') {
+            push(`"${search.value.trim()}"`, () => { search.value = ''; });
+        }
+
         // One chip for the price, whether it came from a band or from typing:
         // two chips for one range would suggest the bounds filter independently.
         const min = document.getElementById('price-min-filter');
         const max = document.getElementById('price-max-filter');
-        const minSet = this._parsePriceBound(min?.value);
+        // A min of 0 is the default, not a filter: parsed it is 0, which is not
+        // null, so it used to raise a "$0+" chip and a count of 1 over a range
+        // narrowing nothing.
+        const rawMin = this._parsePriceBound(min?.value);
+        const minSet = rawMin === 0 ? null : rawMin;
         const maxSet = this._parsePriceBound(max?.value);
         if (minSet !== null || maxSet !== null) {
             const band = filtersContainer?.querySelector('.price-band-btn.active');
@@ -1745,6 +1759,14 @@ class ChecklistEngine {
             count.textContent = active.length ? String(active.length) : '';
             count.hidden = active.length === 0;
         }
+        // The badge is inside the button, so without this the button announces
+        // as "Filters2" and the panel it labels inherits that.
+        const toggle = document.getElementById('filters-toggle');
+        if (toggle) {
+            toggle.setAttribute('aria-label', active.length
+                ? `Filters, ${active.length} active`
+                : 'Filters');
+        }
 
         if (active.length === 0) {
             host.textContent = '';
@@ -1762,6 +1784,10 @@ class ChecklistEngine {
             btn.addEventListener('click', () => {
                 f.clear();
                 this._onFilterChange();
+                // The chip removed itself along with every other one - this list
+                // is rebuilt wholesale - so focus would land on <body>. Same
+                // reasoning as the no-matches Clear button.
+                document.getElementById('search')?.focus();
             });
         });
         host.querySelector('#active-filters-clear')?.addEventListener('click', () => this._clearFilters());
@@ -1827,6 +1853,18 @@ class ChecklistEngine {
         if (cleaned === '' || cleaned === '.') return null;
         const n = Number(cleaned);
         return Number.isFinite(n) ? n : null;
+    }
+
+    // The heading over a custom filter's dropdown in the panel.
+    //
+    // Derived from allLabel, which is the only name these carry - the config
+    // shape is {id, allLabel, cardField, multiMatch, options} and there is no
+    // `label`. Rendering allLabel as-is put "ALL SPORTS" over the Sport
+    // dropdown, so the leading "All " comes off; the id is the last resort.
+    static _customFilterHeading(f) {
+        const allLabel = String(f.allLabel ?? '').trim();
+        const stripped = allLabel.replace(/^all\s+/i, '').trim();
+        return stripped || allLabel || String(f.id ?? '');
     }
 
     // Which band, if any, a typed pair spells out. Returns the band's index as a

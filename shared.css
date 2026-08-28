@@ -692,6 +692,13 @@ h1 {
     font-weight: 700;
 }
 
+/* An author `display` beats the UA [hidden] rule, so without this the badge is
+   a bare accent dot beside "Filters" at all times - the opposite of its job.
+   Declared after the rule it overrides, like .filter-panel[hidden] below. */
+.filter-count[hidden] {
+    display: none;
+}
+
 .filter-panel {
     position: absolute;
     z-index: 20;
