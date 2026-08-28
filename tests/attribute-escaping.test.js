@@ -635,9 +635,13 @@ describe('filter dropdowns built from config', () => {
 
     expect(el.querySelectorAll('img')).toHaveLength(0);
     expect(inlineHandlers(el)).toEqual([]);
-    // The custom filter select sits between the sort and status dropdowns.
-    const select = el.querySelectorAll('select')[1];
-    expect(select.id).toBe(`${HOSTILE}-filter`);
+    // Found by its id value rather than by position: #785 moved the narrowing
+    // controls into a panel and reordered them, and a positional lookup
+    // silently starts asserting against whichever select lands there. A
+    // selector is no good here - the hostile id is not a valid one - so scan.
+    const select = [...el.querySelectorAll('select')]
+        .find(sel => sel.id === `${HOSTILE}-filter`);
+    expect(select).toBeDefined();
     expect(select.querySelectorAll('option')[1].value).toBe(HOSTILE);
   });
 

@@ -565,10 +565,12 @@ describe('price filter accessibility (#772)', () => {
     });
 
     it('groups the bands under the filter name', () => {
-        const group = document.querySelector('.price-band-group');
+        // The band group shares .filter-row-group with the Type toggles since
+        // #785 put both in the panel; it is the one labelled by the Price row.
+        const group = document.querySelector('[aria-labelledby="price-filter-label"]');
 
         expect(group.getAttribute('role')).toBe('group');
-        const label = document.getElementById(group.getAttribute('aria-labelledby'));
+        const label = document.getElementById('price-filter-label');
         expect(label).not.toBeNull();
         expect(label.textContent).toBe('Price');
     });
