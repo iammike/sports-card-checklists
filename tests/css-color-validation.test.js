@@ -65,6 +65,7 @@ function loadRenderCard() {
         'PROGRESS_RING_CIRCUMFERENCE',
         'grid',
         'dynamicStats',
+        'configs',
         'sanitizeText',
         'isSafeColor',
         `return (entry) => ${body};`,
@@ -77,13 +78,14 @@ const buildRenderCard = loadRenderCard();
 // appended. Reading card.style rather than the source string matters: jsdom has
 // parsed the declaration by then, so an injected declaration shows up as a
 // property the element really carries.
-function renderCard(entry) {
+function renderCard(entry, config = null) {
     const grid = document.createElement('div');
     buildRenderCard(
         { [entry.id]: { owned: 3, total: 10, ownedValue: 100, neededValue: 50 } },
         2 * Math.PI * 20,
         grid,
         {},
+        { [entry.id]: config },
         sanitizeText,
         isSafeColor,
     )(entry);

@@ -550,7 +550,7 @@
                 </div>
                 <div class="aggregate-stat">
                     <div class="aggregate-stat-value highlight" id="agg-value">$0</div>
-                    <div class="aggregate-stat-label">Est. Value</div>
+                    <div class="aggregate-stat-label" id="agg-value-label">Est. Value</div>
                     <div class="aggregate-stat-breakdown">
                         <span class="needed" id="agg-needed-value">$0 to complete</span>
                     </div>
@@ -607,7 +607,7 @@
         // Track if we've animated yet (only animate once)
         let hasAnimatedStats = false;
 
-        function updateAggregateStats(allStats, uniqueOwned) {
+        function updateAggregateStats(allStats, uniqueOwned, configs = {}) {
             let totalOwned = 0, totalCards = 0, totalOwnedValue = 0, totalNeededValue = 0;
             let hasAnyStats = false;
 
@@ -636,6 +636,22 @@
             const statsEl = document.getElementById('aggregate-stats');
             statsEl.style.display = 'block';
 
+            // The same split as a single checklist's header, one level up: the
+            // value sums every owned card while the count sums main-category
+            // totals, so if any checklist excludes cards from its own count the
+            // two tiles are measuring different things (#775). "Total Cards" is
+            // this row's own count label, so it names the completion scope the
+            // way a checklist's totalLabel does on its page.
+            // Gated on having stats: only checklists that actually contribute
+            // to these sums can make the two disagree. A new checklist with a
+            // split config and nothing recorded yet would otherwise relabel a
+            // row it adds nothing to.
+            const anyExcludes = Object.entries(configs)
+                .some(([id, c]) => allStats[id] && countExcludesExtras(c));
+            document.getElementById('agg-value-label').textContent =
+                anyExcludes ? 'Est. Value (all cards)' : 'Est. Value';
+            const aggCompletionScope = anyExcludes ? ' (total cards)' : '';
+
             // A finished collection suppresses the "to complete" line rather than
             // reading "$0 to complete", the same way a completed checklist card
             // drops its own needed-value line.
@@ -658,7 +674,7 @@
                 }, 500);
                 if (!isComplete) {
                     setTimeout(() => {
-                        animateValue(neededEl, 0, totalNeededValue, 1000, '$', ' to complete');
+                        animateValue(neededEl, 0, totalNeededValue, 1000, '$', ' to complete' + aggCompletionScope);
                     }, 650);
                 }
             } else {
@@ -667,7 +683,7 @@
                 document.getElementById('agg-total').textContent = totalCards;
                 document.getElementById('agg-value').textContent = '$' + totalOwnedValue;
                 if (!isComplete) {
-                    neededEl.textContent = '$' + totalNeededValue + ' to complete';
+                    neededEl.textContent = '$' + totalNeededValue + ' to complete' + aggCompletionScope;
                 }
             }
         }
@@ -680,7 +696,10 @@
             if (!perChecklist) return;
             Object.entries(perChecklist).forEach(([id, value]) => {
                 const el = document.querySelector(`.checklist-card[data-checklist="${CSS.escape(id)}"] .value-owned`);
-                if (el) el.textContent = '$' + Math.round(value) + ' value';
+                // Re-apply the scope the render worked out. Rebuilding this text
+                // without it silently strips "(all cards)" a moment after the
+                // card appears (#775).
+                if (el) el.textContent = '$' + Math.round(value) + ' value' + (el.dataset.valueScope || '');
             });
         }
 
@@ -803,6 +822,33 @@
                 : await githubSync.loadPublicData();
             const allGistStats = gistData?.stats || {};
 
+            // Per-checklist config, purely to learn whether that checklist's
+            // count excludes cards its value includes (#775).
+            //
+            // Every config file lives in the gist just read above, and that read
+            // now hands the raw gist to _fetchGist's cache - so this loop is a
+            // JSON.parse per checklist off an object already in memory, not a
+            // request per checklist. That is a property of the caching, not of
+            // this loop: before it, a warm load re-downloaded the whole gist
+            // here, and a dead token re-downloaded it once per checklist.
+            const loggedIn = githubSync.isLoggedIn();
+            const configs = {};
+            for (const entry of dynamicEntries) {
+                // Per checklist, not around the loop: these reads JSON.parse a
+                // hand-editable file, and this runs before first paint, so one
+                // unparseable config would otherwise abort the entire index.
+                // A missing config just means no scope labels for that card.
+                // computeUniqueOwned guards its identical reads the same way.
+                try {
+                    configs[entry.id] = loggedIn
+                        ? await githubSync.loadChecklistConfig(entry.id)
+                        : await githubSync.loadPublicChecklistConfig(entry.id);
+                } catch (e) {
+                    console.warn(`Could not read config for ${entry.id}:`, e);
+                    configs[entry.id] = null;
+                }
+            }
+
             const dynamicStats = {};
 
             dynamicEntries.forEach(entry => {
@@ -827,6 +873,12 @@
                 // falls back to the accent, same as an absent one.
                 const accent = isSafeColor(entry.accentColor) ? entry.accentColor : '#667eea';
                 const borderColor = isSafeColor(entry.borderColor) ? entry.borderColor : accent;
+                // The value spans every owned card while the count beside it may
+                // not, so say so - and the "to complete" figure shares the
+                // count's scope, not the value's (#775).
+                const config = configs[entry.id];
+                const valueScope = countExcludesExtras(config) ? ' (all cards)' : '';
+                const completionScope = completionScopeSuffix(config, config?.totalLabel);
 
                 const isComplete = hasStats && stats.total > 0 && stats.owned >= stats.total;
                 // The ring draws a checkmark instead of the percentage once complete,
@@ -859,7 +911,7 @@
                                     ${sanitizeText(stats.owned)} of ${sanitizeText(stats.total)} cards
                                 </div>
                                 <div class="value-line">
-                                    <span class="value-owned">$${sanitizeText(stats.ownedValue || 0)} value</span>${isComplete ? '' : ` · <span class="value-needed">$${sanitizeText(stats.neededValue || 0)} to complete</span>`}
+                                    <span class="value-owned"${valueScope ? ` data-value-scope="${sanitizeAttr(valueScope)}"` : ''}>$${sanitizeText(stats.ownedValue || 0)} value${sanitizeText(valueScope)}</span>${isComplete ? '' : ` · <span class="value-needed">$${sanitizeText(stats.neededValue || 0)} to complete${sanitizeText(completionScope)}</span>`}
                                 </div>
                             </div>
                         </div>
@@ -884,7 +936,7 @@
                 grid.appendChild(card);
             });
 
-            return { stats: dynamicStats, entries: dynamicEntries };
+            return { stats: dynamicStats, entries: dynamicEntries, configs };
         }
 
         function initChecklistFilters() {
@@ -979,10 +1031,10 @@
             });
 
             // Render dynamic checklist cards from registry and aggregate stats
-            const { stats: allStats, entries } = await renderDynamicChecklists();
+            const { stats: allStats, entries, configs } = await renderDynamicChecklists();
             if (entries && entries.length > 0) initChecklistFilters();
             const uniqueOwned = await computeUniqueOwned(entries);
-            updateAggregateStats(allStats, uniqueOwned);
+            updateAggregateStats(allStats, uniqueOwned, configs);
             updateChecklistCardValues(uniqueOwned);
 
             // Render nav links + hamburger (registry already cached by renderDynamicChecklists)

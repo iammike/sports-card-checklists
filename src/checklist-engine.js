@@ -1020,15 +1020,10 @@ class ChecklistEngine {
         }
     }
 
-    // Whether stats.total leaves cards out. computeStats counts main categories
-    // only, but falls back to every category when none is marked main - so it
-    // excludes something only when both kinds are present. The flat branch runs
-    // before any of that and counts every card, so a hand-edited flat config
-    // that still carries categories excludes nothing either.
+    // Delegates to the shared rule so the header and the index card cannot
+    // disagree about which checklists exclude cards from their own count (#775).
     _countExcludesExtras() {
-        if (this._isFlat()) return false;
-        const categories = this.config.categories || [];
-        return categories.some(c => c.isMain !== false) && categories.some(c => c.isMain === false);
+        return countExcludesExtras(this.config);
     }
 
     // "$X to complete" is accumulated in the counted-categories loop only, so it
@@ -1036,12 +1031,7 @@ class ChecklistEngine {
     // reading "Est. Value (all cards)" that is the very conflation #773 is
     // about, one line lower - so where the scopes differ it names its own.
     _neededValueSuffix() {
-        if (!this._countExcludesExtras()) return ' to complete';
-        // String() first: the config is hand-editable JSON, so totalLabel can be
-        // a number or worse, and a bare .toLowerCase() on one throws out of
-        // updateStats - which runs on every render, so the page renders nothing.
-        // _setPageMeta survives the same value because textContent coerces.
-        return ` to complete (${String(this.config.totalLabel || 'Total Cards').toLowerCase()})`;
+        return ` to complete${completionScopeSuffix(this.config, this.config.totalLabel)}`;
     }
 
     // ========================================

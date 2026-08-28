@@ -621,6 +621,11 @@ class GitHubSync {
             }
 
             const gist = await response.json();
+            // This response *is* the whole gist, files and all, so hand it to the
+            // raw cache rather than throwing away everything but one file. The
+            // index page reads the collection here and then a config file per
+            // checklist; without this those reads re-download the same gist.
+            this._gistCache = gist;
             const content = gist.files[CONFIG.GIST_FILENAME]?.content;
 
             // A gist that exists but has no collection file yet is a real,
@@ -708,6 +713,9 @@ class GitHubSync {
             if (!response.ok) return null;
 
             const gist = await response.json();
+            // Same as _readCollectionData: this is the whole gist, so the
+            // per-file readers can share it instead of refetching it.
+            this._publicGistCache = gist;
             const content = gist.files[CONFIG.GIST_FILENAME]?.content;
 
             if (!content) return null;
@@ -1040,9 +1048,15 @@ class GitHubSync {
                 response = await fetch(`https://api.github.com/gists/${gistId}`, {
                     headers: { 'Authorization': `Bearer ${this.token}` },
                 });
-                // If auth failed, fall back to public gist
+                // If auth failed, fall back to public gist - and cache the
+                // result under *this* key too. Without that, a dead token made
+                // every caller re-issue the authorized request and 401 again,
+                // because only _publicGistCache was ever filled. A page reading
+                // several files out of the gist paid one round trip per file.
                 if (!response.ok && (response.status === 401 || response.status === 403)) {
-                    return this._fetchGist(true);
+                    const publicGist = await this._fetchGist(true);
+                    if (publicGist) this[cacheKey] = publicGist;
+                    return publicGist;
                 }
             } else {
                 response = await fetch(`https://api.github.com/gists/${CONFIG.PUBLIC_GIST_ID}`);

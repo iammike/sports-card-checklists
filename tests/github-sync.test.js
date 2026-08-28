@@ -1203,3 +1203,85 @@ describe('nothing that holds the token uses a repo endpoint', () => {
         ).toEqual([]);
     });
 });
+
+
+// #775: the index page reads the collection and then one config file per
+// checklist. Those are all the same gist, so the collection read hands the raw
+// response to _fetchGist's cache - otherwise every per-file read re-downloads
+// it, and a dead token re-downloads it once per file.
+describe('GitHubSync — one gist fetch serves the per-file readers', () => {
+    const realFetch = globalThis.fetch;
+    let calls;
+
+    const GIST = {
+        id: 'g1',
+        files: {
+            'sports-card-checklists.json': { content: JSON.stringify({ checklists: {}, stats: {} }) },
+            'jd-config.json': { content: JSON.stringify({ title: 'JD' }) },
+        },
+    };
+
+    beforeEach(() => {
+        calls = [];
+        sync.clearDataCache();
+        sync.clearGistCache();
+        sync.token = null;
+        sync.gistId = null;
+    });
+
+    afterEach(() => {
+        globalThis.fetch = realFetch;
+        sync.token = null;
+        sync.gistId = null;
+        sync.clearDataCache();
+        sync.clearGistCache();
+        localStorage.clear();
+    });
+
+    function stub(handler) {
+        globalThis.fetch = async (url, opts = {}) => {
+            calls.push({ url: String(url), auth: !!(opts.headers && opts.headers.Authorization) });
+            return handler(String(url), opts);
+        };
+    }
+
+    it('serves a config read from the gist the public collection read already fetched', async () => {
+        stub(() => ({ ok: true, status: 200, json: async () => GIST }));
+
+        await sync.loadPublicData();
+        expect(calls).toHaveLength(1);
+
+        const config = await sync.loadPublicChecklistConfig('jd');
+
+        expect(config).toEqual({ title: 'JD' });
+        expect(calls).toHaveLength(1);
+    });
+
+    it('does the same on the authenticated path', async () => {
+        sync.token = 'tok';
+        sync.gistId = 'g1';
+        stub(() => ({ ok: true, status: 200, json: async () => GIST }));
+
+        await sync.loadData();
+        expect(calls).toHaveLength(1);
+
+        expect(await sync.loadChecklistConfig('jd')).toEqual({ title: 'JD' });
+        expect(calls).toHaveLength(1);
+    });
+
+    // A dead token used to re-issue the authorized request on every call: the
+    // fallback filled _publicGistCache but never the key the caller missed on.
+    it('stops re-issuing the authorized request once it has 401d', async () => {
+        sync.token = 'dead';
+        sync.gistId = 'g1';
+        stub((url, opts) => (opts.headers && opts.headers.Authorization
+            ? { ok: false, status: 401, headers: { get: () => null }, clone: () => ({ text: async () => 'Bad credentials' }), json: async () => ({}) }
+            : { ok: true, status: 200, json: async () => GIST }));
+
+        await sync._fetchGist();
+        await sync._fetchGist();
+        await sync._fetchGist();
+
+        expect(calls.filter(c => c.auth)).toHaveLength(1);
+    });
+});
