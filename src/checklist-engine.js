@@ -1648,12 +1648,32 @@ class ChecklistEngine {
         });
     }
 
+    // One typed bound, in dollars, or null for "no bound on this side".
+    //
+    // The fields are type="text" so this parses rather than trusting the browser
+    // to have: a number input silently discards "$25" and "1,200", and
+    // CardRenderer.parsePriceInput exists because this app's users type both -
+    // the card editor's own price box is text for that reason. Anything that
+    // yields no usable number means no bound, which is what an empty box means
+    // too. The leading-minus check comes before the strip, or "-5" becomes 5,
+    // the same trap parsePriceInput documents.
+    //
+    // Shared with _matchingPriceBand deliberately: parsed differently, "$5" to
+    // "25" would filter as the $5-25 band while leaving its chip dark.
+    _parsePriceBound(value) {
+        const raw = String(value ?? '').trim();
+        if (raw === '' || raw.startsWith('-')) return null;
+        const cleaned = raw.replace(/[^0-9.]/g, '');
+        if (cleaned === '' || cleaned === '.') return null;
+        const n = Number(cleaned);
+        return Number.isFinite(n) ? n : null;
+    }
+
     // Which band, if any, a typed pair spells out. Returns the band's index as a
     // string to match the dataset it came from, or null.
     _matchingPriceBand(minValue, maxValue) {
-        const norm = v => (String(v ?? '').trim() === '' ? null : Number(v));
-        const min = norm(minValue);
-        const max = norm(maxValue);
+        const min = this._parsePriceBound(minValue);
+        const max = this._parsePriceBound(maxValue);
         const i = (this._priceBands || []).findIndex(b => (b.min === (min ?? 0)) && (b.max === max));
         return i === -1 ? null : String(i);
     }
@@ -1919,27 +1939,13 @@ class ChecklistEngine {
         // it: an empty max is unambiguously "no maximum", where a handle sitting
         // at the top of a track was not, and a slider ceiling frozen at render
         // time used to hide a card whose price was raised past it.
-        // These are type="text", so this parses rather than trusting the browser
-        // to have. That is deliberate: a number input silently discards "$25"
-        // and "1,200", and card-renderer's parsePriceInput exists because this
-        // app's users type both - the card editor's own price box is text for
-        // the same reason. Anything that does not yield a usable number means
-        // "no bound on this side", which is also what an empty box means.
-        //
-        // The leading-minus check comes before the strip, or "-5" becomes 5 -
-        // the same trap parsePriceInput documents.
-        const parseBound = (el) => {
-            const raw = String(el?.value ?? '').trim();
-            if (raw === '' || raw.startsWith('-')) return null;
-            const cleaned = raw.replace(/[^0-9.]/g, '');
-            if (cleaned === '' || cleaned === '.') return null;
-            const n = Number(cleaned);
-            return Number.isFinite(n) ? n : null;
-        };
         const priceMin = document.getElementById('price-min-filter');
         const priceMax = document.getElementById('price-max-filter');
         const priceRange = (priceMin && priceMax)
-            ? { min: parseBound(priceMin) ?? 0, max: parseBound(priceMax) ?? Infinity }
+            ? {
+                min: this._parsePriceBound(priceMin.value) ?? 0,
+                max: this._parsePriceBound(priceMax.value) ?? Infinity,
+            }
             : null;
 
         // Toggle visibility on individual cards

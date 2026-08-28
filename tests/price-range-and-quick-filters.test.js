@@ -398,6 +398,20 @@ describe('ChecklistEngine — price filter (#772)', () => {
         expect(chip('$5-25').getAttribute('aria-pressed')).toBe('true');
     });
 
+    // The chip and the filter have to read the text the same way. Parsed
+    // differently, "$5" to "25" filters as the $5-25 band with its chip dark.
+    it('lights the chip for a range typed with a currency symbol', () => {
+        const engine = setUp();
+
+        type(minField(), '$5');
+        type(maxField(), '25');
+
+        expect(chip('$5-25').getAttribute('aria-pressed')).toBe('true');
+        expect(chip('$5-25').classList.contains('active')).toBe(true);
+        // And the filter agrees with the chip it just lit.
+        expect(visibleSets(engine)).toEqual([]);
+    });
+
     // These are text inputs, so the field keeps whatever is typed and
     // _applyFilters is what has to cope - which is the point: a number input
     // would have silently eaten the two cases below.
@@ -511,6 +525,15 @@ describe('the pressed band chip is styled, not just flagged (#772)', () => {
 
     it('has a rule for the active chip', () => {
         expect(css()).toMatch(/\.price-band-btn\.active\s*\{/);
+    });
+
+    // The fields were type="number" for one commit, and the stylesheet kept
+    // selecting on that after they became text - leaving them entirely unstyled.
+    it('styles the exact fields on the class, not on an input type', () => {
+        const sheet = css();
+
+        expect(sheet).toMatch(/\.price-exact input\s*\{/);
+        expect(sheet).not.toContain('.price-exact input[type="number"]');
     });
 
     it('keeps it distinct on hover, like the quick filters do', () => {

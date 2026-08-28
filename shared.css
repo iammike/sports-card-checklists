@@ -757,9 +757,11 @@ select, input[type="text"] {
 }
 
 /* Wide enough for four digits at the inherited size, so "$1000" does not
-   scroll inside its own box. The spinners go because a price is typed, not
-   nudged, and they cost width the number needs. */
-.price-exact input[type="number"] {
+   scroll inside its own box.
+   Matched on the class, not on [type="number"]: these are text inputs, so a
+   person can type "$25" or "1,200" the way this app's users actually write
+   prices - see _applyFilters' parseBound and CardRenderer.parsePriceInput. */
+.price-exact input {
     width: 68px;
     padding: 6px 8px;
     font-family: inherit;
@@ -768,17 +770,9 @@ select, input[type="text"] {
     background: var(--color-surface, #fff);
     border: 1px solid var(--color-border, #ddd);
     border-radius: var(--radius-sm, 4px);
-    -moz-appearance: textfield;
-    appearance: textfield;
 }
 
-.price-exact input[type="number"]::-webkit-outer-spin-button,
-.price-exact input[type="number"]::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-
-.price-exact input[type="number"]:focus-visible {
+.price-exact input:focus-visible {
     outline: 2px solid var(--color-accent);
     outline-offset: 1px;
 }
@@ -794,7 +788,7 @@ select, input[type="text"] {
    sizing, and this floors the tap target on the coarse pointers that need it. */
 @media (pointer: coarse) {
     .price-band-btn,
-    .price-exact input[type="number"] {
+    .price-exact input {
         min-height: 40px;
     }
 }
@@ -808,7 +802,7 @@ select, input[type="text"] {
         flex: 1;
     }
 
-    .price-exact input[type="number"] {
+    .price-exact input {
         flex: 1;
         min-width: 0;
     }
