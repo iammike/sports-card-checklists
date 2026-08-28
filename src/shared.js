@@ -146,8 +146,12 @@ function isSafeColor(value) {
 // from the function it describes (#773, #775).
 function countExcludesExtras(config) {
     if (!config || config.dataShape === 'flat') return false;
-    const categories = config.categories || [];
-    return categories.some(c => c.isMain !== false) && categories.some(c => c.isMain === false);
+    // Array.isArray, not `|| []`: a hand-edited config can carry a non-array
+    // `categories`, which is truthy and has no .some - and this runs while both
+    // the checklist header and the index card are rendering, so a throw here
+    // costs the whole page. Anything unrecognisable simply excludes nothing.
+    const categories = Array.isArray(config.categories) ? config.categories : [];
+    return categories.some(c => c && c.isMain !== false) && categories.some(c => c && c.isMain === false);
 }
 
 // The scope suffix for a "to complete" figure, which shares the *count's* scope

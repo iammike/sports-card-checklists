@@ -834,9 +834,19 @@
             const loggedIn = githubSync.isLoggedIn();
             const configs = {};
             for (const entry of dynamicEntries) {
-                configs[entry.id] = loggedIn
-                    ? await githubSync.loadChecklistConfig(entry.id)
-                    : await githubSync.loadPublicChecklistConfig(entry.id);
+                // Per checklist, not around the loop: these reads JSON.parse a
+                // hand-editable file, and this runs before first paint, so one
+                // unparseable config would otherwise abort the entire index.
+                // A missing config just means no scope labels for that card.
+                // computeUniqueOwned guards its identical reads the same way.
+                try {
+                    configs[entry.id] = loggedIn
+                        ? await githubSync.loadChecklistConfig(entry.id)
+                        : await githubSync.loadPublicChecklistConfig(entry.id);
+                } catch (e) {
+                    console.warn(`Could not read config for ${entry.id}:`, e);
+                    configs[entry.id] = null;
+                }
             }
 
             const dynamicStats = {};

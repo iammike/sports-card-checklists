@@ -51,6 +51,20 @@ describe('index.html actually loads and forwards the configs (#775)', () => {
         expect(INDEX_HTML).toContain('updateAggregateStats(allStats, uniqueOwned, configs);');
     });
 
+    // One hand-edited config file must not cost the whole index page.
+    it('guards each config read so one bad file cannot abort the render', () => {
+        const { start, end } = sourceOf('async function renderDynamicChecklists() {');
+        const body = INDEX_HTML.slice(start, end);
+        const loopAt = body.indexOf('for (const entry of dynamicEntries)');
+        const loadAt = body.indexOf('githubSync.loadPublicChecklistConfig(entry.id)');
+
+        // The try has to be inside the loop, not wrapped around it, or one bad
+        // config still costs every checklist after it.
+        const tryAt = body.lastIndexOf('try {', loadAt);
+        expect(tryAt).toBeGreaterThan(loopAt);
+        expect(body.slice(loadAt)).toContain('} catch (e) {');
+    });
+
     // The card body reads configs[entry.id]; a rename on either side is silent.
     it('reads the loaded config when rendering a card', () => {
         const { start, end } = sourceOf('dynamicEntries.forEach(entry => {');
@@ -92,6 +106,17 @@ describe('index card — scope labels (#775)', () => {
 
         expect(valueText(card)).toBe('$1200 value');
         expect(neededText(card)).toBe('$210 to complete');
+    });
+
+    // A hand-edited config can carry anything; a throw here would take out the
+    // whole page, since this runs during render on both surfaces.
+    it('treats an unrecognisable categories value as excluding nothing', () => {
+        for (const categories of [{ base: [] }, 'base', 42, [null, undefined]]) {
+            const card = renderCard(ENTRY, STATS, undefined, { categories });
+
+            expect(valueText(card), JSON.stringify(categories)).toBe('$1200 value');
+            expect(neededText(card)).toBe('$210 to complete');
+        }
     });
 
     it('leaves both plain when the config could not be loaded at all', () => {
