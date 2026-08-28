@@ -1037,7 +1037,11 @@ class ChecklistEngine {
     // about, one line lower - so where the scopes differ it names its own.
     _neededValueSuffix() {
         if (!this._countExcludesExtras()) return ' to complete';
-        return ` to complete (${(this.config.totalLabel || 'Total Cards').toLowerCase()})`;
+        // String() first: the config is hand-editable JSON, so totalLabel can be
+        // a number or worse, and a bare .toLowerCase() on one throws out of
+        // updateStats - which runs on every render, so the page renders nothing.
+        // _setPageMeta survives the same value because textContent coerces.
+        return ` to complete (${String(this.config.totalLabel || 'Total Cards').toLowerCase()})`;
     }
 
     // ========================================

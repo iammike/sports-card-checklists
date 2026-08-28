@@ -175,6 +175,19 @@ describe('ChecklistEngine._neededValueSuffix (#773)', () => {
         expect(engine._neededValueSuffix()).toBe(' to complete (total cards)');
     });
 
+    // The config is hand-editable JSON. updateStats calls this on every render,
+    // so a throw here renders no page at all.
+    it('survives a totalLabel that is not a string', () => {
+        const cats = [{ id: 'base' }, { id: 'x', isMain: false }];
+
+        expect(makeEngine({ totalLabel: 123, categories: cats })._neededValueSuffix())
+            .toBe(' to complete (123)');
+        expect(() => makeEngine({ totalLabel: { a: 1 }, categories: cats })._neededValueSuffix())
+            .not.toThrow();
+        expect(makeEngine({ totalLabel: true, categories: cats })._neededValueSuffix())
+            .toBe(' to complete (true)');
+    });
+
     // Unqualified wherever the scopes match - the same rule the value label uses.
     it('stays plain when nothing is excluded', () => {
         expect(makeEngine({ categories: [{ id: 'a' }] })._neededValueSuffix()).toBe(' to complete');
