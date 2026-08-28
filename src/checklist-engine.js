@@ -1002,6 +1002,27 @@ class ChecklistEngine {
         if (this.config.totalLabel) {
             totalLabel.textContent = this.config.totalLabel;
         }
+
+        // Est. Value counts every owned card, including the extra categories the
+        // count beside it deliberately leaves out - so under a heading reading
+        // "Main Cards" it looks like it covers only those (#773). Qualified only
+        // where the two actually differ: with no extras, or with no main
+        // categories at all (computeStats then counts everything), the two
+        // scopes are identical and the qualifier would be noise.
+        const valueLabel = document.getElementById('value-label');
+        if (valueLabel) {
+            valueLabel.textContent = this._countExcludesExtras()
+                ? 'Est. Value (all cards)'
+                : 'Est. Value';
+        }
+    }
+
+    // Whether stats.total leaves cards out. computeStats counts main categories
+    // only, but falls back to every category when none is marked main - so it
+    // excludes something only when both kinds are present.
+    _countExcludesExtras() {
+        const categories = this.config.categories || [];
+        return categories.some(c => c.isMain !== false) && categories.some(c => c.isMain === false);
     }
 
     // ========================================
