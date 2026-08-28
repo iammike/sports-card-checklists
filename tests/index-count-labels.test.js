@@ -45,6 +45,19 @@ describe('index card — the count says what it counts (#779)', () => {
             .toBe('45 of 60 cards');
     });
 
+    // Live data: blazers-legends and washington-legends both carry
+    // totalLabel: "Total Cards" explicitly, from before the field was editable.
+    // Reading that as a name the checklist chose puts the phrasing this issue
+    // removes straight back on two real checklists.
+    it('treats the default spelled out explicitly as no name at all', () => {
+        for (const totalLabel of ['Total Cards', 'total cards', '  Total Cards  ']) {
+            const config = { totalLabel, categories: SPLIT.categories };
+
+            expect(countText(renderCard(ENTRY, STATS, undefined, config)), totalLabel)
+                .toBe('45 of 60 cards');
+        }
+    });
+
     // "45 of 60 rookie card" reads as a bug; the parenthetical form the value
     // line uses does not have that problem, so parity is not the goal.
     it('ignores a label that would not read as a plural noun', () => {
