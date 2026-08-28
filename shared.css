@@ -739,6 +739,20 @@ h1 {
     gap: 6px;
 }
 
+.filter-panel-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 10px;
+    border-top: 1px solid var(--color-border, #eee);
+}
+
+/* Disabled rather than absent when nothing is filtered, so the reset is
+   findable before it is needed. */
+.panel-clear[disabled] {
+    opacity: 0.45;
+    cursor: default;
+}
+
 .filter-row-label {
     font-size: 12px;
     font-weight: 600;
@@ -756,10 +770,16 @@ h1 {
 /* ---- Active filter chips ---- */
 /* Outside the panel on purpose: a disclosure that hides which filters are on
    would be worse than the crowded row it replaced. */
+/* Centred, like .filter-bar above it, so the chips sit under the Filters button
+   that produced them rather than drifting to the far left of a row whose
+   controls are centred. Kept on their own line rather than inline in the bar:
+   inline, four active filters would grow the row again, which is the whole
+   thing #785 set out to stop. */
 .active-filters:not(:empty) {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
+    justify-content: center;
     gap: 6px;
     margin-top: 12px;
     padding-top: 12px;

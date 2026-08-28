@@ -1504,7 +1504,7 @@ class ChecklistEngine {
         if (panel) {
             html += `<div class="filter-disclosure">
                 <button type="button" class="filter-btn filter-toggle" id="filters-toggle" aria-expanded="false" aria-controls="filters-panel" aria-label="Filters">Filters<span class="filter-count" id="filter-count" aria-hidden="true" hidden></span></button>
-                <div class="filter-panel" id="filters-panel" role="group" aria-labelledby="filters-toggle" hidden>${panel}</div>
+                <div class="filter-panel" id="filters-panel" role="group" aria-labelledby="filters-toggle" hidden>${panel}<div class="filter-panel-footer"><button type="button" class="filter-btn panel-clear" id="panel-clear-filters" disabled>Clear filters</button></div></div>
             </div>`;
         }
 
@@ -1661,6 +1661,12 @@ class ChecklistEngine {
         // the page whenever the filter panel was touched. Containment is what
         // keeps this panel open instead - the panel is a working surface, not a
         // menu that dismisses on its first selection.
+        container.querySelector('#panel-clear-filters')?.addEventListener('click', () => {
+            this._clearFilters();
+            // Focus would land on the button it just disabled.
+            container.querySelector('#filters-toggle')?.focus();
+        });
+
         if (!this._filterDisclosureBound) {
             this._filterDisclosureBound = true;
             document.addEventListener('click', (e) => {
@@ -1759,6 +1765,13 @@ class ChecklistEngine {
             count.textContent = active.length ? String(active.length) : '';
             count.hidden = active.length === 0;
         }
+        // Always present and disabled when there is nothing to clear, unlike the
+        // chip row's "Clear all" which only exists once a filter is on. A reset
+        // you can only find after you need it is not much of an affordance, and
+        // the panel is where someone adjusting filters is already looking.
+        const panelClear = document.getElementById('panel-clear-filters');
+        if (panelClear) panelClear.disabled = active.length === 0;
+
         // The badge is inside the button, so without this the button announces
         // as "Filters2" and the panel it labels inherits that.
         const toggle = document.getElementById('filters-toggle');
