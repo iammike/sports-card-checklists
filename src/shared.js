@@ -164,6 +164,23 @@ function completionScopeSuffix(config, countLabel) {
     return ` (${String(countLabel || 'Total Cards').toLowerCase()})`;
 }
 
+// What to call this checklist's cards in a sentence - "45 of 60 target cards".
+//
+// Only when the count actually leaves something out AND the checklist named it
+// itself. The "Total Cards" default is a column heading on the checklist page,
+// where it sits beside "Owned" and reads as a header; spliced mid-sentence,
+// "total" becomes a claim, and claiming 60 is the total on a card that also
+// shows extra-category pills is the very thing #779 set out to remove.
+//
+// Labels that do not end in "cards" are skipped too: "45 of 60 rookie card"
+// reads as a bug, where the parenthetical form "(rookie card)" reads as a scope
+// tag. Degrading to the plain noun is always safe.
+function countNounFor(config) {
+    if (!countExcludesExtras(config)) return 'cards';
+    const label = String(config?.totalLabel ?? '').trim().toLowerCase();
+    return label.endsWith('cards') ? label : 'cards';
+}
+
 // Export for use in pages
 window.CARD_TYPES = CARD_TYPES;
 window.R2_IMAGE_BASE = R2_IMAGE_BASE;

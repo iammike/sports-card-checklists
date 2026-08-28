@@ -34,11 +34,33 @@ describe('index card — the count says what it counts (#779)', () => {
             .toBe('45 of 60 cards');
     });
 
-    it('falls back to the default label when the checklist sets none', () => {
+    // "Total Cards" is a column heading on the checklist page, beside "Owned".
+    // Spliced into a sentence it becomes a claim - and claiming 60 is the total
+    // on a card that also shows extra-category pills is exactly what this issue
+    // is about. Plain "cards" until the checklist names its own count.
+    it('says plain cards when the checklist named no count of its own', () => {
         const config = { categories: [{ id: 'base' }, { id: 'x', isMain: false }] };
 
         expect(countText(renderCard(ENTRY, STATS, undefined, config)))
-            .toBe('45 of 60 total cards');
+            .toBe('45 of 60 cards');
+    });
+
+    // "45 of 60 rookie card" reads as a bug; the parenthetical form the value
+    // line uses does not have that problem, so parity is not the goal.
+    it('ignores a label that would not read as a plural noun', () => {
+        for (const totalLabel of ['Target', 'Rookie Card', 'Base Set']) {
+            const config = { totalLabel, categories: SPLIT.categories };
+
+            expect(countText(renderCard(ENTRY, STATS, undefined, config)), totalLabel)
+                .toBe('45 of 60 cards');
+        }
+    });
+
+    it('uses a label that does read as one, whatever its case', () => {
+        const config = { totalLabel: 'BASE CARDS', categories: SPLIT.categories };
+
+        expect(countText(renderCard(ENTRY, STATS, undefined, config)))
+            .toBe('45 of 60 base cards');
     });
 
     it('escapes a label rather than trusting it', () => {
@@ -46,13 +68,26 @@ describe('index card — the count says what it counts (#779)', () => {
         const card = renderCard(ENTRY, STATS, undefined, config);
 
         expect(card.querySelector('.progress-main-text img')).toBeNull();
-        expect(countText(card)).toContain('<img');
+        // Ends in ">", not "cards", so it never reaches the sentence at all -
+        // the escaping still has to hold for the day that changes.
+        expect(countText(card)).toBe('45 of 60 cards');
     });
 
     it('survives a non-string label', () => {
         const config = { totalLabel: 123, categories: SPLIT.categories };
 
-        expect(countText(renderCard(ENTRY, STATS, undefined, config))).toBe('45 of 60 123');
+        // Does not end in "cards", so it degrades to the plain noun rather than
+        // splicing a number into the sentence.
+        expect(countText(renderCard(ENTRY, STATS, undefined, config))).toBe('45 of 60 cards');
+    });
+
+    // The ring was the last unqualified count label on this card: a sighted user
+    // read "45 of 60 target cards" while a screen reader said "Cards collected".
+    it('names the ring after the same cards the line does', () => {
+        const card = renderCard(ENTRY, STATS, undefined, SPLIT);
+
+        expect(card.querySelector('.progress-ring').getAttribute('aria-label'))
+            .toBe('target cards collected');
     });
 });
 
@@ -75,10 +110,11 @@ describe('index aggregate — the count label follows the scope (#779)', () => {
     const stats = { jd: { owned: 45, total: 60, ownedValue: 1200, neededValue: 210 } };
 
     // It sums checklists whose labels disagree, so it cannot borrow one.
-    it('says Cards Tracked when any checklist excludes cards from its count', () => {
+    // "Counted", not "tracked": the excluded extras are tracked and visibly so.
+    it('says Cards Counted when any checklist excludes cards from its count', () => {
         loadAggregate()(stats, null, { jd: SPLIT });
 
-        expect(label()).toBe('Cards Tracked');
+        expect(label()).toBe('Cards Counted');
     });
 
     it('stays Total Cards when nothing anywhere is excluded', () => {
@@ -94,7 +130,7 @@ describe('index aggregate — the count label follows the scope (#779)', () => {
             { a: WHOLE, b: SPLIT },
         );
 
-        expect(label()).toBe('Cards Tracked');
+        expect(label()).toBe('Cards Counted');
     });
 
     // Same gate as the value label: a checklist contributing nothing to the sum
@@ -105,11 +141,14 @@ describe('index aggregate — the count label follows the scope (#779)', () => {
         expect(label()).toBe('Total Cards');
     });
 
+    // One closure, called twice: two calls to loadAggregate() would be two
+    // independent copies, which is not the re-run this name promises.
     it('goes back to Total Cards when re-run without an excluding checklist', () => {
-        loadAggregate()(stats, null, { jd: SPLIT });
-        expect(label()).toBe('Cards Tracked');
+        const aggregate = loadAggregate();
+        aggregate(stats, null, { jd: SPLIT });
+        expect(label()).toBe('Cards Counted');
 
-        loadAggregate()(stats, null, { jd: WHOLE });
+        aggregate(stats, null, { jd: WHOLE });
 
         expect(label()).toBe('Total Cards');
     });
