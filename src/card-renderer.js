@@ -100,13 +100,28 @@ const CardRenderer = {
 
     // Whole dollars, except under $1 where rounding would show a real card as $0.
     // Every per-card price display goes through here - both PDF exports and the
-    // on-card badge. Aggregate totals still round on their own (#761), as does
-    // the price-range filter label. The editor stores whole dollars
-    // (card-editor.js rounds on save), so the sub-dollar branch only ever sees
-    // gist data edited by hand.
-    formatPrice(price) {
+    // The one place the whole-dollar rule lives (#761). Prices are stored as
+    // whole dollars; cents are deliberately not supported.
+    //
+    // A positive value under a dollar can only be gist data edited by hand, and
+    // it normalizes UP to the smallest supported price rather than down to zero.
+    // Rounding it to zero is what the editor used to do, and zero does not mean
+    // "cheap" anywhere in this app - getPrice, renderPriceBadge and the shopping
+    // list all read it as "no price at all", so a 40c card silently became an
+    // unpriced one on the next unrelated edit.
+    //
+    // Both the editor (on save) and every display path run through this, so what
+    // a card shows is what the next save will store.
+    normalizePrice(price) {
         const p = Number(price) || 0;
-        return p < 1 ? p.toFixed(2) : p.toFixed(0);
+        if (p <= 0) return 0;
+        return Math.max(1, Math.round(p));
+    },
+
+    // Whole dollars, no decimal point. Aggregate totals round on their own
+    // (computeStats), as does the price-range filter label.
+    formatPrice(price) {
+        return String(this.normalizePrice(price));
     },
 
     // Get price badge CSS class based on thresholds

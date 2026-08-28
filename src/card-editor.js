@@ -809,14 +809,19 @@ class CardEditorModal {
             this.setDirty(true);
         };
 
-        // Price field validation - strip non-numeric, round to whole number on blur
+        // Price field validation - strip non-numeric, snap to whole dollars on
+        // blur. Shares CardRenderer.normalizePrice with save and with every
+        // display path, so tabbing through the field cannot leave the input
+        // showing something the save would store differently. It used to blank
+        // any sub-dollar value here, which meant merely focusing and leaving the
+        // field destroyed a hand-entered 40c price (#761).
         const priceInput = this.backdrop.querySelector('#editor-price');
         if (priceInput) {
             priceInput.addEventListener('blur', () => {
                 let val = priceInput.value.trim().replace(/[^0-9.]/g, '');
                 if (val === '' || val === '.') { priceInput.value = ''; return; }
-                const num = Math.round(parseFloat(val));
-                priceInput.value = isNaN(num) || num <= 0 ? '' : num;
+                const num = CardRenderer.normalizePrice(parseFloat(val));
+                priceInput.value = num <= 0 ? '' : num;
             });
         }
 
@@ -1774,7 +1779,9 @@ class CardEditorModal {
         // the input is hidden, never cleared.
         const priceVal = this.backdrop.querySelector('#editor-price').value.trim();
         if (priceVal !== '' && !noCardChecked && !link) {
-            data.price = Math.round(parseFloat(priceVal)) || 0;
+            // Whole dollars, and never silently down to zero - see
+            // CardRenderer.normalizePrice (#761).
+            data.price = CardRenderer.normalizePrice(parseFloat(priceVal));
         }
 
         // eBay search term - only include if explicitly set

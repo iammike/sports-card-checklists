@@ -330,10 +330,12 @@ describe('ShoppingList prices', () => {
         name: 'Daniels', variant: '', price: 0, checklist: 'a', ...over,
     });
 
-    it('keeps cents on a sub-dollar card instead of printing $0', () => {
+    // #761: whole dollars, so a sub-dollar card prints as $1. The thing that
+    // must not come back is "$0" against a card that has a price.
+    it('prints a sub-dollar card as $1, never as $0', () => {
         ShoppingList.buildPDF([item({ price: 0.4 })], {});
 
-        expect(strings()).toContain('$0.40');
+        expect(strings()).toContain('$1');
         expect(strings()).not.toContain('$0');
     });
 
