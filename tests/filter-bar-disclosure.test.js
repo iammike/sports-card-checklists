@@ -387,6 +387,16 @@ describe('the bar finally has responsive rules (#785)', () => {
         expect(narrow).toContain('.filter-panel');
     });
 
+    // With only four controls left in the row, an uncapped search box spans most
+    // of a desktop screen and reads as a mistake.
+    it('caps the search box on a wide screen, and uncaps it on a narrow one', () => {
+        const sheet = css();
+        const rule = sheet.slice(sheet.indexOf('.filter-bar .search-wrapper {'));
+
+        expect(rule.slice(0, 140)).toContain('max-width: 360px');
+        expect(block(sheet, '@media (max-width: 600px)')).toContain('max-width: none');
+    });
+
     it('gives the panel and the chips real tap targets', () => {
         expect(block(css(), '@media (pointer: coarse)')).toContain('.active-filter');
     });
