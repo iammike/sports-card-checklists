@@ -250,11 +250,13 @@ const ShoppingList = {
                         name: card.name || card.player
                             || (entry.navLabel || entry.title || '').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()),
                         variant: card.variant || '',
-                        // Number() first: gist prices are hand-edited and can be
-                        // strings, and a string here makes the reduce below
-                        // concatenate instead of add, so toFixed throws and the
-                        // whole export dies on one quoted price - the user gets
-                        // a TypeError in an alert, naming no card.
+                        // Normalized here, which coerces as well as applying the
+                        // whole-dollar rule (#761). The coercion is what keeps a
+                        // hand-edited string price from making the summary's
+                        // reduce concatenate instead of add - one quoted price
+                        // used to kill the whole export with a TypeError in an
+                        // alert that named no card. The whole-dollar half is what
+                        // keeps the total agreeing with the rows it totals.
                         price: CardRenderer.normalizePrice(card.price),
                         checklist: entry.title || id
                     });
