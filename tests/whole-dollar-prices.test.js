@@ -150,6 +150,25 @@ describe('CardEditorModal — whole-dollar prices (#761)', () => {
 
         expect(editor.getFormData().price).toBe(0);
     });
+
+    // "-" is not in the allowed character set, so stripping before checking the
+    // sign turned "-5" into "5" and a negative became a real price.
+    it('treats a negative as no price rather than flipping its sign', () => {
+        priceInput(editor).value = '-5';
+        expect(editor.getFormData().price).toBe(0);
+
+        priceInput(editor).value = '-0.40';
+        expect(editor.getFormData().price).toBe(0);
+    });
+
+    it('clears the input on blur for a negative too', () => {
+        const input = priceInput(editor);
+        input.value = '-5';
+
+        input.dispatchEvent(new window.Event('blur'));
+
+        expect(input.value).toBe('');
+    });
 });
 
 describe('CardRenderer price display follows the same rule (#761)', () => {

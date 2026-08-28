@@ -131,7 +131,13 @@ const CardRenderer = {
     // blur handler and its save path must both come through here, or Enter-to-
     // save - which never fires blur - disagrees with what the box was showing.
     parsePriceInput(raw) {
-        const cleaned = String(raw ?? '').trim().replace(/[^0-9.]/g, '');
+        const trimmed = String(raw ?? '').trim();
+        // Before the strip, not after: "-" is not in the allowed set, so
+        // stripping first turns "-5" into "5" and a negative silently becomes a
+        // real price. A negative is not a price, so it means "none".
+        if (trimmed.startsWith('-')) return 0;
+
+        const cleaned = trimmed.replace(/[^0-9.]/g, '');
         if (cleaned === '' || cleaned === '.') return 0;
         return this.normalizePrice(parseFloat(cleaned));
     },
