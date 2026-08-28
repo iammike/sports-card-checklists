@@ -1363,6 +1363,10 @@ class ChecklistEngine {
 
     _renderFilters() {
         const container = document.getElementById('filters-container');
+        // Dropped up front so it cannot outlive the slider it repaints - a
+        // re-render for a checklist with no priced cards omits the slider
+        // entirely, and a stale closure here would point at detached inputs.
+        this._syncPriceSliderUI = null;
         let sorts = this.config.sortOptions || ['default', 'year', 'set', 'price-low', 'price-high', 'owned', 'needed'];
         const defaultSort = this.config.defaultSortMode;
         // Remove the defaultSortMode from the list since "Default" already applies it
@@ -1613,6 +1617,15 @@ class ChecklistEngine {
             update();
             scheduleFilterChange();
         });
+
+        // _clearFilters resets the two <input> values, but the fill, the label
+        // and the z-index stacking are all drawn by this closure. A range input
+        // moves its own thumb the moment .value changes, so without a handle on
+        // `update` the two halves disagree: the handles snap back to the full
+        // width while the label and fill stay on the range that was just
+        // cleared. (This checklist's own prices set that range - see
+        // _priceAtSliderPosition - so there is no fixed pair of numbers to name.)
+        this._syncPriceSliderUI = update;
 
         update();
     }
@@ -1888,17 +1901,99 @@ class ChecklistEngine {
             : null;
 
         // Toggle visibility on individual cards
+        let visibleCount = 0;
         container.querySelectorAll('.card').forEach(cardEl => {
             const idx = parseInt(cardEl.dataset.cardIdx);
             const card = this._renderedCards[idx];
             if (!card) return;
             const visible = this._filterCard(card, statusFilter, searchTerm, customFilterValues, quickFilters, priceRange);
             cardEl.classList.toggle('filter-hidden', !visible);
+            if (visible) visibleCount++;
         });
 
         // Update section visibility
         this._updateSectionVisibility(container);
+        this._updateNoMatchesState(visibleCount);
         this.updateStats();
+    }
+
+    // Say so when the filters have hidden everything. _updateSectionVisibility
+    // has just hidden every section, group header and note, so without this the
+    // page is blank space and reads as broken rather than as an empty result.
+    //
+    // Writes into the permanent #no-matches-state region rather than creating a
+    // node, the same way the index page drives #checklist-no-results: a live
+    // region inserted at the same moment as its text is not reliably announced.
+    //
+    // Deliberately not _renderEmptyState's job: that one is about a checklist
+    // with no cards at all and is rendered *instead of* the sections, so it must
+    // never be second-guessed here - hence the _renderedCards gate.
+    _updateNoMatchesState(visibleCount) {
+        const region = document.getElementById('no-matches-state');
+        if (!region) return;
+
+        const showing = region.childElementCount > 0;
+        if (visibleCount > 0 || this._renderedCards.length === 0) {
+            // Emptying it is what the :empty rule keys on to take it out of flow.
+            if (showing) region.textContent = '';
+            return;
+        }
+        // Already showing - leave the contents alone rather than rebuilding them,
+        // so a keyboard user's focus on Clear filters survives the next keystroke
+        // in the search box.
+        if (showing) return;
+
+        region.innerHTML = '<div class="no-matches-text">No cards match these filters</div>'
+            + '<button type="button" class="filter-btn no-matches-clear">Clear filters</button>';
+        region.querySelector('.no-matches-clear').addEventListener('click', () => {
+            this._clearFilters();
+            // Clearing empties this region, so the button that was just activated
+            // leaves the DOM and focus would fall to <body>. The search box is
+            // where the .search-clear button sends it too.
+            document.getElementById('search')?.focus();
+        });
+    }
+
+    // Reset every control _applyFilters reads, then re-filter.
+    //
+    // #sort-filter is deliberately left alone: sorting is not filtering, and
+    // clearing the filters that hid everything should not also discard the order
+    // the visitor chose.
+    _clearFilters() {
+        const statusFilter = document.getElementById('status-filter');
+        if (statusFilter) statusFilter.value = 'all';
+
+        const search = document.getElementById('search');
+        if (search) search.value = '';
+
+        // 'all' is the first option every custom filter renders, and the value
+        // _filterCard short-circuits on.
+        (this.config.customFilters || []).forEach(f => {
+            const el = document.getElementById(`${f.id}-filter`);
+            if (el) el.value = 'all';
+        });
+
+        // Scoped the same way _applyFilters reads them; a stray active button
+        // outside the filter bar is not one this filters on.
+        const filtersContainer = document.getElementById('filters-container');
+        filtersContainer?.querySelectorAll('.quick-filter-btn.active').forEach(btn => {
+            btn.classList.remove('active');
+            btn.setAttribute('aria-pressed', 'false');
+        });
+
+        const priceMin = document.getElementById('price-min-filter');
+        const priceMax = document.getElementById('price-max-filter');
+        if (priceMin && priceMax) {
+            priceMin.value = 0;
+            priceMax.value = PRICE_SLIDER_RESOLUTION;
+            // The cap marker has to go with the cap. _applyFilters reads a
+            // touched max as a deliberate ceiling even when it sits at the top,
+            // so leaving it would keep filtering by a range nobody set anymore.
+            delete priceMax.dataset.touched;
+            this._syncPriceSliderUI?.();
+        }
+
+        this._onFilterChange();
     }
 
     // Hide sections and group headers when all their cards are filtered out
