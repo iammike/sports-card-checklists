@@ -59,8 +59,8 @@ const ShoppingList = {
             '<div class="card-editor-modal shopping-list-modal">' +
                 '<div class="card-editor-header">' +
                     '<div class="card-editor-header-left">' +
-                        '<div class="card-editor-title">SHOPPING LIST</div>' +
-                        '<div class="card-editor-subtitle">Select options for PDF export</div>' +
+                        '<div class="card-editor-title">EXPORT</div>' +
+                        '<div class="card-editor-subtitle" id="sl-subtitle">Cards across every checklist</div>' +
                     '</div>' +
                     '<button class="card-editor-close" title="Close">&times;</button>' +
                 '</div>' +
@@ -68,6 +68,30 @@ const ShoppingList = {
                     '<div class="shopping-list-section-label">Checklists</div>' +
                     '<button class="shopping-list-toggle-all" id="sl-toggle-all">Select None</button>' +
                     '<div class="shopping-list-checklist-list" id="sl-checklist-list"></div>' +
+                    '<div class="shopping-list-divider"></div>' +
+                    '<div class="shopping-list-section-label">Cards</div>' +
+                    '<div class="shopping-list-option">' +
+                        '<input type="radio" name="sl-scope" id="sl-scope-needed" checked>' +
+                        '<label for="sl-scope-needed">Needed - what is still missing, to shop from</label>' +
+                    '</div>' +
+                    '<div class="shopping-list-option">' +
+                        '<input type="radio" name="sl-scope" id="sl-scope-owned">' +
+                        '<label for="sl-scope-owned">Owned - what is in the collection, and what it is worth</label>' +
+                    '</div>' +
+                    '<div class="shopping-list-option">' +
+                        '<input type="radio" name="sl-scope" id="sl-scope-all">' +
+                        '<label for="sl-scope-all">All - every card, with an owned column</label>' +
+                    '</div>' +
+                    '<div class="shopping-list-divider"></div>' +
+                    '<div class="shopping-list-section-label">Format</div>' +
+                    '<div class="shopping-list-option">' +
+                        '<input type="radio" name="sl-format" id="sl-format-pdf" checked>' +
+                        '<label for="sl-format-pdf">PDF - printable, grouped and priced</label>' +
+                    '</div>' +
+                    '<div class="shopping-list-option">' +
+                        '<input type="radio" name="sl-format" id="sl-format-csv">' +
+                        '<label for="sl-format-csv">CSV - for spreadsheets and collection trackers</label>' +
+                    '</div>' +
                     '<div class="shopping-list-divider"></div>' +
                     '<div class="shopping-list-section-label">Options</div>' +
                     '<div class="shopping-list-option">' +
@@ -81,7 +105,7 @@ const ShoppingList = {
                 '</div>' +
                 '<div class="card-editor-footer">' +
                     '<button class="card-editor-btn cancel" id="sl-cancel">Cancel</button>' +
-                    '<button class="card-editor-btn save" id="sl-generate">Generate PDF</button>' +
+                    '<button class="card-editor-btn save" id="sl-generate">Export</button>' +
                 '</div>' +
             '</div>';
 
@@ -156,6 +180,10 @@ const ShoppingList = {
         // Reset options to defaults
         this.backdrop.querySelector('#sl-include-extra').checked = false;
         this.backdrop.querySelector('#sl-group-by').checked = false;
+        // Needed + PDF is what this dialog produced before it had either
+        // control, so opening it and pressing Export still does that.
+        this.backdrop.querySelector('#sl-scope-needed').checked = true;
+        this.backdrop.querySelector('#sl-format-pdf').checked = true;
 
         this.backdrop.classList.add('active');
     },
@@ -178,13 +206,17 @@ const ShoppingList = {
             const selectedChecklists = new Set(Array.from(checkboxes).map(cb => cb.dataset.checklistId));
             const includeExtra = this.backdrop.querySelector('#sl-include-extra').checked;
             const groupByChecklist = this.backdrop.querySelector('#sl-group-by').checked;
+            const scope = this.backdrop.querySelector('#sl-scope-owned').checked ? 'owned'
+                : this.backdrop.querySelector('#sl-scope-all').checked ? 'all'
+                : 'needed';
+            const format = this.backdrop.querySelector('#sl-format-csv').checked ? 'csv' : 'pdf';
 
             if (selectedChecklists.size === 0) {
                 alert('Select at least one checklist.');
                 return;
             }
 
-            await this.generate({ selectedChecklists, includeExtra, groupByChecklist });
+            await this.generate({ selectedChecklists, includeExtra, groupByChecklist, scope, format });
             this.closeModal();
         } catch (e) {
             console.error('Shopping list generation failed:', e);
@@ -201,8 +233,13 @@ const ShoppingList = {
         const selectedChecklists = options?.selectedChecklists || null;
         const includeExtra = options?.includeExtra || false;
         const groupByChecklist = options?.groupByChecklist || false;
+        // 'needed' is what this tool has always produced, and stays the default
+        // for every caller that does not ask (#745).
+        const scope = options?.scope || 'needed';
+        const format = options?.format || 'pdf';
 
-        await this.loadJsPDF();
+        // Only the PDF path needs it, and it is the expensive import.
+        if (format === 'pdf') await this.loadJsPDF();
 
         // Load registry (use DynamicNav which has session caching)
         const registryData = await DynamicNav.loadRegistry();
@@ -217,7 +254,7 @@ const ShoppingList = {
         const data = await githubSync.loadData() || await githubSync.loadPublicData();
         const ownedByChecklist = data?.checklists || {};
 
-        // Collect all unowned cards
+        // Every card the scope asks for, across the selected checklists.
         const shoppingItems = [];
 
         for (const entry of checklists.filter(e => !e.hidden)) {
@@ -241,26 +278,27 @@ const ShoppingList = {
                 // Skip cards with no set name (incomplete data)
                 if (!card.set) continue;
                 const cardId = this.generateCardId(card, config);
-                if (!owned.includes(cardId)) {
-                    shoppingItems.push({
-                        year: CardRenderer.getYear(card),
-                        setName: CardRenderer.getSetName(card),
-                        set: card.set || '',
-                        num: card.num || '',
-                        name: card.name || card.player
-                            || (entry.navLabel || entry.title || '').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()),
-                        variant: card.variant || '',
-                        // Normalized here, which coerces as well as applying the
-                        // whole-dollar rule (#761). The coercion is what keeps a
-                        // hand-edited string price from making the summary's
-                        // reduce concatenate instead of add - one quoted price
-                        // used to kill the whole export with a TypeError in an
-                        // alert that named no card. The whole-dollar half is what
-                        // keeps the total agreeing with the rows it totals.
-                        price: CardRenderer.normalizePrice(card.price),
-                        checklist: entry.title || id
-                    });
-                }
+                const isOwned = owned.includes(cardId);
+                if (scope === 'needed' ? isOwned : (scope === 'owned' && !isOwned)) continue;
+                shoppingItems.push({
+                    owned: isOwned,
+                    year: CardRenderer.getYear(card),
+                    setName: CardRenderer.getSetName(card),
+                    set: card.set || '',
+                    num: card.num || '',
+                    name: card.name || card.player
+                        || (entry.navLabel || entry.title || '').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()),
+                    variant: card.variant || '',
+                    // Normalized here, which coerces as well as applying the
+                    // whole-dollar rule (#761). The coercion is what keeps a
+                    // hand-edited string price from making the summary's
+                    // reduce concatenate instead of add - one quoted price
+                    // used to kill the whole export with a TypeError in an
+                    // alert that named no card. The whole-dollar half is what
+                    // keeps the total agreeing with the rows it totals.
+                    price: CardRenderer.normalizePrice(card.price),
+                    checklist: entry.title || id
+                });
             }
         }
 
@@ -280,11 +318,48 @@ const ShoppingList = {
             return numA - numB;
         });
 
-        this.buildPDF(shoppingItems, { groupByChecklist });
+        if (format === 'csv') {
+            this.buildCSV(shoppingItems, { scope });
+            return;
+        }
+        this.buildPDF(shoppingItems, { groupByChecklist, scope });
+    },
+
+    // What each scope is called, in file names and on the page.
+    SCOPE_LABELS: {
+        needed: 'Shopping List',
+        owned: 'Collection',
+        all: 'Every Card',
+    },
+
+    // Deliberately not ChecklistExport's column set: that one exports a single
+    // checklist and carries a Section, while these rows span checklists and
+    // carry the one they came from. The writer, the escaping and the BOM are
+    // shared - only the columns differ (#745).
+    CSV_FIELDS: {
+        Checklist: r => r.checklist,
+        Set: r => r.set,
+        Number: r => r.num,
+        Name: r => r.name,
+        Variant: r => r.variant,
+        Price: r => r.price || '',
+        // The real state, unlike the single-checklist export's blank column:
+        // this file is generated by the owner from their own collection, and a
+        // scope of 'all' is meaningless without it.
+        Owned: r => (r.owned ? 'TRUE' : 'FALSE'),
+    },
+
+    buildCSV(items, options) {
+        const scope = options?.scope || 'needed';
+        const cols = Object.keys(this.CSV_FIELDS);
+        const csv = ChecklistExport.toCSV(items, this.CSV_FIELDS, cols);
+        const slug = (this.SCOPE_LABELS[scope] || 'export').toLowerCase().replace(/\s+/g, '-');
+        ChecklistExport.downloadCSV(`${slug}.csv`, csv);
     },
 
     buildPDF(items, options) {
         const groupByChecklist = options?.groupByChecklist || false;
+        const scope = options?.scope || 'needed';
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ unit: 'mm', format: 'letter' });
         const pageWidth = doc.internal.pageSize.getWidth();
@@ -311,7 +386,7 @@ const ShoppingList = {
         // Title
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(14);
-        doc.text('Shopping List', margin, y + 5);
+        doc.text(this.SCOPE_LABELS[scope] || 'Shopping List', margin, y + 5);
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(9);
         const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -326,7 +401,8 @@ const ShoppingList = {
         // (#761).
         const totalPrice = items.reduce((sum, item) => sum + CardRenderer.normalizePrice(item.price), 0);
         const priceCount = items.filter(i => CardRenderer.normalizePrice(i.price) > 0).length;
-        let summary = items.length + ' cards needed';
+        const noun = { needed: ' cards needed', owned: ' cards owned', all: ' cards' }[scope] || ' cards';
+        let summary = items.length + noun;
         if (priceCount > 0) {
             // Whole dollars, like every line item above it (#761) - this used to
             // print "Est. cost: $0.40" under a line item reading "$1".

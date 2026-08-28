@@ -31,9 +31,14 @@ const AuthUI = {
                         <span>${safeLogin}</span>
                     </div>
                     ${syncButton}
+                    <!-- Still #shopping-list-btn: ChecklistManager.updateAuthUI and
+                         the engine anchor their inserts on that id. The label moved
+                         on because the dialog behind it now exports needed, owned or
+                         every card, in PDF or CSV - a shopping list is one of its
+                         outputs rather than the whole of it (#745). -->
                     <button class="nav-dropdown-item" id="shopping-list-btn">
-                        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM17.99 9l-1.41-1.42-6.59 6.59-2.58-2.57-1.42 1.41 4 3.99z"/></svg>
-                        Shopping List
+                        <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                        Export
                     </button>
                     <div class="nav-dropdown-divider"></div>
                     <button class="nav-dropdown-item" id="auth-logout-btn">

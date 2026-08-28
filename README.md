@@ -17,6 +17,7 @@ A modern web app for tracking sports card collections with cloud sync, real-time
 - **Drag-and-drop reordering** - Reorder cards within sections via drag (desktop) or touch-drag (mobile) when using Manual sort
 - **Shopping List PDF** - Export all unowned cards as a printable PDF checklist (owner)
 - **Checklist export** - Logged-out visitors can download a whole checklist as CSV or a printable PDF with blank checkboxes
+- **Export (signed in)** - one dialog across every checklist: needed, owned or all cards, as PDF or CSV
 
 ### Cloud Sync
 - **GitHub OAuth authentication** - Secure login via GitHub
