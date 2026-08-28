@@ -639,9 +639,8 @@
             // The same split as a single checklist's header, one level up: the
             // value sums every owned card while the count sums main-category
             // totals, so if any checklist excludes cards from its own count the
-            // two tiles are measuring different things (#775). "Total Cards" is
-            // this row's own count label, so it names the completion scope the
-            // way a checklist's totalLabel does on its page.
+            // two tiles are measuring different things (#775).
+            //
             // Gated on having stats: only checklists that actually contribute
             // to these sums can make the two disagree. A new checklist with a
             // split config and nothing recorded yet would otherwise relabel a
@@ -650,26 +649,32 @@
                 .some(([id, c]) => allStats[id] && countExcludesExtras(c));
             document.getElementById('agg-value-label').textContent =
                 anyExcludes ? 'Est. Value (all cards)' : 'Est. Value';
-            const aggCompletionScope = anyExcludes ? ' (total cards)' : '';
-            // "Total Cards" over a sum that leaves cards out. It cannot borrow a
-            // checklist's own label the way the cards above it do, because it
-            // sums several and theirs disagree - so it says what is true of all
-            // of them (#779).
+
+            // "Total Cards" over a sum that leaves cards out. This row cannot
+            // borrow a checklist's own label the way the cards below it do,
+            // because it sums several and theirs disagree - so it needs a word
+            // of its own for the completion denominator (#779).
             //
-            // "Targeted", not "tracked" and not "counted". Tracked was false -
-            // the excluded extras have owned checkboxes, feed the Est. Value in
-            // the very next tile, and get their own pills on the cards below.
-            // Counted was true but read as machinery: it described what the code
-            // does rather than what the number means. These are the cards being
-            // chased, which is also the word the checklists themselves use -
-            // jayden-daniels names its own count "Target Cards".
+            // "Target", not "tracked" and not "counted". Tracked was false: the
+            // excluded extras have owned checkboxes, feed the Est. Value in the
+            // very next tile, and get their own pills on the cards below.
+            // Counted was true but read as machinery, describing what the code
+            // does rather than what the number means. Adjective-noun to match
+            // both the state it swaps with and every configured label in the app
+            // ("Total Cards", "Main Cards") - "Cards Targeted" matched neither.
             //
-            // Unqualified when nothing is excluded, same rule as the value label.
-            // "Cards Owned" beside it is left alone: it is main-only and
-            // de-duplicated too, so it is accurate as a pair with this number
-            // rather than neutral on its own.
-            document.getElementById('agg-total-label').textContent =
-                anyExcludes ? 'Cards Targeted' : 'Total Cards';
+            // "Cards Owned" beside it is left alone, but the pair is only
+            // half-parallel and worth saying so: both are main-only, yet Owned
+            // is de-duplicated across checklists (computeUniqueOwned) and this
+            // sum is not, so one physical card listed on two checklists counts
+            // once there and twice here.
+            const aggCountLabel = anyExcludes ? 'Target Cards' : DEFAULT_COUNT_LABEL;
+            document.getElementById('agg-total-label').textContent = aggCountLabel;
+
+            // Derived from the tile's own label rather than restated, so the two
+            // cannot drift. It read "(total cards)" under a tile saying
+            // something else entirely, which is the naming #779 exists to fix.
+            const aggCompletionScope = anyExcludes ? ` (${aggCountLabel.toLowerCase()})` : '';
 
             // A finished collection suppresses the "to complete" line rather than
             // reading "$0 to complete", the same way a completed checklist card

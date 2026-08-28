@@ -212,7 +212,9 @@ describe('index aggregate — scope labels (#775)', () => {
         loadAggregate()(stats, null, { jd: SPLIT_CONFIG });
 
         expect(document.getElementById('agg-value-label').textContent).toBe('Est. Value (all cards)');
-        expect(document.getElementById('agg-needed-value').textContent).toBe('$210 to complete (total cards)');
+        // Derived from the tile's own label, so the row does not name the same
+        // set two ways in adjacent lines (#779).
+        expect(document.getElementById('agg-needed-value').textContent).toBe('$210 to complete (target cards)');
     });
 
     it('leaves it plain when no checklist excludes anything', () => {
