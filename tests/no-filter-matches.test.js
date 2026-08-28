@@ -256,12 +256,35 @@ describe('ChecklistEngine._clearFilters (#769)', () => {
         const band = [...document.querySelectorAll('.price-band-btn')]
             .find(b => b.textContent === '$25+');
         band.click();
+        // Both sides asserted: checking only the post-clear false would pass
+        // just as well if the class were never applied in the first place.
         expect(band.getAttribute('aria-pressed')).toBe('true');
+        expect(band.classList.contains('active')).toBe(true);
+        expect(document.getElementById('price-min-filter').value).toBe('25');
 
         engine._clearFilters();
 
         expect(band.getAttribute('aria-pressed')).toBe('false');
         expect(band.classList.contains('active')).toBe(false);
+        expect(document.getElementById('price-min-filter').value).toBe('');
+    });
+
+    // The button removes itself as part of clearing, so without a deliberate
+    // move focus lands on <body> and a keyboard user is dumped to the top.
+    // (Unrelated to the price filter - deleted as collateral when the slider
+    // tests went, and still passing, so restored.)
+    it('moves focus to the search box instead of dropping it on the body', () => {
+        const engine = makeEngine();
+        document.getElementById('search').value = 'nobody named this';
+        engine._applyFilters();
+
+        const btn = clearBtn();
+        btn.focus();
+        expect(document.activeElement).toBe(btn);
+
+        btn.click();
+
+        expect(document.activeElement).toBe(document.getElementById('search'));
     });
 
     // Sorting is not filtering; clearing filters should not discard the order.

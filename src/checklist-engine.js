@@ -1454,16 +1454,26 @@ class ChecklistEngine {
         // control. Bands keep the same property (they come from the same
         // distribution) while being something you can aim at, and the exact
         // fields cover what no band happens to express.
+        // Computed once and handed to _initPriceFilter below: the chips' data-band
+        // indices and the array they index have to be the same array.
         const priceBands = this._getPriceBands(allCards);
-        if (priceBands.length > 0) {
+        const priceBounds = this._getPriceBounds(allCards);
+        // Nit 11 from review: bands can come back empty while cards are still
+        // priced (everything under the first edge, or above the last). The
+        // exact fields are the only way to filter on price at all then - and
+        // the only way to hide unpriced cards - so they render regardless.
+        if (priceBounds) {
             const chips = priceBands.map((b, i) => `<button type="button" class="filter-btn price-band-btn" data-band="${i}" aria-pressed="false">${sanitizeText(b.label)}</button>`).join('');
+            const bandGroup = chips
+                ? `<div class="price-band-group" role="group" aria-labelledby="price-filter-label">${chips}</div>`
+                : '';
             html += `<div class="price-filter" id="price-filter">
                 <span class="price-filter-label" id="price-filter-label">Price</span>
-                <div class="price-band-group" role="group" aria-labelledby="price-filter-label">${chips}</div>
+                ${bandGroup}
                 <div class="price-exact">
-                    <input type="number" id="price-min-filter" min="0" step="1" inputmode="numeric" placeholder="Min" aria-label="Minimum price in dollars">
+                    <input type="text" id="price-min-filter" inputmode="decimal" placeholder="Min" aria-label="Minimum price in dollars">
                     <span class="price-exact-sep" aria-hidden="true">to</span>
-                    <input type="number" id="price-max-filter" min="0" step="1" inputmode="numeric" placeholder="Max" aria-label="Maximum price in dollars">
+                    <input type="text" id="price-max-filter" inputmode="decimal" placeholder="Max" aria-label="Maximum price in dollars">
                 </div>
             </div>`;
         }
@@ -1513,7 +1523,7 @@ class ChecklistEngine {
                 this._onFilterChange();
             });
         });
-        this._initPriceFilter(container);
+        this._initPriceFilter(container, priceBands);
 
         // Show reorder button if applicable
         this._updateReorderButton();
@@ -1549,11 +1559,18 @@ class ChecklistEngine {
     // at it, and "$0-$3.80" is not an intent anyone has. The distribution still
     // decides how many bands there are, just not where they fall.
     _getPriceBands(allCards = this._getAllCardsFlat()) {
-        const bounds = this._getPriceBounds(allCards);
+        const sortedPrices = this._getSortedPrices(allCards);
+        const bounds = this._getPriceBounds(allCards, sortedPrices);
         if (!bounds) return [];
 
-        const edges = PRICE_BAND_EDGES.filter(e => e < bounds.max);
-        if (edges.length === 0) return [];
+        // Pruned from both ends. Dropping edges at or above the ceiling was the
+        // obvious half; dropping those at or below the *floor* matters just as
+        // much, or a checklist whose cheapest card is $600 offers four chips
+        // that match nothing and land the user on "No cards match these
+        // filters". The floor is the cheapest priced card, which is the only
+        // thing _getSortedPrices' full sort is for.
+        const floor = sortedPrices[0];
+        const edges = PRICE_BAND_EDGES.filter(e => e < bounds.max && e > floor);
 
         const bands = [];
         let from = 0;
@@ -1565,6 +1582,8 @@ class ChecklistEngine {
             });
             from = edge;
         }
+        // One band is the whole range restated, which filters nothing.
+        if (bands.length === 0) return [];
         // The last band runs open-ended rather than to the exact top price: a
         // ceiling that moves whenever the priciest card is edited is a filter
         // that quietly means something different each time.
@@ -1579,10 +1598,10 @@ class ChecklistEngine {
             .sort((a, b) => a - b);
     }
 
-    // Price slider bounds from actual priced cards; null when nothing on this
-    // checklist has a price, so the caller can skip rendering the slider. Takes
-    // an already-sorted price list when the caller has one (_renderFilters) to
-    // avoid sorting the same array twice.
+    // The price ceiling, from actual priced cards; null when nothing on this
+    // checklist has a price, so the caller can skip the control entirely. Takes
+    // an already-sorted list when the caller has one (_getPriceBands, which
+    // needs the floor from the same sort) to avoid sorting twice.
     _getPriceBounds(allCards = this._getAllCardsFlat(), sortedPrices = this._getSortedPrices(allCards)) {
         if (sortedPrices.length === 0) return null;
         return { min: 0, max: Math.max(1, Math.ceil(sortedPrices[sortedPrices.length - 1])) };
@@ -1592,13 +1611,13 @@ class ChecklistEngine {
     // shortcut that fills them, and typing is what happens when no band says
     // what you meant. Keeping the min/max fields as the only state means
     // _applyFilters has one thing to read and the two can never disagree.
-    _initPriceFilter(container) {
+    _initPriceFilter(container, bands = []) {
         const wrap = container.querySelector('#price-filter');
         if (!wrap) return;
 
         const minInput = wrap.querySelector('#price-min-filter');
         const maxInput = wrap.querySelector('#price-max-filter');
-        this._priceBands = this._getPriceBands();
+        this._priceBands = bands;
 
         wrap.querySelectorAll('.price-band-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -1640,7 +1659,10 @@ class ChecklistEngine {
     }
 
     _setActivePriceBand(index) {
-        document.querySelectorAll('.price-band-btn').forEach(btn => {
+        // Scoped like the quick-filter reset in _clearFilters: a stray chip
+        // outside the filter bar is not one this control owns.
+        const filtersContainer = document.getElementById('filters-container');
+        filtersContainer?.querySelectorAll('.price-band-btn').forEach(btn => {
             const on = btn.dataset.band === index;
             btn.classList.toggle('active', on);
             btn.setAttribute('aria-pressed', on ? 'true' : 'false');
@@ -1892,25 +1914,32 @@ class ChecklistEngine {
         const quickFilters = new Set(
             [...(filtersContainer?.querySelectorAll('.quick-filter-btn.active') || [])].map(b => b.dataset.quickFilter)
         );
-        // Dollars, read straight off the fields. Blank means unbounded on that
-        // side - which is why the whole "touched" flag the slider needed is gone
-        // with it: an empty max is unambiguously "no maximum", where a handle
-        // sitting at the top of a track was not, and a slider ceiling frozen at
-        // render time used to hide a card whose price was raised past it.
+        // Dollars, read off the fields. Blank means unbounded on that side -
+        // which is why the whole "touched" flag the slider needed is gone with
+        // it: an empty max is unambiguously "no maximum", where a handle sitting
+        // at the top of a track was not, and a slider ceiling frozen at render
+        // time used to hide a card whose price was raised past it.
+        // These are type="text", so this parses rather than trusting the browser
+        // to have. That is deliberate: a number input silently discards "$25"
+        // and "1,200", and card-renderer's parsePriceInput exists because this
+        // app's users type both - the card editor's own price box is text for
+        // the same reason. Anything that does not yield a usable number means
+        // "no bound on this side", which is also what an empty box means.
+        //
+        // The leading-minus check comes before the strip, or "-5" becomes 5 -
+        // the same trap parsePriceInput documents.
+        const parseBound = (el) => {
+            const raw = String(el?.value ?? '').trim();
+            if (raw === '' || raw.startsWith('-')) return null;
+            const cleaned = raw.replace(/[^0-9.]/g, '');
+            if (cleaned === '' || cleaned === '.') return null;
+            const n = Number(cleaned);
+            return Number.isFinite(n) ? n : null;
+        };
         const priceMin = document.getElementById('price-min-filter');
         const priceMax = document.getElementById('price-max-filter');
-        // A number input sanitises its own value - typing "abc" leaves it empty
-        // rather than holding the text - so the empty check is what actually
-        // catches junk. The isFinite guard is for a value set programmatically,
-        // and for the day someone changes these back to type="text".
-        const bound = (el, fallback) => {
-            const raw = (el?.value ?? '').trim();
-            if (raw === '') return fallback;
-            const n = Number(raw);
-            return Number.isFinite(n) ? n : fallback;
-        };
         const priceRange = (priceMin && priceMax)
-            ? { min: bound(priceMin, 0), max: bound(priceMax, Infinity) }
+            ? { min: parseBound(priceMin) ?? 0, max: parseBound(priceMax) ?? Infinity }
             : null;
 
         // Toggle visibility on individual cards
@@ -2078,9 +2107,9 @@ class ChecklistEngine {
         // stats), so a hand-edited gist string like "45" filters the same way
         // it sorts. An unpriced card usually means "too rare to find a price
         // for," not "worth $0" - treating it as infinitely expensive keeps it
-        // visible by default (min starts at 0, and the max handle starts
-        // uncapped) and only excludes it once the user sets a real upper cap,
-        // rather than making it vanish the instant min leaves 0.
+        // visible by default (an empty min reads as 0 and an empty max as
+        // Infinity) and only excludes it once the user sets a real upper
+        // bound, rather than making it vanish the instant a floor is set.
         if (priceRange) {
             const rawPrice = this.getPrice(card);
             const price = rawPrice > 0 ? rawPrice : Infinity;

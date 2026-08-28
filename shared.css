@@ -730,6 +730,20 @@ select, input[type="text"] {
     white-space: nowrap;
 }
 
+/* Without this a pressed chip renders identically to an unpressed one, so
+   nothing on screen says which band is active - and the "click it again to
+   clear" affordance is invisible. Mirrors .quick-filter-btn.active, the
+   established pressed-chip look in this bar. */
+.price-band-btn.active {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: white;
+}
+
+.price-band-btn.active:hover {
+    background: var(--color-accent);
+}
+
 .price-band-group {
     display: flex;
     flex-wrap: wrap;

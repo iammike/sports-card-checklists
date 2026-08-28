@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 
 const ChecklistEngine = globalThis.ChecklistEngine;
 const ChecklistManager = globalThis.ChecklistManager;
@@ -83,10 +85,9 @@ describe('ChecklistEngine._getPriceBounds', () => {
 describe('ChecklistEngine.getPrice', () => {
     it('coerces a numeric string to a real number, not a truthy string', () => {
         // A bare `card.price || 0` would return the string "25" itself (truthy),
-        // which downstream arithmetic then silently mishandles - most sharply in
-        // _priceAtSliderPosition's `pointAt(lo) + frac * (...)`, where `+` with a
-        // string operand does concatenation instead of addition (e.g.
-        // "25" + 2.5 -> "252.5"), producing a wildly wrong price.
+        // which downstream arithmetic then silently mishandles - computeStats'
+        // running totals concatenate instead of adding (e.g. "25" + 2.5 ->
+        // "252.5"), and _getPriceBands compares a string against its edges.
         const engine = makeEngine({}, []);
         const price = engine.getPrice({ price: '25' });
         expect(price).toBe(25);
@@ -229,7 +230,7 @@ describe('ChecklistEngine._getPriceBands (#772)', () => {
 
 describe('ChecklistEngine — price filter (#772)', () => {
     const cards = [
-        { set: 'A', num: '1', price: 5 },
+        { set: 'A', num: '1', price: 1 },
         { set: 'B', num: '2', price: 50 },
         { set: 'C', num: '3', price: 100 },
         // Unpriced usually means "too rare to find a price", so it filters as if
@@ -294,13 +295,17 @@ describe('ChecklistEngine — price filter (#772)', () => {
 
     // The slider froze its ceiling at render time, so a card priced above it
     // vanished until reload. Nothing is frozen now.
+    // The slider froze its ceiling at render time, so a card priced above it
+    // vanished until reload. Reproduced properly: a bound is actually set from
+    // the bar built against the old prices, then a pricier card arrives.
     it('does not hide a card priced above what the filter bar was built from', () => {
-        const engine = setUp([{ set: 'A', num: '1', price: 10 }, { set: 'B', num: '2', price: 20 }]);
+        const engine = setUp([{ set: 'A', num: '1', price: 1 }, { set: 'B', num: '2', price: 20 }]);
+        chip('$5+').click(); // the top band, built when $20 was the ceiling
 
         engine.cards.push({ set: 'C', num: '3', price: 50 });
         engine.renderCards(); // no _renderFilters, matching the onSave path
 
-        expect(visibleSets(engine)).toEqual(['A', 'B', 'C']);
+        expect(visibleSets(engine)).toEqual(['B', 'C']);
     });
 
     it('fills the fields from a band chip', () => {
@@ -319,8 +324,8 @@ describe('ChecklistEngine — price filter (#772)', () => {
         expect(minField().value).toBe('');
         expect(maxField().value).toBe('5');
 
-        // $25+ is the top band here: the fixture's ceiling is $100, so the
-        // $100 and $500 edges never appear.
+        // $25+ is the top band here: the ceiling is $100, so the $100 and $500
+        // edges never appear.
         chip('$25+').click();
         expect(minField().value).toBe('25');
         expect(maxField().value).toBe('');
@@ -329,9 +334,9 @@ describe('ChecklistEngine — price filter (#772)', () => {
     it('filters by the band it just set', () => {
         const engine = setUp();
 
-        chip('$5-25').click();
+        chip('Under $5').click();
 
-        // A ($5) alone: B and C are above the band, and the unpriced D is
+        // A ($1) alone: B and C are above the band, and the unpriced D is
         // excluded by its ceiling.
         expect(visibleSets(engine)).toEqual(['A']);
     });
@@ -354,6 +359,11 @@ describe('ChecklistEngine — price filter (#772)', () => {
             .filter(b => b.getAttribute('aria-pressed') === 'true');
         expect(pressed).toHaveLength(1);
         expect(pressed[0].textContent).toBe('$5-25');
+        // Visibly, not only to assistive tech: aria-pressed alone leaves a
+        // sighted user unable to see which band is on, or that the chip they
+        // must click again to clear is the lit one.
+        expect(chip('$5-25').classList.contains('active')).toBe(true);
+        expect(chip('$25+').classList.contains('active')).toBe(false);
     });
 
     // A chip you cannot un-click is a trap you can only leave via Clear filters.
@@ -388,26 +398,95 @@ describe('ChecklistEngine — price filter (#772)', () => {
         expect(chip('$5-25').getAttribute('aria-pressed')).toBe('true');
     });
 
-    // The mechanism is the input type, not a guard in _applyFilters: a number
-    // input drops text on the floor, leaving the field empty, which reads as no
-    // bound. Named for what actually happens so the next reader doesn't go
-    // looking for parsing code that isn't doing the work.
-    it('shows everything when text is typed, because the field refuses to hold it', () => {
+    // These are text inputs, so the field keeps whatever is typed and
+    // _applyFilters is what has to cope - which is the point: a number input
+    // would have silently eaten the two cases below.
+    it('reads a typed currency symbol as the number beside it', () => {
         const engine = setUp();
 
-        type(minField(), 'abc');
+        type(maxField(), '$60');
 
-        expect(minField().value).toBe('');
+        expect(maxField().value).toBe('$60');
+        expect(visibleSets(engine)).toEqual(['A', 'B']);
+    });
+
+    it('reads a thousands separator as the whole number, not the first digit', () => {
+        const engine = setUp();
+
+        // Parsed as 1 rather than 1200, this would exclude B and C.
+        type(minField(), '1,200');
+
+        expect(visibleSets(engine)).toEqual(['D']);
+    });
+
+    it('treats junk as no bound rather than as zero', () => {
+        const engine = setUp();
+
+        type(maxField(), 'ask');
+
         expect(visibleSets(engine)).toEqual(['A', 'B', 'C', 'D']);
     });
 
-    // 1e5 is valid to a number input, so it must not be read as 1.
-    it('reads an exponent the field does accept as its full value', () => {
+    // "ask" strips down to empty and is caught before the parse; this survives
+    // the strip and comes out NaN, which is the branch that actually needs the
+    // guard. A max of 0 here would hide the entire checklist.
+    it('treats an unparseable number as no bound rather than as zero', () => {
         const engine = setUp();
 
-        type(minField(), '1e5');
+        type(maxField(), '1.2.3');
 
-        expect(visibleSets(engine)).toEqual(['D']);
+        expect(visibleSets(engine)).toEqual(['A', 'B', 'C', 'D']);
+    });
+
+    // Stripping first turns "-5" into 5 - the trap parsePriceInput documents.
+    it('treats a negative as no bound rather than flipping its sign', () => {
+        const engine = setUp();
+
+        type(minField(), '-5');
+
+        expect(visibleSets(engine)).toEqual(['A', 'B', 'C', 'D']);
+    });
+
+    // An expensive checklist used to be offered "Under $5" through "$100-500",
+    // four chips matching nothing, each landing on "No cards match these
+    // filters". Only edges that actually split its range survive.
+    it('offers only the bands that split its own range', () => {
+        makeEngine({}, [
+            { set: 'A', num: '1', price: 400 },
+            { set: 'B', num: '2', price: 7000 },
+        ])._renderFilters();
+
+        expect([...document.querySelectorAll('.price-band-btn')].map(b => b.textContent))
+            .toEqual(['Under $500', '$500+']);
+    });
+
+    // Every edge sits below the cheapest card, so each would match everything.
+    it('drops the bands entirely rather than offering one that filters nothing', () => {
+        makeEngine({}, [
+            { set: 'A', num: '1', price: 600 },
+            { set: 'B', num: '2', price: 7000 },
+        ])._renderFilters();
+
+        expect(document.querySelectorAll('.price-band-btn')).toHaveLength(0);
+    });
+
+    it('does the same for a single priced card, which no band can divide', () => {
+        makeEngine({}, [{ set: 'A', num: '1', price: 1000 }])._renderFilters();
+
+        expect(document.querySelectorAll('.price-band-btn')).toHaveLength(0);
+    });
+
+    // Bands can be empty while cards are still priced. The exact fields are then
+    // the only way to filter on price - and the only way to hide unpriced cards.
+    it('still offers the exact fields when no band is worth showing', () => {
+        makeEngine({}, [
+            { set: 'A', num: '1', price: 1 },
+            { set: 'B', num: '2', price: 3 },
+        ])._renderFilters();
+
+        expect(document.querySelectorAll('.price-band-btn')).toHaveLength(0);
+        expect(document.getElementById('price-min-filter')).not.toBeNull();
+        expect(document.getElementById('price-max-filter')).not.toBeNull();
     });
 
     it('renders no price control at all when nothing is priced', () => {
@@ -423,6 +502,22 @@ describe('ChecklistEngine — price filter (#772)', () => {
 // announced "420" for a control that said it was about dollars. Number inputs
 // announce their own value, so the fix is that the value IS the dollars - these
 // pin the labelling that makes that true.
+// The pressed state has to be visible, not only announced - review found a
+// mutation removing the class survived the whole suite. jsdom applies no
+// stylesheet, so the rule itself is asserted from source, the way
+// css-color-validation.test.js does.
+describe('the pressed band chip is styled, not just flagged (#772)', () => {
+    const css = () => readFileSync(resolve(import.meta.dirname, '..', 'shared.css'), 'utf-8');
+
+    it('has a rule for the active chip', () => {
+        expect(css()).toMatch(/\.price-band-btn\.active\s*\{/);
+    });
+
+    it('keeps it distinct on hover, like the quick filters do', () => {
+        expect(css()).toMatch(/\.price-band-btn\.active:hover\s*\{/);
+    });
+});
+
 describe('price filter accessibility (#772)', () => {
     beforeEach(() => {
         makeEngine({}, [
@@ -434,11 +529,11 @@ describe('price filter accessibility (#772)', () => {
     it('announces dollars, because the field holds dollars', () => {
         const min = document.getElementById('price-min-filter');
 
-        expect(min.type).toBe('number');
         expect(min.getAttribute('aria-label')).toMatch(/dollars/i);
-        // The old control's value was a slider position; this one is the price.
+        // The old control's value was a slider position; this one is the price
+        // the user typed, which is what a text input announces.
         min.value = '25';
-        expect(Number(min.value)).toBe(25);
+        expect(min.value).toBe('25');
     });
 
     it('labels the maximum too', () => {
@@ -462,7 +557,12 @@ describe('price filter accessibility (#772)', () => {
         expect(chips.every(c => c.getAttribute('aria-pressed') === 'false')).toBe(true);
     });
 
+    // On a text input this is what actually summons the keypad - on the
+    // number input it replaced, inputmode was inert and the type did the work.
     it('offers a numeric keypad on touch devices', () => {
-        expect(document.getElementById('price-min-filter').getAttribute('inputmode')).toBe('numeric');
+        const min = document.getElementById('price-min-filter');
+
+        expect(min.type).toBe('text');
+        expect(min.getAttribute('inputmode')).toBe('decimal');
     });
 });
