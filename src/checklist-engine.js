@@ -1619,8 +1619,12 @@ class ChecklistEngine {
         });
 
         // _clearFilters resets the two <input> values, but the fill, the label
-        // and the z-index stacking all live in this closure - without a handle
-        // on it the slider would read "$0 - $500" while showing the old handles.
+        // and the z-index stacking are all drawn by this closure. A range input
+        // moves its own thumb the moment .value changes, so without a handle on
+        // `update` the two halves disagree: the handles snap back to the full
+        // width while the label and fill stay on the range that was just
+        // cleared. (This checklist's own prices set that range - see
+        // _priceAtSliderPosition - so there is no fixed pair of numbers to name.)
         this._syncPriceSliderUI = update;
 
         update();
