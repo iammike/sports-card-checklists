@@ -1,5 +1,13 @@
 /**
- * ShoppingList - Generate a PDF of all unowned cards across every checklist
+ * ShoppingList - Export cards across every checklist, as PDF or CSV.
+ *
+ * Named for what it produced when it only did one thing. It now picks a scope
+ * too - needed, owned, or all - so a shopping list is one of its outputs rather
+ * than the whole of it (#745). The element id and this file name stayed put
+ * because several modules anchor on them; the user-facing labels did not.
+ *
+ * Distinct from ChecklistExport, which exports one checklist in full for a
+ * visitor and carries no ownership.
  */
 const ShoppingList = {
     backdrop: null,
@@ -59,8 +67,8 @@ const ShoppingList = {
             '<div class="card-editor-modal shopping-list-modal">' +
                 '<div class="card-editor-header">' +
                     '<div class="card-editor-header-left">' +
-                        '<div class="card-editor-title">SHOPPING LIST</div>' +
-                        '<div class="card-editor-subtitle">Select options for PDF export</div>' +
+                        '<div class="card-editor-title">EXPORT</div>' +
+                        '<div class="card-editor-subtitle">Cards from the checklists you pick</div>' +
                     '</div>' +
                     '<button class="card-editor-close" title="Close">&times;</button>' +
                 '</div>' +
@@ -68,6 +76,30 @@ const ShoppingList = {
                     '<div class="shopping-list-section-label">Checklists</div>' +
                     '<button class="shopping-list-toggle-all" id="sl-toggle-all">Select None</button>' +
                     '<div class="shopping-list-checklist-list" id="sl-checklist-list"></div>' +
+                    '<div class="shopping-list-divider"></div>' +
+                    '<div class="shopping-list-section-label">Cards</div>' +
+                    '<div class="shopping-list-option">' +
+                        '<input type="radio" name="sl-scope" id="sl-scope-needed" checked>' +
+                        '<label for="sl-scope-needed">Needed - what is still missing, to shop from</label>' +
+                    '</div>' +
+                    '<div class="shopping-list-option">' +
+                        '<input type="radio" name="sl-scope" id="sl-scope-owned">' +
+                        '<label for="sl-scope-owned">Owned - what is in the collection, and what it is worth</label>' +
+                    '</div>' +
+                    '<div class="shopping-list-option">' +
+                        '<input type="radio" name="sl-scope" id="sl-scope-all">' +
+                        '<label for="sl-scope-all">All - every card, with an owned column</label>' +
+                    '</div>' +
+                    '<div class="shopping-list-divider"></div>' +
+                    '<div class="shopping-list-section-label">Format</div>' +
+                    '<div class="shopping-list-option">' +
+                        '<input type="radio" name="sl-format" id="sl-format-pdf" checked>' +
+                        '<label for="sl-format-pdf">PDF - printable, grouped and priced</label>' +
+                    '</div>' +
+                    '<div class="shopping-list-option">' +
+                        '<input type="radio" name="sl-format" id="sl-format-csv">' +
+                        '<label for="sl-format-csv">CSV - for spreadsheets and collection trackers</label>' +
+                    '</div>' +
                     '<div class="shopping-list-divider"></div>' +
                     '<div class="shopping-list-section-label">Options</div>' +
                     '<div class="shopping-list-option">' +
@@ -81,7 +113,7 @@ const ShoppingList = {
                 '</div>' +
                 '<div class="card-editor-footer">' +
                     '<button class="card-editor-btn cancel" id="sl-cancel">Cancel</button>' +
-                    '<button class="card-editor-btn save" id="sl-generate">Generate PDF</button>' +
+                    '<button class="card-editor-btn save" id="sl-generate">Export</button>' +
                 '</div>' +
             '</div>';
 
@@ -118,6 +150,19 @@ const ShoppingList = {
             checkboxes.forEach(cb => { cb.checked = !allChecked; });
             updateToggleText();
         };
+
+        // Est. Value on the site spans every owned card, extras included
+        // (computeStats in checklist-engine.js), so an Owned or All export has
+        // to as well or its total silently disagrees with the number the owner
+        // is comparing it against. Ticked on their behalf, not forced: they can
+        // still untick it for a main-set-only view.
+        backdrop.querySelectorAll('input[name="sl-scope"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                if (radio.id !== 'sl-scope-needed' && radio.checked) {
+                    backdrop.querySelector('#sl-include-extra').checked = true;
+                }
+            });
+        });
 
         // Update toggle text when individual checkboxes change
         backdrop.querySelector('#sl-checklist-list').addEventListener('change', updateToggleText);
@@ -156,6 +201,10 @@ const ShoppingList = {
         // Reset options to defaults
         this.backdrop.querySelector('#sl-include-extra').checked = false;
         this.backdrop.querySelector('#sl-group-by').checked = false;
+        // Needed + PDF is what this dialog produced before it had either
+        // control, so opening it and pressing Export still does that.
+        this.backdrop.querySelector('#sl-scope-needed').checked = true;
+        this.backdrop.querySelector('#sl-format-pdf').checked = true;
 
         this.backdrop.classList.add('active');
     },
@@ -178,17 +227,23 @@ const ShoppingList = {
             const selectedChecklists = new Set(Array.from(checkboxes).map(cb => cb.dataset.checklistId));
             const includeExtra = this.backdrop.querySelector('#sl-include-extra').checked;
             const groupByChecklist = this.backdrop.querySelector('#sl-group-by').checked;
+            const scope = this.backdrop.querySelector('#sl-scope-owned').checked ? 'owned'
+                : this.backdrop.querySelector('#sl-scope-all').checked ? 'all'
+                : 'needed';
+            const format = this.backdrop.querySelector('#sl-format-csv').checked ? 'csv' : 'pdf';
 
             if (selectedChecklists.size === 0) {
                 alert('Select at least one checklist.');
                 return;
             }
 
-            await this.generate({ selectedChecklists, includeExtra, groupByChecklist });
+            await this.generate({ selectedChecklists, includeExtra, groupByChecklist, scope, format });
             this.closeModal();
         } catch (e) {
-            console.error('Shopping list generation failed:', e);
-            alert('Failed to generate shopping list: ' + e.message);
+            // Named for the dialog, not for one of its outputs: this fires just
+            // as readily on a Collection CSV as on a shopping list.
+            console.error('Export failed:', e);
+            alert('Failed to generate export: ' + e.message);
         } finally {
             genBtn.disabled = false;
             genBtn.textContent = originalText;
@@ -201,8 +256,16 @@ const ShoppingList = {
         const selectedChecklists = options?.selectedChecklists || null;
         const includeExtra = options?.includeExtra || false;
         const groupByChecklist = options?.groupByChecklist || false;
+        // 'needed' is what this tool has always produced, and stays the default
+        // for every caller that does not ask (#745).
+        const scope = options?.scope || 'needed';
+        const format = options?.format || 'pdf';
 
-        await this.loadJsPDF();
+        // Only the CSV path can skip it, and it is the expensive import. Phrased
+        // against 'csv' so it matches the routing below - an unrecognised format
+        // falls through to the PDF in both places rather than skipping the load
+        // and then throwing on window.jspdf.
+        if (format !== 'csv') await this.loadJsPDF();
 
         // Load registry (use DynamicNav which has session caching)
         const registryData = await DynamicNav.loadRegistry();
@@ -217,7 +280,7 @@ const ShoppingList = {
         const data = await githubSync.loadData() || await githubSync.loadPublicData();
         const ownedByChecklist = data?.checklists || {};
 
-        // Collect all unowned cards
+        // Every card the scope asks for, across the selected checklists.
         const shoppingItems = [];
 
         for (const entry of checklists.filter(e => !e.hidden)) {
@@ -238,29 +301,35 @@ const ShoppingList = {
             const owned = ownedByChecklist[id] || [];
 
             for (const card of allCards) {
-                // Skip cards with no set name (incomplete data)
+                // Skip cards with no set name (incomplete data). Note this and
+                // flattenCards' collectionLink drop both make an Owned export's
+                // card *count* fall short of the site's owned count. Neither
+                // affects the money: computeStats returns before adding a
+                // collection link's price, and a card with no set has nothing to
+                // identify it in an export anyway.
                 if (!card.set) continue;
                 const cardId = this.generateCardId(card, config);
-                if (!owned.includes(cardId)) {
-                    shoppingItems.push({
-                        year: CardRenderer.getYear(card),
-                        setName: CardRenderer.getSetName(card),
-                        set: card.set || '',
-                        num: card.num || '',
-                        name: card.name || card.player
-                            || (entry.navLabel || entry.title || '').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()),
-                        variant: card.variant || '',
-                        // Normalized here, which coerces as well as applying the
-                        // whole-dollar rule (#761). The coercion is what keeps a
-                        // hand-edited string price from making the summary's
-                        // reduce concatenate instead of add - one quoted price
-                        // used to kill the whole export with a TypeError in an
-                        // alert that named no card. The whole-dollar half is what
-                        // keeps the total agreeing with the rows it totals.
-                        price: CardRenderer.normalizePrice(card.price),
-                        checklist: entry.title || id
-                    });
-                }
+                const isOwned = owned.includes(cardId);
+                if (scope === 'needed' ? isOwned : (scope === 'owned' && !isOwned)) continue;
+                shoppingItems.push({
+                    owned: isOwned,
+                    year: CardRenderer.getYear(card),
+                    setName: CardRenderer.getSetName(card),
+                    set: card.set || '',
+                    num: card.num || '',
+                    name: card.name || card.player
+                        || (entry.navLabel || entry.title || '').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()),
+                    variant: card.variant || '',
+                    // Normalized here, which coerces as well as applying the
+                    // whole-dollar rule (#761). The coercion is what keeps a
+                    // hand-edited string price from making the summary's
+                    // reduce concatenate instead of add - one quoted price
+                    // used to kill the whole export with a TypeError in an
+                    // alert that named no card. The whole-dollar half is what
+                    // keeps the total agreeing with the rows it totals.
+                    price: CardRenderer.normalizePrice(card.price),
+                    checklist: entry.title || id
+                });
             }
         }
 
@@ -280,11 +349,59 @@ const ShoppingList = {
             return numA - numB;
         });
 
-        this.buildPDF(shoppingItems, { groupByChecklist });
+        if (format === 'csv') {
+            this.buildCSV(shoppingItems, { scope });
+            return;
+        }
+        this.buildPDF(shoppingItems, { groupByChecklist, scope });
+    },
+
+    // What each scope is called, in file names and on the page.
+    SCOPE_LABELS: {
+        needed: 'Shopping List',
+        owned: 'Collection',
+        all: 'Every Card',
+    },
+
+    // Deliberately not ChecklistExport's column set: that one exports a single
+    // checklist and carries a Section, while these rows span checklists and
+    // carry the one they came from. The writer, the escaping and the BOM are
+    // shared - only the columns differ (#745).
+    //
+    // Passed to toCSV as an explicit list, so columnsFor's drop-Name-when-nobody-
+    // has-one rule does not apply. That rule suits a document a person reads; a
+    // file meant for a spreadsheet or a re-import wants the same header every
+    // time. Name is never empty here anyway - it falls back to the checklist's
+    // own label when a card has neither name nor player.
+    CSV_FIELDS: {
+        Checklist: r => r.checklist,
+        Set: r => r.set,
+        Number: r => r.num,
+        Name: r => r.name,
+        Variant: r => r.variant,
+        Price: r => r.price || '',
+        // The real state, unlike the single-checklist export's blank column:
+        // this file is generated by the owner from their own collection, and a
+        // scope of 'all' is meaningless without it.
+        Owned: r => (r.owned ? 'TRUE' : 'FALSE'),
+    },
+
+    // File name, from the same source as the heading. Both formats go through
+    // here, or a collection export downloads as shopping-list.pdf.
+    _scopeSlug(scope) {
+        return (this.SCOPE_LABELS[scope] || 'export').toLowerCase().replace(/\s+/g, '-');
+    },
+
+    buildCSV(items, options) {
+        const scope = options?.scope || 'needed';
+        const cols = Object.keys(this.CSV_FIELDS);
+        const csv = ChecklistExport.toCSV(items, this.CSV_FIELDS, cols);
+        ChecklistExport.downloadCSV(`${this._scopeSlug(scope)}.csv`, csv);
     },
 
     buildPDF(items, options) {
         const groupByChecklist = options?.groupByChecklist || false;
+        const scope = options?.scope || 'needed';
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ unit: 'mm', format: 'letter' });
         const pageWidth = doc.internal.pageSize.getWidth();
@@ -292,13 +409,19 @@ const ShoppingList = {
         const margin = 12;
         const usableWidth = pageWidth - margin * 2;
 
-        // Column layout: Set | # | Name | Variant | Price
+        // Column layout: Set | # | Name | Variant | Price, plus Owned when the
+        // rows can differ on it. A 'needed' export is entirely unowned and an
+        // 'owned' one entirely owned, so the column would be a constant; only
+        // 'all' mixes them, and without it that PDF prints an owned and an
+        // unowned card identically. The width comes off Set, the widest column.
+        const showOwned = scope === 'all';
         const cols = [
-            { label: 'Set', width: 76 },
+            { label: 'Set', width: showOwned ? 66 : 76 },
             { label: '#', width: 16 },
             { label: 'Name', width: 42 },
             { label: 'Variant', width: 42 },
-            { label: 'Price', width: 18 }
+            { label: 'Price', width: 18 },
+            ...(showOwned ? [{ label: 'Owned', width: 10 }] : []),
         ];
 
         const rowHeight = 5.5;
@@ -311,7 +434,7 @@ const ShoppingList = {
         // Title
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(14);
-        doc.text('Shopping List', margin, y + 5);
+        doc.text(this.SCOPE_LABELS[scope] || 'Shopping List', margin, y + 5);
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(9);
         const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -326,11 +449,13 @@ const ShoppingList = {
         // (#761).
         const totalPrice = items.reduce((sum, item) => sum + CardRenderer.normalizePrice(item.price), 0);
         const priceCount = items.filter(i => CardRenderer.normalizePrice(i.price) > 0).length;
-        let summary = items.length + ' cards needed';
+        const noun = { needed: ' cards needed', owned: ' cards owned', all: ' cards' }[scope] || ' cards';
+        let summary = items.length + noun;
         if (priceCount > 0) {
             // Whole dollars, like every line item above it (#761) - this used to
             // print "Est. cost: $0.40" under a line item reading "$1".
-            summary += '  |  Est. cost: $' + totalPrice + ' (' + priceCount + ' priced)';
+            const moneyLabel = scope === 'needed' ? 'Est. cost' : 'Est. value';
+            summary += '  |  ' + moneyLabel + ': $' + totalPrice + ' (' + priceCount + ' priced)';
         }
         doc.setFontSize(9);
         doc.text(summary, margin, y);
@@ -430,6 +555,13 @@ const ShoppingList = {
                 // Shared with the checklist export so a 40c card does not print as $0.
                 doc.text('$' + CardRenderer.formatPrice(item.price), x, y + 3);
             }
+            x += cols[4].width;
+
+            if (showOwned) {
+                // A tick, not a checkbox: this reports what is owned rather than
+                // offering something to fill in.
+                doc.text(item.owned ? '\u2713' : '', x, y + 3);
+            }
 
             y += rowHeight;
             rowIndex++;
@@ -442,7 +574,7 @@ const ShoppingList = {
             this.drawPageFooter(doc, pageWidth, pageHeight, margin, p, totalPages);
         }
 
-        doc.save('shopping-list.pdf');
+        doc.save(`${this._scopeSlug(scope)}.pdf`);
     },
 
     // Shared with ChecklistExport's builder: a column that silently overruns its

@@ -1,9 +1,14 @@
 /**
  * ChecklistExport - Download a checklist as CSV or a printable PDF.
  *
- * Distinct from ShoppingList, which exports what the *owner* still needs across
- * every checklist. This exports one checklist in full, carries no ownership, and
- * reads the engine's already-loaded cards rather than re-fetching the gist.
+ * Distinct from ShoppingList, which spans every checklist and reports real
+ * ownership. This exports the one checklist on screen, carries no ownership (a
+ * blank column to fill in, not a claim about anyone's collection), and reads the
+ * engine's already-loaded cards rather than re-fetching the gist. It is the
+ * visitor's export; ShoppingList is the owner's.
+ *
+ * They share this file's CSV writer, escaping and BOM - see toCSV and
+ * downloadCSV, which ShoppingList calls with its own column map.
  */
 const ChecklistExport = {
     CSV_COLUMNS: ['Section', 'Set', 'Number', 'Name', 'Variant', 'Serial', 'Price', 'Owned'],
@@ -90,13 +95,24 @@ const ChecklistExport = {
         return /[",\r\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
     },
 
-    toCSV(rows) {
-        const cols = this.columnsFor(rows);
+    toCSV(rows, fields = null, columns = null) {
+        const map = fields || this.CSV_FIELDS;
+        const cols = columns || this.columnsFor(rows);
         const lines = [cols.join(',')];
         rows.forEach(r => {
-            lines.push(cols.map(c => this._escapeCSV(this.CSV_FIELDS[c](r))).join(','));
+            lines.push(cols.map(c => this._escapeCSV(map[c](r))).join(','));
         });
         return lines.join('\r\n');
+    },
+
+    // Hands a built CSV to the browser, BOM included. Public because the
+    // shopping list downloads through here too - the BOM is a rule about the
+    // file, not about one caller, and duplicating it is how the two come to
+    // disagree.
+    downloadCSV(filename, csv) {
+        // Excel on Windows ignores the Blob's charset and uses the system
+        // codepage; the BOM is what makes an accented name survive.
+        this._download(filename, '\uFEFF' + csv);
     },
 
     // The content block. buildPDF derives its horizontal margin from this, so both
@@ -363,9 +379,7 @@ const ChecklistExport = {
         const base = `${ctx.id}-checklist`;
 
         if (!asPdf) {
-            // Excel on Windows ignores the Blob's charset and uses the system
-            // codepage; the BOM is what makes an accented name survive.
-            this._download(`${base}.csv`, '\uFEFF' + this.toCSV(rows));
+            this.downloadCSV(`${base}.csv`, this.toCSV(rows));
             this.close();
             return;
         }
