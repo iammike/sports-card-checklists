@@ -47,12 +47,16 @@ describe('ChecklistEngine._getPriceBounds', () => {
         expect(engine._getPriceBounds()).toBeNull();
     });
 
+    // 47.4 is not a price this app can store (#761): getPrice normalizes it to
+    // 47, which is what the badge shows and what the filter compares, so the
+    // ceiling is 47. Ceiling-ing to 48 would put the top of the slider above any
+    // price a card can actually have.
     it('spans 0 to the ceiling of the highest price', () => {
         const engine = makeEngine({}, [
             { set: 'A', num: '1', price: 12 },
             { set: 'B', num: '2', price: 47.4 },
         ]);
-        expect(engine._getPriceBounds()).toEqual({ min: 0, max: 48 });
+        expect(engine._getPriceBounds()).toEqual({ min: 0, max: 47 });
     });
 
     it('coerces a numeric price string the way getPrice/sort do', () => {

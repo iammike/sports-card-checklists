@@ -382,6 +382,8 @@ describe('ShoppingList prices', () => {
     it('sums prices into the summary line', () => {
         ShoppingList.buildPDF([item({ price: 10 }), item({ price: 5 })], {});
 
-        expect(strings().some(t => t.includes('Est. cost: $15.00'))).toBe(true);
+        // Whole dollars, matching the line items above it (#761).
+        expect(strings().some(t => t.includes('Est. cost: $15'))).toBe(true);
+        expect(strings().some(t => t.includes('$15.00'))).toBe(false);
     });
 });

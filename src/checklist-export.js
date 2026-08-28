@@ -54,7 +54,10 @@ const ChecklistExport = {
                     name: card.name || card.player || '',
                     variant: card.variant || '',
                     serial: card.serial || '',
-                    price: Number(card.price) || 0,
+                    // Normalized here so the CSV column and the PDF column
+                    // cannot disagree - the PDF formats through
+                    // CardRenderer.formatPrice, the CSV emits this straight (#761).
+                    price: CardRenderer.normalizePrice(card.price),
                 });
             });
         };

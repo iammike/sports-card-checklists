@@ -98,8 +98,6 @@ const CardRenderer = {
         return (card.set || '').replace(/^\d{4}(?:-\d{2,4})?\s*/, '').toLowerCase();
     },
 
-    // Whole dollars, except under $1 where rounding would show a real card as $0.
-    // Every per-card price display goes through here - both PDF exports and the
     // The one place the whole-dollar rule lives (#761). Prices are stored as
     // whole dollars; cents are deliberately not supported.
     //
@@ -110,18 +108,32 @@ const CardRenderer = {
     // list all read it as "no price at all", so a 40c card silently became an
     // unpriced one on the next unrelated edit.
     //
-    // Both the editor (on save) and every display path run through this, so what
-    // a card shows is what the next save will store.
+    // Every path that reads or shows a price runs through this - the editor on
+    // blur and on save, formatPrice, and the engine's getPrice - so the badge,
+    // the filter, the sort, the totals and the exports cannot disagree about
+    // what a card is worth.
     normalizePrice(price) {
         const p = Number(price) || 0;
         if (p <= 0) return 0;
         return Math.max(1, Math.round(p));
     },
 
-    // Whole dollars, no decimal point. Aggregate totals round on their own
-    // (computeStats), as does the price-range filter label.
+    // Whole dollars, no decimal point. Aggregate totals are sums of already
+    // normalized per-card prices (computeStats), so they agree by construction.
     formatPrice(price) {
         return String(this.normalizePrice(price));
+    },
+
+    // What a human typed in a price box turned into a stored price. The field is
+    // type="text" with a literal "$" as its label, so a leading $ or a thousands
+    // comma is entirely ordinary input - and parseFloat alone reads "$0.40" as
+    // NaN (price silently deleted) and "1,200" as 1 (a 1000x loss). The editor's
+    // blur handler and its save path must both come through here, or Enter-to-
+    // save - which never fires blur - disagrees with what the box was showing.
+    parsePriceInput(raw) {
+        const cleaned = String(raw ?? '').trim().replace(/[^0-9.]/g, '');
+        if (cleaned === '' || cleaned === '.') return 0;
+        return this.normalizePrice(parseFloat(cleaned));
     },
 
     // Get price badge CSS class based on thresholds

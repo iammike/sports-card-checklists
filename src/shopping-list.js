@@ -321,7 +321,9 @@ const ShoppingList = {
         const priceCount = items.filter(i => i.price > 0).length;
         let summary = items.length + ' cards needed';
         if (priceCount > 0) {
-            summary += '  |  Est. cost: $' + totalPrice.toFixed(2) + ' (' + priceCount + ' priced)';
+            // Whole dollars, like every line item above it (#761) - this used to
+            // print "Est. cost: $0.40" under a line item reading "$1".
+            summary += '  |  Est. cost: $' + Math.round(totalPrice) + ' (' + priceCount + ' priced)';
         }
         doc.setFontSize(9);
         doc.text(summary, margin, y);

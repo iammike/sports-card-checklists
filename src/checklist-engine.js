@@ -1151,14 +1151,17 @@ class ChecklistEngine {
     // Price
     // ========================================
 
-    // Number(), not the bare field: a hand-edited gist can store price as a
-    // string ("25"), and every caller here trusts the result to add/subtract
-    // like a number - extraOwnedValue += this.getPrice(card) would silently do
-    // string concatenation instead of addition, and the price slider's
-    // percentile interpolation the same. Number(undefined/NaN) is NaN, so the
-    // || 0 fallback still covers both a missing price and a garbage string.
+    // The single whole-dollar rule (#761), not the bare field. It coerces, so a
+    // hand-edited gist storing price as a string ("25") still adds and subtracts
+    // like a number rather than concatenating, and a garbage string still lands
+    // on 0 - both of which this used to do with Number(...) || 0.
+    //
+    // It also *normalizes*, which is what keeps the filter, the sorts, the stats
+    // and the price slider agreeing with the badge. Applying the floor only at
+    // display would mean a card whose badge reads $1 gets filtered out by a $1
+    // minimum, and ten 40c cards showing ten $1 badges over a $4 total.
     getPrice(card) {
-        return Number(card.price) || 0;
+        return CardRenderer.normalizePrice(card.price);
     }
 
     getPriceThresholds() {

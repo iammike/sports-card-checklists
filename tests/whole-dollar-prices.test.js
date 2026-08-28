@@ -108,10 +108,15 @@ describe('CardEditorModal — whole-dollar prices (#761)', () => {
 
     // What the blur handler leaves in the box must be what save() would store,
     // or the field lies about the value being kept.
+    //
+    // The samples matter: every value here must include ones the *parser* has to
+    // clean. A list of already-clean numbers makes the two paths agree by
+    // construction and the test proves nothing - which is exactly what an
+    // earlier version of it did.
     it('agrees with what save would store', () => {
         const input = priceInput(editor);
 
-        for (const typed of ['0.40', '0.01', '45.60', '45.40', '3']) {
+        for (const typed of ['0.40', '0.01', '45.60', '45.40', '3', '$0.40', '$45', '1,200', ' 12 ']) {
             input.value = typed;
             input.dispatchEvent(new window.Event('blur'));
             const shown = input.value;
@@ -119,6 +124,31 @@ describe('CardEditorModal — whole-dollar prices (#761)', () => {
             input.value = typed;
             expect(String(editor.getFormData().price), `typed ${typed}`).toBe(shown);
         }
+    });
+
+    // Enter-to-save calls save() straight from the focused field, so blur never
+    // runs. parseFloat('$0.40') is NaN, which became price 0, which
+    // _clearEmptyFields then deletes - the very bug this issue is about,
+    // reachable without ever leaving the price box.
+    it('handles a typed currency symbol on the save path, not just on blur', () => {
+        priceInput(editor).value = '$0.40';
+        expect(editor.getFormData().price).toBe(1);
+
+        priceInput(editor).value = '$45';
+        expect(editor.getFormData().price).toBe(45);
+    });
+
+    // parseFloat('1,200') is 1 - a 1000x loss, silently.
+    it('does not read a thousands separator as the whole price', () => {
+        priceInput(editor).value = '1,200';
+
+        expect(editor.getFormData().price).toBe(1200);
+    });
+
+    it('still stores nothing for junk that cleans down to empty', () => {
+        priceInput(editor).value = 'ask';
+
+        expect(editor.getFormData().price).toBe(0);
     });
 });
 
@@ -138,5 +168,68 @@ describe('CardRenderer price display follows the same rule (#761)', () => {
     // price must not accidentally cross into a "mid" or "high" badge.
     it('leaves a normalized sub-dollar price in the cheapest band', () => {
         expect(CardRenderer.getPriceClass(CardRenderer.normalizePrice(0.4))).toBe('');
+    });
+});
+
+// Finding 4 from review: normalizing only the display sinks left every raw-value
+// sink reading the stored number, so a badge saying $1 was filtered out by a $1
+// minimum and ten 40c cards showed ten $1 badges over a $4 total. getPrice is
+// the shared sink; these pin that it agrees with what the badge shows.
+describe('every price sink reads the same value (#761)', () => {
+    const ChecklistEngine = globalThis.ChecklistEngine;
+    const ChecklistExport = globalThis.ChecklistExport;
+
+    function engineWith(cards) {
+        const engine = Object.create(ChecklistEngine.prototype);
+        engine.id = 'test';
+        engine.config = { dataShape: 'flat', customFields: {}, cardDisplay: {} };
+        engine.cards = cards;
+        return engine;
+    }
+
+    it('getPrice agrees with the badge on a sub-dollar card', () => {
+        const engine = engineWith([]);
+        const card = { set: 'A', num: '1', price: 0.4 };
+
+        expect(engine.getPrice(card)).toBe(1);
+        expect(CardRenderer.renderPriceBadge(engine.getPrice(card))).toContain('>$1</span>');
+    });
+
+    // The concrete symptom: badge reads $1, minimum set to $1, card vanishes.
+    it('does not filter out a card at exactly the price its badge shows', () => {
+        const engine = engineWith([]);
+        const card = { set: 'A', num: '1', price: 0.4 };
+
+        const visible = engine._filterCard(card, 'all', '', {}, new Set(), { min: 1, max: Infinity });
+
+        expect(visible).toBe(true);
+    });
+
+    it('still coerces a string price, and still drops junk', () => {
+        const engine = engineWith([]);
+
+        expect(engine.getPrice({ price: '25' })).toBe(25);
+        expect(engine.getPrice({ price: 'ask' })).toBe(0);
+        expect(engine.getPrice({})).toBe(0);
+    });
+
+    // Ten 40c cards showed ten $1 badges over a $4 total.
+    it('totals the same numbers the badges show', () => {
+        const cards = Array.from({ length: 10 }, (_, i) => ({ set: 'A', num: String(i), price: 0.4 }));
+        const engine = engineWith(cards);
+        engine.isOwned = () => true;
+        engine.getCardId = c => c.num;
+
+        expect(engine.computeStats().ownedValue).toBe(10);
+    });
+
+    // One export click emitted "$1" in the PDF and "0.4" in the CSV.
+    it('exports the same price to the CSV as the PDF renders', () => {
+        const [row] = ChecklistExport.collectRows(
+            [{ set: 'A', num: '1', price: 0.4 }], { dataShape: 'flat' }, true,
+        );
+
+        expect(row.price).toBe(1);
+        expect(CardRenderer.formatPrice(row.price)).toBe('1');
     });
 });
