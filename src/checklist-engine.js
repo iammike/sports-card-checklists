@@ -26,19 +26,18 @@ const ENGINE_BUILTIN_CLEARABLE = new Set([
 const FRESH_MERGE_WINDOW_MS = 30000;
 
 // Card prices on a typical checklist are heavily right-skewed - most cards
-// cluster under $20-30 while a handful of rare parallels/autos run into the
-// thousands (e.g. #740's own data: 288 cards, 67% at $30 or under, ceiling
-// $7000). A linear slider gives that entire common range a sliver of pixels
-// at one end of the track. The price slider's raw <input> position instead
-// runs 0..PRICE_SLIDER_RESOLUTION and is mapped onto the real dollar amounts
-// in this checklist's own cards (see _priceAtSliderPosition): position t maps
-// to the price at the t-th percentile of this checklist's actual prices, so
-// each equal step of drag distance passes over roughly the same *number* of
-// cards rather than the same number of dollars. Wherever this checklist's
-// cards are actually clustered - $5-30, or $200-400, or wherever - that's
-// where the slider naturally gives the most control, with no fixed curve or
-// per-checklist tuning required.
-const PRICE_SLIDER_RESOLUTION = 1000;
+// cluster in single or low double digits while a handful of rare
+// parallels/autos run into the thousands (the live data: 943 priced cards,
+// median $4, ceiling $7000). That is why the price filter's bands are derived
+// from each checklist's own ceiling rather than fixed: a $12 checklist would
+// otherwise be offered a dead "$100+" chip, and a $7000 one would stop at a
+// band holding 95% of its cards.
+//
+// It is also why a dual-handle slider was the wrong control here (#772). It
+// solved the skew by mapping drag position onto price *percentile*, which gave
+// real resolution where the cards were - but dragging halfway then landed on $4
+// rather than $3500, and nothing on the control said so.
+const PRICE_BAND_EDGES = [5, 25, 100, 500];
 
 class ChecklistEngine {
     constructor() {
@@ -1396,10 +1395,9 @@ class ChecklistEngine {
 
     _renderFilters() {
         const container = document.getElementById('filters-container');
-        // Dropped up front so it cannot outlive the slider it repaints - a
-        // re-render for a checklist with no priced cards omits the slider
-        // entirely, and a stale closure here would point at detached inputs.
-        this._syncPriceSliderUI = null;
+        // Dropped up front so a re-render for a checklist with no priced cards
+        // cannot leave the previous one's bands behind for _matchingPriceBand.
+        this._priceBands = [];
         let sorts = this.config.sortOptions || ['default', 'year', 'set', 'price-low', 'price-high', 'owned', 'needed'];
         const defaultSort = this.config.defaultSortMode;
         // Remove the defaultSortMode from the list since "Default" already applies it
@@ -1446,24 +1444,36 @@ class ChecklistEngine {
             html += `<button type="button" class="filter-btn quick-filter-btn" data-quick-filter="${sanitizeAttr(d.key)}" aria-pressed="false">${sanitizeText(d.label)}</button>`;
         });
 
-        // Price range (dual-handle slider) - omitted entirely when nothing on
-        // this checklist has a price, so it never shows up as a dead control.
-        // The <input> elements themselves move over raw 0..PRICE_SLIDER_RESOLUTION
-        // positions, not dollars - _initPriceRangeSlider maps position to price
-        // against this checklist's own sorted prices (data-prices) so the slider's
-        // resolution follows wherever these specific cards are actually priced,
-        // not a fixed curve. data-max carries the dollar ceiling for the initial
-        // label; the sorted prices are frozen at render time the same way the
-        // ceiling already was (see the "touched" comment in _applyFilters).
-        const sortedPrices = this._getSortedPrices(allCards);
-        const priceBounds = this._getPriceBounds(allCards, sortedPrices);
+        // Price bands, plus exact fields. Omitted entirely when nothing on this
+        // checklist has a price, so it never shows up as a dead control.
+        //
+        // Replaced a dual-handle slider (#772). That slider mapped its position
+        // through this checklist's own sorted prices, because a linear track
+        // would have put half this collection inside the first fraction of its
+        // width - a real problem, solved in a way nobody could read off the
+        // control. Bands keep the same property (they come from the same
+        // distribution) while being something you can aim at, and the exact
+        // fields cover what no band happens to express.
+        // Computed once and handed to _initPriceFilter below: the chips' data-band
+        // indices and the array they index have to be the same array.
+        const priceBands = this._getPriceBands(allCards);
+        const priceBounds = this._getPriceBounds(allCards);
+        // Nit 11 from review: bands can come back empty while cards are still
+        // priced (everything under the first edge, or above the last). The
+        // exact fields are the only way to filter on price at all then - and
+        // the only way to hide unpriced cards - so they render regardless.
         if (priceBounds) {
-            html += `<div class="price-range-filter" id="price-range-filter" data-max="${priceBounds.max}" data-prices="${sanitizeAttr(JSON.stringify(sortedPrices))}">
-                <span class="price-range-label">Price: <span id="price-range-display">$${priceBounds.min} - $${priceBounds.max}</span></span>
-                <div class="price-range-track">
-                    <div class="price-range-fill" id="price-range-fill"></div>
-                    <input type="range" id="price-min-filter" min="0" max="${PRICE_SLIDER_RESOLUTION}" value="0" step="1" aria-label="Minimum price">
-                    <input type="range" id="price-max-filter" min="0" max="${PRICE_SLIDER_RESOLUTION}" value="${PRICE_SLIDER_RESOLUTION}" step="1" aria-label="Maximum price">
+            const chips = priceBands.map((b, i) => `<button type="button" class="filter-btn price-band-btn" data-band="${i}" aria-pressed="false">${sanitizeText(b.label)}</button>`).join('');
+            const bandGroup = chips
+                ? `<div class="price-band-group" role="group" aria-labelledby="price-filter-label">${chips}</div>`
+                : '';
+            html += `<div class="price-filter" id="price-filter">
+                <span class="price-filter-label" id="price-filter-label">Price</span>
+                ${bandGroup}
+                <div class="price-exact">
+                    <input type="text" id="price-min-filter" inputmode="decimal" placeholder="Min" aria-label="Minimum price in dollars">
+                    <span class="price-exact-sep" aria-hidden="true">to</span>
+                    <input type="text" id="price-max-filter" inputmode="decimal" placeholder="Max" aria-label="Maximum price in dollars">
                 </div>
             </div>`;
         }
@@ -1513,7 +1523,7 @@ class ChecklistEngine {
                 this._onFilterChange();
             });
         });
-        this._initPriceRangeSlider(container);
+        this._initPriceFilter(container, priceBands);
 
         // Show reorder button if applicable
         this._updateReorderButton();
@@ -1539,9 +1549,48 @@ class ChecklistEngine {
         return defs;
     }
 
-    // Every priced card's price, ascending. This is the checklist's own price
-    // distribution that the slider maps its raw positions against - see
-    // _priceAtSliderPosition and the PRICE_SLIDER_RESOLUTION comment above.
+    // Round thresholds, kept only while they fall below what this checklist
+    // actually charges - so JMU (top price $12) offers "Under $5" and "$5+",
+    // while Jayden Daniels ($1-$7000) gets the full ladder. Fixed bands would be
+    // dead on the first and useless on the second.
+    //
+    // Round numbers rather than quantiles of this checklist's own prices: a
+    // filter is something you form an intent about ("under $25") before you look
+    // at it, and "$0-$3.80" is not an intent anyone has. The distribution still
+    // decides how many bands there are, just not where they fall.
+    _getPriceBands(allCards = this._getAllCardsFlat()) {
+        const sortedPrices = this._getSortedPrices(allCards);
+        const bounds = this._getPriceBounds(allCards, sortedPrices);
+        if (!bounds) return [];
+
+        // Pruned from both ends. Dropping edges at or above the ceiling was the
+        // obvious half; dropping those at or below the *floor* matters just as
+        // much, or a checklist whose cheapest card is $600 offers four chips
+        // that match nothing and land the user on "No cards match these
+        // filters". The floor is the cheapest priced card, which is the only
+        // thing _getSortedPrices' full sort is for.
+        const floor = sortedPrices[0];
+        const edges = PRICE_BAND_EDGES.filter(e => e < bounds.max && e > floor);
+
+        const bands = [];
+        let from = 0;
+        for (const edge of edges) {
+            bands.push({
+                min: from,
+                max: edge,
+                label: from === 0 ? `Under $${edge}` : `$${from}-${edge}`,
+            });
+            from = edge;
+        }
+        // One band is the whole range restated, which filters nothing.
+        if (bands.length === 0) return [];
+        // The last band runs open-ended rather than to the exact top price: a
+        // ceiling that moves whenever the priciest card is edited is a filter
+        // that quietly means something different each time.
+        bands.push({ min: from, max: null, label: `$${from}+` });
+        return bands;
+    }
+
     _getSortedPrices(allCards = this._getAllCardsFlat()) {
         return allCards
             .map(c => this.getPrice(c))
@@ -1549,119 +1598,97 @@ class ChecklistEngine {
             .sort((a, b) => a - b);
     }
 
-    // Price slider bounds from actual priced cards; null when nothing on this
-    // checklist has a price, so the caller can skip rendering the slider. Takes
-    // an already-sorted price list when the caller has one (_renderFilters) to
-    // avoid sorting the same array twice.
+    // The price ceiling, from actual priced cards; null when nothing on this
+    // checklist has a price, so the caller can skip the control entirely. Takes
+    // an already-sorted list when the caller has one (_getPriceBands, which
+    // needs the floor from the same sort) to avoid sorting twice.
     _getPriceBounds(allCards = this._getAllCardsFlat(), sortedPrices = this._getSortedPrices(allCards)) {
         if (sortedPrices.length === 0) return null;
         return { min: 0, max: Math.max(1, Math.ceil(sortedPrices[sortedPrices.length - 1])) };
     }
 
-    // Maps a raw slider position (0..PRICE_SLIDER_RESOLUTION) to a dollar amount
-    // by walking `sortedPrices`, this checklist's own priced cards ascending -
-    // position 0 is always $0 and position PRICE_SLIDER_RESOLUTION is always
-    // exactly the highest price, with sortedPrices treated as [$0, ...prices]
-    // for interpolation so every position in between lands at the percentile of
-    // *cards*, not of dollars. That's what gives the slider real resolution
-    // wherever this checklist's cards are actually clustered - $1-$30, or a
-    // $200-400 band, or wherever - rather than assuming any particular shape.
-    _priceAtSliderPosition(raw, sortedPrices) {
-        const n = sortedPrices.length;
-        if (n === 0) return 0;
-        const t = Math.max(0, Math.min(1, raw / PRICE_SLIDER_RESOLUTION));
-        const pointAt = i => (i === 0 ? 0 : sortedPrices[i - 1]); // index 0 is the implicit $0 floor
-        const idx = t * n;
-        const lo = Math.floor(idx);
-        const hi = Math.min(lo + 1, n);
-        const frac = idx - lo;
-        return Math.round(pointAt(lo) + frac * (pointAt(hi) - pointAt(lo)));
-    }
-
-    // Two overlapping range inputs standing in for one dual-handle slider - each
-    // input's own track is hidden (CSS) and only its thumb accepts pointer events,
-    // so a click always grabs a specific handle instead of jumping the nearer one
-    // to the click point. Dragging one handle past the other clamps them together
-    // rather than letting them cross, which would strand the passed handle under
-    // its sibling with no way to grab it back.
-    //
-    // Clamping alone still leaves one dead end: drag min all the way up to max
-    // and both handles sit at the same pixel. Whichever input is later in the
-    // DOM (max) wins hit-testing there by default, so min becomes permanently
-    // unreachable by pointer - there's no way to widen the range back out.
-    // updateStacking keeps whichever handle is in the "far" half of the track on
-    // top, so the collision point always favors the handle a user would
-    // plausibly want to grab next.
-    _initPriceRangeSlider(container) {
-        const wrap = container.querySelector('#price-range-filter');
+    // Chips and the exact fields are one control over two inputs: a chip is a
+    // shortcut that fills them, and typing is what happens when no band says
+    // what you meant. Keeping the min/max fields as the only state means
+    // _applyFilters has one thing to read and the two can never disagree.
+    _initPriceFilter(container, bands = []) {
+        const wrap = container.querySelector('#price-filter');
         if (!wrap) return;
+
         const minInput = wrap.querySelector('#price-min-filter');
         const maxInput = wrap.querySelector('#price-max-filter');
-        const fill = wrap.querySelector('#price-range-fill');
-        const display = wrap.querySelector('#price-range-display');
-        const sortedPrices = JSON.parse(wrap.dataset.prices || '[]');
-        const mid = PRICE_SLIDER_RESOLUTION / 2;
-        const priceAt = raw => this._priceAtSliderPosition(raw, sortedPrices);
+        this._priceBands = bands;
 
-        // A native thumb's center travels from half its own width to (track
-        // width - half its width), not edge to edge, so a plain percentage
-        // misaligns the fill against the handles near both ends. THUMB_PX must
-        // match the thumb diameter set in shared.css.
-        const THUMB_PX = 16;
-        const thumbOffset = pct => (THUMB_PX / 2) - (pct / 100) * THUMB_PX;
-
-        const update = () => {
-            const minRaw = parseFloat(minInput.value);
-            const maxRaw = parseFloat(maxInput.value);
-            display.textContent = `$${priceAt(minRaw)} - $${priceAt(maxRaw)}`;
-            const left = (minRaw / PRICE_SLIDER_RESOLUTION) * 100;
-            const right = (maxRaw / PRICE_SLIDER_RESOLUTION) * 100;
-            const width = Math.max(0, right - left);
-            fill.style.left = `calc(${left}% + ${thumbOffset(left).toFixed(3)}px)`;
-            fill.style.width = `calc(${width}% + ${(thumbOffset(right) - thumbOffset(left)).toFixed(3)}px)`;
-            // Above the midpoint min is the one likely to collide with max, so
-            // bring it to the front; below the midpoint max is the collision risk.
-            const minOnTop = minRaw > mid;
-            minInput.style.zIndex = minOnTop ? '2' : '1';
-            maxInput.style.zIndex = minOnTop ? '1' : '2';
-        };
-
-        // 'input' fires on every pixel of drag movement; coalesce the (expensive)
-        // full card re-filter to once per frame instead of once per event.
-        let rafId = null;
-        const scheduleFilterChange = () => {
-            if (rafId !== null) return;
-            rafId = requestAnimationFrame(() => {
-                rafId = null;
+        wrap.querySelectorAll('.price-band-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const band = this._priceBands[Number(btn.dataset.band)];
+                if (!band) return;
+                // Clicking the active band clears it, so a chip is a toggle
+                // rather than a trap you can only leave via Clear filters.
+                if (btn.getAttribute('aria-pressed') === 'true') {
+                    minInput.value = '';
+                    maxInput.value = '';
+                    this._setActivePriceBand(null);
+                } else {
+                    minInput.value = band.min > 0 ? String(band.min) : '';
+                    maxInput.value = band.max === null ? '' : String(band.max);
+                    this._setActivePriceBand(btn.dataset.band);
+                }
                 this._onFilterChange();
             });
-        };
-
-        minInput.addEventListener('input', () => {
-            if (parseFloat(minInput.value) > parseFloat(maxInput.value)) minInput.value = maxInput.value;
-            update();
-            scheduleFilterChange();
-        });
-        maxInput.addEventListener('input', () => {
-            // Marks this handle as deliberately set, even if the user lands back
-            // on the ceiling - see the "touched" comment in _applyFilters.
-            maxInput.dataset.touched = 'true';
-            if (parseFloat(maxInput.value) < parseFloat(minInput.value)) maxInput.value = minInput.value;
-            update();
-            scheduleFilterChange();
         });
 
-        // _clearFilters resets the two <input> values, but the fill, the label
-        // and the z-index stacking are all drawn by this closure. A range input
-        // moves its own thumb the moment .value changes, so without a handle on
-        // `update` the two halves disagree: the handles snap back to the full
-        // width while the label and fill stay on the range that was just
-        // cleared. (This checklist's own prices set that range - see
-        // _priceAtSliderPosition - so there is no fixed pair of numbers to name.)
-        this._syncPriceSliderUI = update;
-
-        update();
+        [minInput, maxInput].forEach(input => {
+            input.addEventListener('input', () => {
+                // Typing means the range is the user's own now; light a chip
+                // only if what they typed happens to match one exactly.
+                this._setActivePriceBand(this._matchingPriceBand(minInput.value, maxInput.value));
+                this._onFilterChange();
+            });
+        });
     }
+
+    // One typed bound, in dollars, or null for "no bound on this side".
+    //
+    // The fields are type="text" so this parses rather than trusting the browser
+    // to have: a number input silently discards "$25" and "1,200", and
+    // CardRenderer.parsePriceInput exists because this app's users type both -
+    // the card editor's own price box is text for that reason. Anything that
+    // yields no usable number means no bound, which is what an empty box means
+    // too. The leading-minus check comes before the strip, or "-5" becomes 5,
+    // the same trap parsePriceInput documents.
+    //
+    // Shared with _matchingPriceBand deliberately: parsed differently, "$5" to
+    // "25" would filter as the $5-25 band while leaving its chip dark.
+    _parsePriceBound(value) {
+        const raw = String(value ?? '').trim();
+        if (raw === '' || raw.startsWith('-')) return null;
+        const cleaned = raw.replace(/[^0-9.]/g, '');
+        if (cleaned === '' || cleaned === '.') return null;
+        const n = Number(cleaned);
+        return Number.isFinite(n) ? n : null;
+    }
+
+    // Which band, if any, a typed pair spells out. Returns the band's index as a
+    // string to match the dataset it came from, or null.
+    _matchingPriceBand(minValue, maxValue) {
+        const min = this._parsePriceBound(minValue);
+        const max = this._parsePriceBound(maxValue);
+        const i = (this._priceBands || []).findIndex(b => (b.min === (min ?? 0)) && (b.max === max));
+        return i === -1 ? null : String(i);
+    }
+
+    _setActivePriceBand(index) {
+        // Scoped like the quick-filter reset in _clearFilters: a stray chip
+        // outside the filter bar is not one this control owns.
+        const filtersContainer = document.getElementById('filters-container');
+        filtersContainer?.querySelectorAll('.price-band-btn').forEach(btn => {
+            const on = btn.dataset.band === index;
+            btn.classList.toggle('active', on);
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+    }
+
 
     _getSortLabel(key) {
         if (key === 'default') {
@@ -1907,29 +1934,17 @@ class ChecklistEngine {
         const quickFilters = new Set(
             [...(filtersContainer?.querySelectorAll('.quick-filter-btn.active') || [])].map(b => b.dataset.quickFilter)
         );
+        // Dollars, read off the fields. Blank means unbounded on that side -
+        // which is why the whole "touched" flag the slider needed is gone with
+        // it: an empty max is unambiguously "no maximum", where a handle sitting
+        // at the top of a track was not, and a slider ceiling frozen at render
+        // time used to hide a card whose price was raised past it.
         const priceMin = document.getElementById('price-min-filter');
         const priceMax = document.getElementById('price-max-filter');
-        // The slider's bounds are frozen at the values in place when the filter
-        // bar was last rendered (_renderFilters isn't re-run on every card save),
-        // so a card priced above that ceiling - just-raised, or freshly added -
-        // would otherwise fail the max check and vanish until reload. Comparing
-        // the value to the ceiling isn't enough to detect "untouched" - a user
-        // who drags max down and back up lands on that same number on purpose,
-        // and re-uncapping it would silently defeat the cap they just set. The
-        // "touched" flag (_initPriceRangeSlider) records a real interaction, so
-        // only a handle nobody has ever moved is treated as uncapped.
-        //
-        // The inputs themselves carry a raw 0..PRICE_SLIDER_RESOLUTION position,
-        // not a dollar amount (see _priceAtSliderPosition) - the wrapper's
-        // data-prices is this checklist's own sorted prices that position is
-        // mapped against.
-        const sortedPrices = JSON.parse(document.getElementById('price-range-filter')?.dataset.prices || '[]');
         const priceRange = (priceMin && priceMax)
             ? {
-                min: this._priceAtSliderPosition(parseFloat(priceMin.value), sortedPrices),
-                max: priceMax.dataset.touched === 'true'
-                    ? this._priceAtSliderPosition(parseFloat(priceMax.value), sortedPrices)
-                    : Infinity,
+                min: this._parsePriceBound(priceMin.value) ?? 0,
+                max: this._parsePriceBound(priceMax.value) ?? Infinity,
             }
             : null;
 
@@ -2014,17 +2029,13 @@ class ChecklistEngine {
             btn.setAttribute('aria-pressed', 'false');
         });
 
+        // Empty, not zeroed: blank is what "no bound" means here, and a 0 in the
+        // min box would read as a filter the user did not set.
         const priceMin = document.getElementById('price-min-filter');
         const priceMax = document.getElementById('price-max-filter');
-        if (priceMin && priceMax) {
-            priceMin.value = 0;
-            priceMax.value = PRICE_SLIDER_RESOLUTION;
-            // The cap marker has to go with the cap. _applyFilters reads a
-            // touched max as a deliberate ceiling even when it sits at the top,
-            // so leaving it would keep filtering by a range nobody set anymore.
-            delete priceMax.dataset.touched;
-            this._syncPriceSliderUI?.();
-        }
+        if (priceMin) priceMin.value = '';
+        if (priceMax) priceMax.value = '';
+        this._setActivePriceBand(null);
 
         this._onFilterChange();
     }
@@ -2102,9 +2113,9 @@ class ChecklistEngine {
         // stats), so a hand-edited gist string like "45" filters the same way
         // it sorts. An unpriced card usually means "too rare to find a price
         // for," not "worth $0" - treating it as infinitely expensive keeps it
-        // visible by default (min starts at 0, and the max handle starts
-        // uncapped) and only excludes it once the user sets a real upper cap,
-        // rather than making it vanish the instant min leaves 0.
+        // visible by default (an empty min reads as 0 and an empty max as
+        // Infinity) and only excludes it once the user sets a real upper
+        // bound, rather than making it vanish the instant a floor is set.
         if (priceRange) {
             const rawPrice = this.getPrice(card);
             const price = rawPrice > 0 ? rawPrice : Infinity;

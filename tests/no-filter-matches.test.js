@@ -231,46 +231,48 @@ describe('ChecklistEngine._clearFilters (#769)', () => {
         expect(banner()).toBeNull();
     });
 
-    // The touched flag is what tells _applyFilters a max at the ceiling is a
-    // deliberate cap rather than an untouched handle. Clearing the value without
-    // clearing the flag would keep filtering by a range nobody set.
-    it('drops the price cap and its deliberate-cap marker together', () => {
+    // Empty, not zero: blank is what "no bound" means to _applyFilters, and a 0
+    // left in the min box would read as a filter the user did not set (#772).
+    it('empties the price fields rather than zeroing them', () => {
         const engine = makeEngine();
         const min = document.getElementById('price-min-filter');
         const max = document.getElementById('price-max-filter');
 
-        max.dataset.touched = 'true';
-        max.value = 0; // everything priced above the floor is now excluded
-        engine._applyFilters();
+        min.value = '100';
+        max.value = '200';
+        max.dispatchEvent(new Event('input'));
         expect(visibleCards()).toHaveLength(0);
         expect(banner()).not.toBeNull();
 
         engine._clearFilters();
 
-        expect(max.dataset.touched).toBeUndefined();
-        expect(Number(min.value)).toBe(0);
-        expect(max.value).toBe(max.max);
+        expect(min.value).toBe('');
+        expect(max.value).toBe('');
         expect(visibleCards()).toHaveLength(2);
     });
 
-    it('repaints the slider label rather than leaving it on the old range', () => {
+    it('releases the active price band with the range it set', () => {
         const engine = makeEngine();
-        const max = document.getElementById('price-max-filter');
-        const display = document.getElementById('price-range-display');
-
-        max.dataset.touched = 'true';
-        max.value = 0;
-        max.dispatchEvent(new Event('input'));
-        const capped = display.textContent;
+        const band = [...document.querySelectorAll('.price-band-btn')]
+            .find(b => b.textContent === '$25+');
+        band.click();
+        // Both sides asserted: checking only the post-clear false would pass
+        // just as well if the class were never applied in the first place.
+        expect(band.getAttribute('aria-pressed')).toBe('true');
+        expect(band.classList.contains('active')).toBe(true);
+        expect(document.getElementById('price-min-filter').value).toBe('25');
 
         engine._clearFilters();
 
-        expect(display.textContent).not.toBe(capped);
-        expect(display.textContent).toMatch(/^\$0 - \$50$/);
+        expect(band.getAttribute('aria-pressed')).toBe('false');
+        expect(band.classList.contains('active')).toBe(false);
+        expect(document.getElementById('price-min-filter').value).toBe('');
     });
 
     // The button removes itself as part of clearing, so without a deliberate
     // move focus lands on <body> and a keyboard user is dumped to the top.
+    // (Unrelated to the price filter - deleted as collateral when the slider
+    // tests went, and still passing, so restored.)
     it('moves focus to the search box instead of dropping it on the body', () => {
         const engine = makeEngine();
         document.getElementById('search').value = 'nobody named this';
