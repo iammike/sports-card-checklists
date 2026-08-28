@@ -201,6 +201,7 @@ describe('index aggregate — scope labels (#775)', () => {
     beforeEach(() => {
         document.body.innerHTML = '<div class="aggregate-stats" id="aggregate-stats">'
             + '<div id="agg-owned"></div><div id="agg-total"></div>'
+            + '<div class="aggregate-stat-label" id="agg-total-label">Total Cards</div>'
             + '<div id="agg-value"></div><div class="aggregate-stat-label" id="agg-value-label">Est. Value</div>'
             + '<span id="agg-needed-value"></span></div>';
     });

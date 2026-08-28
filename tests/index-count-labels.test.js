@@ -1,0 +1,122 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+import { renderCard, sourceOf } from './index-source.js';
+
+// #779: with checklists naming their own counts ("Target Cards", "Main Cards"),
+// the index was the last surface calling those numbers plain "cards" - and its
+// aggregate called a sum that leaves cards out "Total Cards".
+
+const INDEX_HTML = readFileSync(resolve(import.meta.dirname, '..', 'index.html'), 'utf-8');
+
+const STATS = { owned: 45, total: 60, ownedValue: 1200, neededValue: 210 };
+const ENTRY = { id: 'jd', type: 'dynamic', title: 'Jayden Daniels', navLabel: 'JD' };
+const SPLIT = { totalLabel: 'Target Cards', categories: [{ id: 'base' }, { id: 'x', isMain: false }] };
+const WHOLE = { categories: [{ id: 'base' }, { id: 'more' }] };
+
+const countText = card => card.querySelector('.progress-main-text').textContent.trim().replace(/\s+/g, ' ');
+
+describe('index card — the count says what it counts (#779)', () => {
+    it("borrows the checklist's own label when the count leaves cards out", () => {
+        expect(countText(renderCard(ENTRY, STATS, undefined, SPLIT)))
+            .toBe('45 of 60 target cards');
+    });
+
+    // "45 of 60 total cards" would be noise: nothing is excluded, so "cards"
+    // is already the honest word.
+    it('says plain cards when nothing is excluded', () => {
+        expect(countText(renderCard(ENTRY, STATS, undefined, WHOLE)))
+            .toBe('45 of 60 cards');
+    });
+
+    it('says plain cards when the config could not be loaded', () => {
+        expect(countText(renderCard(ENTRY, STATS, undefined, null)))
+            .toBe('45 of 60 cards');
+    });
+
+    it('falls back to the default label when the checklist sets none', () => {
+        const config = { categories: [{ id: 'base' }, { id: 'x', isMain: false }] };
+
+        expect(countText(renderCard(ENTRY, STATS, undefined, config)))
+            .toBe('45 of 60 total cards');
+    });
+
+    it('escapes a label rather than trusting it', () => {
+        const config = { totalLabel: '<img src=x onerror=alert(1)>', categories: SPLIT.categories };
+        const card = renderCard(ENTRY, STATS, undefined, config);
+
+        expect(card.querySelector('.progress-main-text img')).toBeNull();
+        expect(countText(card)).toContain('<img');
+    });
+
+    it('survives a non-string label', () => {
+        const config = { totalLabel: 123, categories: SPLIT.categories };
+
+        expect(countText(renderCard(ENTRY, STATS, undefined, config))).toBe('45 of 60 123');
+    });
+});
+
+describe('index aggregate — the count label follows the scope (#779)', () => {
+    const loadAggregate = () => {
+        const { start, end } = sourceOf('function updateAggregateStats(allStats, uniqueOwned, configs = {}) {');
+        return new Function('animateValue',
+            `let hasAnimatedStats = true; ${INDEX_HTML.slice(start, end)}; return updateAggregateStats;`)(vi.fn());
+    };
+
+    beforeEach(() => {
+        document.body.innerHTML = '<div class="aggregate-stats" id="aggregate-stats">'
+            + '<div id="agg-owned"></div><div id="agg-total"></div>'
+            + '<div class="aggregate-stat-label" id="agg-total-label">Total Cards</div>'
+            + '<div id="agg-value"></div><div id="agg-value-label"></div>'
+            + '<span id="agg-needed-value"></span></div>';
+    });
+
+    const label = () => document.getElementById('agg-total-label').textContent;
+    const stats = { jd: { owned: 45, total: 60, ownedValue: 1200, neededValue: 210 } };
+
+    // It sums checklists whose labels disagree, so it cannot borrow one.
+    it('says Cards Tracked when any checklist excludes cards from its count', () => {
+        loadAggregate()(stats, null, { jd: SPLIT });
+
+        expect(label()).toBe('Cards Tracked');
+    });
+
+    it('stays Total Cards when nothing anywhere is excluded', () => {
+        loadAggregate()(stats, null, { jd: WHOLE });
+
+        expect(label()).toBe('Total Cards');
+    });
+
+    it('one excluding checklist is enough, since its count is in the sum', () => {
+        loadAggregate()(
+            { a: stats.jd, b: { owned: 1, total: 2, ownedValue: 5, neededValue: 5 } },
+            null,
+            { a: WHOLE, b: SPLIT },
+        );
+
+        expect(label()).toBe('Cards Tracked');
+    });
+
+    // Same gate as the value label: a checklist contributing nothing to the sum
+    // cannot be the reason it is short.
+    it('ignores a split checklist with no stats yet', () => {
+        loadAggregate()(stats, null, { jd: WHOLE, brandnew: SPLIT });
+
+        expect(label()).toBe('Total Cards');
+    });
+
+    it('goes back to Total Cards when re-run without an excluding checklist', () => {
+        loadAggregate()(stats, null, { jd: SPLIT });
+        expect(label()).toBe('Cards Tracked');
+
+        loadAggregate()(stats, null, { jd: WHOLE });
+
+        expect(label()).toBe('Total Cards');
+    });
+});
+
+describe('index.html carries the element the aggregate label is written into', () => {
+    it('has the id, since every test above builds its own DOM', () => {
+        expect(INDEX_HTML).toContain('id="agg-total-label"');
+    });
+});
