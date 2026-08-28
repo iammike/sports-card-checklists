@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { renderCard } from './index-source.js';
+import { renderCard, sourceOf } from './index-source.js';
 
 // #775: the index card renders both scopes from one computeStats payload -
 // "45 of 60 cards" counts main categories only, "$1,200 value" counts every
@@ -22,6 +22,45 @@ const WHOLE_CONFIG = { categories: [{ id: 'base' }, { id: 'more' }] };
 
 const valueText = card => card.querySelector('.value-owned').textContent;
 const neededText = card => card.querySelector('.value-needed').textContent;
+
+// Everything below this block injects `configs` into an extracted function
+// body, which says nothing about whether index.html ever builds one. Deleting
+// the loop that does left all 1085 tests passing, with every card and the
+// aggregate row rendering unlabelled - the exact bug #775 exists to fix. These
+// pin the wiring itself.
+describe('index.html actually loads and forwards the configs (#775)', () => {
+    it('loads a config per dynamic entry, choosing the reader by auth state', () => {
+        const { start, end } = sourceOf('async function renderDynamicChecklists() {');
+        const body = INDEX_HTML.slice(start, end);
+
+        expect(body).toContain('for (const entry of dynamicEntries)');
+        expect(body).toContain('githubSync.loadChecklistConfig(entry.id)');
+        expect(body).toContain('githubSync.loadPublicChecklistConfig(entry.id)');
+        // Guarded on the same flag the stats read above it uses.
+        expect(body).toMatch(/loggedIn\s*\n?\s*\?\s*await githubSync\.loadChecklistConfig/);
+    });
+
+    it('returns the configs it loaded', () => {
+        const { start, end } = sourceOf('async function renderDynamicChecklists() {');
+
+        expect(INDEX_HTML.slice(start, end)).toContain('return { stats: dynamicStats, entries: dynamicEntries, configs };');
+    });
+
+    it('forwards them to the aggregate row', () => {
+        expect(INDEX_HTML).toContain('const { stats: allStats, entries, configs } = await renderDynamicChecklists();');
+        expect(INDEX_HTML).toContain('updateAggregateStats(allStats, uniqueOwned, configs);');
+    });
+
+    // The card body reads configs[entry.id]; a rename on either side is silent.
+    it('reads the loaded config when rendering a card', () => {
+        const { start, end } = sourceOf('dynamicEntries.forEach(entry => {');
+        const body = INDEX_HTML.slice(start, end);
+
+        expect(body).toContain('configs[entry.id]');
+        expect(body).toContain('countExcludesExtras(config)');
+        expect(body).toContain('completionScopeSuffix(config');
+    });
+});
 
 describe('index card — scope labels (#775)', () => {
     it('says the value spans every card where the count does not', () => {
@@ -89,16 +128,7 @@ describe('index card — scope labels (#775)', () => {
 // strips "(all cards)" from a card that had just shown it.
 describe('index card — the live value patch keeps the scope (#775)', () => {
     const loadUpdater = () => {
-        const marker = 'function updateChecklistCardValues(uniqueOwned) {';
-        const start = INDEX_HTML.indexOf(marker);
-        if (start === -1) throw new Error('updateChecklistCardValues not found in index.html');
-        const bodyStart = INDEX_HTML.indexOf('{', start + marker.length - 1);
-        let depth = 0, end = -1;
-        for (let i = bodyStart; i < INDEX_HTML.length; i++) {
-            if (INDEX_HTML[i] === '{') depth++;
-            else if (INDEX_HTML[i] === '}' && --depth === 0) { end = i + 1; break; }
-        }
-        if (end === -1) throw new Error('unbalanced updateChecklistCardValues body');
+        const { start, end } = sourceOf('function updateChecklistCardValues(uniqueOwned) {');
         // jsdom has no CSS.escape, and the extracted body uses it to build the
         // card selector. Injected rather than set on globalThis so it cannot
         // leak into another test file.
@@ -138,15 +168,7 @@ describe('index card — the live value patch keeps the scope (#775)', () => {
 
 describe('index aggregate — scope labels (#775)', () => {
     const loadAggregate = () => {
-        const marker = 'function updateAggregateStats(allStats, uniqueOwned, configs = {}) {';
-        const start = INDEX_HTML.indexOf(marker);
-        if (start === -1) throw new Error('updateAggregateStats not found in index.html');
-        const bodyStart = INDEX_HTML.indexOf('{', start + marker.length - 1);
-        let depth = 0, end = -1;
-        for (let i = bodyStart; i < INDEX_HTML.length; i++) {
-            if (INDEX_HTML[i] === '{') depth++;
-            else if (INDEX_HTML[i] === '}' && --depth === 0) { end = i + 1; break; }
-        }
+        const { start, end } = sourceOf('function updateAggregateStats(allStats, uniqueOwned, configs = {}) {');
         return new Function('animateValue',
             `let hasAnimatedStats = true; ${INDEX_HTML.slice(start, end)}; return updateAggregateStats;`)(vi.fn());
     };
@@ -184,6 +206,15 @@ describe('index aggregate — scope labels (#775)', () => {
         );
 
         expect(document.getElementById('agg-value-label').textContent).toBe('Est. Value (all cards)');
+    });
+
+    // A checklist contributes nothing to these sums until it has stats, so it
+    // cannot be the reason they disagree.
+    it('ignores a split checklist that has no stats yet', () => {
+        loadAggregate()(stats, null, { jd: WHOLE_CONFIG, brandnew: SPLIT_CONFIG });
+
+        expect(document.getElementById('agg-value-label').textContent).toBe('Est. Value');
+        expect(document.getElementById('agg-needed-value').textContent).toBe('$210 to complete');
     });
 
     it('leaves it plain when no configs could be loaded', () => {

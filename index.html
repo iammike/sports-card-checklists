@@ -642,7 +642,12 @@
             // two tiles are measuring different things (#775). "Total Cards" is
             // this row's own count label, so it names the completion scope the
             // way a checklist's totalLabel does on its page.
-            const anyExcludes = Object.values(configs).some(c => countExcludesExtras(c));
+            // Gated on having stats: only checklists that actually contribute
+            // to these sums can make the two disagree. A new checklist with a
+            // split config and nothing recorded yet would otherwise relabel a
+            // row it adds nothing to.
+            const anyExcludes = Object.entries(configs)
+                .some(([id, c]) => allStats[id] && countExcludesExtras(c));
             document.getElementById('agg-value-label').textContent =
                 anyExcludes ? 'Est. Value (all cards)' : 'Est. Value';
             const aggCompletionScope = anyExcludes ? ' (total cards)' : '';
@@ -818,10 +823,14 @@
             const allGistStats = gistData?.stats || {};
 
             // Per-checklist config, purely to learn whether that checklist's
-            // count excludes cards its value includes (#775). All the config
-            // files live in the one gist, which _fetchGist caches, so this is a
-            // JSON.parse per checklist rather than a request per checklist -
-            // the same thing computeUniqueOwned below already relies on.
+            // count excludes cards its value includes (#775).
+            //
+            // Every config file lives in the gist just read above, and that read
+            // now hands the raw gist to _fetchGist's cache - so this loop is a
+            // JSON.parse per checklist off an object already in memory, not a
+            // request per checklist. That is a property of the caching, not of
+            // this loop: before it, a warm load re-downloaded the whole gist
+            // here, and a dead token re-downloaded it once per checklist.
             const loggedIn = githubSync.isLoggedIn();
             const configs = {};
             for (const entry of dynamicEntries) {
@@ -892,7 +901,7 @@
                                     ${sanitizeText(stats.owned)} of ${sanitizeText(stats.total)} cards
                                 </div>
                                 <div class="value-line">
-                                    <span class="value-owned" data-value-scope="${sanitizeAttr(valueScope)}">$${sanitizeText(stats.ownedValue || 0)} value${sanitizeText(valueScope)}</span>${isComplete ? '' : ` · <span class="value-needed">$${sanitizeText(stats.neededValue || 0)} to complete${sanitizeText(completionScope)}</span>`}
+                                    <span class="value-owned"${valueScope ? ` data-value-scope="${sanitizeAttr(valueScope)}"` : ''}>$${sanitizeText(stats.ownedValue || 0)} value${sanitizeText(valueScope)}</span>${isComplete ? '' : ` · <span class="value-needed">$${sanitizeText(stats.neededValue || 0)} to complete${sanitizeText(completionScope)}</span>`}
                                 </div>
                             </div>
                         </div>
