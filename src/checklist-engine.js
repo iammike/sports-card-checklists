@@ -226,6 +226,14 @@ class ChecklistEngine {
                     this.checklistManager.setSyncStatus('syncing', 'Migrating cards...');
                     await this._saveCardData();
                 }
+                // Saving the config does not save stats, and featuring a section
+                // needs both: the registry gains the pill, but the index gates it
+                // on stats[`${cat.id}Total`], which is only written by a path
+                // that carries stats. Until one ran - toggling a card owned, or
+                // simply revisiting this page - the pill silently did not appear
+                // (#783). Computed after renderCards above, so it reflects the
+                // config just applied rather than the one it replaced.
+                await this._refreshStatsIfStale();
             }
         });
 
@@ -422,6 +430,12 @@ class ChecklistEngine {
 
         try {
             await githubSync.saveChecklistStats(this.id, current);
+            // The snapshot is "what the gist last got from us", so it has to move
+            // with the write. This ran once per page load until #783 gave it a
+            // second caller; without the update, every settings save after the
+            // first would compare against the same stale snapshot and write
+            // again whether or not anything had changed.
+            this._savedStatsSnapshot = current;
         } catch (e) {
             console.warn('Failed to refresh stale stats:', e);
         }
