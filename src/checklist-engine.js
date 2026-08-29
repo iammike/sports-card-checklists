@@ -224,8 +224,22 @@ class ChecklistEngine {
                 DynamicNav.init();
                 if (shapeMigrated) {
                     this.checklistManager.setSyncStatus('syncing', 'Migrating cards...');
-                    await this._saveCardData();
+                    // That write bundles stats into the same PATCH and records
+                    // them, so the refresh below finds nothing to do. Bail on
+                    // failure rather than following it with another write: it
+                    // has its own no-retry rule for a dead session or a rate
+                    // limit, and on any failure the gist would otherwise get
+                    // stats describing a card shape that was never persisted.
+                    if (!await this._saveCardData()) return;
                 }
+                // Saving the config does not save stats, and featuring a section
+                // needs both: the registry gains the pill, but the index gates it
+                // on stats[`${cat.id}Total`], which is only written by a path
+                // that carries stats. Until one ran - toggling a card owned, or
+                // simply revisiting this page - the pill silently did not appear
+                // (#783). Computed after renderCards above, so it reflects the
+                // config just applied rather than the one it replaced.
+                await this._refreshStatsIfStale();
             }
         });
 
@@ -338,17 +352,25 @@ class ChecklistEngine {
             .map(c => collectionLinkTargetId(c.collectionLink))
             .filter(Boolean);
 
-        if (linkedIds.length === 0) {
-            this._linkedStats = {};
-            return;
-        }
+        // Two reasons to load, and either is enough. Links need the other
+        // checklists' stats; the owner needs this checklist's, because
+        // _savedStatsSnapshot is what _refreshStatsIfStale compares against and
+        // it used to be assigned only past the early return - so a checklist
+        // with no collection-link cards never had one and the owner re-wrote
+        // stats on every page load.
+        //
+        // A visitor with no links needs neither: _linkedStats stays empty and
+        // _refreshStatsIfStale returns before touching the snapshot, so fetching
+        // here would be a request nothing reads.
+        this._linkedStats = {};
+        const isOwner = this.checklistManager?.isOwner?.() ?? false;
+        if (linkedIds.length === 0 && !isOwner) return;
 
         const allStats = githubSync.isLoggedIn()
             ? await githubSync.loadAllStats()
             : await githubSync.loadPublicStats();
-
-        this._linkedStats = {};
         this._savedStatsSnapshot = allStats[this.id] || null;
+        if (linkedIds.length === 0) return;
         linkedIds.forEach(id => {
             if (allStats[id]) this._linkedStats[id] = allStats[id];
         });
@@ -416,15 +438,31 @@ class ChecklistEngine {
         const user = githubSync.getUser();
         if (!user || user.login !== OWNER_USERNAME) return;
 
-        const current = this.computeStats();
-        const saved = this._savedStatsSnapshot;
-        if (this._statsEqual(saved, current)) return;
-
         try {
-            await githubSync.saveChecklistStats(this.id, current);
+            const current = this.computeStats();
+            const saved = this._savedStatsSnapshot;
+            if (this._statsEqual(saved, current)) return;
+
+            // Gated on the result, not merely on not throwing.
+            // saveChecklistStats answers false for every failure the gist layer
+            // expects - a dead session, a rate limit, a non-2xx PATCH, a network
+            // error - and essentially never rejects, so the catch below is the
+            // path production almost never takes. Advancing the snapshot anyway
+            // told the engine the gist held stats it had never received, which
+            // is the #783 symptom again and sticky for the rest of the page
+            // rather than self-healing on the next save.
+            const ok = await githubSync.saveChecklistStats(this.id, current);
+            if (ok) this._markStatsSaved(current);
         } catch (e) {
             console.warn('Failed to refresh stale stats:', e);
         }
+    }
+
+    // What the gist last got from us. Every path that writes stats has to say
+    // so, or the next comparison is against a value the gist never saw - either
+    // re-writing what is already there, or skipping a write that is needed.
+    _markStatsSaved(stats) {
+        this._savedStatsSnapshot = stats;
     }
 
     _statsEqual(a, b) {
@@ -497,7 +535,15 @@ class ChecklistEngine {
             result = await githubSync.saveCardData(this.id, this.cardData, stats);
         }
 
-        if (result.ok) markerReleases.forEach(release => release());
+        if (result.ok) {
+            markerReleases.forEach(release => release());
+            // statsSaved, not ok: saveCardData drops the stats half whenever the
+            // collection read failed for anything but a dead session or a rate
+            // limit, and still writes the cards. Recording on ok alone would
+            // claim the gist has stats it never got - and suppress the refresh
+            // that exists to carry them.
+            if (result.statsSaved) this._markStatsSaved(stats);
+        }
 
         return this._applySaveResult(result);
     }
