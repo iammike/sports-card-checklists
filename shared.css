@@ -738,15 +738,37 @@ h1 {
     display: none;
 }
 
+/* Scrolls inside the panel rather than running past the fold (#792). The panel
+   caps its own height in JS; this is the part that actually moves. */
+.filter-panel-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+    /* A flex child will not shrink below its content without this, so the body
+       would keep its full height and the cap would clip the footer instead. */
+    min-height: 0;
+    /* Scrolling to the end of the filters should not then scroll the page. */
+    overscroll-behavior: contain;
+    /* Keeps the scrollbar off the controls without shifting them. */
+    margin-right: -6px;
+    padding-right: 6px;
+}
+
 .filter-row {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    /* Compressing these instead of scrolling is what a cap would otherwise do. */
+    flex-shrink: 0;
 }
 
 .filter-panel-footer {
     display: flex;
     justify-content: flex-end;
+    /* Stays put while the filters scroll behind it - the whole point of the
+       cap is that Clear filters is always on screen. */
+    flex-shrink: 0;
     padding-top: 10px;
     border-top: 1px solid var(--color-border, #eee);
 }
