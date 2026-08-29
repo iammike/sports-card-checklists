@@ -112,7 +112,7 @@ describe('the open panel is capped to the room beneath it (#792)', () => {
 
 describe('the cap is applied when it matters (#792)', () => {
     it('sizes the panel as it opens', () => {
-        const engine = makeEngine();
+        makeEngine();
         setViewportHeight(600);
         stubTop(panel(), 150);
         expect(panel().style.maxHeight).toBe('');
@@ -121,7 +121,6 @@ describe('the cap is applied when it matters (#792)', () => {
 
         expect(panel().hidden).toBe(false);
         expect(panel().style.maxHeight).toBe('438px');
-        expect(engine).toBeTruthy();
     });
 
     // Turning a phone sideways halves the room under an open panel.
@@ -166,6 +165,9 @@ describe('the panel scrolls its filters, not its footer (#792)', () => {
         makeEngine();
         const footer = panel().querySelector('.filter-panel-footer');
 
+        // Without this the negatives below are all satisfied by there being no
+        // .filter-panel-body at all, and the test survives deleting the wrapper.
+        expect(panel().querySelector('.filter-panel-body')).not.toBeNull();
         expect(footer).not.toBeNull();
         expect(footer.closest('.filter-panel-body')).toBeNull();
         expect(footer.parentElement).toBe(panel());
@@ -178,7 +180,11 @@ describe('the scrolling rules back it up (#792)', () => {
         const sheet = css();
         const start = sheet.indexOf(selector);
         expect(start, selector).toBeGreaterThan(-1);
-        return sheet.slice(start, sheet.indexOf('}', start));
+        // Comments stripped: these rules carry rationale comments naming the
+        // very declarations asserted below, and a slice that keeps them is
+        // satisfied by the prose rather than by the CSS.
+        return sheet.slice(start, sheet.indexOf('}', start))
+            .replace(/\/\*[\s\S]*?\*\//g, '');
     };
 
     it('gives the body its own scrollbar', () => {
@@ -197,5 +203,20 @@ describe('the scrolling rules back it up (#792)', () => {
 
     it('pins the footer', () => {
         expect(rule('.filter-panel-footer {')).toContain('flex-shrink: 0');
+    });
+
+    // Reaching the end of the filters should not then start scrolling the page
+    // behind the panel.
+    it('keeps the scroll inside the panel', () => {
+        expect(rule('.filter-panel-body {')).toContain('overscroll-behavior: contain');
+    });
+
+    // The negative margin and matching padding put the scrollbar in the gutter
+    // instead of over the controls, without shifting them.
+    it('gives the scrollbar its own gutter', () => {
+        const body = rule('.filter-panel-body {');
+
+        expect(body).toContain('margin-right: -6px');
+        expect(body).toContain('padding-right: 6px');
     });
 });

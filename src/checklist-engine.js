@@ -12,16 +12,16 @@
 // whenever no link is selected, which is exactly when they should be gone. Every
 // other clearable field is a custom field and is only trusted when this
 // checklist's config declares it - see _clearEmptyFields.
+const ENGINE_BUILTIN_CLEARABLE = new Set([
+    'price', 'img', 'search', 'priceSearch',
+    'collectionLink', 'stackImages',
+]);
+
 // How much breathing room to leave under an open filter panel, and the height
 // below which capping it does more harm than good - at that point the panel is
 // scrolling in a sliver, and letting it run past the fold reads better.
 const FILTER_PANEL_VIEWPORT_MARGIN = 12;
 const FILTER_PANEL_MIN_HEIGHT = 220;
-
-const ENGINE_BUILTIN_CLEARABLE = new Set([
-    'price', 'img', 'search', 'priceSearch',
-    'collectionLink', 'stackImages',
-]);
 
 // _mergeWithFreshGistData() forces a GET before every save so a save can't clobber
 // changes made elsewhere (#560) - but that doubles request volume, and a burst of
@@ -1739,6 +1739,12 @@ class ChecklistEngine {
             this._filterDisclosureBound = true;
             // Turning a phone sideways halves the room under the panel. Cheap
             // enough to recompute, and only while something is open.
+            //
+            // Landscape is also where the floor starts to bind: measured at
+            // 667x375 and 844x390 the room is 193px and 208px, so the cap is
+            // the floor rather than the fit, and at 667x375 that leaves the
+            // footer 1px under the fold. A lower floor would recover that pixel
+            // at the cost of a panel too short to read.
             window.addEventListener('resize', () => {
                 const p = document.getElementById('filters-panel');
                 if (p && !p.hidden) this._sizeFilterPanel(p);
