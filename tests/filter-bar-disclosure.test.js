@@ -266,6 +266,22 @@ describe('active filters stay visible outside the panel (#785)', () => {
         expect(visible(engine)).toEqual(['A', 'B']);
     });
 
+    // Third instance of the same sink: the chips, the panel reset and this one
+    // all remove themselves as part of working. The other two were pinned; this
+    // one was not, so dropping its focus move left the suite green.
+    it('hands focus somewhere real after Clear all removes itself', () => {
+        makeEngine();
+        const sport = document.getElementById('sport-filter');
+        sport.value = 'nba';
+        sport.dispatchEvent(new Event('change'));
+        const clear = document.getElementById('active-filters-clear');
+        clear.focus();
+
+        clear.click();
+
+        expect(document.activeElement).toBe(document.getElementById('search'));
+    });
+
     it('clears the lot from one button', () => {
         const engine = makeEngine();
         const sport = document.getElementById('sport-filter');
@@ -359,6 +375,103 @@ describe('active filters stay visible outside the panel (#785)', () => {
         expect(chips()).toHaveLength(0);
         expect(count().hidden).toBe(true);
         expect(visible(engine)).toEqual(['A', 'B', 'C']);
+    });
+});
+
+// The panel drops onto exactly the strip the chip row occupies - below 600px it
+// is left: 0; right: 0, so an open panel covers "Clear all" entirely. Before
+// this there was no reachable reset at all on a phone with the panel open.
+describe('the panel carries its own reset (#785)', () => {
+    const panelClear = () => document.getElementById('panel-clear-filters');
+
+    it('lives in the panel, not in the row', () => {
+        makeEngine();
+
+        expect(panelClear()).not.toBeNull();
+        expect(panelClear().closest('#filters-panel')).not.toBeNull();
+    });
+
+    // Present but disabled rather than absent: a reset you can only find once
+    // you need it is not much of an affordance.
+    it('is disabled while there is nothing to clear', () => {
+        makeEngine();
+
+        expect(panelClear().disabled).toBe(true);
+    });
+
+    it('enables as soon as a filter is on, and disables again once cleared', () => {
+        makeEngine();
+        const sport = document.getElementById('sport-filter');
+        sport.value = 'nba';
+        sport.dispatchEvent(new Event('change'));
+        expect(panelClear().disabled).toBe(false);
+
+        panelClear().click();
+
+        expect(panelClear().disabled).toBe(true);
+    });
+
+    it('resets every control, not just the one that enabled it', () => {
+        const engine = makeEngine();
+        const sport = document.getElementById('sport-filter');
+        sport.value = 'nba';
+        sport.dispatchEvent(new Event('change'));
+        document.querySelector('.quick-filter-btn').click();
+        const search = document.getElementById('search');
+        search.value = 'prizm';
+        search.dispatchEvent(new Event('input'));
+        const max = document.getElementById('price-max-filter');
+        max.value = '60';
+        max.dispatchEvent(new Event('input'));
+
+        panelClear().click();
+
+        expect(document.getElementById('sport-filter').value).toBe('all');
+        expect(document.querySelector('.quick-filter-btn').getAttribute('aria-pressed')).toBe('false');
+        expect(document.getElementById('search').value).toBe('');
+        expect(document.getElementById('price-max-filter').value).toBe('');
+        expect(chips()).toHaveLength(0);
+        expect(visible(engine)).toEqual(['A', 'B', 'C']);
+    });
+
+    // It disables itself as part of working, so focus has to go somewhere real.
+    it('hands focus to the toggle, and leaves the panel open', () => {
+        makeEngine();
+        const sport = document.getElementById('sport-filter');
+        sport.value = 'nba';
+        sport.dispatchEvent(new Event('change'));
+        toggle().click();
+        panelClear().focus();
+
+        panelClear().click();
+
+        expect(document.activeElement).toBe(toggle());
+        expect(panel().hidden).toBe(false);
+    });
+
+    // Three resets can be on screen at once; two sharing a name is ambiguous to
+    // voice control and to anyone tabbing through.
+    it('does not share its name with the no-matches reset', () => {
+        const engine = makeEngine();
+        document.getElementById('search').value = 'nothing matches this';
+        document.getElementById('search').dispatchEvent(new Event('input'));
+
+        const names = [
+            panelClear().textContent,
+            document.querySelector('.no-matches-clear').textContent,
+            document.getElementById('active-filters-clear').textContent,
+        ];
+
+        expect(new Set(names).size).toBe(names.length);
+        expect(engine).toBeTruthy();
+    });
+
+    it('is styled as disabled, not merely marked so', () => {
+        const sheet = readFileSync(resolve(import.meta.dirname, '..', 'shared.css'), 'utf-8');
+
+        // :hover matches a disabled element, so .filter-btn:hover lit this up as
+        // though it were live - and disabled is its resting state.
+        expect(sheet).toMatch(/\.panel-clear\[disabled\]:hover\s*\{/);
     });
 });
 

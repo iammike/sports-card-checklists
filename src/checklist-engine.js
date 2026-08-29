@@ -1504,7 +1504,7 @@ class ChecklistEngine {
         if (panel) {
             html += `<div class="filter-disclosure">
                 <button type="button" class="filter-btn filter-toggle" id="filters-toggle" aria-expanded="false" aria-controls="filters-panel" aria-label="Filters">Filters<span class="filter-count" id="filter-count" aria-hidden="true" hidden></span></button>
-                <div class="filter-panel" id="filters-panel" role="group" aria-labelledby="filters-toggle" hidden>${panel}</div>
+                <div class="filter-panel" id="filters-panel" role="group" aria-labelledby="filters-toggle" hidden>${panel}<div class="filter-panel-footer"><button type="button" class="filter-btn panel-clear" id="panel-clear-filters" disabled>Clear filters</button></div></div>
             </div>`;
         }
 
@@ -1685,6 +1685,14 @@ class ChecklistEngine {
                 }
             });
         }
+
+        container.querySelector('#panel-clear-filters')?.addEventListener('click', () => {
+            this._clearFilters();
+            // Focus would land on the button it just disabled - and the toggle
+            // is the right target, since _renderActiveFilters has already reset
+            // its label to plain "Filters" by the time focus arrives.
+            container.querySelector('#filters-toggle')?.focus();
+        });
     }
 
     // Every filter currently narrowing the view, as {label, clear}. Read from the
@@ -1759,6 +1767,13 @@ class ChecklistEngine {
             count.textContent = active.length ? String(active.length) : '';
             count.hidden = active.length === 0;
         }
+        // Always present and disabled when there is nothing to clear, unlike the
+        // chip row's "Clear all" which only exists once a filter is on. A reset
+        // you can only find after you need it is not much of an affordance, and
+        // the panel is where someone adjusting filters is already looking.
+        const panelClear = document.getElementById('panel-clear-filters');
+        if (panelClear) panelClear.disabled = active.length === 0;
+
         // The badge is inside the button, so without this the button announces
         // as "Filters2" and the panel it labels inherits that.
         const toggle = document.getElementById('filters-toggle');
@@ -1790,7 +1805,12 @@ class ChecklistEngine {
                 document.getElementById('search')?.focus();
             });
         });
-        host.querySelector('#active-filters-clear')?.addEventListener('click', () => this._clearFilters());
+        host.querySelector('#active-filters-clear')?.addEventListener('click', () => {
+            this._clearFilters();
+            // Same as the chips above and the panel's reset: this button is gone
+            // the moment it works, so focus would land on <body>.
+            document.getElementById('search')?.focus();
+        });
     }
 
     // Chips and the exact fields are one control over two inputs: a chip is a
@@ -2190,8 +2210,13 @@ class ChecklistEngine {
         // in the search box.
         if (showing) return;
 
+        // "Show all cards" rather than a third "Clear filters": with the panel
+        // open this can be on screen at the same time as the panel's own reset,
+        // and two live buttons with one name are ambiguous to voice control and
+        // to anyone tabbing through. It also says what pressing it does, which
+        // is the more useful thing to read when you are looking at nothing.
         region.innerHTML = '<div class="no-matches-text">No cards match these filters</div>'
-            + '<button type="button" class="filter-btn no-matches-clear">Clear filters</button>';
+            + '<button type="button" class="filter-btn no-matches-clear">Show all cards</button>';
         region.querySelector('.no-matches-clear').addEventListener('click', () => {
             this._clearFilters();
             // Clearing empties this region, so the button that was just activated
