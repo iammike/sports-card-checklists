@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 
 const CardRenderer = globalThis.CardRenderer;
 
@@ -172,14 +174,17 @@ describe('CardRenderer.renderPriceBadge', () => {
 });
 
 describe('CardRenderer badge methods', () => {
+  // The badge carries the readable label now, not a baked-in capital string
+  // (#787) - text-transform does the uppercasing, which is asserted from the
+  // stylesheet in the block below.
   it('renderAutoBadge returns badge for auto cards', () => {
-    expect(CardRenderer.renderAutoBadge({ auto: true })).toContain('AUTO');
+    expect(CardRenderer.renderAutoBadge({ auto: true })).toContain('Auto');
     expect(CardRenderer.renderAutoBadge({ auto: false })).toBe('');
     expect(CardRenderer.renderAutoBadge({})).toBe('');
   });
 
   it('renderPatchBadge returns badge for patch cards', () => {
-    expect(CardRenderer.renderPatchBadge({ patch: true })).toContain('PATCH');
+    expect(CardRenderer.renderPatchBadge({ patch: true })).toContain('Patch');
     expect(CardRenderer.renderPatchBadge({ patch: false })).toBe('');
   });
 
@@ -200,14 +205,84 @@ describe('CardRenderer badge methods', () => {
   });
 });
 
+describe('CardRenderer attribute labels (#787)', () => {
+  // Seven of the ten checklists already declare `patch: { label: "Patch" }`.
+  // The label was read by the card editor and thrown away by the badge and the
+  // filter chip, so re-wording an attribute meant a code change.
+  it('renders the label the checklist configured', () => {
+    expect(CardRenderer.renderPatchBadge({ patch: true }, 'Relic')).toContain('Relic');
+    expect(CardRenderer.renderAutoBadge({ auto: true }, 'Autograph')).toContain('Autograph');
+  });
+
+  it('takes the label from customFields when rendering the set', () => {
+    const html = CardRenderer.renderAttributeBadges(
+      { auto: true, patch: true },
+      { auto: { label: 'Signed' }, patch: { label: 'Relic' } }
+    );
+
+    expect(html).toContain('Signed');
+    expect(html).toContain('Relic');
+    expect(html).not.toContain('Patch');
+  });
+
+  it('falls back to the built-in wording when a field declares no label', () => {
+    const html = CardRenderer.renderAttributeBadges(
+      { auto: true, patch: true },
+      { auto: {}, patch: {} }
+    );
+
+    expect(html).toContain('Auto');
+    expect(html).toContain('Patch');
+  });
+
+  // A hand-edited gist can put anything in here, and a blank label should fall
+  // back rather than render an empty pill.
+  it('falls back for a blank or non-string label', () => {
+    expect(CardRenderer.attributeLabel('   ', 'Patch')).toBe('Patch');
+    expect(CardRenderer.attributeLabel(null, 'Patch')).toBe('Patch');
+    expect(CardRenderer.attributeLabel(undefined, 'Patch')).toBe('Patch');
+    expect(CardRenderer.attributeLabel(42, 'Patch')).toBe('42');
+  });
+
+  // The label now comes from the gist, so it lands in HTML unescaped unless
+  // something escapes it - it never needed escaping as a literal.
+  it('escapes a hostile label instead of injecting it', () => {
+    const html = CardRenderer.renderPatchBadge({ patch: true }, '<img src=x onerror=alert(1)>');
+
+    expect(html).not.toContain('<img');
+    expect(html).toContain('&lt;img');
+  });
+});
+
+// The badges used to read AUTO/PATCH because the strings were capitals. Now
+// they carry a readable label, so the capitals have to come from the stylesheet
+// or the badges quietly render as "Auto"/"Relic" in a pill designed for caps.
+describe('the badge stylesheet supplies the caps (#787)', () => {
+  const rule = (selector) => {
+    const sheet = readFileSync(resolve(import.meta.dirname, '..', 'shared.css'), 'utf-8');
+    const start = sheet.indexOf('\n' + selector);
+    expect(start, selector).toBeGreaterThan(-1);
+    return sheet.slice(start, sheet.indexOf('}', start))
+      .replace(/\/\*[\s\S]*?\*\//g, '');
+  };
+
+  it('uppercases both configurable badges', () => {
+    expect(rule('.auto-badge {')).toContain('text-transform: uppercase');
+    expect(rule('.patch-badge {')).toContain('text-transform: uppercase');
+    // Anchored on a newline: '.patch-badge {' also matches inside
+    // '.auto-badge + .patch-badge {', which carries no text-transform.
+    expect(rule('.patch-badge {')).not.toContain('margin-left');
+  });
+});
+
 describe('CardRenderer.renderAttributeBadges', () => {
   it('renders all badges when no customFields filter', () => {
     const html = CardRenderer.renderAttributeBadges(
       { auto: true, patch: true, serial: '/10' },
       null
     );
-    expect(html).toContain('AUTO');
-    expect(html).toContain('PATCH');
+    expect(html).toContain('Auto');
+    expect(html).toContain('Patch');
     expect(html).toContain('/10');
   });
 
@@ -217,8 +292,8 @@ describe('CardRenderer.renderAttributeBadges', () => {
       { auto: { enabled: true }, patch: null, serial: null }
     );
     // auto is truthy in customFields, patch and serial are null (falsy)
-    expect(html).toContain('AUTO');
-    expect(html).not.toContain('PATCH');
+    expect(html).toContain('Auto');
+    expect(html).not.toContain('Patch');
     expect(html).not.toContain('/10');
   });
 });

@@ -152,11 +152,11 @@ class ChecklistCreatorModal {
                             <input type="checkbox" id="creator-attr-variant" checked>
                             <span>Variant</span>
                         </label>
-                        <label class="card-editor-checkbox" title="Checkbox to mark autographed cards. Shows a gold AUTO badge.">
+                        <label class="card-editor-checkbox" title="Checkbox to mark autographed cards. Shows a gold badge on the card.">
                             <input type="checkbox" id="creator-attr-auto" checked>
                             <span>Auto</span>
                         </label>
-                        <label class="card-editor-checkbox" title="Checkbox to mark patch/relic cards. Shows a purple PATCH badge.">
+                        <label class="card-editor-checkbox" title="Checkbox to mark relic cards. Shows a purple badge on the card.">
                             <input type="checkbox" id="creator-attr-patch" checked>
                             <span>Patch</span>
                         </label>
@@ -959,18 +959,29 @@ class ChecklistCreatorModal {
             };
         });
 
-        // Standard attribute fields (toggleable)
+        // Standard attribute fields (toggleable).
+        //
+        // customFields is rebuilt from the form on every save, so a label this
+        // checklist has already been given has to be carried across or it
+        // reverts the next time any unrelated setting is saved. That matters now
+        // that the badge and the filter chip render it (#787): without this,
+        // "Relic" lasts until the owner next touches a theme colour.
+        const existingFields = (this.editMode && this.existingConfig?.customFields) || {};
+        const keepLabel = (key, fallback) => {
+            const existing = existingFields[key]?.label;
+            return typeof existing === 'string' && existing.trim() ? existing : fallback;
+        };
         if (this.backdrop.querySelector('#creator-attr-variant').checked) {
-            customFields.variant = { label: 'Variant', type: 'text', placeholder: 'Silver Prizm', fullWidth: true, position: 'attributes' };
+            customFields.variant = { label: keepLabel('variant', 'Variant'), type: 'text', placeholder: 'Silver Prizm', fullWidth: true, position: 'attributes' };
         }
         if (this.backdrop.querySelector('#creator-attr-auto').checked) {
-            customFields.auto = { label: 'Auto', type: 'checkbox', position: 'attributes' };
+            customFields.auto = { label: keepLabel('auto', 'Auto'), type: 'checkbox', position: 'attributes' };
         }
         if (this.backdrop.querySelector('#creator-attr-patch').checked) {
-            customFields.patch = { label: 'Patch', type: 'checkbox', position: 'attributes' };
+            customFields.patch = { label: keepLabel('patch', 'Patch'), type: 'checkbox', position: 'attributes' };
         }
         if (this.backdrop.querySelector('#creator-attr-serial').checked) {
-            customFields.serial = { label: 'Run', type: 'text', inputType: 'number', placeholder: '99', position: 'attributes' };
+            customFields.serial = { label: keepLabel('serial', 'Run'), type: 'text', inputType: 'number', placeholder: '99', position: 'attributes' };
         }
 
 

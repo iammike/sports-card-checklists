@@ -126,6 +126,84 @@ describe('ChecklistEngine._quickFilterDefs', () => {
     });
 });
 
+// #787: the chips were named by hardcoded strings while every config already
+// carried a label the card editor was rendering. Re-wording an attribute meant
+// editing code; now it follows the config. There is still no input for the
+// label in the settings modal - that is a follow-up - but a label set on the
+// config survives a save, which it did not before.
+describe('ChecklistEngine._quickFilterDefs — chip wording comes from the config (#787)', () => {
+    const labelsOf = (engine) => Object.fromEntries(
+        engine._quickFilterDefs([]).map(d => [d.key, d.label]));
+
+    it('names each chip with the checklist own label', () => {
+        const engine = makeEngine({ customFields: {
+            auto: { type: 'checkbox', label: 'Signed' },
+            patch: { type: 'checkbox', label: 'Relic' },
+            // The label ChecklistCreatorModal._buildConfig really writes.
+            serial: { type: 'text', label: 'Run' },
+        } }, []);
+
+        expect(labelsOf(engine)).toEqual({
+            auto: 'Signed', patch: 'Relic', numbered: 'Numbered',
+        });
+    });
+
+    // serial.label names the box you type 99 into - the creator writes 'Run'
+    // for it - while this chip filters for "has any serial at all". Reading it
+    // renamed the chip to "Run" on every creator-made checklist.
+    it('does not borrow the serial field label for the Numbered chip', () => {
+        const engine = makeEngine({ customFields: {
+            serial: { type: 'text', label: 'Run' },
+        } }, []);
+
+        expect(labelsOf(engine)).toEqual({ numbered: 'Numbered' });
+    });
+
+    // The wording that shipped before this change, for any field that declares
+    // no label of its own.
+    it('falls back to the built-in wording', () => {
+        const engine = makeEngine({ customFields: {
+            auto: { type: 'checkbox' },
+            patch: { type: 'checkbox' },
+            serial: { type: 'text' },
+        } }, []);
+
+        expect(labelsOf(engine)).toEqual({
+            auto: 'Auto', patch: 'Patch', numbered: 'Numbered',
+        });
+    });
+
+    it('falls back with no customFields at all', () => {
+        const engine = makeEngine({ customFields: undefined }, []);
+
+        expect(labelsOf(engine)).toEqual({
+            auto: 'Auto', patch: 'Patch', numbered: 'Numbered',
+        });
+    });
+
+    // A blank label should not render a nameless chip.
+    it('falls back for a blank label', () => {
+        const engine = makeEngine({ customFields: {
+            patch: { type: 'checkbox', label: '   ' },
+        } }, []);
+
+        expect(labelsOf(engine)).toEqual({ patch: 'Patch' });
+    });
+
+    // The chip's label reaches the DOM, so the rendered button has to carry it
+    // too - reading it off the defs alone would not prove the chip changed.
+    it('renders the configured wording on the button', () => {
+        const engine = makeEngine({ customFields: {
+            patch: { type: 'checkbox', label: 'Relic' },
+        } }, [{ set: 'A', num: '1', patch: true }]);
+        engine._renderFilters();
+
+        const chip = document.querySelector('[data-quick-filter="patch"]');
+        expect(chip).not.toBeNull();
+        expect(chip.textContent).toBe('Relic');
+    });
+});
+
 describe('ChecklistEngine — quick filter toggles combine with each other and existing filters', () => {
     const config = {
         customFields: { auto: { type: 'checkbox' }, patch: { type: 'checkbox' } },

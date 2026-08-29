@@ -12,7 +12,7 @@ A modern web app for tracking sports card collections with cloud sync, real-time
 - **Checkbox-based ownership** - Mark cards as owned with a single click
 - **Progress tracking** - Owned/total counts and completion percentage per section and overall
 - **Manual pricing** - Record purchase prices with color-coded badges
-- **Card attribute badges** - AUTO (autograph), PATCH (relic), serial number (/99), and price badges rendered on each card
+- **Card attribute badges** - autograph and relic badges (wording comes from each checklist's config), serial number (/99), and price badges rendered on each card
 - **Serial tracking** - Record numbered cards (/99, /25, /1) with scarcity-based sorting
 - **Drag-and-drop reordering** - Reorder cards within sections via drag (desktop) or touch-drag (mobile) when using Manual sort
 - **Export (owner)** - one dialog across every checklist: needed, owned or all cards, as PDF or CSV

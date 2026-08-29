@@ -157,16 +157,27 @@ const CardRenderer = {
         return `<span class="price-badge ${priceClass}">$${displayPrice}</span>`;
     },
 
+    // The badge text for an attribute: the checklist's own label for the field,
+    // or the built-in wording when it declares none. Coerced the way
+    // renderNoCardBadge coerces, because a hand-edited gist can put a number
+    // here and a blank label should fall back rather than render an empty pill.
+    //
+    // Uppercasing is CSS (text-transform on the badge), not baked in here, so
+    // the accessible name stays "Relic" rather than "RELIC".
+    attributeLabel(label, fallback) {
+        return String(label ?? '').trim() || fallback;
+    },
+
     // Render auto badge HTML (for autographed cards)
-    renderAutoBadge(card) {
+    renderAutoBadge(card, label) {
         if (!card.auto) return '';
-        return `<span class="auto-badge">AUTO</span>`;
+        return `<span class="auto-badge">${sanitizeText(this.attributeLabel(label, 'Auto'))}</span>`;
     },
 
     // Render patch badge HTML (for relic/patch cards)
-    renderPatchBadge(card) {
+    renderPatchBadge(card, label) {
         if (!card.patch) return '';
-        return `<span class="patch-badge">PATCH</span>`;
+        return `<span class="patch-badge">${sanitizeText(this.attributeLabel(label, 'Patch'))}</span>`;
     },
 
     // Render serial badge HTML (for numbered cards, e.g. "/99")
@@ -186,8 +197,10 @@ const CardRenderer = {
     // Render all attribute badges for a card (only those enabled in customFields)
     renderAttributeBadges(card, customFields) {
         let html = '';
-        if (!customFields || customFields.auto) html += this.renderAutoBadge(card);
-        if (!customFields || customFields.patch) html += this.renderPatchBadge(card);
+        if (!customFields || customFields.auto) html += this.renderAutoBadge(card, customFields?.auto?.label);
+        if (!customFields || customFields.patch) html += this.renderPatchBadge(card, customFields?.patch?.label);
+        // The serial badge renders the serial itself ("/99"), so there is no
+        // label to configure - it is the only one of the three with no wording.
         if (!customFields || customFields.serial) html += this.renderSerialBadge(card);
         return html;
     },
