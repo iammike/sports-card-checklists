@@ -984,12 +984,18 @@ select, input[type="text"] {
     .filter-disclosure {
         position: static;
         flex: 1;
-        /* Last in the row, so the bar's bottom edge is this button's own row and
-           `top: 100%` lands 6px under it. Without this the panel opened below
-           whichever row wrapped last: at 380-420 that left a 55px gap with the
-           Export button sitting inside it, so the panel read as Export's menu.
-           Costs a visual/DOM order swap with Export on phones only - they are
-           independent controls, so tabbing reaches both either way. */
+        /* Last in the row, so the bar's bottom edge is this button's own row
+           and the panel's `top: calc(100% + 6px)` lands just under it. Without
+           this the panel opened below whichever row wrapped last: at 380-420
+           that left a 55px gap with the Export button sitting inside it, so the
+           panel read as Export's menu.
+
+           The cost is that Filters paints after Export while the DOM keeps it
+           before - a visual/focus order split, on phones only. Accepted rather
+           than reordering the DOM, which would move the same split onto the
+           desktop row (one row, no wrap, so `order` is not applied there) and
+           put Export between Search/Sort and Filters for every user. These two
+           are independent sibling controls, so either order stays operable. */
         order: 1;
     }
 
