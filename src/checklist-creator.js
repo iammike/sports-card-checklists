@@ -19,6 +19,16 @@ class ChecklistCreatorModal {
         'scarcity': 'Scarcity',
     };
 
+    // The four toggleable attribute fields, with the wording each gets when the
+    // checklist does not name one. Shared by the reset, the populate and the
+    // build so a fifth attribute cannot be added to one and missed by another.
+    static ATTRIBUTE_FIELDS = [
+        { key: 'variant', label: 'Variant' },
+        { key: 'auto', label: 'Auto' },
+        { key: 'patch', label: 'Patch' },
+        { key: 'serial', label: 'Run' },
+    ];
+
     static DEFAULT_SORTS = ['year', 'set', 'price-low', 'price-high'];
 
     // Options for what "Default" sort means
@@ -148,22 +158,38 @@ class ChecklistCreatorModal {
 
                     <div class="creator-subsection-label" style="margin-top: 14px;" title="Toggle which attribute fields appear in the card editor">Attributes</div>
                     <div class="creator-options-row">
-                        <label class="card-editor-checkbox" title="Text field for card variant (e.g. Silver Prizm, Blue Shimmer)">
-                            <input type="checkbox" id="creator-attr-variant" checked>
-                            <span>Variant</span>
-                        </label>
-                        <label class="card-editor-checkbox" title="Checkbox to mark autographed cards. Shows a gold badge on the card.">
-                            <input type="checkbox" id="creator-attr-auto" checked>
-                            <span>Auto</span>
-                        </label>
-                        <label class="card-editor-checkbox" title="Checkbox to mark relic cards. Shows a purple badge on the card.">
-                            <input type="checkbox" id="creator-attr-patch" checked>
-                            <span>Patch</span>
-                        </label>
-                        <label class="card-editor-checkbox" title="Text field for serial numbered cards (e.g. /99, /25). Shows a serial badge.">
-                            <input type="checkbox" id="creator-attr-serial" checked>
-                            <span>Serial</span>
-                        </label>
+                        <div class="creator-attr-field">
+                            <label class="card-editor-checkbox" title="Text field for card variant (e.g. Silver Prizm, Blue Shimmer)">
+                                <input type="checkbox" id="creator-attr-variant" checked>
+                                <span>Variant</span>
+                            </label>
+                            <input type="text" class="card-editor-input creator-attr-label" id="creator-attr-variant-label"
+                                aria-label="Variant wording" placeholder="Variant" maxlength="24">
+                        </div>
+                        <div class="creator-attr-field">
+                            <label class="card-editor-checkbox" title="Checkbox to mark autographed cards. Shows a gold badge on the card.">
+                                <input type="checkbox" id="creator-attr-auto" checked>
+                                <span>Auto</span>
+                            </label>
+                            <input type="text" class="card-editor-input creator-attr-label" id="creator-attr-auto-label"
+                                aria-label="Auto wording" placeholder="Auto" maxlength="24">
+                        </div>
+                        <div class="creator-attr-field">
+                            <label class="card-editor-checkbox" title="Checkbox to mark relic cards. Shows a purple badge on the card.">
+                                <input type="checkbox" id="creator-attr-patch" checked>
+                                <span>Patch</span>
+                            </label>
+                            <input type="text" class="card-editor-input creator-attr-label" id="creator-attr-patch-label"
+                                aria-label="Patch wording" placeholder="Patch" maxlength="24">
+                        </div>
+                        <div class="creator-attr-field">
+                            <label class="card-editor-checkbox" title="Text field for serial numbered cards (e.g. /99, /25). Shows a serial badge.">
+                                <input type="checkbox" id="creator-attr-serial" checked>
+                                <span>Serial</span>
+                            </label>
+                            <input type="text" class="card-editor-input creator-attr-label" id="creator-attr-serial-label"
+                                aria-label="Serial wording" placeholder="Run" maxlength="24">
+                        </div>
                     </div>
 
                     <div class="creator-subsection-label" style="margin-top: 14px;" title="Dollar thresholds for price badge colors: green (below mid), orange (mid to high), red (above high)">Price Badge Colors</div>
@@ -224,6 +250,15 @@ class ChecklistCreatorModal {
         };
         playerCheck.addEventListener('change', syncPlayerFields);
         syncPlayerFields();
+
+        // An attribute that is switched off has no badge to word (#797).
+        ChecklistCreatorModal.ATTRIBUTE_FIELDS.forEach(({ key }) => {
+            const check = backdrop.querySelector(`#creator-attr-${key}`);
+            const label = backdrop.querySelector(`#creator-attr-${key}-label`);
+            const sync = () => { label.disabled = !check.checked; };
+            check.addEventListener('change', sync);
+            sync();
+        });
 
         // Update green hint when mid threshold changes
         // Price threshold validation
@@ -774,11 +809,14 @@ class ChecklistCreatorModal {
         this.backdrop.querySelector('#creator-description').value = '';
         this.backdrop.querySelector('#creator-no-card-label').value = '';
 
-        // Reset attribute checkboxes to checked
-        this.backdrop.querySelector('#creator-attr-variant').checked = true;
-        this.backdrop.querySelector('#creator-attr-auto').checked = true;
-        this.backdrop.querySelector('#creator-attr-patch').checked = true;
-        this.backdrop.querySelector('#creator-attr-serial').checked = true;
+        // Reset attribute checkboxes to checked, and their wording to the defaults
+        ChecklistCreatorModal.ATTRIBUTE_FIELDS.forEach(({ key, label }) => {
+            const check = this.backdrop.querySelector(`#creator-attr-${key}`);
+            check.checked = true;
+            const input = this.backdrop.querySelector(`#creator-attr-${key}-label`);
+            input.value = label;
+            input.disabled = false;
+        });
 
         // Reset price thresholds
         this.backdrop.querySelector('#creator-threshold-mid').value = '3';
@@ -840,10 +878,16 @@ class ChecklistCreatorModal {
 
         // Attribute toggles (default to checked if no customFields yet, otherwise check if present)
         const cf = config.customFields || {};
-        this.backdrop.querySelector('#creator-attr-variant').checked = !config.customFields || 'variant' in cf;
-        this.backdrop.querySelector('#creator-attr-auto').checked = !config.customFields || 'auto' in cf;
-        this.backdrop.querySelector('#creator-attr-patch').checked = !config.customFields || 'patch' in cf;
-        this.backdrop.querySelector('#creator-attr-serial').checked = !config.customFields || 'serial' in cf;
+        ChecklistCreatorModal.ATTRIBUTE_FIELDS.forEach(({ key, label }) => {
+            const check = this.backdrop.querySelector(`#creator-attr-${key}`);
+            check.checked = !config.customFields || key in cf;
+            // Shows what the badge and the chip actually say today, which is the
+            // stored label when there is one and the built-in wording when not.
+            const stored = cf[key]?.label;
+            const input = this.backdrop.querySelector(`#creator-attr-${key}-label`);
+            input.value = typeof stored === 'string' && stored.trim() ? stored : label;
+            input.disabled = !check.checked;
+        });
 
         // Price thresholds
         const thresholds = config.cardDisplay?.priceThresholds || { mid: 3, high: 10 };
@@ -967,7 +1011,13 @@ class ChecklistCreatorModal {
         // that the badge and the filter chip render it (#787): without this,
         // "Relic" lasts until the owner next touches a theme colour.
         const existingFields = (this.editMode && this.existingConfig?.customFields) || {};
+        // The wording input is the source (#797). It falls back to the label the
+        // checklist already carried, and then to the built-in wording, so a
+        // cleared box restores the default rather than producing a blank badge -
+        // and a save made without the inputs present still preserves the label.
         const keepLabel = (key, fallback) => {
+            const typed = this.backdrop.querySelector(`#creator-attr-${key}-label`)?.value;
+            if (typeof typed === 'string' && typed.trim()) return typed.trim();
             const existing = existingFields[key]?.label;
             return typeof existing === 'string' && existing.trim() ? existing : fallback;
         };

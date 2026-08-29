@@ -266,6 +266,17 @@ describe('the badge stylesheet supplies the caps (#787)', () => {
       .replace(/\/\*[\s\S]*?\*\//g, '');
   };
 
+  // The wording is arbitrary now, and the badge sits at top-left under a price
+  // badge pinned to top-right at the same z-index. Without a cap a long label
+  // runs beneath it.
+  it('keeps a long label from running under the price badge', () => {
+    for (const sel of ['.auto-badge {', '.patch-badge {']) {
+      expect(rule(sel), sel).toContain('text-overflow: ellipsis');
+      expect(rule(sel), sel).toContain('max-width:');
+      expect(rule(sel), sel).toContain('white-space: nowrap');
+    }
+  });
+
   it('uppercases both configurable badges', () => {
     expect(rule('.auto-badge {')).toContain('text-transform: uppercase');
     expect(rule('.patch-badge {')).toContain('text-transform: uppercase');

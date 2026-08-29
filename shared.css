@@ -1439,6 +1439,14 @@ select, input[type="text"] {
     /* The wording is configurable (#787), so the caps live here rather than in
        a hardcoded string - the label stays readable to a screen reader. */
     text-transform: uppercase;
+    /* And configurable means arbitrary: without a cap a long label runs under
+       the price badge, which shares top: 8px and z-index: 10 and paints later
+       (#797). The input caps length too; this is the backstop for a hand-edited
+       gist. */
+    max-width: calc(100% - 90px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     position: absolute;
     top: 8px;
     left: 8px;
@@ -1457,6 +1465,14 @@ select, input[type="text"] {
     /* The wording is configurable (#787), so the caps live here rather than in
        a hardcoded string - the label stays readable to a screen reader. */
     text-transform: uppercase;
+    /* And configurable means arbitrary: without a cap a long label runs under
+       the price badge, which shares top: 8px and z-index: 10 and paints later
+       (#797). The input caps length too; this is the backstop for a hand-edited
+       gist. */
+    max-width: calc(100% - 90px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     position: absolute;
     top: 8px;
     left: 8px;
@@ -3382,7 +3398,30 @@ select, input[type="text"] {
     min-width: 0;
 }
 
+/* An attribute toggle and the wording its badge carries, kept together (#797). */
+.creator-attr-field {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* The checkbox is no longer the flex item here, the wrapper is. */
+.creator-attr-field .card-editor-checkbox {
+    flex: none;
+}
+
+.creator-attr-label:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
 @media (max-width: 500px) {
+    .creator-attr-field {
+        flex-basis: calc(50% - 4px);
+    }
+
     .creator-options-row .card-editor-checkbox {
         flex-basis: calc(50% - 4px);
     }
