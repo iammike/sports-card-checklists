@@ -352,17 +352,24 @@ class ChecklistEngine {
             .map(c => collectionLinkTargetId(c.collectionLink))
             .filter(Boolean);
 
-        // Loaded even with no links to resolve: _savedStatsSnapshot is what
-        // _refreshStatsIfStale compares against, and it used to be assigned only
-        // past the early return below - so on a checklist with no collection
-        // link cards it stayed undefined and the owner re-wrote stats on every
-        // page load.
+        // Two reasons to load, and either is enough. Links need the other
+        // checklists' stats; the owner needs this checklist's, because
+        // _savedStatsSnapshot is what _refreshStatsIfStale compares against and
+        // it used to be assigned only past the early return - so a checklist
+        // with no collection-link cards never had one and the owner re-wrote
+        // stats on every page load.
+        //
+        // A visitor with no links needs neither: _linkedStats stays empty and
+        // _refreshStatsIfStale returns before touching the snapshot, so fetching
+        // here would be a request nothing reads.
+        this._linkedStats = {};
+        const isOwner = this.checklistManager?.isOwner?.() ?? false;
+        if (linkedIds.length === 0 && !isOwner) return;
+
         const allStats = githubSync.isLoggedIn()
             ? await githubSync.loadAllStats()
             : await githubSync.loadPublicStats();
         this._savedStatsSnapshot = allStats[this.id] || null;
-
-        this._linkedStats = {};
         if (linkedIds.length === 0) return;
         linkedIds.forEach(id => {
             if (allStats[id]) this._linkedStats[id] = allStats[id];
@@ -530,10 +537,12 @@ class ChecklistEngine {
 
         if (result.ok) {
             markerReleases.forEach(release => release());
-            // This PATCH carried stats too, so record them - otherwise the next
-            // _refreshStatsIfStale compares against a snapshot the gist has
-            // already moved past and re-writes byte-identical stats.
-            this._markStatsSaved(stats);
+            // statsSaved, not ok: saveCardData drops the stats half whenever the
+            // collection read failed for anything but a dead session or a rate
+            // limit, and still writes the cards. Recording on ok alone would
+            // claim the gist has stats it never got - and suppress the refresh
+            // that exists to carry them.
+            if (result.statsSaved) this._markStatsSaved(stats);
         }
 
         return this._applySaveResult(result);

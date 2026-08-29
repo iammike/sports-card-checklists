@@ -1375,11 +1375,17 @@ class GitHubSync {
             }
         }
 
-        const result = await this._patchGistFiles(filesMap);
-        if (result.ok && mergedData) {
+        const patched = await this._patchGistFiles(filesMap);
+        if (patched.ok && mergedData) {
             this._cachedData = mergedData; // keep cache coherent with the write
         }
-        return result;
+        // statsSaved, distinct from ok: the stats half is dropped whenever the
+        // collection read failed for anything but a dead session or a rate
+        // limit, and the cards are still written, so ok:true does not mean the
+        // stats landed. The caller records what the gist received, and treating
+        // this as "saved" would suppress the very refresh the comment above
+        // relies on to pick them up (#783).
+        return { ...patched, statsSaved: Boolean(patched.ok && mergedData) };
     }
 
     // Load card data from gist (for logged-in user editing)

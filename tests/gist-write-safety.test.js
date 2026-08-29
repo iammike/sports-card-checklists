@@ -367,10 +367,37 @@ describe('GitHubSync — a failed collection read must not become a blank write 
 
         const result = await sync.saveCardData('jd', [{ set: 'x' }], { owned: 3 });
         expect(result.ok).toBe(true);
+        // ok is about the cards; statsSaved is about the half that was dropped.
+        // The engine records its stats snapshot from this, and treating ok as
+        // "stats landed" would suppress the refresh meant to carry them (#783).
+        expect(result.statsSaved).toBe(false);
 
         const files = JSON.parse(patches()[0].body).files;
         expect(Object.keys(files)).toEqual(['jd-cards.json']);
         expect(files[GIST_FILENAME]).toBeUndefined();
+    });
+
+    it('reports statsSaved when the stats really did go in', async () => {
+        stubFetch((url, opts) => (opts.method === 'PATCH'
+            ? { ok: true, status: 200, json: async () => ({}) }
+            : gistResponse({ checklists: {}, stats: {} })));
+
+        const result = await sync.saveCardData('jd', [{ set: 'x' }], { owned: 3 });
+
+        expect(result.statsSaved).toBe(true);
+        expect(Object.keys(JSON.parse(patches()[0].body).files).sort())
+            .toEqual([GIST_FILENAME, 'jd-cards.json'].sort());
+    });
+
+    it('reports statsSaved false when no stats were offered at all', async () => {
+        stubFetch((url, opts) => (opts.method === 'PATCH'
+            ? { ok: true, status: 200, json: async () => ({}) }
+            : gistResponse({ checklists: {}, stats: {} })));
+
+        const result = await sync.saveCardData('jd', [{ set: 'x' }]);
+
+        expect(result.ok).toBe(true);
+        expect(result.statsSaved).toBe(false);
     });
 
     // A doomed or pressure-adding PATCH is reported instead of being fired.

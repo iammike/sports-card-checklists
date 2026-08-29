@@ -114,7 +114,8 @@ describe('ChecklistEngine._refreshStatsIfStale (#783)', () => {
         engine.cardData = engine.cards;
         engine._mergeWithFreshGistData = vi.fn(async () => {});
         engine._applySaveResult = (r) => r.ok;
-        window.githubSync.saveCardData = vi.fn(async () => ({ ok: true }));
+        // statsSaved, not merely ok - the real shape saveCardData returns.
+        window.githubSync.saveCardData = vi.fn(async () => ({ ok: true, statsSaved: true }));
 
         expect(await engine._saveCardData()).toBe(true);
         expect(engine._savedStatsSnapshot).toEqual(engine.computeStats());
@@ -124,12 +125,31 @@ describe('ChecklistEngine._refreshStatsIfStale (#783)', () => {
         expect(saved).toHaveLength(0);
     });
 
+    // saveCardData drops the stats half whenever the collection read failed for
+    // anything but a dead session or a rate limit, and still writes the cards.
+    // Recording on ok alone would claim the gist had stats it never got, and
+    // suppress the refresh that exists to carry them.
+    it('records nothing when the card write landed but dropped the stats half', async () => {
+        const engine = makeEngine(CONFIG());
+        engine.cardData = engine.cards;
+        engine._mergeWithFreshGistData = vi.fn(async () => {});
+        engine._applySaveResult = (r) => r.ok;
+        window.githubSync.saveCardData = vi.fn(async () => ({ ok: true, statsSaved: false }));
+
+        expect(await engine._saveCardData()).toBe(true);
+        expect(engine._savedStatsSnapshot).toBeNull();
+
+        // And the refresh still carries them, which is the whole point.
+        await engine._refreshStatsIfStale();
+        expect(saved).toHaveLength(1);
+    });
+
     it('records nothing when that card save failed', async () => {
         const engine = makeEngine(CONFIG());
         engine.cardData = engine.cards;
         engine._mergeWithFreshGistData = vi.fn(async () => {});
         engine._applySaveResult = (r) => r.ok;
-        window.githubSync.saveCardData = vi.fn(async () => ({ ok: false, reason: 'auth_expired' }));
+        window.githubSync.saveCardData = vi.fn(async () => ({ ok: false, reason: 'auth_expired', statsSaved: false }));
 
         await engine._saveCardData();
 
@@ -148,6 +168,21 @@ describe('ChecklistEngine._refreshStatsIfStale (#783)', () => {
         await engine._loadLinkedStats();
 
         expect(engine._savedStatsSnapshot).toEqual(stored);
+        expect(engine._linkedStats).toEqual({});
+    });
+
+    // A visitor with no linked cards reads neither value, so fetching the whole
+    // stats map for them is a request nothing uses.
+    it('skips the fetch entirely for a visitor with no linked cards', async () => {
+        const engine = makeEngine(CONFIG());
+        engine.checklistManager.ownerUsername = 'someone-else';
+        const load = vi.fn(async () => ({}));
+        window.githubSync.loadAllStats = load;
+        window.githubSync.loadPublicStats = load;
+
+        await engine._loadLinkedStats();
+
+        expect(load).not.toHaveBeenCalled();
         expect(engine._linkedStats).toEqual({});
     });
 
