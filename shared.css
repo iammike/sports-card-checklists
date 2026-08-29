@@ -22,6 +22,10 @@ html {
     --color-accent: #f39c12;
     --color-background: #f5f5f5;
     --color-surface: white;
+    /* For surfaces that float over page content rather than sitting in it.
+       --color-surface is a 5% white wash under a dark theme, which is right for
+       a card on the background and see-through for a dropdown over the grid. */
+    --color-surface-overlay: white;
     --color-text: #333;
     --color-text-muted: #666;
     --color-text-light: #999;
@@ -719,7 +723,8 @@ h1 {
     min-width: 280px;
     max-width: min(360px, calc(100vw - 32px));
     padding: 14px 16px;
-    background: var(--color-surface);
+    /* Opaque: this one floats over the card grid. */
+    background: var(--color-surface-overlay);
     border: 1px solid var(--color-border, #ddd);
     border-radius: var(--radius-md);
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
@@ -962,8 +967,36 @@ select, input[type="text"] {
         max-width: none;
     }
 
+    /* The panel spans the bar rather than the button it hangs off (#788).
+       Anchored to the disclosure, it was pinned to a shrink-to-fit button
+       sharing a row with Sort and Export, so its 280px floor over-constrained
+       the left/right pinning and it grew rightward off the screen. Measured in
+       real viewports with the creator's default sortOptions - the widest label,
+       "Sort: Price (Low to High)", is what makes that select 203px and forces
+       the wrap: the page scrolled horizontally from 380 to 500px, worst 155px
+       at 380, and again by 20px at 300. Handing the containing block to the
+       full-width bar gives left/right the whole content width to span. Row
+       count and bar height are unchanged from before the fix at every width. */
+    .filter-bar {
+        position: relative;
+    }
+
     .filter-disclosure {
+        position: static;
         flex: 1;
+        /* Last in the row, so the bar's bottom edge is this button's own row
+           and the panel's `top: calc(100% + 6px)` lands just under it. Without
+           this the panel opened below whichever row wrapped last: at 380-420
+           that left a 55px gap with the Export button sitting inside it, so the
+           panel read as Export's menu.
+
+           The cost is that Filters paints after Export while the DOM keeps it
+           before - a visual/focus order split, on phones only. Accepted rather
+           than reordering the DOM, which would move the same split onto the
+           desktop row (one row, no wrap, so `order` is not applied there) and
+           put Export between Search/Sort and Filters for every user. These two
+           are independent sibling controls, so either order stays operable. */
+        order: 1;
     }
 
     .filter-toggle {
@@ -974,6 +1007,12 @@ select, input[type="text"] {
         left: 0;
         right: 0;
         max-width: none;
+        /* left/right already give the panel its width, and below 320 the floor
+           is the overflow all over again: a 280px viewport leaves 200px of
+           content once .page-content and .filters take their padding, and the
+           panel rendered 280 wide and hung 40px off the edge. From 320 up
+           left/right exceed the floor on their own. */
+        min-width: 0;
     }
 
     .price-exact {

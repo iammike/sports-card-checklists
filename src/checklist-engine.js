@@ -843,6 +843,12 @@ class ChecklistEngine {
             :root {
                 --color-background: linear-gradient(135deg, ${dark} 0%, #1a1a1a 100%);
                 --color-surface: rgba(255,255,255,0.05);
+                /* Opaque, unlike --color-surface: anything floating over the
+                   card grid shows it straight through a 5% wash. */
+                --color-surface-overlay: #262626;
+                /* Never defined before, so every var(--color-border, #ddd) in
+                   the filter UI drew a near-white line on a dark page. */
+                --color-border: rgba(255,255,255,0.15);
                 --auth-bg: rgba(0,0,0,0.2);
                 --stat-bg: rgba(255,255,255,0.1);
                 --stat-value-color: ${accent};
