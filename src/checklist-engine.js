@@ -224,7 +224,13 @@ class ChecklistEngine {
                 DynamicNav.init();
                 if (shapeMigrated) {
                     this.checklistManager.setSyncStatus('syncing', 'Migrating cards...');
-                    await this._saveCardData();
+                    // That write bundles stats into the same PATCH and records
+                    // them, so the refresh below finds nothing to do. Bail on
+                    // failure rather than following it with another write: it
+                    // has its own no-retry rule for a dead session or a rate
+                    // limit, and on any failure the gist would otherwise get
+                    // stats describing a card shape that was never persisted.
+                    if (!await this._saveCardData()) return;
                 }
                 // Saving the config does not save stats, and featuring a section
                 // needs both: the registry gains the pill, but the index gates it
@@ -346,17 +352,18 @@ class ChecklistEngine {
             .map(c => collectionLinkTargetId(c.collectionLink))
             .filter(Boolean);
 
-        if (linkedIds.length === 0) {
-            this._linkedStats = {};
-            return;
-        }
-
+        // Loaded even with no links to resolve: _savedStatsSnapshot is what
+        // _refreshStatsIfStale compares against, and it used to be assigned only
+        // past the early return below - so on a checklist with no collection
+        // link cards it stayed undefined and the owner re-wrote stats on every
+        // page load.
         const allStats = githubSync.isLoggedIn()
             ? await githubSync.loadAllStats()
             : await githubSync.loadPublicStats();
+        this._savedStatsSnapshot = allStats[this.id] || null;
 
         this._linkedStats = {};
-        this._savedStatsSnapshot = allStats[this.id] || null;
+        if (linkedIds.length === 0) return;
         linkedIds.forEach(id => {
             if (allStats[id]) this._linkedStats[id] = allStats[id];
         });
@@ -424,21 +431,31 @@ class ChecklistEngine {
         const user = githubSync.getUser();
         if (!user || user.login !== OWNER_USERNAME) return;
 
-        const current = this.computeStats();
-        const saved = this._savedStatsSnapshot;
-        if (this._statsEqual(saved, current)) return;
-
         try {
-            await githubSync.saveChecklistStats(this.id, current);
-            // The snapshot is "what the gist last got from us", so it has to move
-            // with the write. This ran once per page load until #783 gave it a
-            // second caller; without the update, every settings save after the
-            // first would compare against the same stale snapshot and write
-            // again whether or not anything had changed.
-            this._savedStatsSnapshot = current;
+            const current = this.computeStats();
+            const saved = this._savedStatsSnapshot;
+            if (this._statsEqual(saved, current)) return;
+
+            // Gated on the result, not merely on not throwing.
+            // saveChecklistStats answers false for every failure the gist layer
+            // expects - a dead session, a rate limit, a non-2xx PATCH, a network
+            // error - and essentially never rejects, so the catch below is the
+            // path production almost never takes. Advancing the snapshot anyway
+            // told the engine the gist held stats it had never received, which
+            // is the #783 symptom again and sticky for the rest of the page
+            // rather than self-healing on the next save.
+            const ok = await githubSync.saveChecklistStats(this.id, current);
+            if (ok) this._markStatsSaved(current);
         } catch (e) {
             console.warn('Failed to refresh stale stats:', e);
         }
+    }
+
+    // What the gist last got from us. Every path that writes stats has to say
+    // so, or the next comparison is against a value the gist never saw - either
+    // re-writing what is already there, or skipping a write that is needed.
+    _markStatsSaved(stats) {
+        this._savedStatsSnapshot = stats;
     }
 
     _statsEqual(a, b) {
@@ -511,7 +528,13 @@ class ChecklistEngine {
             result = await githubSync.saveCardData(this.id, this.cardData, stats);
         }
 
-        if (result.ok) markerReleases.forEach(release => release());
+        if (result.ok) {
+            markerReleases.forEach(release => release());
+            // This PATCH carried stats too, so record them - otherwise the next
+            // _refreshStatsIfStale compares against a snapshot the gist has
+            // already moved past and re-writes byte-identical stats.
+            this._markStatsSaved(stats);
+        }
 
         return this._applySaveResult(result);
     }

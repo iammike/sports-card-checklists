@@ -68,9 +68,9 @@ describe('ChecklistEngine._refreshStatsIfStale (#783)', () => {
         expect(saved).toHaveLength(0);
     });
 
-    // The snapshot is "what the gist last got from us", so it has to move with
-    // the write - otherwise the second caller compares against the same stale
-    // value and writes again whether or not anything changed.
+    // The snapshot is "what the gist last got from us", so every path that
+    // writes stats has to say so - otherwise the next comparison is against a
+    // value the gist never saw and writes again whether or not anything changed.
     it('moves the snapshot with the write, so a second call is a no-op', async () => {
         const engine = makeEngine(CONFIG());
 
@@ -80,11 +80,82 @@ describe('ChecklistEngine._refreshStatsIfStale (#783)', () => {
         expect(saved).toHaveLength(1);
     });
 
-    it('leaves the snapshot alone when the write fails, so the next attempt retries', async () => {
+    // saveChecklistStats resolves false for every failure the gist layer
+    // expects - a dead session, a rate limit, a non-2xx PATCH, a network error -
+    // and essentially never rejects. A test that throws models a shape the real
+    // code does not produce, which is how this went unnoticed.
+    it('leaves the snapshot alone when the write reports failure, so the next attempt retries', async () => {
+        const engine = makeEngine(CONFIG());
+        const save = vi.fn(async () => false);
+        window.githubSync.saveChecklistStats = save;
+
+        await engine._refreshStatsIfStale();
+        expect(engine._savedStatsSnapshot).toBeNull();
+
+        // And the next call actually tries again rather than believing it landed.
+        await engine._refreshStatsIfStale();
+        expect(save).toHaveBeenCalledTimes(2);
+    });
+
+    // Kept as well: a genuine throw still must not advance it.
+    it('leaves the snapshot alone when the write throws', async () => {
         const engine = makeEngine(CONFIG());
         window.githubSync.saveChecklistStats = vi.fn(async () => { throw new Error('offline'); });
 
         await engine._refreshStatsIfStale();
+
+        expect(engine._savedStatsSnapshot).toBeNull();
+    });
+
+    // The migration tests below stub _saveCardData wholesale, so the real one's
+    // recording goes unexercised by them. This drives it.
+    it('records its stats when a card save carries them, so no refresh follows', async () => {
+        const engine = makeEngine(CONFIG());
+        engine.cardData = engine.cards;
+        engine._mergeWithFreshGistData = vi.fn(async () => {});
+        engine._applySaveResult = (r) => r.ok;
+        window.githubSync.saveCardData = vi.fn(async () => ({ ok: true }));
+
+        expect(await engine._saveCardData()).toBe(true);
+        expect(engine._savedStatsSnapshot).toEqual(engine.computeStats());
+
+        // Which is the point: the refresh now finds nothing to do.
+        await engine._refreshStatsIfStale();
+        expect(saved).toHaveLength(0);
+    });
+
+    it('records nothing when that card save failed', async () => {
+        const engine = makeEngine(CONFIG());
+        engine.cardData = engine.cards;
+        engine._mergeWithFreshGistData = vi.fn(async () => {});
+        engine._applySaveResult = (r) => r.ok;
+        window.githubSync.saveCardData = vi.fn(async () => ({ ok: false, reason: 'auth_expired' }));
+
+        await engine._saveCardData();
+
+        expect(engine._savedStatsSnapshot).toBeNull();
+    });
+
+    // The snapshot the whole comparison rests on was assigned only past
+    // _loadLinkedStats' "no linked cards" early return, so on a checklist with
+    // no collection-link cards it stayed undefined - and undefined never equals
+    // anything, so the owner re-wrote stats on every single page load.
+    it('is seeded even on a checklist with no collection links', async () => {
+        const engine = makeEngine(CONFIG());
+        const stored = { owned: 0, total: 1, insertsTotal: 1 };
+        window.githubSync.loadAllStats = vi.fn(async () => ({ jd: stored }));
+
+        await engine._loadLinkedStats();
+
+        expect(engine._savedStatsSnapshot).toEqual(stored);
+        expect(engine._linkedStats).toEqual({});
+    });
+
+    it('still seeds it as null when the gist holds no stats for this checklist', async () => {
+        const engine = makeEngine(CONFIG());
+        window.githubSync.loadAllStats = vi.fn(async () => ({}));
+
+        await engine._loadLinkedStats();
 
         expect(engine._savedStatsSnapshot).toBeNull();
     });
@@ -183,6 +254,38 @@ describe('saving checklist settings refreshes its stats (#783)', () => {
 
         // index.html: `stats[pill.id + 'Total']`, and a 0 renders no pill.
         expect(saved[0].stats.insertsTotal).toBe(1);
+    });
+
+    // A migration writes stats itself, in the same PATCH as the card data. The
+    // refresh must not follow it with a second, identical write - nor with any
+    // write at all when the migration failed, since that write has its own
+    // no-retry rule and the gist would get stats for a shape never persisted.
+    it('adds no second write after a migration that already saved stats', async () => {
+        const engine = prepared(CONFIG());
+        engine._migrateDataShape = () => true;
+        engine._saveCardData = vi.fn(async () => {
+            engine._markStatsSaved(engine.computeStats());
+            return true;
+        });
+        engine.checklistManager.setSyncStatus = vi.fn();
+        const onCreated = captureOnCreated(engine);
+
+        await onCreated(CONFIG());
+
+        expect(engine._saveCardData).toHaveBeenCalledTimes(1);
+        expect(saved).toHaveLength(0);
+    });
+
+    it('writes nothing at all when the migration failed', async () => {
+        const engine = prepared(CONFIG());
+        engine._migrateDataShape = () => true;
+        engine._saveCardData = vi.fn(async () => false);
+        engine.checklistManager.setSyncStatus = vi.fn();
+        const onCreated = captureOnCreated(engine);
+
+        await onCreated(CONFIG());
+
+        expect(saved).toHaveLength(0);
     });
 
     it('writes nothing when the save changed nothing about the counts', async () => {
