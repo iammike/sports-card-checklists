@@ -1436,6 +1436,9 @@ select, input[type="text"] {
 /* Auto Badge (autographed cards) - gold */
 .auto-badge {
     font-family: 'Barlow', sans-serif;
+    /* The wording is configurable (#787), so the caps live here rather than in
+       a hardcoded string - the label stays readable to a screen reader. */
+    text-transform: uppercase;
     position: absolute;
     top: 8px;
     left: 8px;
@@ -1451,6 +1454,9 @@ select, input[type="text"] {
 /* Patch Badge (relic/patch cards) - purple */
 .patch-badge {
     font-family: 'Barlow', sans-serif;
+    /* The wording is configurable (#787), so the caps live here rather than in
+       a hardcoded string - the label stays readable to a screen reader. */
+    text-transform: uppercase;
     position: absolute;
     top: 8px;
     left: 8px;

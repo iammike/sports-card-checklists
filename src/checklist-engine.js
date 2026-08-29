@@ -1625,10 +1625,18 @@ class ChecklistEngine {
     // on data presence instead - shown only when some card actually carries it.
     _quickFilterDefs(allCards = this._getAllCardsFlat()) {
         const customFields = this.config.customFields;
+        // Each chip is named by the checklist's own label for the field it
+        // filters on, falling back to the built-in wording. Every config already
+        // carries these labels and the editor already renders them; only the
+        // chip and the badge were throwing them away (#787), which is why
+        // re-wording an attribute used to mean a code change.
+        const labelFor = (field, fallback) =>
+            CardRenderer.attributeLabel(customFields?.[field]?.label, fallback);
         const defs = [
-            { key: 'auto', label: 'Auto', field: 'auto' },
-            { key: 'patch', label: 'Patch', field: 'patch' },
-            { key: 'numbered', label: 'Numbered', field: 'serial' },
+            { key: 'auto', label: labelFor('auto', 'Auto'), field: 'auto' },
+            { key: 'patch', label: labelFor('patch', 'Patch'), field: 'patch' },
+            // Reads serial's label, unlike the badge, which has none to read.
+            { key: 'numbered', label: labelFor('serial', 'Numbered'), field: 'serial' },
         ].filter(d => !customFields || customFields[d.field]);
 
         if (allCards.some(c => c.rc)) {
