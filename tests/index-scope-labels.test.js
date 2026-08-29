@@ -202,7 +202,11 @@ describe('index aggregate — scope labels (#775)', () => {
         document.body.innerHTML = '<div class="aggregate-stats" id="aggregate-stats">'
             + '<div id="agg-owned"></div><div id="agg-total"></div>'
             + '<div class="aggregate-stat-label" id="agg-total-label">Total Cards</div>'
-            + '<div id="agg-value"></div><div class="aggregate-stat-label" id="agg-value-label">Est. Value</div>'
+            // Sentinels, not the expected defaults: seeded with the real text,
+            // every "stays plain" assertion below passes even when the else
+            // branch never writes at all. Same trap as the count label's
+            // fixture - this is the sibling that was left behind.
+            + '<div id="agg-value"></div><div class="aggregate-stat-label" id="agg-value-label">UNSET</div>'
             + '<span id="agg-needed-value"></span></div>';
     });
 

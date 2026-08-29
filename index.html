@@ -665,9 +665,10 @@
             //
             // "Cards Owned" beside it is left alone, but the pair is only
             // half-parallel and worth saying so: both are main-only, yet Owned
-            // is de-duplicated across checklists (computeUniqueOwned) and this
-            // sum is not, so one physical card listed on two checklists counts
-            // once there and twice here.
+            // is de-duplicated across checklists when that figure is available
+            // (computeUniqueOwned; it falls back to this same raw sum when it is
+            // not) and this sum never is - so one physical card listed on two
+            // checklists usually counts once there and twice here.
             const aggCountLabel = anyExcludes ? 'Target Cards' : DEFAULT_COUNT_LABEL;
             document.getElementById('agg-total-label').textContent = aggCountLabel;
 
