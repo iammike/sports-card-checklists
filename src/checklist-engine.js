@@ -12,6 +12,12 @@
 // whenever no link is selected, which is exactly when they should be gone. Every
 // other clearable field is a custom field and is only trusted when this
 // checklist's config declares it - see _clearEmptyFields.
+// How much breathing room to leave under an open filter panel, and the height
+// below which capping it does more harm than good - at that point the panel is
+// scrolling in a sliver, and letting it run past the fold reads better.
+const FILTER_PANEL_VIEWPORT_MARGIN = 12;
+const FILTER_PANEL_MIN_HEIGHT = 220;
+
 const ENGINE_BUILTIN_CLEARABLE = new Set([
     'price', 'img', 'search', 'priceSearch',
     'collectionLink', 'stackImages',
@@ -1556,7 +1562,7 @@ class ChecklistEngine {
         if (panel) {
             html += `<div class="filter-disclosure">
                 <button type="button" class="filter-btn filter-toggle" id="filters-toggle" aria-expanded="false" aria-controls="filters-panel" aria-label="Filters">Filters<span class="filter-count" id="filter-count" aria-hidden="true" hidden></span></button>
-                <div class="filter-panel" id="filters-panel" role="group" aria-labelledby="filters-toggle" hidden>${panel}<div class="filter-panel-footer"><button type="button" class="filter-btn panel-clear" id="panel-clear-filters" disabled>Clear filters</button></div></div>
+                <div class="filter-panel" id="filters-panel" role="group" aria-labelledby="filters-toggle" hidden><div class="filter-panel-body">${panel}</div><div class="filter-panel-footer"><button type="button" class="filter-btn panel-clear" id="panel-clear-filters" disabled>Clear filters</button></div></div>
             </div>`;
         }
 
@@ -1692,6 +1698,21 @@ class ChecklistEngine {
     // The Filters button and its panel. Mirrors the nav dropdown's mechanics
     // (button with aria-expanded, click-outside and Escape to close) rather than
     // introducing a second popover pattern.
+    // The panel is absolutely positioned, so the room beneath it depends on how
+    // far the bar has scrolled - which CSS cannot see, hence a measured cap
+    // rather than a vh value. Without it a checklist with several custom
+    // filters renders a 636px panel: on a 375x553 phone the Clear filters
+    // button lands 223px below the fold. It stays reachable, since an absolute
+    // element extends the page's scroll range, but reaching it means scrolling
+    // the page out from under the trigger that opened it (#792).
+    _sizeFilterPanel(panel) {
+        if (!panel || panel.hidden) return;
+        // Anchored by `top`, so this does not depend on the height being set.
+        const top = panel.getBoundingClientRect().top;
+        const room = window.innerHeight - top - FILTER_PANEL_VIEWPORT_MARGIN;
+        panel.style.maxHeight = `${Math.max(room, FILTER_PANEL_MIN_HEIGHT)}px`;
+    }
+
     _initFilterDisclosure(container) {
         const toggle = container.querySelector('#filters-toggle');
         const panel = container.querySelector('#filters-panel');
@@ -1701,6 +1722,7 @@ class ChecklistEngine {
             toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
             panel.hidden = !open;
             toggle.classList.toggle('open', open);
+            if (open) this._sizeFilterPanel(panel);
         };
 
         toggle.addEventListener('click', () => {
@@ -1715,6 +1737,12 @@ class ChecklistEngine {
         // menu that dismisses on its first selection.
         if (!this._filterDisclosureBound) {
             this._filterDisclosureBound = true;
+            // Turning a phone sideways halves the room under the panel. Cheap
+            // enough to recompute, and only while something is open.
+            window.addEventListener('resize', () => {
+                const p = document.getElementById('filters-panel');
+                if (p && !p.hidden) this._sizeFilterPanel(p);
+            });
             document.addEventListener('click', (e) => {
                 const t = document.getElementById('filters-toggle');
                 const p = document.getElementById('filters-panel');
