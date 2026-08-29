@@ -74,7 +74,7 @@ class ChecklistCreatorModal {
                         </div>
                         <div class="card-editor-field full-width">
                             <label class="card-editor-label">Count Label</label>
-                            <input type="text" class="card-editor-input" id="creator-total-label" placeholder="Total Cards" maxlength="24" title="Heading over the card count in the header. The count covers only sections with 'Counts' ticked, so name it for those - e.g. 'Main Cards' - when some sections are excluded">
+                            <input type="text" class="card-editor-input" id="creator-total-label" placeholder="Total Cards" maxlength="16" title="Heading over the card count in the header. The count covers only sections with 'Counts' ticked, so name it for those - e.g. 'Main Cards' - when some sections are excluded">
                         </div>
                         <div class="card-editor-field full-width">
                             <label class="card-editor-label">Description</label>
@@ -164,7 +164,7 @@ class ChecklistCreatorModal {
                                 <span>Variant</span>
                             </label>
                             <input type="text" class="card-editor-input creator-attr-label" id="creator-attr-variant-label"
-                                aria-label="Variant wording" placeholder="Variant" maxlength="24">
+                                aria-label="Variant wording" placeholder="Variant" maxlength="16">
                         </div>
                         <div class="creator-attr-field">
                             <label class="card-editor-checkbox" title="Checkbox to mark autographed cards. Shows a gold badge on the card.">
@@ -172,7 +172,7 @@ class ChecklistCreatorModal {
                                 <span>Auto</span>
                             </label>
                             <input type="text" class="card-editor-input creator-attr-label" id="creator-attr-auto-label"
-                                aria-label="Auto wording" placeholder="Auto" maxlength="24">
+                                aria-label="Auto wording" placeholder="Auto" maxlength="16">
                         </div>
                         <div class="creator-attr-field">
                             <label class="card-editor-checkbox" title="Checkbox to mark relic cards. Shows a purple badge on the card.">
@@ -180,7 +180,7 @@ class ChecklistCreatorModal {
                                 <span>Patch</span>
                             </label>
                             <input type="text" class="card-editor-input creator-attr-label" id="creator-attr-patch-label"
-                                aria-label="Patch wording" placeholder="Patch" maxlength="24">
+                                aria-label="Patch wording" placeholder="Patch" maxlength="16">
                         </div>
                         <div class="creator-attr-field">
                             <label class="card-editor-checkbox" title="Text field for serial numbered cards (e.g. /99, /25). Shows a serial badge.">
@@ -188,7 +188,7 @@ class ChecklistCreatorModal {
                                 <span>Serial</span>
                             </label>
                             <input type="text" class="card-editor-input creator-attr-label" id="creator-attr-serial-label"
-                                aria-label="Serial wording" placeholder="Run" maxlength="24">
+                                aria-label="Serial field label" title="Names the field in the card editor. The Numbered filter and the serial badge do not use it." placeholder="Run" maxlength="16">
                         </div>
                     </div>
 
@@ -1005,33 +1005,30 @@ class ChecklistCreatorModal {
 
         // Standard attribute fields (toggleable).
         //
-        // customFields is rebuilt from the form on every save, so a label this
-        // checklist has already been given has to be carried across or it
-        // reverts the next time any unrelated setting is saved. That matters now
-        // that the badge and the filter chip render it (#787): without this,
-        // "Relic" lasts until the owner next touches a theme colour.
-        const existingFields = (this.editMode && this.existingConfig?.customFields) || {};
-        // The wording input is the source (#797). It falls back to the label the
-        // checklist already carried, and then to the built-in wording, so a
-        // cleared box restores the default rather than producing a blank badge -
-        // and a save made without the inputs present still preserves the label.
-        const keepLabel = (key, fallback) => {
-            const typed = this.backdrop.querySelector(`#creator-attr-${key}-label`)?.value;
-            if (typeof typed === 'string' && typed.trim()) return typed.trim();
-            const existing = existingFields[key]?.label;
-            return typeof existing === 'string' && existing.trim() ? existing : fallback;
+        // The wording input is the only source (#797). It is what carries a
+        // label across a save - customFields is rebuilt from the form every
+        // time, and _populateForm has already filled the input with the stored
+        // label - so there is deliberately no second fallback to
+        // existingConfig here. With one, a cleared box re-saved the stored
+        // label instead of restoring the default, which is the opposite of what
+        // the input's own placeholder promises.
+        const attrDefault = new Map(
+            ChecklistCreatorModal.ATTRIBUTE_FIELDS.map(f => [f.key, f.label]));
+        const attrLabel = (key) => {
+            const typed = this.backdrop.querySelector(`#creator-attr-${key}-label`).value;
+            return typed.trim() || attrDefault.get(key);
         };
         if (this.backdrop.querySelector('#creator-attr-variant').checked) {
-            customFields.variant = { label: keepLabel('variant', 'Variant'), type: 'text', placeholder: 'Silver Prizm', fullWidth: true, position: 'attributes' };
+            customFields.variant = { label: attrLabel('variant'), type: 'text', placeholder: 'Silver Prizm', fullWidth: true, position: 'attributes' };
         }
         if (this.backdrop.querySelector('#creator-attr-auto').checked) {
-            customFields.auto = { label: keepLabel('auto', 'Auto'), type: 'checkbox', position: 'attributes' };
+            customFields.auto = { label: attrLabel('auto'), type: 'checkbox', position: 'attributes' };
         }
         if (this.backdrop.querySelector('#creator-attr-patch').checked) {
-            customFields.patch = { label: keepLabel('patch', 'Patch'), type: 'checkbox', position: 'attributes' };
+            customFields.patch = { label: attrLabel('patch'), type: 'checkbox', position: 'attributes' };
         }
         if (this.backdrop.querySelector('#creator-attr-serial').checked) {
-            customFields.serial = { label: keepLabel('serial', 'Run'), type: 'text', inputType: 'number', placeholder: '99', position: 'attributes' };
+            customFields.serial = { label: attrLabel('serial'), type: 'text', inputType: 'number', placeholder: '99', position: 'attributes' };
         }
 
 

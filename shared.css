@@ -3393,23 +3393,17 @@ select, input[type="text"] {
     flex-wrap: wrap;
 }
 
-.creator-options-row .card-editor-checkbox {
-    flex: 1;
-    min-width: 0;
-}
-
-/* An attribute toggle and the wording its badge carries, kept together (#797). */
+/* An attribute toggle and the wording its badge carries, kept together (#797).
+   This wrapper is the row's flex item now - every child of .creator-options-row
+   is one - so the sizing that used to sit on .card-editor-checkbox lives here.
+   Left on the checkbox it reached the nested one instead, handing a column flex
+   child a percentage *height* basis at the narrow breakpoint. */
 .creator-attr-field {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 6px;
-}
-
-/* The checkbox is no longer the flex item here, the wrapper is. */
-.creator-attr-field .card-editor-checkbox {
-    flex: none;
 }
 
 .creator-attr-label:disabled {
@@ -3419,10 +3413,6 @@ select, input[type="text"] {
 
 @media (max-width: 500px) {
     .creator-attr-field {
-        flex-basis: calc(50% - 4px);
-    }
-
-    .creator-options-row .card-editor-checkbox {
         flex-basis: calc(50% - 4px);
     }
 }

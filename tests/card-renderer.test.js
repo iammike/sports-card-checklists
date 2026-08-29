@@ -272,7 +272,10 @@ describe('the badge stylesheet supplies the caps (#787)', () => {
   it('keeps a long label from running under the price badge', () => {
     for (const sel of ['.auto-badge {', '.patch-badge {']) {
       expect(rule(sel), sel).toContain('text-overflow: ellipsis');
-      expect(rule(sel), sel).toContain('max-width:');
+      // Pinned, not just present: a cap that reserves nothing (max-width:
+      // calc(100% - 8px)) would satisfy a bare toContain while the overlap
+      // returns. 90px is the price badge's own width plus its 8px inset.
+      expect(rule(sel), sel).toContain('max-width: calc(100% - 90px)');
       expect(rule(sel), sel).toContain('white-space: nowrap');
     }
   });

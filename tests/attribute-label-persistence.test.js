@@ -180,12 +180,24 @@ describe('the settings modal can set the wording (#797)', () => {
         expect(creator._buildConfig().customFields.patch.label).toBe('Relic');
     });
 
-    // Clearing the box should restore the default, not save a nameless badge.
+    // Clearing the box restores the default, which is what its placeholder
+    // promises. The fixture has to carry a *stored* label: with an unlabelled
+    // config the default and the stored value are the same string, so the test
+    // passes either way - it did, while a cleared box was really re-saving
+    // "Relic".
     it('falls back to the built-in wording when the box is cleared', () => {
-        const creator = openEditing({ title: 'x', navLabel: 'X', customFields: {
-            patch: { type: 'checkbox' },
-        } });
+        const creator = openEditing(RELIC_CONFIG);
+        expect(labelInput(creator, 'patch').value).toBe('Relic');
+
         labelInput(creator, 'patch').value = '   ';
+
+        expect(creator._buildConfig().customFields.patch.label).toBe('Patch');
+    });
+
+    // Same for an empty string, not just whitespace.
+    it('falls back when the box is emptied outright', () => {
+        const creator = openEditing(RELIC_CONFIG);
+        labelInput(creator, 'patch').value = '';
 
         expect(creator._buildConfig().customFields.patch.label).toBe('Patch');
     });
@@ -221,10 +233,12 @@ describe('the settings modal can set the wording (#797)', () => {
         expect(input.closest('.card-editor-modal')).not.toBeNull();
     });
 
-    // Arbitrary wording reaches a badge sized for a short word.
+    // Arbitrary wording reaches a badge sized for a short word: at 12px
+    // uppercase it ellipsizes around 13-14 characters, so this bounds input
+    // near what can actually show rather than at an arbitrary larger number.
     it('bounds the length', () => {
         const creator = openEditing(RELIC_CONFIG);
 
-        expect(labelInput(creator, 'patch').getAttribute('maxlength')).toBe('24');
+        expect(labelInput(creator, 'patch').getAttribute('maxlength')).toBe('16');
     });
 });
