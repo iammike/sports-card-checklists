@@ -475,26 +475,32 @@ describe('the panel carries its own reset (#785)', () => {
     });
 });
 
+const css = () => readFileSync(resolve(import.meta.dirname, '..', 'shared.css'), 'utf-8');
+
+// Sliced to the block's own closing brace: to EOF, these would pass just as well
+// with the rules sitting outside the media query entirely. Shared by the #785
+// and #788 blocks below rather than copied - a slicer that quietly stops slicing
+// correctly reports success everywhere it is used.
+const block = (sheet, opener) => {
+    const start = sheet.indexOf(opener);
+    expect(start, opener).toBeGreaterThan(-1);
+    let depth = 0;
+    for (let i = sheet.indexOf('{', start); i < sheet.length; i++) {
+        if (sheet[i] === '{') depth++;
+        else if (sheet[i] === '}' && --depth === 0) return sheet.slice(start, i + 1);
+    }
+    throw new Error(`unbalanced ${opener}`);
+};
+
+// The file holds three separate @media (max-width: 600px) blocks; this is the
+// first, the one the filter rules live in.
+const narrowBlock = () => block(css(), '@media (max-width: 600px)');
+
+// It had none at all: .filters was a bare flex-wrap, so 13 controls became a
+// wall on a phone. jsdom applies no cascade, so all of this is read from source.
 describe('the bar finally has responsive rules (#785)', () => {
-    const css = () => readFileSync(resolve(import.meta.dirname, '..', 'shared.css'), 'utf-8');
-
-    // It had none at all: .filters was a bare flex-wrap, so 13 controls became a
-    // wall on a phone. jsdom applies no cascade, so this is read from source.
-    // Sliced to the block's own closing brace: to EOF, these would pass just as
-    // well with the rules sitting outside the media query entirely.
-    const block = (sheet, opener) => {
-        const start = sheet.indexOf(opener);
-        expect(start, opener).toBeGreaterThan(-1);
-        let depth = 0;
-        for (let i = sheet.indexOf('{', start); i < sheet.length; i++) {
-            if (sheet[i] === '{') depth++;
-            else if (sheet[i] === '}' && --depth === 0) return sheet.slice(start, i + 1);
-        }
-        throw new Error(`unbalanced ${opener}`);
-    };
-
     it('stacks the row on a narrow screen', () => {
-        const narrow = block(css(), '@media (max-width: 600px)');
+        const narrow = narrowBlock();
 
         expect(narrow).toContain('.filter-bar .search-wrapper');
         expect(narrow).toContain('.filter-panel');
@@ -511,7 +517,7 @@ describe('the bar finally has responsive rules (#785)', () => {
     // whole-block assertion is satisfied by a rule this test is not about, and
     // deleting the line it means to guard leaves the suite green.
     it('uncaps it on a narrow screen, where the room is not there anyway', () => {
-        const narrow = block(css(), '@media (max-width: 600px)');
+        const narrow = narrowBlock();
 
         expect(block(narrow, '.filter-bar .search-wrapper {')).toContain('max-width: none');
     });
@@ -539,5 +545,71 @@ describe('the bar finally has responsive rules (#785)', () => {
         expect(sheet.slice(override, override + 60)).toContain('display: none');
         // After the rule it overrides, like .filter-panel[hidden].
         expect(override).toBeGreaterThan(base);
+    });
+});
+
+describe('the filter panel fits a phone (#788)', () => {
+    // Reported as "have to scroll horizontally". Measured in real viewports
+    // (280-760px, engine-rendered markup, the creator's default sortOptions),
+    // because the width of the sort select is what forces the wrap and a
+    // narrower fixture hides the bug entirely: before the fix the page scrolled
+    // horizontally from 380 to 500px, worst 155px at 380, and again by 20px at
+    // 300. Afterwards scrollWidth equals the viewport at every width sampled,
+    // with the bar's row count and height unchanged.
+    //
+    // jsdom computes no layout, so none of that is reachable from a test here;
+    // these pin the declarations the measurement showed to be load-bearing.
+    // Each was re-checked by deleting it and re-measuring, not just by deleting
+    // it and re-running these.
+
+    it('hands the panel containing block to the bar, which spans the width', () => {
+        const narrow = narrowBlock();
+
+        expect(block(narrow, '.filter-bar {')).toContain('position: relative');
+        expect(block(narrow, '.filter-disclosure {')).toContain('position: static');
+    });
+
+    // Only the narrow block takes the anchor away. Losing it everywhere would
+    // drop the desktop panel onto the initial containing block, where left/right
+    // span the whole window.
+    it('leaves the disclosure anchoring the panel on a wide screen', () => {
+        expect(block(css(), '.filter-disclosure {')).toContain('position: relative');
+    });
+
+    // Scoped to the .filter-panel rule inside the block, not to the block:
+    // .price-exact input carries an identical `min-width: 0` there, so a
+    // whole-block assertion passes with the line this test guards deleted.
+    it('drops the 280px floor, wider than a small phone leaves room for', () => {
+        // 320px viewport - 40px .page-content - 40px .filters = 240px of content.
+        expect(block(narrowBlock(), '.filter-panel {')).toContain('min-width: 0');
+    });
+
+    it('keeps the floor on a wide screen, where the panel hangs off a button', () => {
+        expect(block(css(), '.filter-panel {')).toContain('min-width: 280px');
+    });
+
+    it('pins both edges, so left/right are what size the panel', () => {
+        const panelRule = block(narrowBlock(), '.filter-panel {');
+
+        expect(panelRule).toContain('left: 0');
+        expect(panelRule).toContain('right: 0');
+    });
+
+    // Giving the disclosure its own row also clears the overflow, but measured
+    // against this same markup it takes the bar from 135px tall to 180px, with
+    // Sort alone on one row and Export alone on another - the ragged wall #785
+    // set out to remove. `flex: 1` is what keeps it sharing.
+    it('does not let the disclosure claim a whole row to itself', () => {
+        expect(block(narrowBlock(), '.filter-disclosure {')).toMatch(/flex:\s*1;/);
+    });
+
+    // `top: calc(100% + 6px)` now resolves against the bar, so the panel opens
+    // under whichever row wrapped last. With the disclosure left in source order
+    // that was not its own row: at 380-420 the panel sat 55px below the Filters
+    // button with Export inside the gap, reading as Export's menu. Ordering it
+    // last makes the bar's bottom edge its own row's bottom edge - measured gap
+    // back to 6px, and no width in 280-620 puts Export in the gap.
+    it('puts the disclosure last, so the panel opens under its own trigger', () => {
+        expect(block(narrowBlock(), '.filter-disclosure {')).toContain('order: 1');
     });
 });
