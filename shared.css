@@ -747,10 +747,19 @@ h1 {
 }
 
 /* Disabled rather than absent when nothing is filtered, so the reset is
-   findable before it is needed. */
+   findable before it is needed. That makes disabled its resting state rather
+   than a transient one, which is why the hover has to be neutralised too -
+   :hover still matches a disabled element, so .filter-btn:hover was lighting
+   it up as though it were live. Opacity and cursor match the disabled buttons
+   in the card editor. */
 .panel-clear[disabled] {
-    opacity: 0.45;
-    cursor: default;
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.panel-clear[disabled]:hover {
+    background: var(--color-surface);
+    border-color: var(--color-border, #ddd);
 }
 
 .filter-row-label {
@@ -770,11 +779,12 @@ h1 {
 /* ---- Active filter chips ---- */
 /* Outside the panel on purpose: a disclosure that hides which filters are on
    would be worse than the crowded row it replaced. */
-/* Centred, like .filter-bar above it, so the chips sit under the Filters button
-   that produced them rather than drifting to the far left of a row whose
-   controls are centred. Kept on their own line rather than inline in the bar:
-   inline, four active filters would grow the row again, which is the whole
-   thing #785 set out to stop. */
+/* Centred as a group, like .filter-bar above it, rather than starting at the
+   far left of a row whose controls are centred. Not literally under the Filters
+   button - that sits right of centre among four controls, while these centre on
+   the bar's midpoint - just no longer visually unrelated to it.
+   Kept on their own line rather than inline in the bar: inline, four active
+   filters would grow the row again, which is what #785 set out to stop. */
 .active-filters:not(:empty) {
     display: flex;
     flex-wrap: wrap;
@@ -935,6 +945,7 @@ select, input[type="text"] {
 @media (pointer: coarse) {
     .active-filter,
     .active-filter-clear,
+    .panel-clear,
     .price-band-btn,
     .price-exact input {
         min-height: 40px;

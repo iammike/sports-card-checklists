@@ -1661,12 +1661,6 @@ class ChecklistEngine {
         // the page whenever the filter panel was touched. Containment is what
         // keeps this panel open instead - the panel is a working surface, not a
         // menu that dismisses on its first selection.
-        container.querySelector('#panel-clear-filters')?.addEventListener('click', () => {
-            this._clearFilters();
-            // Focus would land on the button it just disabled.
-            container.querySelector('#filters-toggle')?.focus();
-        });
-
         if (!this._filterDisclosureBound) {
             this._filterDisclosureBound = true;
             document.addEventListener('click', (e) => {
@@ -1691,6 +1685,14 @@ class ChecklistEngine {
                 }
             });
         }
+
+        container.querySelector('#panel-clear-filters')?.addEventListener('click', () => {
+            this._clearFilters();
+            // Focus would land on the button it just disabled - and the toggle
+            // is the right target, since _renderActiveFilters has already reset
+            // its label to plain "Filters" by the time focus arrives.
+            container.querySelector('#filters-toggle')?.focus();
+        });
     }
 
     // Every filter currently narrowing the view, as {label, clear}. Read from the
@@ -1803,7 +1805,12 @@ class ChecklistEngine {
                 document.getElementById('search')?.focus();
             });
         });
-        host.querySelector('#active-filters-clear')?.addEventListener('click', () => this._clearFilters());
+        host.querySelector('#active-filters-clear')?.addEventListener('click', () => {
+            this._clearFilters();
+            // Same as the chips above and the panel's reset: this button is gone
+            // the moment it works, so focus would land on <body>.
+            document.getElementById('search')?.focus();
+        });
     }
 
     // Chips and the exact fields are one control over two inputs: a chip is a
@@ -2203,8 +2210,13 @@ class ChecklistEngine {
         // in the search box.
         if (showing) return;
 
+        // "Show all cards" rather than a third "Clear filters": with the panel
+        // open this can be on screen at the same time as the panel's own reset,
+        // and two live buttons with one name are ambiguous to voice control and
+        // to anyone tabbing through. It also says what pressing it does, which
+        // is the more useful thing to read when you are looking at nothing.
         region.innerHTML = '<div class="no-matches-text">No cards match these filters</div>'
-            + '<button type="button" class="filter-btn no-matches-clear">Clear filters</button>';
+            + '<button type="button" class="filter-btn no-matches-clear">Show all cards</button>';
         region.querySelector('.no-matches-clear').addEventListener('click', () => {
             this._clearFilters();
             // Clearing empties this region, so the button that was just activated
