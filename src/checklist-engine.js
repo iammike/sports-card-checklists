@@ -1635,8 +1635,12 @@ class ChecklistEngine {
         const defs = [
             { key: 'auto', label: labelFor('auto', 'Auto'), field: 'auto' },
             { key: 'patch', label: labelFor('patch', 'Patch'), field: 'patch' },
-            // Reads serial's label, unlike the badge, which has none to read.
-            { key: 'numbered', label: labelFor('serial', 'Numbered'), field: 'serial' },
+            // Not labelFor('serial'): serial's label names the text box you type
+            // 99 into, and the creator writes 'Run' for it. This chip is the
+            // boolean "has any serial" filter, so borrowing that label renamed
+            // the chip to "Run" on every creator-made checklist. There is no
+            // config key meaning "numbered", so this one stays literal.
+            { key: 'numbered', label: 'Numbered', field: 'serial' },
         ].filter(d => !customFields || customFields[d.field]);
 
         if (allCards.some(c => c.rc)) {

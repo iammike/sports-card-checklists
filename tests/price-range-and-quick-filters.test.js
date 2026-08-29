@@ -128,7 +128,9 @@ describe('ChecklistEngine._quickFilterDefs', () => {
 
 // #787: the chips were named by hardcoded strings while every config already
 // carried a label the card editor was rendering. Re-wording an attribute meant
-// editing code; now it is a config edit, settable from the settings modal.
+// editing code; now it follows the config. There is still no input for the
+// label in the settings modal - that is a follow-up - but a label set on the
+// config survives a save, which it did not before.
 describe('ChecklistEngine._quickFilterDefs — chip wording comes from the config (#787)', () => {
     const labelsOf = (engine) => Object.fromEntries(
         engine._quickFilterDefs([]).map(d => [d.key, d.label]));
@@ -137,12 +139,24 @@ describe('ChecklistEngine._quickFilterDefs — chip wording comes from the confi
         const engine = makeEngine({ customFields: {
             auto: { type: 'checkbox', label: 'Signed' },
             patch: { type: 'checkbox', label: 'Relic' },
-            serial: { type: 'text', label: 'Numbered To' },
+            // The label ChecklistCreatorModal._buildConfig really writes.
+            serial: { type: 'text', label: 'Run' },
         } }, []);
 
         expect(labelsOf(engine)).toEqual({
-            auto: 'Signed', patch: 'Relic', numbered: 'Numbered To',
+            auto: 'Signed', patch: 'Relic', numbered: 'Numbered',
         });
+    });
+
+    // serial.label names the box you type 99 into - the creator writes 'Run'
+    // for it - while this chip filters for "has any serial at all". Reading it
+    // renamed the chip to "Run" on every creator-made checklist.
+    it('does not borrow the serial field label for the Numbered chip', () => {
+        const engine = makeEngine({ customFields: {
+            serial: { type: 'text', label: 'Run' },
+        } }, []);
+
+        expect(labelsOf(engine)).toEqual({ numbered: 'Numbered' });
     });
 
     // The wording that shipped before this change, for any field that declares

@@ -260,7 +260,7 @@ describe('CardRenderer attribute labels (#787)', () => {
 describe('the badge stylesheet supplies the caps (#787)', () => {
   const rule = (selector) => {
     const sheet = readFileSync(resolve(import.meta.dirname, '..', 'shared.css'), 'utf-8');
-    const start = sheet.indexOf(selector);
+    const start = sheet.indexOf('\n' + selector);
     expect(start, selector).toBeGreaterThan(-1);
     return sheet.slice(start, sheet.indexOf('}', start))
       .replace(/\/\*[\s\S]*?\*\//g, '');
@@ -269,6 +269,9 @@ describe('the badge stylesheet supplies the caps (#787)', () => {
   it('uppercases both configurable badges', () => {
     expect(rule('.auto-badge {')).toContain('text-transform: uppercase');
     expect(rule('.patch-badge {')).toContain('text-transform: uppercase');
+    // Anchored on a newline: '.patch-badge {' also matches inside
+    // '.auto-badge + .patch-badge {', which carries no text-transform.
+    expect(rule('.patch-badge {')).not.toContain('margin-left');
   });
 });
 
