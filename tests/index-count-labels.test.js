@@ -176,3 +176,24 @@ describe('index.html carries the element the aggregate label is written into', (
         expect(INDEX_HTML).toContain('id="agg-total-label"');
     });
 });
+
+// #784: #781 centralised the "unset" wording as DEFAULT_COUNT_LABEL so the
+// header, the completion suffix and the count-noun rule cannot disagree about
+// it. updateAggregateStats reads the constant, but the markup it writes into
+// ships with the string spelled out - the one place left that can drift, and
+// the one a reader sees before any JS runs.
+describe('the aggregate label placeholder matches the constant (#784)', () => {
+    const INDEX_HTML = readFileSync(resolve(import.meta.dirname, '..', 'index.html'), 'utf-8');
+
+    it('spells the default the same way src/shared.js does', () => {
+        const m = INDEX_HTML.match(/id="agg-total-label"[^>]*>([^<]*)</);
+
+        expect(m, 'agg-total-label not found in index.html').not.toBeNull();
+        expect(m[1]).toBe(globalThis.DEFAULT_COUNT_LABEL);
+    });
+
+    // The JS half, so a rename cannot be applied to the markup alone.
+    it('has the updater read the constant rather than restate it', () => {
+        expect(INDEX_HTML).toContain("anyExcludes ? 'Target Cards' : DEFAULT_COUNT_LABEL");
+    });
+});

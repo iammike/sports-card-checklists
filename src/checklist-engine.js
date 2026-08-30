@@ -1532,12 +1532,17 @@ class ChecklistEngine {
         // Computed once and handed to _initPriceFilter below: the chips' data-band
         // indices and the array they index have to be the same array.
         const priceBands = this._getPriceBands(allCards);
-        const priceBounds = this._getPriceBounds(allCards);
+        // Whether anything here is priced at all, which is what decides between
+        // rendering the price controls and omitting them. A linear scan rather
+        // than _getPriceBounds: that sorts every price to find a ceiling this
+        // caller never reads, and _getPriceBands above has already paid for one
+        // sort of the same list.
+        const hasPricedCards = allCards.some(c => this.getPrice(c) > 0);
         // Nit 11 from review: bands can come back empty while cards are still
         // priced (everything under the first edge, or above the last). The
         // exact fields are the only way to filter on price at all then - and
         // the only way to hide unpriced cards - so they render regardless.
-        if (priceBounds) {
+        if (hasPricedCards) {
             const chips = priceBands.map((b, i) => `<button type="button" class="filter-btn price-band-btn" data-band="${i}" aria-pressed="false">${sanitizeText(b.label)}</button>`).join('');
             const bandGroup = chips
                 ? `<div class="filter-row-group" role="group" aria-labelledby="price-filter-label">${chips}</div>`

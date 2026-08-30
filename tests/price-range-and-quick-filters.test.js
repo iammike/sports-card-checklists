@@ -357,8 +357,6 @@ describe('ChecklistEngine — price filter (#772)', () => {
     });
 
     // The slider froze its ceiling at render time, so a card priced above it
-    // vanished until reload. Nothing is frozen now.
-    // The slider froze its ceiling at render time, so a card priced above it
     // vanished until reload. Reproduced properly: a bound is actually set from
     // the bar built against the old prices, then a pricier card arrives.
     it('does not hide a card priced above what the filter bar was built from', () => {
