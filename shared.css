@@ -1422,17 +1422,6 @@ select, input[type="text"] {
 .price-badge.mid { background: var(--color-warning); }
 .price-badge.high { background: var(--color-error); }
 
-/* Left-side attribute badges container */
-.card-badges-left {
-    position: absolute;
-    top: 8px;
-    left: 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    z-index: 10;
-}
-
 /* Top-left attribute badges, stacked (#801). Each badge used to position
    itself, and two could coexist only because of
    `.auto-badge + .patch-badge { top: 30px }` - a rule that hardcodes exactly
@@ -1509,7 +1498,6 @@ select, input[type="text"] {
     border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-/* When auto + patch both present, stack them */
 .price-link {
     font-family: 'Barlow', sans-serif;
     display: inline-block;
@@ -3403,7 +3391,11 @@ select, input[type="text"] {
    Left on the checkbox it reached the nested one instead, handing a column flex
    child a percentage *height* basis at the narrow breakpoint. */
 .creator-attr-field {
-    flex: 1;
+    /* A basis, not just grow: at five across the pills shrank below their own
+       labels - measured 76px each in the 480px modal, with "Variant" spilling
+       8px past its border, since min-width: 0 lets a flex item go under its
+       content. A basis makes the row wrap to 3+2 instead. */
+    flex: 1 1 120px;
     min-width: 0;
     display: flex;
     flex-direction: column;

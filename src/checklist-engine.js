@@ -3119,11 +3119,26 @@ class ChecklistEngine {
             }
         });
 
-        // Empty-string custom text fields. Checkboxes are skipped: an unchecked box
-        // is simply absent from the form data, so there's nothing to compare against.
+        // Custom fields the editor manages. An unchecked checkbox is absent from
+        // the form data entirely (getCustomFieldData omits it), so for a
+        // checkbox absence *is* the clear - there is nothing to compare against,
+        // which is why this used to skip them and leave the hardcoded list above
+        // as the only thing that could unset one. That list had to be extended
+        // by hand per attribute, and `relic` was added without it (#801): the
+        // box unticked, the save reported success, and _mergeCardArrays put the
+        // value straight back from the gist, permanently.
+        //
+        // Safe because _updateCard is only reached from the editor save path,
+        // and the editor renders exactly the fields the config declares - so an
+        // absent declared field really does mean the owner cleared it. clear()
+        // still gates on _isManagedField and de-dupes, so overlapping with the
+        // list above costs nothing.
         const customFields = this.config.customFields || {};
         for (const [key, config] of Object.entries(customFields)) {
-            if (config.type === 'checkbox') continue;
+            if (config.type === 'checkbox') {
+                if (!cardData[key]) clear(key);
+                continue;
+            }
             if (key in cardData && !cardData[key]) clear(key);
         }
 

@@ -1,4 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 
 const ChecklistCreatorModal = globalThis.ChecklistCreatorModal;
 
@@ -265,5 +267,68 @@ describe('the settings modal can set the wording (#797)', () => {
         const creator = openEditing(RELABELLED_CONFIG);
 
         expect(labelInput(creator, 'patch').getAttribute('maxlength')).toBe('16');
+    });
+});
+
+// #801 added a fifth attribute. Its checkbox shipped without `checked` while
+// _clearForm sets every attribute checked, so the markup and the behaviour
+// disagreed about what a new checklist gets - and nothing pinned either.
+describe('a new checklist gets every attribute (#801)', () => {
+    function openNew() {
+        const creator = new ChecklistCreatorModal({});
+        creator.open();
+        creator.backdrop.querySelector('#creator-title').value = 'New List';
+        creator.backdrop.querySelector('#creator-nav-label').value = 'NEW';
+        return creator;
+    }
+
+    it('ticks every attribute, relic included', () => {
+        const creator = openNew();
+
+        ChecklistCreatorModal.ATTRIBUTE_FIELDS.forEach(({ key }) => {
+            expect(creator.backdrop.querySelector(`#creator-attr-${key}`).checked, key).toBe(true);
+        });
+    });
+
+    it('writes them all into the config', () => {
+        const cf = openNew()._buildConfig().customFields;
+
+        expect(Object.keys(cf)).toEqual(expect.arrayContaining(
+            ChecklistCreatorModal.ATTRIBUTE_FIELDS.map(f => f.key)));
+        expect(cf.relic).toEqual({ label: 'Relic', type: 'checkbox', position: 'attributes' });
+    });
+
+    // The markup default and _clearForm have to agree, or reopening the modal
+    // silently changes what a new checklist would get.
+    it('marks the boxes checked in the markup too, not only via the reset', () => {
+        const creator = new ChecklistCreatorModal({});
+        creator.init();
+
+        ChecklistCreatorModal.ATTRIBUTE_FIELDS.forEach(({ key }) => {
+            expect(creator.backdrop.querySelector(`#creator-attr-${key}`)
+                .hasAttribute('checked'), key).toBe(true);
+        });
+    });
+});
+
+
+// jsdom computes no layout, so this is read from source. Measured in Chrome:
+// with `flex: 1` alone, five pills shrank to 76px each in the 480px modal and
+// "Variant" spilled 8px past its own border, because min-width: 0 lets a flex
+// item go under its content. With a basis the row wraps instead.
+describe('the attribute row wraps rather than crushing its pills (#801)', () => {
+    const rule = (selector) => {
+        const sheet = readFileSync(resolve(import.meta.dirname, '..', 'shared.css'), 'utf-8');
+        const start = sheet.indexOf('\n' + selector);
+        expect(start, selector).toBeGreaterThan(-1);
+        return sheet.slice(start, sheet.indexOf('}', start)).replace(/\/\*[\s\S]*?\*\//g, '');
+    };
+
+    it('gives each field a flex basis, not just a grow factor', () => {
+        expect(rule('.creator-attr-field {')).toMatch(/flex:\s*1\s+1\s+\d+px;/);
+    });
+
+    it('still lets the wording input shrink inside it', () => {
+        expect(rule('.creator-attr-field {')).toContain('min-width: 0');
     });
 });

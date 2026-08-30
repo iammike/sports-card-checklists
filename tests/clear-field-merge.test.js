@@ -8,6 +8,10 @@ const ChecklistEngine = globalThis.ChecklistEngine;
 const CUSTOM_FIELDS = {
   auto: { type: 'checkbox' },
   patch: { type: 'checkbox' },
+  // Added with #801. Its absence here is what let `relic` ship un-clearable:
+  // the parameterised loops below cover every declared field, so a checkbox
+  // missing from this fixture is a checkbox nothing tests.
+  relic: { type: 'checkbox' },
   serial: { type: 'text' },
   variant: { type: 'text' },
   achievement: { type: 'text' },
@@ -77,6 +81,7 @@ const CLEARABLE = {
   price: 25,
   auto: true,
   patch: true,
+  relic: true,
   serial: '/99',
   search: 'stored ebay term',
   priceSearch: 'stored price term',

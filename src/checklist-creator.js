@@ -176,7 +176,7 @@ class ChecklistCreatorModal {
                                 aria-label="Auto wording" placeholder="Auto" maxlength="16">
                         </div>
                         <div class="creator-attr-field">
-                            <label class="card-editor-checkbox" title="Checkbox to mark relic cards. Shows a purple badge on the card.">
+                            <label class="card-editor-checkbox" title="Checkbox to mark cards carrying a patch specifically. Shows a purple badge on the card.">
                                 <input type="checkbox" id="creator-attr-patch" checked>
                                 <span>Patch</span>
                             </label>
@@ -184,8 +184,8 @@ class ChecklistCreatorModal {
                                 aria-label="Patch wording" placeholder="Patch" maxlength="16">
                         </div>
                         <div class="creator-attr-field">
-                            <label class="card-editor-checkbox" title="Checkbox to mark relic cards that are not patches - a plain swatch, bat or ball piece. Shows a teal badge on the card.">
-                                <input type="checkbox" id="creator-attr-relic">
+                            <label class="card-editor-checkbox" title="Checkbox to mark memorabilia cards - a swatch, bat or ball piece. Independent of Patch: a card can be both. Shows a teal badge on the card.">
+                                <input type="checkbox" id="creator-attr-relic" checked>
                                 <span>Relic</span>
                             </label>
                             <input type="text" class="card-editor-input creator-attr-label" id="creator-attr-relic-label"
