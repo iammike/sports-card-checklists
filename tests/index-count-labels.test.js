@@ -184,7 +184,6 @@ describe('index.html carries the element the aggregate label is written into', (
 // the one a reader sees before any JS runs.
 describe('the aggregate label placeholder matches the constant (#784)', () => {
     const INDEX_HTML = readFileSync(resolve(import.meta.dirname, '..', 'index.html'), 'utf-8');
-
     it('spells the default the same way src/shared.js does', () => {
         const m = INDEX_HTML.match(/id="agg-total-label"[^>]*>([^<]*)</);
 
@@ -194,6 +193,6 @@ describe('the aggregate label placeholder matches the constant (#784)', () => {
 
     // The JS half, so a rename cannot be applied to the markup alone.
     it('has the updater read the constant rather than restate it', () => {
-        expect(INDEX_HTML).toContain("anyExcludes ? 'Target Cards' : DEFAULT_COUNT_LABEL");
+        expect(INDEX_HTML).toMatch(/anyExcludes\s*\?\s*['"]Target Cards['"]\s*:\s*DEFAULT_COUNT_LABEL/);
     });
 });

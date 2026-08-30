@@ -75,7 +75,7 @@ class ChecklistCreatorModal {
                         </div>
                         <div class="card-editor-field full-width">
                             <label class="card-editor-label">Count Label</label>
-                            <input type="text" class="card-editor-input" id="creator-total-label" placeholder="Total Cards" maxlength="16" title="Heading over the card count in the header. The count covers only sections with 'Counts' ticked, so name it for those - e.g. 'Main Cards' - when some sections are excluded">
+                            <input type="text" class="card-editor-input" id="creator-total-label" placeholder="${DEFAULT_COUNT_LABEL}" maxlength="16" title="Heading over the card count in the header. The count covers only sections with 'Counts' ticked, so name it for those - e.g. 'Main Cards' - when some sections are excluded">
                         </div>
                         <div class="card-editor-field full-width">
                             <label class="card-editor-label">Description</label>
