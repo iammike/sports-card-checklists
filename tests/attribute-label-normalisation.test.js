@@ -4,19 +4,15 @@ import { resolve } from 'path';
 
 const ChecklistCreatorModal = globalThis.ChecklistCreatorModal;
 
-// #787: the badge and the filter chip now render customFields[field].label. That
-// only means anything if the label survives, and _buildConfig rebuilds
-// customFields from the form on every save - so before this, a config carrying
-// `patch: { label: "Relic" }` reverted to "Patch" the next time the owner saved
-// any unrelated setting, a theme colour included.
+// The built-in attributes carry fixed wording. They were briefly renameable
+// from the settings modal (#787 read the label, #799 added the input), until
+// #801 established that Relic is its own attribute rather than a rename of
+// Patch and the input was removed. A checklist edited in between can still hold
+// a stale label, so both the read side and the write side normalise it.
 //
-// Driven through a real modal instance, because _buildConfig()'s return value is
-// exactly what save() hands to githubSync.saveChecklistConfig().
+// Driven through a real modal instance, because _buildConfig()'s return value
+// is exactly what save() hands to githubSync.saveChecklistConfig().
 
-// openEdit() is the real entry point the settings modal uses - it sets editMode,
-// stores existingConfig and runs _populateForm. Assembling that state by hand
-// instead left the wording inputs holding _resetForm's defaults, which is a
-// state the app never reaches and which quietly inverted what these tests prove.
 function openEditing(existingConfig) {
     const creator = new ChecklistCreatorModal({});
     creator.openEdit(existingConfig);
@@ -28,7 +24,8 @@ const RELABELLED_CONFIG = {
     navLabel: 'DANIELS',
     customFields: {
         auto: { label: 'Signed', type: 'checkbox', position: 'attributes' },
-        patch: { label: 'Prime Patch', type: 'checkbox', position: 'attributes' },
+        patch: { label: 'Relic', type: 'checkbox', position: 'attributes' },
+        relic: { label: 'Swatch', type: 'checkbox', position: 'attributes' },
         serial: { label: 'Numbered To', type: 'text', position: 'attributes' },
         variant: { label: 'Parallel', type: 'text', position: 'attributes' },
     },
@@ -50,6 +47,7 @@ describe('a settings save normalises a stale attribute label (#801)', () => {
         const cf = creator._buildConfig().customFields;
 
         expect(cf.patch.label).toBe('Patch');
+        expect(cf.relic.label).toBe('Relic');
         expect(cf.auto.label).toBe('Auto');
         expect(cf.serial.label).toBe('Run');
         expect(cf.variant.label).toBe('Variant');
@@ -63,6 +61,7 @@ describe('a settings save normalises a stale attribute label (#801)', () => {
         expect(cf.patch.type).toBe('checkbox');
         expect(cf.patch.position).toBe('attributes');
         expect(cf.serial.inputType).toBe('number');
+        expect(cf.serial.placeholder).toBe('99');
     });
 
     // An attribute the config does not declare stays off and contributes
@@ -79,7 +78,9 @@ describe('a settings save normalises a stale attribute label (#801)', () => {
         expect(cf.serial).toBeUndefined();
     });
 });
-// disagreed about what a new checklist gets - and nothing pinned either.
+// #801 added a fifth attribute. Its checkbox shipped without `checked` while
+// _clearForm ticks every attribute, so the markup and the behaviour disagreed
+// about what a new checklist gets - and nothing pinned either.
 describe('a new checklist gets every attribute (#801)', () => {
     function openNew() {
         const creator = new ChecklistCreatorModal({});
@@ -137,5 +138,75 @@ describe('the attribute row wraps rather than crushing its pills (#801)', () => 
 
     it('still lets a pill shrink below its natural width', () => {
         expect(rule('.creator-options-row .card-editor-checkbox {')).toContain('min-width: 0');
+    });
+});
+
+// The read side. _buildConfig only corrects the stored value once a save
+// happens, and that save rebuilds customFields and categories wholesale from
+// the form - so it is not something to prescribe as the cure. This fixes what
+// the card editor shows on deploy, with no gist write at all.
+describe('the card editor shows the fixed wording regardless of the config (#801)', () => {
+    const ChecklistEngine = globalThis.ChecklistEngine;
+
+    function fieldsHandedToEditor(customFields) {
+        const engine = Object.create(ChecklistEngine.prototype);
+        engine.config = { dataShape: 'flat', customFields, categories: [] };
+        engine.cards = [];
+        engine.checklistManager = { isOwner: () => true, getCardId: () => 'x' };
+        let handed = null;
+        const RealModal = globalThis.CardEditorModal;
+        globalThis.CardEditorModal = function (options) {
+            handed = options.customFields;
+            return { init() {}, open() {} };
+        };
+        try {
+            engine._initCardEditor();
+        } finally {
+            globalThis.CardEditorModal = RealModal;
+        }
+        return handed;
+    }
+
+    it('rewrites a stale label before the editor ever sees it', () => {
+        const fields = fieldsHandedToEditor({
+            patch: { label: 'Relic', type: 'checkbox', position: 'attributes' },
+            relic: { label: 'Swatch', type: 'checkbox', position: 'attributes' },
+        });
+
+        expect(fields.patch.label).toBe('Patch');
+        expect(fields.relic.label).toBe('Relic');
+    });
+
+    // The exact reported state: two checkboxes both reading "Relic".
+    it('leaves no two attributes sharing a label', () => {
+        const fields = fieldsHandedToEditor({
+            patch: { label: 'Relic', type: 'checkbox' },
+            relic: { label: 'Relic', type: 'checkbox' },
+        });
+
+        expect(fields.patch.label).not.toBe(fields.relic.label);
+    });
+
+    it('keeps everything else about the field', () => {
+        const fields = fieldsHandedToEditor({
+            patch: { label: 'Relic', type: 'checkbox', position: 'attributes' },
+        });
+
+        expect(fields.patch.type).toBe('checkbox');
+        expect(fields.patch.position).toBe('attributes');
+    });
+
+    it('does not invent an attribute the checklist never declared', () => {
+        const fields = fieldsHandedToEditor({ patch: { label: 'Relic', type: 'checkbox' } });
+
+        expect(fields.relic).toBeUndefined();
+        expect(fields.auto).toBeUndefined();
+    });
+
+    // Only the config's copy is rewritten for display; nothing is written back.
+    it('does not mutate a config that was already correct', () => {
+        const fields = fieldsHandedToEditor({ patch: { label: 'Patch', type: 'checkbox' } });
+
+        expect(fields.patch.label).toBe('Patch');
     });
 });

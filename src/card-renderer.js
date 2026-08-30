@@ -157,19 +157,15 @@ const CardRenderer = {
         return `<span class="price-badge ${priceClass}">$${displayPrice}</span>`;
     },
 
-    // The badge wording is fixed. It was read from customFields[field].label for
-    // as long as the settings modal could set one (#787, #799); once Relic
-    // became its own attribute rather than a rename of Patch (#801) that input
-    // went away, and reading the stored label only kept whatever the removed
-    // input had written - unreachable, since nothing could set it back. On a
-    // checklist where Patch had been relabelled "Relic" that meant a PATCH card
-    // badged RELIC, two filter chips both named Relic, and a card editor whose
-    // Patch checkbox read "Relic" beside the real one.
+    // Render auto badge HTML (for autographed cards).
     //
-    // Uppercasing is CSS (text-transform on the badge), so the accessible name
+    // The wording is fixed. It was read from customFields[field].label while the
+    // settings modal could set one (#787, #799); once Relic became its own
+    // attribute rather than a rename of Patch (#801) that input went away, and
+    // reading the stored label only kept whatever it had written, unreachable.
+    // One checklist had Patch relabelled "Relic": a PATCH card badged RELIC and
+    // both filter chips read Relic. Uppercasing is CSS, so the accessible name
     // stays "Relic" rather than "RELIC".
-
-    // Render auto badge HTML (for autographed cards)
     renderAutoBadge(card) {
         if (!card.auto) return '';
         return `<span class="auto-badge">Auto</span>`;

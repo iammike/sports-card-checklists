@@ -126,11 +126,6 @@ describe('ChecklistEngine._quickFilterDefs', () => {
     });
 });
 
-// #787: the chips were named by hardcoded strings while every config already
-// carried a label the card editor was rendering. Re-wording an attribute meant
-// editing code; now it follows the config. There is still no input for the
-// label in the settings modal - that is a follow-up - but a label set on the
-// config survives a save, which it did not before.
 // #801 follow-up: chip wording is fixed again. A checklist that had Patch
 // relabelled "Relic" through the removed settings input would otherwise show two
 // chips both named Relic, filtering different things, with no way to fix either.
@@ -154,9 +149,12 @@ describe('ChecklistEngine._quickFilterDefs — chip wording ignores the config',
         } }, [{ set: 'A', num: '1', patch: true }]);
         engine._renderFilters();
 
-        expect(document.querySelector('[data-quick-filter="patch"]').textContent).toBe('Patch');
+        const chip = document.querySelector('[data-quick-filter="patch"]');
+        expect(chip).not.toBeNull();
+        expect(chip.textContent).toBe('Patch');
     });
 });
+// #801: relic filters independently of patch.
 describe('ChecklistEngine — the relic chip (#801)', () => {
     const config = { customFields: { patch: { type: 'checkbox' }, relic: { type: 'checkbox' } } };
     const cards = [
