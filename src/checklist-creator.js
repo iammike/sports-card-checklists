@@ -883,9 +883,16 @@ class ChecklistCreatorModal {
             check.checked = !config.customFields || key in cf;
             // Shows what the badge and the chip actually say today, which is the
             // stored label when there is one and the built-in wording when not.
+            //
+            // Trimmed, for two reasons. CardRenderer.attributeLabel trims before
+            // rendering, so a hand-edited "  Relic  " already shows as "Relic"
+            // on the card - an untrimmed box would not be the wording in force.
+            // And _buildConfig trims on the way out, so leaving the padding here
+            // made an unrelated settings save rewrite the label behind the
+            // owner's back.
             const stored = cf[key]?.label;
             const input = this.backdrop.querySelector(`#creator-attr-${key}-label`);
-            input.value = typeof stored === 'string' && stored.trim() ? stored : label;
+            input.value = typeof stored === 'string' && stored.trim() ? stored.trim() : label;
             input.disabled = !check.checked;
         });
 

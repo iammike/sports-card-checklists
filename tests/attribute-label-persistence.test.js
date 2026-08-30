@@ -158,6 +158,31 @@ describe('the settings modal can set the wording (#797)', () => {
         expect(labelInput(creator, 'auto').value).toBe('Signed');
     });
 
+    // A hand-edited gist is exactly the population this feature is for, and it
+    // can carry padding. The badge already renders it trimmed
+    // (CardRenderer.attributeLabel), so an untrimmed box would show something
+    // other than the wording in force.
+    it('shows a padded stored label without its padding', () => {
+        const creator = openEditing({ title: 'x', navLabel: 'X', customFields: {
+            patch: { label: '  Relic  ', type: 'checkbox' },
+        } });
+
+        expect(labelInput(creator, 'patch').value).toBe('Relic');
+    });
+
+    // _buildConfig trims on the way out, so an untrimmed box turned any
+    // unrelated save into a silent rewrite of the label.
+    it('does not rewrite a padded label on a save that changed nothing', () => {
+        const creator = openEditing({ title: 'x', navLabel: 'X', customFields: {
+            patch: { label: '  Relic  ', type: 'checkbox' },
+        } });
+
+        const saved = creator._buildConfig().customFields.patch.label;
+
+        expect(saved).toBe('Relic');
+        expect(saved).toBe(labelInput(creator, 'patch').value);
+    });
+
     it('shows the built-in wording for an attribute the config never labelled', () => {
         const creator = openEditing({ title: 'x', navLabel: 'X', customFields: {
             patch: { type: 'checkbox' },
