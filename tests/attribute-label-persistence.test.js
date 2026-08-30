@@ -126,150 +126,6 @@ describe('a configured attribute label survives a settings save (#787)', () => {
     });
 });
 
-// #797: the label was only settable by hand-editing the gist. These drive the
-// input the settings modal now offers, through the real openEdit/_buildConfig
-// round trip rather than by poking config objects.
-describe('the settings modal can set the wording (#797)', () => {
-    const labelInput = (creator, key) =>
-        creator.backdrop.querySelector(`#creator-attr-${key}-label`);
-    const checkbox = (creator, key) =>
-        creator.backdrop.querySelector(`#creator-attr-${key}`);
-
-    it('offers an input for every toggleable attribute', () => {
-        const creator = openEditing(RELABELLED_CONFIG);
-
-        const keys = ChecklistCreatorModal.ATTRIBUTE_FIELDS.map(f => f.key);
-        expect(keys).toEqual(['variant', 'auto', 'patch', 'relic', 'serial']);
-        keys.forEach(key => {
-            expect(labelInput(creator, key), key).not.toBeNull();
-        });
-    });
-
-    // The input is not inside the <label>, or clicking to type would toggle the
-    // attribute off.
-    it('keeps the input out of the checkbox label', () => {
-        const creator = openEditing(RELABELLED_CONFIG);
-
-        expect(labelInput(creator, 'patch').closest('.card-editor-checkbox')).toBeNull();
-    });
-
-    it('shows the wording in force, not an empty box', () => {
-        const creator = openEditing(RELABELLED_CONFIG);
-
-        expect(labelInput(creator, 'patch').value).toBe('Prime Patch');
-        expect(labelInput(creator, 'auto').value).toBe('Signed');
-    });
-
-    // A hand-edited gist is exactly the population this feature is for, and it
-    // can carry padding. The badge already renders it trimmed
-    // (CardRenderer.attributeLabel), so an untrimmed box would show something
-    // other than the wording in force.
-    it('shows a padded stored label without its padding', () => {
-        const creator = openEditing({ title: 'x', navLabel: 'X', customFields: {
-            patch: { label: '  Prime Patch  ', type: 'checkbox' },
-        } });
-
-        expect(labelInput(creator, 'patch').value).toBe('Prime Patch');
-    });
-
-    // _buildConfig trims on the way out, so an untrimmed box turned any
-    // unrelated save into a silent rewrite of the label.
-    it('does not rewrite a padded label on a save that changed nothing', () => {
-        const creator = openEditing({ title: 'x', navLabel: 'X', customFields: {
-            patch: { label: '  Prime Patch  ', type: 'checkbox' },
-        } });
-
-        const saved = creator._buildConfig().customFields.patch.label;
-
-        expect(saved).toBe('Prime Patch');
-        expect(saved).toBe(labelInput(creator, 'patch').value);
-    });
-
-    it('shows the built-in wording for an attribute the config never labelled', () => {
-        const creator = openEditing({ title: 'x', navLabel: 'X', customFields: {
-            patch: { type: 'checkbox' },
-        } });
-
-        expect(labelInput(creator, 'patch').value).toBe('Patch');
-    });
-
-    it('saves what was typed', () => {
-        const creator = openEditing(RELABELLED_CONFIG);
-        labelInput(creator, 'patch').value = 'Memorabilia';
-
-        expect(creator._buildConfig().customFields.patch.label).toBe('Memorabilia');
-    });
-
-    it('trims what was typed', () => {
-        const creator = openEditing(RELABELLED_CONFIG);
-        labelInput(creator, 'patch').value = '  Prime Patch  ';
-
-        expect(creator._buildConfig().customFields.patch.label).toBe('Prime Patch');
-    });
-
-    // Clearing the box restores the default, which is what its placeholder
-    // promises. The fixture has to carry a *stored* label: with an unlabelled
-    // config the default and the stored value are the same string, so the test
-    // passes either way - it did, while a cleared box was really re-saving
-    // "Relic".
-    it('falls back to the built-in wording when the box is cleared', () => {
-        const creator = openEditing(RELABELLED_CONFIG);
-        expect(labelInput(creator, 'patch').value).toBe('Prime Patch');
-
-        labelInput(creator, 'patch').value = '   ';
-
-        expect(creator._buildConfig().customFields.patch.label).toBe('Patch');
-    });
-
-    // Same for an empty string, not just whitespace.
-    it('falls back when the box is emptied outright', () => {
-        const creator = openEditing(RELABELLED_CONFIG);
-        labelInput(creator, 'patch').value = '';
-
-        expect(creator._buildConfig().customFields.patch.label).toBe('Patch');
-    });
-
-    it('disables the input while its attribute is switched off', () => {
-        const creator = openEditing({ title: 'x', navLabel: 'X', customFields: {
-            patch: { type: 'checkbox' },
-        } });
-
-        expect(labelInput(creator, 'patch').disabled).toBe(false);
-        expect(labelInput(creator, 'auto').disabled).toBe(true);
-    });
-
-    it('follows the checkbox as it is toggled', () => {
-        const creator = openEditing(RELABELLED_CONFIG);
-        expect(labelInput(creator, 'patch').disabled).toBe(false);
-
-        checkbox(creator, 'patch').checked = false;
-        checkbox(creator, 'patch').dispatchEvent(new Event('change'));
-
-        expect(labelInput(creator, 'patch').disabled).toBe(true);
-    });
-
-    // The modal is dark; a bare input[type=text] picks up the light global rule,
-    // whose specificity (0,1,1) beats .creator-attr-label (0,1,0). The dark rule
-    // is `.card-editor-modal .card-editor-input`, so both halves of that
-    // selector have to hold - the class, and the ancestor.
-    it('is styled as a modal input rather than the light global default', () => {
-        const creator = openEditing(RELABELLED_CONFIG);
-        const input = labelInput(creator, 'patch');
-
-        expect(input.classList.contains('card-editor-input')).toBe(true);
-        expect(input.closest('.card-editor-modal')).not.toBeNull();
-    });
-
-    // Arbitrary wording reaches a badge sized for a short word: at 12px
-    // uppercase it ellipsizes around 13-14 characters, so this bounds input
-    // near what can actually show rather than at an arbitrary larger number.
-    it('bounds the length', () => {
-        const creator = openEditing(RELABELLED_CONFIG);
-
-        expect(labelInput(creator, 'patch').getAttribute('maxlength')).toBe('16');
-    });
-});
-
 // #801 added a fifth attribute. Its checkbox shipped without `checked` while
 // _clearForm sets every attribute checked, so the markup and the behaviour
 // disagreed about what a new checklist gets - and nothing pinned either.
@@ -325,10 +181,10 @@ describe('the attribute row wraps rather than crushing its pills (#801)', () => 
     };
 
     it('gives each field a flex basis, not just a grow factor', () => {
-        expect(rule('.creator-attr-field {')).toMatch(/flex:\s*1\s+1\s+\d+px;/);
+        expect(rule('.creator-options-row .card-editor-checkbox {')).toMatch(/flex:\s*1\s+1\s+\d+px;/);
     });
 
-    it('still lets the wording input shrink inside it', () => {
-        expect(rule('.creator-attr-field {')).toContain('min-width: 0');
+    it('still lets a pill shrink below its natural width', () => {
+        expect(rule('.creator-options-row .card-editor-checkbox {')).toContain('min-width: 0');
     });
 });
