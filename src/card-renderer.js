@@ -163,7 +163,7 @@ const CardRenderer = {
     // here and a blank label should fall back rather than render an empty pill.
     //
     // Uppercasing is CSS (text-transform on the badge), not baked in here, so
-    // the accessible name stays "Relic" rather than "RELIC".
+    // the accessible name stays "Autograph" rather than "AUTOGRAPH".
     attributeLabel(label, fallback) {
         return String(label ?? '').trim() || fallback;
     },
@@ -174,10 +174,19 @@ const CardRenderer = {
         return `<span class="auto-badge">${sanitizeText(this.attributeLabel(label, 'Auto'))}</span>`;
     },
 
-    // Render patch badge HTML (for relic/patch cards)
+    // Render patch badge HTML (for cards carrying a patch specifically)
     renderPatchBadge(card, label) {
         if (!card.patch) return '';
         return `<span class="patch-badge">${sanitizeText(this.attributeLabel(label, 'Patch'))}</span>`;
+    },
+
+    // Render relic badge HTML. Independent of patch, not a rename of it (#801):
+    // a patch and a plain swatch relic are different things - RPA is the term
+    // precisely because they are listed separately - so a card can be either,
+    // both or neither, and the owner ticks what fits.
+    renderRelicBadge(card, label) {
+        if (!card.relic) return '';
+        return `<span class="relic-badge">${sanitizeText(this.attributeLabel(label, 'Relic'))}</span>`;
     },
 
     // Render serial badge HTML (for numbered cards, e.g. "/99")
@@ -194,13 +203,25 @@ const CardRenderer = {
         return `<div class="card-image placeholder no-card-badge">${sanitizeText(text)}</div>`;
     },
 
-    // Render all attribute badges for a card (only those enabled in customFields)
+    // Render all attribute badges for a card (only those enabled in customFields).
+    //
+    // The top-left badges go in a container rather than each positioning itself.
+    // Two of them used to stack via `.auto-badge + .patch-badge { top: 30px }`,
+    // which hardcodes exactly two in source order; a third (#801) makes that
+    // four combinations, none of which an adjacent-sibling rule can express. The
+    // container also owns the gap the price badge needs at top-right, so the
+    // badges themselves only have to ellipsize within it.
+    //
+    // The serial badge stays outside: it sits bottom-left, not in the stack.
     renderAttributeBadges(card, customFields) {
-        let html = '';
-        if (!customFields || customFields.auto) html += this.renderAutoBadge(card, customFields?.auto?.label);
-        if (!customFields || customFields.patch) html += this.renderPatchBadge(card, customFields?.patch?.label);
+        let stacked = '';
+        if (!customFields || customFields.auto) stacked += this.renderAutoBadge(card, customFields?.auto?.label);
+        if (!customFields || customFields.patch) stacked += this.renderPatchBadge(card, customFields?.patch?.label);
+        if (!customFields || customFields.relic) stacked += this.renderRelicBadge(card, customFields?.relic?.label);
+
+        let html = stacked ? `<div class="card-badges">${stacked}</div>` : '';
         // The serial badge renders the serial itself ("/99"), so there is no
-        // label to configure - it is the only one of the three with no wording.
+        // label to configure - it is the only one with no wording.
         if (!customFields || customFields.serial) html += this.renderSerialBadge(card);
         return html;
     },

@@ -26,6 +26,7 @@ class ChecklistCreatorModal {
         { key: 'variant', label: 'Variant' },
         { key: 'auto', label: 'Auto' },
         { key: 'patch', label: 'Patch' },
+        { key: 'relic', label: 'Relic' },
         { key: 'serial', label: 'Run' },
     ];
 
@@ -181,6 +182,14 @@ class ChecklistCreatorModal {
                             </label>
                             <input type="text" class="card-editor-input creator-attr-label" id="creator-attr-patch-label"
                                 aria-label="Patch wording" placeholder="Patch" maxlength="16">
+                        </div>
+                        <div class="creator-attr-field">
+                            <label class="card-editor-checkbox" title="Checkbox to mark relic cards that are not patches - a plain swatch, bat or ball piece. Shows a teal badge on the card.">
+                                <input type="checkbox" id="creator-attr-relic">
+                                <span>Relic</span>
+                            </label>
+                            <input type="text" class="card-editor-input creator-attr-label" id="creator-attr-relic-label"
+                                aria-label="Relic wording" placeholder="Relic" maxlength="16">
                         </div>
                         <div class="creator-attr-field">
                             <label class="card-editor-checkbox" title="Text field for serial numbered cards (e.g. /99, /25). Shows a serial badge.">
@@ -885,7 +894,7 @@ class ChecklistCreatorModal {
             // stored label when there is one and the built-in wording when not.
             //
             // Trimmed, for two reasons. CardRenderer.attributeLabel trims before
-            // rendering, so a hand-edited "  Relic  " already shows as "Relic"
+            // rendering, so a hand-edited "  Autograph  " already shows as "Autograph"
             // on the card - an untrimmed box would not be the wording in force.
             // And _buildConfig trims on the way out, so leaving the padding here
             // made an unrelated settings save rewrite the label behind the
@@ -1033,6 +1042,9 @@ class ChecklistCreatorModal {
         }
         if (this.backdrop.querySelector('#creator-attr-patch').checked) {
             customFields.patch = { label: attrLabel('patch'), type: 'checkbox', position: 'attributes' };
+        }
+        if (this.backdrop.querySelector('#creator-attr-relic').checked) {
+            customFields.relic = { label: attrLabel('relic'), type: 'checkbox', position: 'attributes' };
         }
         if (this.backdrop.querySelector('#creator-attr-serial').checked) {
             customFields.serial = { label: attrLabel('serial'), type: 'text', inputType: 'number', placeholder: '99', position: 'attributes' };

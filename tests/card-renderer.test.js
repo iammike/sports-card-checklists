@@ -205,24 +205,116 @@ describe('CardRenderer badge methods', () => {
   });
 });
 
+// #801: RPA - Rookie/Patch/Auto - is the term because a patch and a plain
+// swatch relic are different things. Relic is a distinct attribute, not a
+// rename of Patch, and the two are independent: a card can carry either, both
+// or neither.
+describe('CardRenderer relic badge (#801)', () => {
+  it('renders for a relic card', () => {
+    expect(CardRenderer.renderRelicBadge({ relic: true })).toContain('Relic');
+    expect(CardRenderer.renderRelicBadge({ relic: false })).toBe('');
+    expect(CardRenderer.renderRelicBadge({})).toBe('');
+  });
+
+  it('takes its wording from the config like the others', () => {
+    expect(CardRenderer.renderRelicBadge({ relic: true }, 'Memorabilia'))
+      .toContain('Memorabilia');
+  });
+
+  it('escapes a hostile label', () => {
+    const html = CardRenderer.renderRelicBadge({ relic: true }, '<img src=x onerror=alert(1)>');
+
+    expect(html).not.toContain('<img');
+    expect(html).toContain('&lt;img');
+  });
+
+  it('is independent of patch, in both directions', () => {
+    const relicOnly = CardRenderer.renderAttributeBadges(
+      { relic: true }, { patch: {}, relic: {} });
+    const patchOnly = CardRenderer.renderAttributeBadges(
+      { patch: true }, { patch: {}, relic: {} });
+
+    expect(relicOnly).toContain('relic-badge');
+    expect(relicOnly).not.toContain('patch-badge');
+    expect(patchOnly).toContain('patch-badge');
+    expect(patchOnly).not.toContain('relic-badge');
+  });
+
+  it('renders both when a card is both', () => {
+    const html = CardRenderer.renderAttributeBadges(
+      { patch: true, relic: true }, { patch: {}, relic: {} });
+
+    expect(html).toContain('patch-badge');
+    expect(html).toContain('relic-badge');
+  });
+
+  it('stays absent on a checklist that does not declare it', () => {
+    const html = CardRenderer.renderAttributeBadges(
+      { auto: true, relic: true }, { auto: {}, patch: {} });
+
+    expect(html).toContain('auto-badge');
+    expect(html).not.toContain('relic-badge');
+  });
+});
+
+// The three top-left badges share one positioned container; the serial badge
+// sits bottom-left and stays outside it.
+describe('CardRenderer badge stacking (#801)', () => {
+  const ALL = { auto: {}, patch: {}, relic: {}, serial: {} };
+
+  it('wraps all three top-left badges in one container', () => {
+    const html = CardRenderer.renderAttributeBadges(
+      { auto: true, patch: true, relic: true }, ALL);
+
+    expect(html.match(/class="card-badges"/g)).toHaveLength(1);
+    const container = html.slice(html.indexOf('<div class="card-badges">'), html.indexOf('</div>'));
+    ['auto-badge', 'patch-badge', 'relic-badge'].forEach(cls => {
+      expect(container, cls).toContain(cls);
+    });
+  });
+
+  it('leaves the serial badge outside the stack', () => {
+    const html = CardRenderer.renderAttributeBadges(
+      { auto: true, serial: '/99' }, ALL);
+    const container = html.slice(html.indexOf('<div class="card-badges">'), html.indexOf('</div>'));
+
+    expect(container).not.toContain('serial-badge');
+    expect(html).toContain('serial-badge');
+  });
+
+  // An empty positioned container would still occupy the corner.
+  it('emits no container when nothing is stacked', () => {
+    const html = CardRenderer.renderAttributeBadges({ serial: '/99' }, ALL);
+
+    expect(html).not.toContain('card-badges');
+    expect(html).toContain('serial-badge');
+  });
+
+  it('emits nothing at all for a card with no attributes', () => {
+    expect(CardRenderer.renderAttributeBadges({}, ALL)).toBe('');
+  });
+});
+
 describe('CardRenderer attribute labels (#787)', () => {
   // Seven of the ten checklists already declare `patch: { label: "Patch" }`.
   // The label was read by the card editor and thrown away by the badge and the
   // filter chip, so re-wording an attribute meant a code change.
   it('renders the label the checklist configured', () => {
-    expect(CardRenderer.renderPatchBadge({ patch: true }, 'Relic')).toContain('Relic');
+    expect(CardRenderer.renderPatchBadge({ patch: true }, 'Prime Patch')).toContain('Prime Patch');
     expect(CardRenderer.renderAutoBadge({ auto: true }, 'Autograph')).toContain('Autograph');
   });
 
   it('takes the label from customFields when rendering the set', () => {
     const html = CardRenderer.renderAttributeBadges(
       { auto: true, patch: true },
-      { auto: { label: 'Signed' }, patch: { label: 'Relic' } }
+      { auto: { label: 'Signed' }, patch: { label: 'Prime Patch' } }
     );
 
-    expect(html).toContain('Signed');
-    expect(html).toContain('Relic');
-    expect(html).not.toContain('Patch');
+    // Pinned to the exact span text, not a substring: 'Prime Patch' contains
+    // 'Patch', so a `not.toContain('Patch')` guard against the default leaking
+    // through cannot express what it means here.
+    expect(html).toContain('<span class="auto-badge">Signed</span>');
+    expect(html).toContain('<span class="patch-badge">Prime Patch</span>');
   });
 
   it('falls back to the built-in wording when a field declares no label', () => {
@@ -256,36 +348,69 @@ describe('CardRenderer attribute labels (#787)', () => {
 
 // The badges used to read AUTO/PATCH because the strings were capitals. Now
 // they carry a readable label, so the capitals have to come from the stylesheet
-// or the badges quietly render as "Auto"/"Relic" in a pill designed for caps.
+// or the badges quietly render as "Auto"/"Prime Patch" in a pill designed for caps.
 describe('the badge stylesheet supplies the caps (#787)', () => {
+  const readSheet = () => readFileSync(resolve(import.meta.dirname, '..', 'shared.css'), 'utf-8');
+  const stripComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
+
+  // The rule that *opens* with this selector, skipping any grouped selector the
+  // name merely appears in: '\n.relic-badge {' matches the last line of
+  // '.auto-badge,\n.patch-badge,\n.relic-badge {' before it reaches the
+  // standalone rule, and slicing that returns the shared shape with no colour.
   const rule = (selector) => {
-    const sheet = readFileSync(resolve(import.meta.dirname, '..', 'shared.css'), 'utf-8');
-    const start = sheet.indexOf('\n' + selector);
+    const sheet = readSheet();
+    let from = 0;
+    let start = -1;
+    for (;;) {
+      const i = sheet.indexOf('\n' + selector, from);
+      if (i === -1) break;
+      if (!sheet.slice(0, i).trimEnd().endsWith(',')) { start = i; break; }
+      from = i + 1;
+    }
     expect(start, selector).toBeGreaterThan(-1);
-    return sheet.slice(start, sheet.indexOf('}', start))
-      .replace(/\/\*[\s\S]*?\*\//g, '');
+    return stripComments(sheet.slice(start, sheet.indexOf('}', start)));
   };
 
-  // The wording is arbitrary now, and the badge sits at top-left under a price
-  // badge pinned to top-right at the same z-index. Without a cap a long label
-  // runs beneath it.
-  it('keeps a long label from running under the price badge', () => {
-    for (const sel of ['.auto-badge {', '.patch-badge {']) {
-      expect(rule(sel), sel).toContain('text-overflow: ellipsis');
-      // Pinned, not just present: a cap that reserves nothing (max-width:
-      // calc(100% - 8px)) would satisfy a bare toContain while the overlap
-      // returns. 90px is the price badge's own width plus its 8px inset.
-      expect(rule(sel), sel).toContain('max-width: calc(100% - 90px)');
-      expect(rule(sel), sel).toContain('white-space: nowrap');
-    }
+  // Sizing and caps live on the grouped selector now, so a fourth attribute
+  // inherits them rather than copying them (#801).
+  const sharedBadgeRule = () => rule('.auto-badge,');
+
+  it('uppercases the configurable badges', () => {
+    expect(sharedBadgeRule()).toContain('text-transform: uppercase');
   });
 
-  it('uppercases both configurable badges', () => {
-    expect(rule('.auto-badge {')).toContain('text-transform: uppercase');
-    expect(rule('.patch-badge {')).toContain('text-transform: uppercase');
-    // Anchored on a newline: '.patch-badge {' also matches inside
-    // '.auto-badge + .patch-badge {', which carries no text-transform.
-    expect(rule('.patch-badge {')).not.toContain('margin-left');
+  // The wording is arbitrary, and the badges sit top-left under a price badge
+  // pinned top-right at the same z-index. The container holds the gap; the
+  // badges only have to fit inside it.
+  it('reserves the price badge room on the container', () => {
+    // Pinned, not just present: a cap that reserves nothing (max-width:
+    // calc(100% - 8px)) would satisfy a bare toContain while the overlap
+    // returns. 90px is the price badge's own width plus its 8px inset.
+    expect(rule('.card-badges {')).toContain('max-width: calc(100% - 90px)');
+  });
+
+  it('ellipsizes a long label inside that container', () => {
+    expect(sharedBadgeRule()).toContain('text-overflow: ellipsis');
+    expect(sharedBadgeRule()).toContain('white-space: nowrap');
+    expect(sharedBadgeRule()).toContain('max-width: 100%');
+  });
+
+  // Two badges used to coexist only via `.auto-badge + .patch-badge`, which
+  // hardcodes exactly two in source order. A third makes that four
+  // combinations, so the container stacks them instead.
+  it('stacks the badges rather than positioning each one', () => {
+    const container = rule('.card-badges {');
+
+    expect(container).toContain('flex-direction: column');
+    expect(container).toContain('position: absolute');
+    expect(stripComments(readSheet())).not.toContain('.auto-badge + .patch-badge');
+  });
+
+  it('gives each badge its own colour and no positioning of its own', () => {
+    for (const sel of ['.auto-badge {', '.patch-badge {', '.relic-badge {']) {
+      expect(rule(sel), sel).toContain('background:');
+      expect(rule(sel), sel).not.toContain('position: absolute');
+    }
   });
 });
 

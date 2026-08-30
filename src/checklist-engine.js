@@ -1635,6 +1635,7 @@ class ChecklistEngine {
         const defs = [
             { key: 'auto', label: labelFor('auto', 'Auto'), field: 'auto' },
             { key: 'patch', label: labelFor('patch', 'Patch'), field: 'patch' },
+            { key: 'relic', label: labelFor('relic', 'Relic'), field: 'relic' },
             // Not labelFor('serial'): serial's label names the text box you type
             // 99 into, and the creator writes 'Run' for it. This chip is the
             // boolean "has any serial" filter, so borrowing that label renamed
@@ -2444,11 +2445,12 @@ class ChecklistEngine {
             if (price < priceRange.min || price > priceRange.max) return false;
         }
 
-        // Attribute toggles (Auto / Patch / Numbered / Rookie) - all active
+        // Attribute toggles (Auto / Patch / Relic / Numbered / Rookie) - all active
         // toggles must match, same AND semantics as every other filter here.
         for (const key of quickFilters) {
             if (key === 'auto' && !card.auto) return false;
             if (key === 'patch' && !card.patch) return false;
+            if (key === 'relic' && !card.relic) return false;
             if (key === 'numbered' && !card.serial) return false;
             if (key === 'rookie' && !card.rc) return false;
         }

@@ -1433,56 +1433,64 @@ select, input[type="text"] {
     z-index: 10;
 }
 
-/* Auto Badge (autographed cards) - gold */
-.auto-badge {
-    font-family: 'Barlow', sans-serif;
-    /* The wording is configurable (#787), so the caps live here rather than in
-       a hardcoded string - the label stays readable to a screen reader. */
-    text-transform: uppercase;
-    /* And configurable means arbitrary: without a cap a long label runs under
-       the price badge, which shares top: 8px and z-index: 10 and paints later
-       (#797). The input caps length too; this is the backstop for a hand-edited
-       gist. */
-    max-width: calc(100% - 90px);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+/* Top-left attribute badges, stacked (#801). Each badge used to position
+   itself, and two could coexist only because of
+   `.auto-badge + .patch-badge { top: 30px }` - a rule that hardcodes exactly
+   two, in source order. With a third the combinations are auto+patch,
+   auto+relic, patch+relic and all three, which no adjacent-sibling rule
+   expresses. The container stacks whatever it is given. */
+.card-badges {
     position: absolute;
     top: 8px;
     left: 8px;
-    background: linear-gradient(135deg, #d4af37 0%, #c4a030 100%);
-    color: #1a1a2e;
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 600;
     z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    /* The room the price badge needs at top-right: its own width plus its 8px
+       inset (#797). Held here now, so a badge only has to fit its stack. */
+    max-width: calc(100% - 90px);
 }
 
-/* Patch Badge (relic/patch cards) - purple */
-.patch-badge {
+/* One shape, three colours. Kept together so a fourth attribute inherits the
+   sizing rather than copying it. */
+.auto-badge,
+.patch-badge,
+.relic-badge {
     font-family: 'Barlow', sans-serif;
-    /* The wording is configurable (#787), so the caps live here rather than in
-       a hardcoded string - the label stays readable to a screen reader. */
-    text-transform: uppercase;
-    /* And configurable means arbitrary: without a cap a long label runs under
-       the price badge, which shares top: 8px and z-index: 10 and paints later
-       (#797). The input caps length too; this is the backstop for a hand-edited
-       gist. */
-    max-width: calc(100% - 90px);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    position: absolute;
-    top: 8px;
-    left: 8px;
-    background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
-    color: white;
     padding: 3px 8px;
     border-radius: 4px;
     font-size: 12px;
     font-weight: 600;
-    z-index: 10;
+    /* The wording is configurable (#787), so the caps live here rather than in
+       a hardcoded string - the label stays readable to a screen reader. */
+    text-transform: uppercase;
+    /* And configurable means arbitrary; the container reserves the price
+       badge's room, this keeps a long label inside the container. */
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Auto Badge (autographed cards) - gold */
+.auto-badge {
+    background: linear-gradient(135deg, #d4af37 0%, #c4a030 100%);
+    color: #1a1a2e;
+}
+
+/* Patch Badge - purple */
+.patch-badge {
+    background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+    color: white;
+}
+
+/* Relic Badge - teal. A distinct attribute from Patch, not a rename of it
+   (#801): a patch and a plain swatch relic are different things. */
+.relic-badge {
+    background: linear-gradient(135deg, #16a085 0%, #12806a 100%);
+    color: white;
 }
 
 /* Serial Badge (numbered cards) - dark with border */
@@ -1502,10 +1510,6 @@ select, input[type="text"] {
 }
 
 /* When auto + patch both present, stack them */
-.auto-badge + .patch-badge {
-    top: 30px;
-}
-
 .price-link {
     font-family: 'Barlow', sans-serif;
     display: inline-block;

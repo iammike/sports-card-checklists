@@ -21,12 +21,12 @@ function openEditing(existingConfig) {
     return creator;
 }
 
-const RELIC_CONFIG = {
+const RELABELLED_CONFIG = {
     title: 'Jayden Daniels Rookie Cards',
     navLabel: 'DANIELS',
     customFields: {
         auto: { label: 'Signed', type: 'checkbox', position: 'attributes' },
-        patch: { label: 'Relic', type: 'checkbox', position: 'attributes' },
+        patch: { label: 'Prime Patch', type: 'checkbox', position: 'attributes' },
         serial: { label: 'Numbered To', type: 'text', position: 'attributes' },
         variant: { label: 'Parallel', type: 'text', position: 'attributes' },
     },
@@ -38,11 +38,11 @@ afterEach(() => {
 
 describe('a configured attribute label survives a settings save (#787)', () => {
     it('keeps every attribute label the config already carried', () => {
-        const creator = openEditing(RELIC_CONFIG);
+        const creator = openEditing(RELABELLED_CONFIG);
 
         const cf = creator._buildConfig().customFields;
 
-        expect(cf.patch.label).toBe('Relic');
+        expect(cf.patch.label).toBe('Prime Patch');
         expect(cf.auto.label).toBe('Signed');
         expect(cf.serial.label).toBe('Numbered To');
         expect(cf.variant.label).toBe('Parallel');
@@ -51,7 +51,7 @@ describe('a configured attribute label survives a settings save (#787)', () => {
     // The rest of the field definition is still rebuilt from the form; only the
     // wording is carried across.
     it('still rebuilds the rest of the field from the form', () => {
-        const creator = openEditing(RELIC_CONFIG);
+        const creator = openEditing(RELABELLED_CONFIG);
 
         const cf = creator._buildConfig().customFields;
 
@@ -84,12 +84,12 @@ describe('a configured attribute label survives a settings save (#787)', () => {
     // field at all - the wording input for it is beside the point.
     it('drops an attribute the config does not declare', () => {
         const creator = openEditing({ title: 'x', navLabel: 'X', customFields: {
-            patch: { label: 'Relic', type: 'checkbox' },
+            patch: { label: 'Prime Patch', type: 'checkbox' },
         } });
 
         const cf = creator._buildConfig().customFields;
 
-        expect(cf.patch.label).toBe('Relic');
+        expect(cf.patch.label).toBe('Prime Patch');
         expect(cf.auto).toBeUndefined();
         expect(cf.serial).toBeUndefined();
     });
@@ -113,7 +113,7 @@ describe('a configured attribute label survives a settings save (#787)', () => {
     it('uses the built-in wording when not editing', () => {
         const creator = new ChecklistCreatorModal({});
         creator.open();
-        creator.existingConfig = RELIC_CONFIG;
+        creator.existingConfig = RELABELLED_CONFIG;
         creator.backdrop.querySelector('#creator-title').value = 'New List';
         creator.backdrop.querySelector('#creator-nav-label').value = 'NEW';
 
@@ -134,10 +134,10 @@ describe('the settings modal can set the wording (#797)', () => {
         creator.backdrop.querySelector(`#creator-attr-${key}`);
 
     it('offers an input for every toggleable attribute', () => {
-        const creator = openEditing(RELIC_CONFIG);
+        const creator = openEditing(RELABELLED_CONFIG);
 
         const keys = ChecklistCreatorModal.ATTRIBUTE_FIELDS.map(f => f.key);
-        expect(keys).toEqual(['variant', 'auto', 'patch', 'serial']);
+        expect(keys).toEqual(['variant', 'auto', 'patch', 'relic', 'serial']);
         keys.forEach(key => {
             expect(labelInput(creator, key), key).not.toBeNull();
         });
@@ -146,15 +146,15 @@ describe('the settings modal can set the wording (#797)', () => {
     // The input is not inside the <label>, or clicking to type would toggle the
     // attribute off.
     it('keeps the input out of the checkbox label', () => {
-        const creator = openEditing(RELIC_CONFIG);
+        const creator = openEditing(RELABELLED_CONFIG);
 
         expect(labelInput(creator, 'patch').closest('.card-editor-checkbox')).toBeNull();
     });
 
     it('shows the wording in force, not an empty box', () => {
-        const creator = openEditing(RELIC_CONFIG);
+        const creator = openEditing(RELABELLED_CONFIG);
 
-        expect(labelInput(creator, 'patch').value).toBe('Relic');
+        expect(labelInput(creator, 'patch').value).toBe('Prime Patch');
         expect(labelInput(creator, 'auto').value).toBe('Signed');
     });
 
@@ -164,22 +164,22 @@ describe('the settings modal can set the wording (#797)', () => {
     // other than the wording in force.
     it('shows a padded stored label without its padding', () => {
         const creator = openEditing({ title: 'x', navLabel: 'X', customFields: {
-            patch: { label: '  Relic  ', type: 'checkbox' },
+            patch: { label: '  Prime Patch  ', type: 'checkbox' },
         } });
 
-        expect(labelInput(creator, 'patch').value).toBe('Relic');
+        expect(labelInput(creator, 'patch').value).toBe('Prime Patch');
     });
 
     // _buildConfig trims on the way out, so an untrimmed box turned any
     // unrelated save into a silent rewrite of the label.
     it('does not rewrite a padded label on a save that changed nothing', () => {
         const creator = openEditing({ title: 'x', navLabel: 'X', customFields: {
-            patch: { label: '  Relic  ', type: 'checkbox' },
+            patch: { label: '  Prime Patch  ', type: 'checkbox' },
         } });
 
         const saved = creator._buildConfig().customFields.patch.label;
 
-        expect(saved).toBe('Relic');
+        expect(saved).toBe('Prime Patch');
         expect(saved).toBe(labelInput(creator, 'patch').value);
     });
 
@@ -192,17 +192,17 @@ describe('the settings modal can set the wording (#797)', () => {
     });
 
     it('saves what was typed', () => {
-        const creator = openEditing(RELIC_CONFIG);
+        const creator = openEditing(RELABELLED_CONFIG);
         labelInput(creator, 'patch').value = 'Memorabilia';
 
         expect(creator._buildConfig().customFields.patch.label).toBe('Memorabilia');
     });
 
     it('trims what was typed', () => {
-        const creator = openEditing(RELIC_CONFIG);
-        labelInput(creator, 'patch').value = '  Relic  ';
+        const creator = openEditing(RELABELLED_CONFIG);
+        labelInput(creator, 'patch').value = '  Prime Patch  ';
 
-        expect(creator._buildConfig().customFields.patch.label).toBe('Relic');
+        expect(creator._buildConfig().customFields.patch.label).toBe('Prime Patch');
     });
 
     // Clearing the box restores the default, which is what its placeholder
@@ -211,8 +211,8 @@ describe('the settings modal can set the wording (#797)', () => {
     // passes either way - it did, while a cleared box was really re-saving
     // "Relic".
     it('falls back to the built-in wording when the box is cleared', () => {
-        const creator = openEditing(RELIC_CONFIG);
-        expect(labelInput(creator, 'patch').value).toBe('Relic');
+        const creator = openEditing(RELABELLED_CONFIG);
+        expect(labelInput(creator, 'patch').value).toBe('Prime Patch');
 
         labelInput(creator, 'patch').value = '   ';
 
@@ -221,7 +221,7 @@ describe('the settings modal can set the wording (#797)', () => {
 
     // Same for an empty string, not just whitespace.
     it('falls back when the box is emptied outright', () => {
-        const creator = openEditing(RELIC_CONFIG);
+        const creator = openEditing(RELABELLED_CONFIG);
         labelInput(creator, 'patch').value = '';
 
         expect(creator._buildConfig().customFields.patch.label).toBe('Patch');
@@ -237,7 +237,7 @@ describe('the settings modal can set the wording (#797)', () => {
     });
 
     it('follows the checkbox as it is toggled', () => {
-        const creator = openEditing(RELIC_CONFIG);
+        const creator = openEditing(RELABELLED_CONFIG);
         expect(labelInput(creator, 'patch').disabled).toBe(false);
 
         checkbox(creator, 'patch').checked = false;
@@ -251,7 +251,7 @@ describe('the settings modal can set the wording (#797)', () => {
     // is `.card-editor-modal .card-editor-input`, so both halves of that
     // selector have to hold - the class, and the ancestor.
     it('is styled as a modal input rather than the light global default', () => {
-        const creator = openEditing(RELIC_CONFIG);
+        const creator = openEditing(RELABELLED_CONFIG);
         const input = labelInput(creator, 'patch');
 
         expect(input.classList.contains('card-editor-input')).toBe(true);
@@ -262,7 +262,7 @@ describe('the settings modal can set the wording (#797)', () => {
     // uppercase it ellipsizes around 13-14 characters, so this bounds input
     // near what can actually show rather than at an arbitrary larger number.
     it('bounds the length', () => {
-        const creator = openEditing(RELIC_CONFIG);
+        const creator = openEditing(RELABELLED_CONFIG);
 
         expect(labelInput(creator, 'patch').getAttribute('maxlength')).toBe('16');
     });

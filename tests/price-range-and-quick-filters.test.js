@@ -107,10 +107,10 @@ describe('ChecklistEngine.getPrice', () => {
 });
 
 describe('ChecklistEngine._quickFilterDefs', () => {
-    it('shows Auto/Patch/Numbered when customFields is entirely absent, matching renderAttributeBadges', () => {
+    it('shows every attribute when customFields is entirely absent, matching renderAttributeBadges', () => {
         const engine = makeEngine({ customFields: undefined }, []);
         const keys = engine._quickFilterDefs([]).map(d => d.key);
-        expect(keys).toEqual(['auto', 'patch', 'numbered']);
+        expect(keys).toEqual(['auto', 'patch', 'relic', 'numbered']);
     });
 
     it('shows only the attributes this checklist declares in customFields', () => {
@@ -138,13 +138,13 @@ describe('ChecklistEngine._quickFilterDefs — chip wording comes from the confi
     it('names each chip with the checklist own label', () => {
         const engine = makeEngine({ customFields: {
             auto: { type: 'checkbox', label: 'Signed' },
-            patch: { type: 'checkbox', label: 'Relic' },
+            patch: { type: 'checkbox', label: 'Prime Patch' },
             // The label ChecklistCreatorModal._buildConfig really writes.
             serial: { type: 'text', label: 'Run' },
         } }, []);
 
         expect(labelsOf(engine)).toEqual({
-            auto: 'Signed', patch: 'Relic', numbered: 'Numbered',
+            auto: 'Signed', patch: 'Prime Patch', numbered: 'Numbered',
         });
     });
 
@@ -177,7 +177,7 @@ describe('ChecklistEngine._quickFilterDefs — chip wording comes from the confi
         const engine = makeEngine({ customFields: undefined }, []);
 
         expect(labelsOf(engine)).toEqual({
-            auto: 'Auto', patch: 'Patch', numbered: 'Numbered',
+            auto: 'Auto', patch: 'Patch', relic: 'Relic', numbered: 'Numbered',
         });
     });
 
@@ -194,13 +194,48 @@ describe('ChecklistEngine._quickFilterDefs — chip wording comes from the confi
     // too - reading it off the defs alone would not prove the chip changed.
     it('renders the configured wording on the button', () => {
         const engine = makeEngine({ customFields: {
-            patch: { type: 'checkbox', label: 'Relic' },
+            patch: { type: 'checkbox', label: 'Prime Patch' },
         } }, [{ set: 'A', num: '1', patch: true }]);
         engine._renderFilters();
 
         const chip = document.querySelector('[data-quick-filter="patch"]');
         expect(chip).not.toBeNull();
-        expect(chip.textContent).toBe('Relic');
+        expect(chip.textContent).toBe('Prime Patch');
+    });
+});
+
+// #801: relic filters independently of patch.
+describe('ChecklistEngine — the relic chip (#801)', () => {
+    const config = { customFields: { patch: { type: 'checkbox' }, relic: { type: 'checkbox' } } };
+    const cards = [
+        { set: 'A', num: '1', patch: true },
+        { set: 'B', num: '2', relic: true },
+        { set: 'C', num: '3', patch: true, relic: true },
+        { set: 'D', num: '4' },
+    ];
+
+    const visibleFor = (chip) => {
+        const engine = makeEngine(config, cards);
+        engine._renderFilters();
+        engine.renderCards();
+        document.querySelector(`[data-quick-filter="${chip}"]`).click();
+        return [...document.querySelectorAll('#sections-container .card')]
+            .filter(el => !el.classList.contains('filter-hidden'))
+            .map(el => engine._renderedCards[parseInt(el.dataset.cardIdx)].set);
+    };
+
+    it('offers a relic chip beside patch', () => {
+        const engine = makeEngine(config, cards);
+
+        expect(engine._quickFilterDefs(cards).map(d => d.key)).toEqual(['patch', 'relic']);
+    });
+
+    it('matches relic cards, not patch cards', () => {
+        expect(visibleFor('relic').sort()).toEqual(['B', 'C']);
+    });
+
+    it('matches patch cards, not relic cards', () => {
+        expect(visibleFor('patch').sort()).toEqual(['A', 'C']);
     });
 });
 
