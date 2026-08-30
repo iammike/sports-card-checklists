@@ -1422,67 +1422,64 @@ select, input[type="text"] {
 .price-badge.mid { background: var(--color-warning); }
 .price-badge.high { background: var(--color-error); }
 
-/* Left-side attribute badges container */
-.card-badges-left {
+/* Top-left attribute badges, stacked (#801). Each badge used to position
+   itself, and two could coexist only because of
+   `.auto-badge + .patch-badge { top: 30px }` - a rule that hardcodes exactly
+   two, in source order. With a third the combinations are auto+patch,
+   auto+relic, patch+relic and all three, which no adjacent-sibling rule
+   expresses. The container stacks whatever it is given. */
+.card-badges {
     position: absolute;
     top: 8px;
     left: 8px;
+    z-index: 10;
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
     gap: 4px;
-    z-index: 10;
+    /* The room the price badge needs at top-right: its own width plus its 8px
+       inset (#797). Held here now, so a badge only has to fit its stack. */
+    max-width: calc(100% - 90px);
+}
+
+/* One shape, three colours. Kept together so a fourth attribute inherits the
+   sizing rather than copying it. */
+.auto-badge,
+.patch-badge,
+.relic-badge {
+    font-family: 'Barlow', sans-serif;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    /* The wording is configurable (#787), so the caps live here rather than in
+       a hardcoded string - the label stays readable to a screen reader. */
+    text-transform: uppercase;
+    /* And configurable means arbitrary; the container reserves the price
+       badge's room, this keeps a long label inside the container. */
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* Auto Badge (autographed cards) - gold */
 .auto-badge {
-    font-family: 'Barlow', sans-serif;
-    /* The wording is configurable (#787), so the caps live here rather than in
-       a hardcoded string - the label stays readable to a screen reader. */
-    text-transform: uppercase;
-    /* And configurable means arbitrary: without a cap a long label runs under
-       the price badge, which shares top: 8px and z-index: 10 and paints later
-       (#797). The input caps length too; this is the backstop for a hand-edited
-       gist. */
-    max-width: calc(100% - 90px);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    position: absolute;
-    top: 8px;
-    left: 8px;
     background: linear-gradient(135deg, #d4af37 0%, #c4a030 100%);
     color: #1a1a2e;
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 600;
-    z-index: 10;
 }
 
-/* Patch Badge (relic/patch cards) - purple */
+/* Patch Badge - purple */
 .patch-badge {
-    font-family: 'Barlow', sans-serif;
-    /* The wording is configurable (#787), so the caps live here rather than in
-       a hardcoded string - the label stays readable to a screen reader. */
-    text-transform: uppercase;
-    /* And configurable means arbitrary: without a cap a long label runs under
-       the price badge, which shares top: 8px and z-index: 10 and paints later
-       (#797). The input caps length too; this is the backstop for a hand-edited
-       gist. */
-    max-width: calc(100% - 90px);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    position: absolute;
-    top: 8px;
-    left: 8px;
     background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
     color: white;
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 600;
-    z-index: 10;
+}
+
+/* Relic Badge - teal. A distinct attribute from Patch, not a rename of it
+   (#801): a patch and a plain swatch relic are different things. */
+.relic-badge {
+    background: linear-gradient(135deg, #16a085 0%, #12806a 100%);
+    color: white;
 }
 
 /* Serial Badge (numbered cards) - dark with border */
@@ -1499,11 +1496,6 @@ select, input[type="text"] {
     font-weight: 600;
     z-index: 10;
     border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-/* When auto + patch both present, stack them */
-.auto-badge + .patch-badge {
-    top: 30px;
 }
 
 .price-link {
@@ -3393,26 +3385,17 @@ select, input[type="text"] {
     flex-wrap: wrap;
 }
 
-/* An attribute toggle and the wording its badge carries, kept together (#797).
-   This wrapper is the row's flex item now - every child of .creator-options-row
-   is one - so the sizing that used to sit on .card-editor-checkbox lives here.
-   Left on the checkbox it reached the nested one instead, handing a column flex
-   child a percentage *height* basis at the narrow breakpoint. */
-.creator-attr-field {
-    flex: 1;
+/* A basis, not just a grow factor: with five attributes across, `flex: 1` alone
+   shrank the pills below their own labels - measured 76px each in the 480px
+   modal, with "Variant" spilling 8px past its border, since min-width: 0 lets a
+   flex item go under its content. A basis wraps the row to 3+2 instead. */
+.creator-options-row .card-editor-checkbox {
+    flex: 1 1 120px;
     min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.creator-attr-label:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
 }
 
 @media (max-width: 500px) {
-    .creator-attr-field {
+    .creator-options-row .card-editor-checkbox {
         flex-basis: calc(50% - 4px);
     }
 }
