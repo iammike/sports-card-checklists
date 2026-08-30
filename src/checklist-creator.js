@@ -976,20 +976,14 @@ class ChecklistCreatorModal {
 
         // Standard attribute fields (toggleable).
         //
-        // customFields is rebuilt from the form on every save, so a label this
-        // checklist already carries has to be carried across or an unrelated
-        // save reverts it. There is no input for the wording - #799 added one
-        // and it was removed once Relic became its own attribute (#801) rather
-        // than a rename of Patch - so a label set directly on the config is the
-        // only kind there is, and this is what keeps it.
-        const attrDefault = new Map(
-            ChecklistCreatorModal.ATTRIBUTE_FIELDS.map(f => [f.key, f.label]));
-        const existingFields = (this.editMode && this.existingConfig?.customFields) || {};
-        const attrLabel = (key) => {
-            const existing = existingFields[key]?.label;
-            return typeof existing === 'string' && existing.trim()
-                ? existing.trim() : attrDefault.get(key);
-        };
+        // Always the built-in wording. Carrying an existing label across was
+        // right while an input could set one; with that gone it only preserved
+        // what the removed input had written, and nothing could correct it - a
+        // checklist whose Patch was relabelled "Relic" kept saying so through
+        // every save. Writing the default means one save normalises it, which
+        // is what fixes the label the card editor shows.
+        const attrLabel = (key) =>
+            ChecklistCreatorModal.ATTRIBUTE_FIELDS.find(f => f.key === key).label;
         if (this.backdrop.querySelector('#creator-attr-variant').checked) {
             customFields.variant = { label: attrLabel('variant'), type: 'text', placeholder: 'Silver Prizm', fullWidth: true, position: 'attributes' };
         }

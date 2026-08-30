@@ -216,18 +216,6 @@ describe('CardRenderer relic badge (#801)', () => {
     expect(CardRenderer.renderRelicBadge({})).toBe('');
   });
 
-  it('takes its wording from the config like the others', () => {
-    expect(CardRenderer.renderRelicBadge({ relic: true }, 'Memorabilia'))
-      .toContain('Memorabilia');
-  });
-
-  it('escapes a hostile label', () => {
-    const html = CardRenderer.renderRelicBadge({ relic: true }, '<img src=x onerror=alert(1)>');
-
-    expect(html).not.toContain('<img');
-    expect(html).toContain('&lt;img');
-  });
-
   it('is independent of patch, in both directions', () => {
     const relicOnly = CardRenderer.renderAttributeBadges(
       { relic: true }, { patch: {}, relic: {} });
@@ -295,60 +283,38 @@ describe('CardRenderer badge stacking (#801)', () => {
   });
 });
 
-describe('CardRenderer attribute labels (#787)', () => {
-  // Seven of the ten checklists already declare `patch: { label: "Patch" }`.
-  // The label was read by the card editor and thrown away by the badge and the
-  // filter chip, so re-wording an attribute meant a code change.
-  it('renders the label the checklist configured', () => {
-    expect(CardRenderer.renderPatchBadge({ patch: true }, 'Prime Patch')).toContain('Prime Patch');
-    expect(CardRenderer.renderAutoBadge({ auto: true }, 'Autograph')).toContain('Autograph');
-  });
-
-  it('takes the label from customFields when rendering the set', () => {
+// #801 follow-up: the wording is fixed again. While the settings modal could
+// set a label, the Jayden checklist had Patch relabelled "Relic"; removing that
+// input left the value stored and unreachable, so a PATCH card badged RELIC.
+describe('CardRenderer ignores a stored attribute label', () => {
+  it('badges a patch card Patch even where the config says otherwise', () => {
     const html = CardRenderer.renderAttributeBadges(
-      { auto: true, patch: true },
-      { auto: { label: 'Signed' }, patch: { label: 'Prime Patch' } }
-    );
+      { patch: true }, { patch: { label: 'Relic' } });
 
-    // Pinned to the exact span text, not a substring: 'Prime Patch' contains
-    // 'Patch', so a `not.toContain('Patch')` guard against the default leaking
-    // through cannot express what it means here.
-    expect(html).toContain('<span class="auto-badge">Signed</span>');
-    expect(html).toContain('<span class="patch-badge">Prime Patch</span>');
+    expect(html).toContain('<span class="patch-badge">Patch</span>');
+    expect(html).not.toContain('Relic');
   });
 
-  it('falls back to the built-in wording when a field declares no label', () => {
+  // The collision that made it obvious: both chips and both badges would have
+  // read Relic on that checklist.
+  it('keeps patch and relic distinct when the config confuses them', () => {
     const html = CardRenderer.renderAttributeBadges(
-      { auto: true, patch: true },
-      { auto: {}, patch: {} }
-    );
+      { patch: true, relic: true },
+      { patch: { label: 'Relic' }, relic: { label: 'Relic' } });
 
-    expect(html).toContain('Auto');
-    expect(html).toContain('Patch');
+    expect(html).toContain('<span class="patch-badge">Patch</span>');
+    expect(html).toContain('<span class="relic-badge">Relic</span>');
   });
 
-  // A hand-edited gist can put anything in here, and a blank label should fall
-  // back rather than render an empty pill.
-  it('falls back for a blank or non-string label', () => {
-    expect(CardRenderer.attributeLabel('   ', 'Patch')).toBe('Patch');
-    expect(CardRenderer.attributeLabel(null, 'Patch')).toBe('Patch');
-    expect(CardRenderer.attributeLabel(undefined, 'Patch')).toBe('Patch');
-    expect(CardRenderer.attributeLabel(42, 'Patch')).toBe('42');
-  });
-
-  // The label now comes from the gist, so it lands in HTML unescaped unless
-  // something escapes it - it never needed escaping as a literal.
-  it('escapes a hostile label instead of injecting it', () => {
-    const html = CardRenderer.renderPatchBadge({ patch: true }, '<img src=x onerror=alert(1)>');
-
-    expect(html).not.toContain('<img');
-    expect(html).toContain('&lt;img');
+  it('takes no label argument at all', () => {
+    expect(CardRenderer.renderPatchBadge({ patch: true }, 'Relic'))
+      .toContain('>Patch<');
+    expect(CardRenderer.renderAutoBadge({ auto: true }, 'Signed'))
+      .toContain('>Auto<');
+    expect(CardRenderer.renderRelicBadge({ relic: true }, 'Memorabilia'))
+      .toContain('>Relic<');
   });
 });
-
-// The badges used to read AUTO/PATCH because the strings were capitals. Now
-// they carry a readable label, so the capitals have to come from the stylesheet
-// or the badges quietly render as "Auto"/"Prime Patch" in a pill designed for caps.
 describe('the badge stylesheet supplies the caps (#787)', () => {
   const readSheet = () => readFileSync(resolve(import.meta.dirname, '..', 'shared.css'), 'utf-8');
   const stripComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');

@@ -1625,22 +1625,18 @@ class ChecklistEngine {
     // on data presence instead - shown only when some card actually carries it.
     _quickFilterDefs(allCards = this._getAllCardsFlat()) {
         const customFields = this.config.customFields;
-        // Each chip is named by the checklist's own label for the field it
-        // filters on, falling back to the built-in wording. Every config already
-        // carries these labels and the editor already renders them; only the
-        // chip and the badge were throwing them away (#787), which is why
-        // re-wording an attribute used to mean a code change.
-        const labelFor = (field, fallback) =>
-            CardRenderer.attributeLabel(customFields?.[field]?.label, fallback);
+        // Fixed wording, like the badges. These were named from
+        // customFields[field].label while the settings modal could set one
+        // (#787); with that input gone the stored label was unreachable, so a
+        // checklist whose Patch had been relabelled "Relic" showed two chips
+        // both called Relic and no way to fix either.
         const defs = [
-            { key: 'auto', label: labelFor('auto', 'Auto'), field: 'auto' },
-            { key: 'patch', label: labelFor('patch', 'Patch'), field: 'patch' },
-            { key: 'relic', label: labelFor('relic', 'Relic'), field: 'relic' },
-            // Not labelFor('serial'): serial's label names the text box you type
-            // 99 into, and the creator writes 'Run' for it. This chip is the
-            // boolean "has any serial" filter, so borrowing that label renamed
-            // the chip to "Run" on every creator-made checklist. There is no
-            // config key meaning "numbered", so this one stays literal.
+            { key: 'auto', label: 'Auto', field: 'auto' },
+            { key: 'patch', label: 'Patch', field: 'patch' },
+            { key: 'relic', label: 'Relic', field: 'relic' },
+            // "Numbered", not serial's own label: that names the text box you
+            // type 99 into (the creator writes 'Run'), while this chip is the
+            // boolean "has any serial" filter.
             { key: 'numbered', label: 'Numbered', field: 'serial' },
         ].filter(d => !customFields || customFields[d.field]);
 
@@ -2876,6 +2872,23 @@ class ChecklistEngine {
         if (customFields.position && !customFields.position.narrow) {
             customFields.position = { ...customFields.position, narrow: true };
         }
+
+        // The built-in attributes carry fixed wording. A checklist edited while
+        // the settings modal could rename them (#787/#799, removed in #801) can
+        // still hold a stale label - one had Patch relabelled "Relic", which put
+        // two checkboxes both reading "Relic" in this editor, next to badges and
+        // chips that read Patch and Relic correctly.
+        //
+        // Normalised here rather than left to a settings save: that save rebuilds
+        // customFields and categories wholesale from the form, so prescribing it
+        // as the cure would quietly drop anything hand-authored outside the
+        // shapes the form knows. This is read-side only - the stored value is
+        // corrected whenever a save happens for its own reasons.
+        ChecklistCreatorModal.ATTRIBUTE_FIELDS.forEach(({ key, label }) => {
+            if (customFields[key] && customFields[key].label !== label) {
+                customFields[key] = { ...customFields[key], label };
+            }
+        });
 
         // Build categories list for dropdown (with optgroup for subcategories)
         let editorCategories;

@@ -157,36 +157,33 @@ const CardRenderer = {
         return `<span class="price-badge ${priceClass}">$${displayPrice}</span>`;
     },
 
-    // The badge text for an attribute: the checklist's own label for the field,
-    // or the built-in wording when it declares none. Coerced the way
-    // renderNoCardBadge coerces, because a hand-edited gist can put a number
-    // here and a blank label should fall back rather than render an empty pill.
+    // Render auto badge HTML (for autographed cards).
     //
-    // Uppercasing is CSS (text-transform on the badge), not baked in here, so
-    // the accessible name stays "Autograph" rather than "AUTOGRAPH".
-    attributeLabel(label, fallback) {
-        return String(label ?? '').trim() || fallback;
-    },
-
-    // Render auto badge HTML (for autographed cards)
-    renderAutoBadge(card, label) {
+    // The wording is fixed. It was read from customFields[field].label while the
+    // settings modal could set one (#787, #799); once Relic became its own
+    // attribute rather than a rename of Patch (#801) that input went away, and
+    // reading the stored label only kept whatever it had written, unreachable.
+    // One checklist had Patch relabelled "Relic": a PATCH card badged RELIC and
+    // both filter chips read Relic. Uppercasing is CSS, so the accessible name
+    // stays "Relic" rather than "RELIC".
+    renderAutoBadge(card) {
         if (!card.auto) return '';
-        return `<span class="auto-badge">${sanitizeText(this.attributeLabel(label, 'Auto'))}</span>`;
+        return `<span class="auto-badge">Auto</span>`;
     },
 
     // Render patch badge HTML (for cards carrying a patch specifically)
-    renderPatchBadge(card, label) {
+    renderPatchBadge(card) {
         if (!card.patch) return '';
-        return `<span class="patch-badge">${sanitizeText(this.attributeLabel(label, 'Patch'))}</span>`;
+        return `<span class="patch-badge">Patch</span>`;
     },
 
     // Render relic badge HTML. Independent of patch, not a rename of it (#801):
     // a patch and a plain swatch relic are different things - RPA is the term
     // precisely because they are listed separately - so a card can be either,
     // both or neither, and the owner ticks what fits.
-    renderRelicBadge(card, label) {
+    renderRelicBadge(card) {
         if (!card.relic) return '';
-        return `<span class="relic-badge">${sanitizeText(this.attributeLabel(label, 'Relic'))}</span>`;
+        return `<span class="relic-badge">Relic</span>`;
     },
 
     // Render serial badge HTML (for numbered cards, e.g. "/99")
@@ -215,9 +212,9 @@ const CardRenderer = {
     // The serial badge stays outside: it sits bottom-left, not in the stack.
     renderAttributeBadges(card, customFields) {
         let stacked = '';
-        if (!customFields || customFields.auto) stacked += this.renderAutoBadge(card, customFields?.auto?.label);
-        if (!customFields || customFields.patch) stacked += this.renderPatchBadge(card, customFields?.patch?.label);
-        if (!customFields || customFields.relic) stacked += this.renderRelicBadge(card, customFields?.relic?.label);
+        if (!customFields || customFields.auto) stacked += this.renderAutoBadge(card);
+        if (!customFields || customFields.patch) stacked += this.renderPatchBadge(card);
+        if (!customFields || customFields.relic) stacked += this.renderRelicBadge(card);
 
         let html = stacked ? `<div class="card-badges">${stacked}</div>` : '';
         // The serial badge renders the serial itself ("/99"), so there is no
