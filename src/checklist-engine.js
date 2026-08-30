@@ -1625,17 +1625,15 @@ class ChecklistEngine {
     // on data presence instead - shown only when some card actually carries it.
     _quickFilterDefs(allCards = this._getAllCardsFlat()) {
         const customFields = this.config.customFields;
-        // Each chip is named by the checklist's own label for the field it
-        // filters on, falling back to the built-in wording. Every config already
-        // carries these labels and the editor already renders them; only the
-        // chip and the badge were throwing them away (#787), which is why
-        // re-wording an attribute used to mean a code change.
-        const labelFor = (field, fallback) =>
-            CardRenderer.attributeLabel(customFields?.[field]?.label, fallback);
+        // Fixed wording, like the badges. These were named from
+        // customFields[field].label while the settings modal could set one
+        // (#787); with that input gone the stored label was unreachable, so a
+        // checklist whose Patch had been relabelled "Relic" showed two chips
+        // both called Relic and no way to fix either.
         const defs = [
-            { key: 'auto', label: labelFor('auto', 'Auto'), field: 'auto' },
-            { key: 'patch', label: labelFor('patch', 'Patch'), field: 'patch' },
-            { key: 'relic', label: labelFor('relic', 'Relic'), field: 'relic' },
+            { key: 'auto', label: 'Auto', field: 'auto' },
+            { key: 'patch', label: 'Patch', field: 'patch' },
+            { key: 'relic', label: 'Relic', field: 'relic' },
             // Not labelFor('serial'): serial's label names the text box you type
             // 99 into, and the creator writes 'Run' for it. This chip is the
             // boolean "has any serial" filter, so borrowing that label renamed

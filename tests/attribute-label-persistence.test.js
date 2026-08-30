@@ -38,41 +38,14 @@ afterEach(() => {
     document.querySelectorAll('.checklist-creator-backdrop').forEach(el => el.remove());
 });
 
-describe('a configured attribute label survives a settings save (#787)', () => {
-    it('keeps every attribute label the config already carried', () => {
+// #801 follow-up: _buildConfig writes the built-in wording again. Carrying an
+// existing label across was right while an input could set one; once that input
+// was removed the carry-across only preserved what it had written, and nothing
+// could correct it - the Jayden checklist kept Patch labelled "Relic" through
+// every save, which is the label the card editor shows on the checkbox.
+describe('a settings save normalises a stale attribute label (#801)', () => {
+    it('rewrites a relabelled attribute back to its built-in wording', () => {
         const creator = openEditing(RELABELLED_CONFIG);
-
-        const cf = creator._buildConfig().customFields;
-
-        expect(cf.patch.label).toBe('Prime Patch');
-        expect(cf.auto.label).toBe('Signed');
-        expect(cf.serial.label).toBe('Numbered To');
-        expect(cf.variant.label).toBe('Parallel');
-    });
-
-    // The rest of the field definition is still rebuilt from the form; only the
-    // wording is carried across.
-    it('still rebuilds the rest of the field from the form', () => {
-        const creator = openEditing(RELABELLED_CONFIG);
-
-        const cf = creator._buildConfig().customFields;
-
-        expect(cf.patch.type).toBe('checkbox');
-        expect(cf.patch.position).toBe('attributes');
-        expect(cf.serial.inputType).toBe('number');
-        expect(cf.serial.placeholder).toBe('99');
-    });
-
-    it('falls back to the built-in wording when the config carries none', () => {
-        // All four declared, none labelled: an attribute the config omits is
-        // switched off and _buildConfig drops it, so declaring only `patch`
-        // would leave the other assertions reading undefined.
-        const creator = openEditing({ title: 'x', navLabel: 'X', customFields: {
-            variant: { type: 'text' },
-            auto: { type: 'checkbox' },
-            patch: { type: 'checkbox' },
-            serial: { type: 'text' },
-        } });
 
         const cf = creator._buildConfig().customFields;
 
@@ -82,52 +55,30 @@ describe('a configured attribute label survives a settings save (#787)', () => {
         expect(cf.variant.label).toBe('Variant');
     });
 
-    // An attribute the checklist does not declare stays off, and contributes no
-    // field at all - the wording input for it is beside the point.
+    it('still rebuilds the rest of the field from the form', () => {
+        const creator = openEditing(RELABELLED_CONFIG);
+
+        const cf = creator._buildConfig().customFields;
+
+        expect(cf.patch.type).toBe('checkbox');
+        expect(cf.patch.position).toBe('attributes');
+        expect(cf.serial.inputType).toBe('number');
+    });
+
+    // An attribute the config does not declare stays off and contributes
+    // nothing, label or otherwise.
     it('drops an attribute the config does not declare', () => {
         const creator = openEditing({ title: 'x', navLabel: 'X', customFields: {
-            patch: { label: 'Prime Patch', type: 'checkbox' },
+            patch: { label: 'Relic', type: 'checkbox' },
         } });
 
         const cf = creator._buildConfig().customFields;
 
-        expect(cf.patch.label).toBe('Prime Patch');
+        expect(cf.patch.label).toBe('Patch');
         expect(cf.auto).toBeUndefined();
         expect(cf.serial).toBeUndefined();
     });
-
-    // A hand-edited gist can hold anything here, and a blank label would render
-    // a nameless badge.
-    it('falls back for a blank or non-string label', () => {
-        const creator = openEditing({ title: 'x', navLabel: 'X', customFields: {
-            patch: { label: '   ', type: 'checkbox' },
-            auto: { label: 42, type: 'checkbox' },
-        } });
-
-        const cf = creator._buildConfig().customFields;
-
-        expect(cf.patch.label).toBe('Patch');
-        expect(cf.auto.label).toBe('Auto');
-    });
-
-    // A brand-new checklist has nothing to preserve and must not read whatever
-    // existingConfig happens to be.
-    it('uses the built-in wording when not editing', () => {
-        const creator = new ChecklistCreatorModal({});
-        creator.open();
-        creator.existingConfig = RELABELLED_CONFIG;
-        creator.backdrop.querySelector('#creator-title').value = 'New List';
-        creator.backdrop.querySelector('#creator-nav-label').value = 'NEW';
-
-        const cf = creator._buildConfig().customFields;
-
-        expect(cf.patch.label).toBe('Patch');
-        expect(cf.auto.label).toBe('Auto');
-    });
 });
-
-// #801 added a fifth attribute. Its checkbox shipped without `checked` while
-// _clearForm sets every attribute checked, so the markup and the behaviour
 // disagreed about what a new checklist gets - and nothing pinned either.
 describe('a new checklist gets every attribute (#801)', () => {
     function openNew() {

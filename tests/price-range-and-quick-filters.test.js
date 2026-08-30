@@ -131,80 +131,32 @@ describe('ChecklistEngine._quickFilterDefs', () => {
 // editing code; now it follows the config. There is still no input for the
 // label in the settings modal - that is a follow-up - but a label set on the
 // config survives a save, which it did not before.
-describe('ChecklistEngine._quickFilterDefs — chip wording comes from the config (#787)', () => {
+// #801 follow-up: chip wording is fixed again. A checklist that had Patch
+// relabelled "Relic" through the removed settings input would otherwise show two
+// chips both named Relic, filtering different things, with no way to fix either.
+describe('ChecklistEngine._quickFilterDefs — chip wording ignores the config', () => {
     const labelsOf = (engine) => Object.fromEntries(
         engine._quickFilterDefs([]).map(d => [d.key, d.label]));
 
-    it('names each chip with the checklist own label', () => {
+    it('names the chips from the built-in wording', () => {
         const engine = makeEngine({ customFields: {
             auto: { type: 'checkbox', label: 'Signed' },
-            patch: { type: 'checkbox', label: 'Prime Patch' },
-            // The label ChecklistCreatorModal._buildConfig really writes.
-            serial: { type: 'text', label: 'Run' },
+            patch: { type: 'checkbox', label: 'Relic' },
+            relic: { type: 'checkbox', label: 'Relic' },
         } }, []);
 
-        expect(labelsOf(engine)).toEqual({
-            auto: 'Signed', patch: 'Prime Patch', numbered: 'Numbered',
-        });
+        expect(labelsOf(engine)).toEqual({ auto: 'Auto', patch: 'Patch', relic: 'Relic' });
     });
 
-    // serial.label names the box you type 99 into - the creator writes 'Run'
-    // for it - while this chip filters for "has any serial at all". Reading it
-    // renamed the chip to "Run" on every creator-made checklist.
-    it('does not borrow the serial field label for the Numbered chip', () => {
+    it('renders that wording on the button, not the stored label', () => {
         const engine = makeEngine({ customFields: {
-            serial: { type: 'text', label: 'Run' },
-        } }, []);
-
-        expect(labelsOf(engine)).toEqual({ numbered: 'Numbered' });
-    });
-
-    // The wording that shipped before this change, for any field that declares
-    // no label of its own.
-    it('falls back to the built-in wording', () => {
-        const engine = makeEngine({ customFields: {
-            auto: { type: 'checkbox' },
-            patch: { type: 'checkbox' },
-            serial: { type: 'text' },
-        } }, []);
-
-        expect(labelsOf(engine)).toEqual({
-            auto: 'Auto', patch: 'Patch', numbered: 'Numbered',
-        });
-    });
-
-    it('falls back with no customFields at all', () => {
-        const engine = makeEngine({ customFields: undefined }, []);
-
-        expect(labelsOf(engine)).toEqual({
-            auto: 'Auto', patch: 'Patch', relic: 'Relic', numbered: 'Numbered',
-        });
-    });
-
-    // A blank label should not render a nameless chip.
-    it('falls back for a blank label', () => {
-        const engine = makeEngine({ customFields: {
-            patch: { type: 'checkbox', label: '   ' },
-        } }, []);
-
-        expect(labelsOf(engine)).toEqual({ patch: 'Patch' });
-    });
-
-    // The chip's label reaches the DOM, so the rendered button has to carry it
-    // too - reading it off the defs alone would not prove the chip changed.
-    it('renders the configured wording on the button', () => {
-        const engine = makeEngine({ customFields: {
-            patch: { type: 'checkbox', label: 'Prime Patch' },
+            patch: { type: 'checkbox', label: 'Relic' },
         } }, [{ set: 'A', num: '1', patch: true }]);
         engine._renderFilters();
 
-        const chip = document.querySelector('[data-quick-filter="patch"]');
-        expect(chip).not.toBeNull();
-        expect(chip.textContent).toBe('Prime Patch');
+        expect(document.querySelector('[data-quick-filter="patch"]').textContent).toBe('Patch');
     });
 });
-
-// #801: relic filters independently of patch.
 describe('ChecklistEngine — the relic chip (#801)', () => {
     const config = { customFields: { patch: { type: 'checkbox' }, relic: { type: 'checkbox' } } };
     const cards = [
