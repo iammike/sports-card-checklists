@@ -1510,7 +1510,7 @@ class ChecklistEngine {
         // Attribute toggle filters (Auto / Patch / Numbered / Rookie). Unlike the
         // dropdowns above, these are checkboxes: any combination can be active at
         // once and they AND together with every other filter in _filterCard.
-        // Both helpers below take the flattened card list so it's only built once.
+        // The helpers below take the flattened card list so it's only built once.
         const allCards = this._getAllCardsFlat();
         const quickDefs = this._quickFilterDefs(allCards);
         if (quickDefs.length > 0) {
@@ -1532,12 +1532,17 @@ class ChecklistEngine {
         // Computed once and handed to _initPriceFilter below: the chips' data-band
         // indices and the array they index have to be the same array.
         const priceBands = this._getPriceBands(allCards);
-        const priceBounds = this._getPriceBounds(allCards);
+        // Whether anything here is priced at all, which is what decides between
+        // rendering the price controls and omitting them. A linear scan rather
+        // than _getPriceBounds: that sorts every price to find a ceiling this
+        // caller never reads, and _getPriceBands above has already paid for one
+        // sort of the same list.
+        const hasPricedCards = allCards.some(c => this.getPrice(c) > 0);
         // Nit 11 from review: bands can come back empty while cards are still
         // priced (everything under the first edge, or above the last). The
         // exact fields are the only way to filter on price at all then - and
         // the only way to hide unpriced cards - so they render regardless.
-        if (priceBounds) {
+        if (hasPricedCards) {
             const chips = priceBands.map((b, i) => `<button type="button" class="filter-btn price-band-btn" data-band="${i}" aria-pressed="false">${sanitizeText(b.label)}</button>`).join('');
             const bandGroup = chips
                 ? `<div class="filter-row-group" role="group" aria-labelledby="price-filter-label">${chips}</div>`
@@ -1696,9 +1701,13 @@ class ChecklistEngine {
     }
 
     // The price ceiling, from actual priced cards; null when nothing on this
-    // checklist has a price, so the caller can skip the control entirely. Takes
+    // checklist has a price, in which case there are no bands to build. Takes
     // an already-sorted list when the caller has one (_getPriceBands, which
     // needs the floor from the same sort) to avoid sorting twice.
+    //
+    // Not the guard for whether the price controls render - _renderFilters
+    // scans for a priced card instead (#784), since it only ever read this as a
+    // boolean and the ceiling cost a second sort of the same list.
     _getPriceBounds(allCards = this._getAllCardsFlat(), sortedPrices = this._getSortedPrices(allCards)) {
         if (sortedPrices.length === 0) return null;
         return { min: 0, max: Math.max(1, Math.ceil(sortedPrices[sortedPrices.length - 1])) };

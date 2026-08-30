@@ -44,8 +44,27 @@ describe('checklist.html carries the elements the labels are written into', () =
     it('has the count label id, and the default text the engine restores', () => {
         const source = html();
         expect(source).toContain('id="total-label"');
-        // _setPageMeta falls back to this exact string when no label is configured.
-        expect(source).toContain('>Total Cards<');
+        // Against the constant, not a matching literal (#784). _setPageMeta
+        // falls back to DEFAULT_COUNT_LABEL when no label is configured, and a
+        // literal here cannot see that move: renaming the constant left this
+        // green while the placeholder still read the old wording on every
+        // checklist page. The index tile's placeholder is pinned the same way.
+        const m = source.match(/id="total-label"[^>]*>([^<]*)</);
+        expect(m, 'total-label not found in checklist.html').not.toBeNull();
+        expect(m[1]).toBe(globalThis.DEFAULT_COUNT_LABEL);
+    });
+
+    // The third copy of the same string, and the only one that renders rather
+    // than being replaced: it is what the settings field shows when a checklist
+    // names no label of its own. Being JS inside sharedFiles, it can read the
+    // constant, so it does.
+    it('shows the same default in the settings field placeholder', () => {
+        const creator = new globalThis.ChecklistCreatorModal({});
+        creator.init();
+
+        expect(creator.backdrop.querySelector('#creator-total-label')
+            .getAttribute('placeholder')).toBe(globalThis.DEFAULT_COUNT_LABEL);
+        creator.backdrop.closest('.checklist-creator-backdrop')?.remove();
     });
 
     it('has the needed-value element the breakdown suffix is written into', () => {
