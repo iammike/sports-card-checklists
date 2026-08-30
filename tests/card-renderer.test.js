@@ -266,6 +266,20 @@ describe('the badge stylesheet supplies the caps (#787)', () => {
       .replace(/\/\*[\s\S]*?\*\//g, '');
   };
 
+  // The wording is arbitrary now, and the badge sits at top-left under a price
+  // badge pinned to top-right at the same z-index. Without a cap a long label
+  // runs beneath it.
+  it('keeps a long label from running under the price badge', () => {
+    for (const sel of ['.auto-badge {', '.patch-badge {']) {
+      expect(rule(sel), sel).toContain('text-overflow: ellipsis');
+      // Pinned, not just present: a cap that reserves nothing (max-width:
+      // calc(100% - 8px)) would satisfy a bare toContain while the overlap
+      // returns. 90px is the price badge's own width plus its 8px inset.
+      expect(rule(sel), sel).toContain('max-width: calc(100% - 90px)');
+      expect(rule(sel), sel).toContain('white-space: nowrap');
+    }
+  });
+
   it('uppercases both configurable badges', () => {
     expect(rule('.auto-badge {')).toContain('text-transform: uppercase');
     expect(rule('.patch-badge {')).toContain('text-transform: uppercase');
