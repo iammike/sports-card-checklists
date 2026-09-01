@@ -187,7 +187,17 @@ const ChecklistExport = {
         y += 12;
         doc.setFontSize(9);
         doc.text(rows.length + (rows.length === 1 ? ' card' : ' cards'), margin, y);
-        y += 8;
+        y += 5;
+        // Which filters produced this file. On paper there is nothing else to
+        // tell a partial checklist from a complete one, and a printed sheet
+        // outlives the dialog that chose the scope (#745).
+        if (meta.filters?.length) {
+            doc.setTextColor(110);
+            doc.text(`Filtered: ${meta.filters.join(', ')}`, margin, y);
+            doc.setTextColor(0);
+            y += 5;
+        }
+        y += 3;
 
         const drawHeader = () => {
             doc.setFillColor(50, 50, 50);
@@ -312,6 +322,10 @@ const ChecklistExport = {
                     '</div>' +
                     '<div class="shopping-list-divider" id="ce-options-divider"></div>' +
                     '<div class="shopping-list-section-label" id="ce-options-label">Options</div>' +
+                    '<div class="shopping-list-option" id="ce-filtered-option">' +
+                        '<input type="checkbox" id="ce-filtered">' +
+                        '<label for="ce-filtered" id="ce-filtered-label">Only the cards the filters show</label>' +
+                    '</div>' +
                     '<div class="shopping-list-option">' +
                         '<input type="checkbox" id="ce-include-extra" checked>' +
                         '<label for="ce-include-extra">Include inserts, parallels and other extra categories</label>' +
@@ -351,6 +365,20 @@ const ChecklistExport = {
         this.backdrop.querySelector('#ce-format-pdf').checked = false;
         this.backdrop.querySelector('#ce-include-extra').checked = true;
 
+        // Offered only when filters are actually on - otherwise it is a choice
+        // between a file and the same file. Named with what it would narrow to,
+        // so the visitor can see the scope before committing to a download
+        // rather than after opening it (#745).
+        const labels = context.filters?.labels?.() || [];
+        const visible = labels.length ? (context.filters?.visible?.() || []) : [];
+        const filtered = this.backdrop.querySelector('#ce-filtered');
+        filtered.checked = false;
+        this.backdrop.querySelector('#ce-filtered-option').style.display =
+            labels.length ? '' : 'none';
+        this.backdrop.querySelector('#ce-filtered-label').textContent =
+            `Only what the filters show - ${visible.length} `
+            + `${visible.length === 1 ? 'card' : 'cards'} (${labels.join(', ')})`;
+
         // Some checklists mark every category as extra (eagles-legends does).
         // Unchecking there exports nothing, so offer no choice that can only
         // produce an empty file.
@@ -375,8 +403,19 @@ const ChecklistExport = {
         const btn = this.backdrop.querySelector('#ce-export');
         const includeExtra = this.backdrop.querySelector('#ce-include-extra').checked;
         const asPdf = this.backdrop.querySelector('#ce-format-pdf').checked;
-        const rows = this.collectRows(ctx.cards, ctx.config, includeExtra, ctx.sort);
-        const base = `${ctx.id}-checklist`;
+
+        // Re-read at export time, not at open time: the dialog is modal but the
+        // filters behind it are the ones that were on when it opened, and the
+        // count in the label came from the same read.
+        const onlyFiltered = this.backdrop.querySelector('#ce-filtered').checked;
+        const labels = onlyFiltered ? (ctx.filters?.labels?.() || []) : [];
+        const cards = onlyFiltered ? (ctx.filters?.visible?.() || []) : ctx.cards;
+
+        const rows = this.collectRows(cards, ctx.config, includeExtra, ctx.sort);
+        // The filename says so too. A CSV cannot carry a note without breaking
+        // the header row every spreadsheet expects first, so this is where the
+        // scope survives being opened somewhere else.
+        const base = `${ctx.id}-checklist${onlyFiltered ? '-filtered' : ''}`;
 
         if (!asPdf) {
             this.downloadCSV(`${base}.csv`, this.toCSV(rows));
@@ -388,7 +427,9 @@ const ChecklistExport = {
         btn.disabled = true;
         btn.textContent = 'Generating...';
         try {
-            await this.buildPDF(rows, { title: ctx.title || ctx.id, filename: `${base}.pdf` });
+            await this.buildPDF(rows, {
+                title: ctx.title || ctx.id, filename: `${base}.pdf`, filters: labels,
+            });
             this.close();
         } catch (e) {
             console.error('Checklist PDF failed:', e);

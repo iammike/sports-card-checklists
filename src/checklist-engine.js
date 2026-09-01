@@ -1607,6 +1607,13 @@ class ChecklistEngine {
             sort: (list) => (this.config?.defaultSortMode
                 ? this.sortCards([...list], this.config.defaultSortMode)
                 : list),
+            // What the filters currently show, so the dialog can offer it as a
+            // scope (#745). Read lazily: the visitor can change filters between
+            // the bar rendering and the export button being pressed.
+            filters: {
+                labels: () => this._activeFilters().map(f => f.label),
+                visible: () => this._visibleCards(),
+            },
         }));
         container.querySelectorAll('.quick-filter-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -1802,6 +1809,17 @@ class ChecklistEngine {
     // Every filter currently narrowing the view, as {label, clear}. Read from the
     // same controls _applyFilters reads, so the chips cannot claim a filter that
     // is not applied or miss one that is (#785).
+    // The cards the filters currently leave visible, in render order. Read off
+    // the DOM rather than recomputed: _applyFilters is what decides visibility,
+    // and a second implementation of the same predicate would be free to
+    // disagree with the grid the visitor is looking at.
+    _visibleCards() {
+        return [...document.querySelectorAll('#sections-container .card')]
+            .filter(el => !el.classList.contains('filter-hidden'))
+            .map(el => this._renderedCards[parseInt(el.dataset.cardIdx, 10)])
+            .filter(Boolean);
+    }
+
     _activeFilters() {
         const active = [];
         const push = (label, clear) => active.push({ label, clear });
