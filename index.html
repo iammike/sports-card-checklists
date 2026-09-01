@@ -861,7 +861,6 @@
             // request per checklist. That is a property of the caching, not of
             // this loop: before it, a warm load re-downloaded the whole gist
             // here, and a dead token re-downloaded it once per checklist.
-            const loggedIn = githubSync.isLoggedIn();
             const configs = {};
             for (const entry of dynamicEntries) {
                 // Per checklist, not around the loop: these reads JSON.parse a
