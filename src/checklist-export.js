@@ -41,6 +41,20 @@ const ChecklistExport = {
         return this._namesVary(rows) ? this.CSV_COLUMNS : this.CSV_COLUMNS.filter(c => c !== 'Name');
     },
 
+    // Whether a card becomes a row. Neither of these is a real card: one is a
+    // navigation tile, the other a placeholder for a player with no card. Shared
+    // with the scope label, which counted raw cards and so promised rows the
+    // file would not contain (#745).
+    isExportable(card) {
+        return !card.collectionLink && !card.noCard;
+    },
+
+    // Every card in either storage shape, flat.
+    _flatten(cards) {
+        if (Array.isArray(cards)) return cards;
+        return Object.values(cards || {}).flat();
+    },
+
     // Flatten the engine's in-memory cards into export rows, in config order.
     // `cards` is a flat array or a {categoryId: [...]} map, matching dataShape.
     collectRows(cards, config, includeExtra, sort) {
@@ -49,7 +63,7 @@ const ChecklistExport = {
 
         const push = (section, list) => {
             (sort ? sort(list || []) : (list || [])).forEach(card => {
-                if (card.collectionLink || card.noCard) return;
+                if (!this.isExportable(card)) return;
                 rows.push({
                     section,
                     set: card.set || '',
@@ -193,7 +207,10 @@ const ChecklistExport = {
         // outlives the dialog that chose the scope (#745).
         if (meta.filters?.length) {
             doc.setTextColor(110);
-            doc.text(`Filtered: ${meta.filters.join(', ')}`, margin, y);
+            doc.text(
+                ShoppingList.truncateToWidth(doc, `Filtered: ${meta.filters.join(', ')}`, usableWidth),
+                margin, y,
+            );
             doc.setTextColor(0);
             y += 5;
         }
@@ -370,11 +387,17 @@ const ChecklistExport = {
         // so the visitor can see the scope before committing to a download
         // rather than after opening it (#745).
         const labels = context.filters?.labels?.() || [];
-        const visible = labels.length ? (context.filters?.visible?.() || []) : [];
+        const visible = labels.length
+            ? this._flatten(context.filters?.visible?.()).filter(c => this.isExportable(c))
+            : [];
         const filtered = this.backdrop.querySelector('#ce-filtered');
         filtered.checked = false;
+        // Gated on there being rows, not merely on filters being on: with
+        // filters that match nothing this would offer a header-only file, which
+        // is the choice the includeExtra toggle below refuses to present.
+        const offerFiltered = visible.length > 0;
         this.backdrop.querySelector('#ce-filtered-option').style.display =
-            labels.length ? '' : 'none';
+            offerFiltered ? '' : 'none';
         this.backdrop.querySelector('#ce-filtered-label').textContent =
             `Only what the filters show - ${visible.length} `
             + `${visible.length === 1 ? 'card' : 'cards'} (${labels.join(', ')})`;
@@ -384,12 +407,15 @@ const ChecklistExport = {
         // produce an empty file.
         const cats = context.config?.categories || [];
         const canFilter = cats.some(c => c.isMain !== false);
-        const display = canFilter ? '' : 'none';
         this.backdrop.querySelector('#ce-include-extra').closest('.shopping-list-option')
-            .style.display = display;
-        // The heading and divider too, or the section is an empty "Options".
-        this.backdrop.querySelector('#ce-options-divider').style.display = display;
-        this.backdrop.querySelector('#ce-options-label').style.display = display;
+            .style.display = canFilter ? '' : 'none';
+        // The heading and divider too, or the section is an empty "Options" -
+        // but they belong to whichever option is showing, not just this one. A
+        // flat checklist has no categories at all, so keying them off canFilter
+        // alone left the filtered tick box floating with no heading above it.
+        const anyOption = canFilter || offerFiltered ? '' : 'none';
+        this.backdrop.querySelector('#ce-options-divider').style.display = anyOption;
+        this.backdrop.querySelector('#ce-options-label').style.display = anyOption;
 
         this.backdrop.classList.add('active');
     },
@@ -404,9 +430,10 @@ const ChecklistExport = {
         const includeExtra = this.backdrop.querySelector('#ce-include-extra').checked;
         const asPdf = this.backdrop.querySelector('#ce-format-pdf').checked;
 
-        // Re-read at export time, not at open time: the dialog is modal but the
-        // filters behind it are the ones that were on when it opened, and the
-        // count in the label came from the same read.
+        // Re-read rather than captured at open time. The backdrop covers the
+        // page so the filters cannot actually change underneath, but reading
+        // from one source keeps the label's count and the file's rows derived
+        // from the same call rather than from a snapshot each.
         const onlyFiltered = this.backdrop.querySelector('#ce-filtered').checked;
         const labels = onlyFiltered ? (ctx.filters?.labels?.() || []) : [];
         const cards = onlyFiltered ? (ctx.filters?.visible?.() || []) : ctx.cards;

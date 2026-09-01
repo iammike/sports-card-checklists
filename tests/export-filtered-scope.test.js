@@ -70,7 +70,8 @@ describe('ChecklistEngine._visibleCards (#745)', () => {
     });
 
     // Read off the DOM, so it cannot disagree with what the visitor sees - a
-    // second copy of the filter predicate would be free to drift.
+    // second copy of the filter predicate would be free to drift. The count
+    // guard matters: without it this passes on 0 === 0 whatever the filter did.
     it('reports the cards the grid is actually showing', () => {
         const engine = makeEngine();
         document.getElementById('search').value = 'C';
@@ -78,6 +79,7 @@ describe('ChecklistEngine._visibleCards (#745)', () => {
 
         const shown = [...document.querySelectorAll('#sections-container .card')]
             .filter(el => !el.classList.contains('filter-hidden')).length;
+        expect(shown).toBe(1);
         expect(engine._visibleCards()).toHaveLength(shown);
     });
 });
@@ -226,5 +228,152 @@ describe('the PDF says which filters made it (#745)', () => {
         await ChecklistExport.buildPDF([ROW], { title: 'Test', filename: 'x.pdf' });
 
         expect(strings().some(t => t.startsWith('Filtered:'))).toBe(false);
+    });
+});
+
+// Every fixture above is dataShape 'flat', and that is why the first pass of
+// this feature shipped an empty file: collectRows reads cards[cat.id], which on
+// a flat array is undefined for every category, so a category checklist - the
+// default, and what Jayden Daniels and JMU use - exported nothing but a header
+// row while the dialog reported a card count. The trap CLAUDE.md names: a
+// fixture modelling a shape the real code never produces.
+describe('the filtered scope on a category checklist (#745)', () => {
+    const CAT_CONFIG = {
+        dataShape: 'categories',
+        cardDisplay: {},
+        sortOptions: ['default', 'year'],
+        categories: [
+            { id: 'base', label: 'Base Set' },
+            { id: 'inserts', label: 'Inserts', isMain: false },
+        ],
+    };
+    const CAT_CARDS = {
+        base: [{ set: 'Prizm', num: '1', price: 5 }, { set: 'Select', num: '2', price: 50 }],
+        inserts: [{ set: 'Kaboom', num: 'K1', price: 500 }],
+    };
+
+    let downloaded;
+
+    function mount() {
+        const engine = makeEngine(CAT_CARDS, CAT_CONFIG);
+        ChecklistExport.open({
+            id: 'jd', title: 'JD', config: engine.config, cards: engine.cards,
+            sort: (l) => l,
+            filters: {
+                labels: () => engine._activeFilters().map(f => f.label),
+                visible: () => engine._visibleCardsInConfigShape(),
+            },
+        });
+        return engine;
+    }
+
+    beforeEach(() => {
+        downloaded = [];
+        ChecklistExport.downloadCSV = (filename, content) => downloaded.push({ filename, content });
+    });
+
+    it('hands back the map shape, not a flat array', () => {
+        const engine = makeEngine(CAT_CARDS, CAT_CONFIG);
+        document.getElementById('search').value = 'Select';
+        document.getElementById('search').dispatchEvent(new Event('input'));
+
+        const shaped = engine._visibleCardsInConfigShape();
+
+        expect(Array.isArray(shaped)).toBe(false);
+        expect(shaped.base.map(c => c.num)).toEqual(['2']);
+        expect(shaped.inserts).toEqual([]);
+    });
+
+    // The failure that shipped: a file containing only its header row.
+    it('writes the visible card, with its section', async () => {
+        const engine = mount();
+        document.getElementById('search').value = 'Select';
+        document.getElementById('search').dispatchEvent(new Event('input'));
+        ChecklistExport.open({
+            id: 'jd', title: 'JD', config: engine.config, cards: engine.cards, sort: (l) => l,
+            filters: {
+                labels: () => engine._activeFilters().map(f => f.label),
+                visible: () => engine._visibleCardsInConfigShape(),
+            },
+        });
+        ChecklistExport.backdrop.querySelector('#ce-filtered').checked = true;
+        await ChecklistExport._onExport();
+
+        const lines = downloaded[0].content.replace(/^﻿/, '').trim().split('\r\n');
+        expect(lines).toHaveLength(2);
+        expect(lines[1]).toContain('Select');
+        expect(lines[1].startsWith('Base Set')).toBe(true);
+    });
+
+    // includeExtra still means something on the filtered subset, which it could
+    // not if the shape had been flattened away.
+    it('still honours the extra-categories toggle', async () => {
+        const engine = mount();
+        ChecklistExport.backdrop.querySelector('#ce-filtered').checked = true;
+        ChecklistExport.backdrop.querySelector('#ce-include-extra').checked = false;
+        await ChecklistExport._onExport();
+
+        expect(downloaded[0].content).not.toContain('Kaboom');
+        expect(downloaded[0].content).toContain('Prizm');
+    });
+});
+
+describe('the scope label counts rows, not cards (#745)', () => {
+    // collectRows drops both of these, so counting raw cards promised rows the
+    // file would never contain. Jayden Daniels carries both.
+    it('ignores collection links and no-card placeholders', () => {
+        ChecklistExport.open({
+            id: 'test', title: 'Test', config: CONFIG, cards: CARDS, sort: (l) => l,
+            filters: {
+                labels: () => ['Needed Only'],
+                visible: () => [
+                    { set: 'A', num: '1' },
+                    { set: 'Other checklist', collectionLink: true },
+                    { player: 'Nobody', noCard: true },
+                ],
+            },
+        });
+
+        expect(ChecklistExport.backdrop.querySelector('#ce-filtered-label').textContent)
+            .toBe('Only what the filters show - 1 card (Needed Only)');
+    });
+
+    // Offering a header-only file is the choice includeExtra explicitly refuses
+    // to present; the two options should agree.
+    it('offers nothing when the filters leave no exportable card', () => {
+        ChecklistExport.open({
+            id: 'test', title: 'Test', config: CONFIG, cards: CARDS, sort: (l) => l,
+            filters: { labels: () => ['"nothing"'], visible: () => [] },
+        });
+
+        expect(ChecklistExport.backdrop.querySelector('#ce-filtered-option').style.display)
+            .toBe('none');
+    });
+});
+
+describe('the Options heading follows whichever option is showing (#745)', () => {
+    // A flat checklist has no categories, so the extra-categories toggle hides -
+    // and keying the heading off that alone left the filtered tick box floating
+    // under the Format radios with no heading and no divider.
+    it('keeps the heading for a flat checklist with filters on', () => {
+        ChecklistExport.open({
+            id: 'test', title: 'Test', config: CONFIG, cards: CARDS, sort: (l) => l,
+            filters: { labels: () => ['Needed Only'], visible: () => [CARDS[0]] },
+        });
+        const b = ChecklistExport.backdrop;
+
+        expect(b.querySelector('#ce-include-extra').closest('.shopping-list-option').style.display)
+            .toBe('none');
+        expect(b.querySelector('#ce-filtered-option').style.display).toBe('');
+        expect(b.querySelector('#ce-options-label').style.display).toBe('');
+        expect(b.querySelector('#ce-options-divider').style.display).toBe('');
+    });
+
+    it('drops it when neither option is showing', () => {
+        ChecklistExport.open({ id: 'test', title: 'Test', config: CONFIG, cards: CARDS, sort: (l) => l });
+        const b = ChecklistExport.backdrop;
+
+        expect(b.querySelector('#ce-options-label').style.display).toBe('none');
+        expect(b.querySelector('#ce-options-divider').style.display).toBe('none');
     });
 });
