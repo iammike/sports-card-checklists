@@ -4229,13 +4229,19 @@ select, input[type="text"] {
         border: 1px solid #666 !important;
     }
 
-    /* Outlined, so they survive backgrounds being off and cost no toner. */
+    /* Outlined rather than filled with their screen colours, which cost toner
+       and print as grey blocks. White, though, not transparent: these sit at
+       the corners of the card image, and a card that has one prints the art
+       straight through an unfilled badge - "AUTO" and "$45" over a photo were
+       unreadable. White is free on white paper, and it also keeps them legible
+       when the reader has background graphics switched off, since the border
+       and the text carry the shape either way. */
     .auto-badge,
     .patch-badge,
     .relic-badge,
     .serial-badge,
     .price-badge {
-        background: none !important;
+        background: #fff !important;
         color: #000 !important;
         border: 1px solid #666 !important;
         box-shadow: none !important;

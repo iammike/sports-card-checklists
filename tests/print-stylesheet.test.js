@@ -145,10 +145,14 @@ describe('the print stylesheet states its own colours (#745)', () => {
         expect(rule(selector)).toMatch(/color:\s*#[0-9a-f]{3,6}/i);
     });
 
-    it('outlines the badges instead of filling them', () => {
+    // White, not transparent: the badges sit at the corners of the card image,
+    // and an unfilled one prints the artwork straight through it - "AUTO" over
+    // a photo was unreadable. White costs nothing on white paper.
+    it('backs the badges in white rather than leaving them transparent', () => {
         const r = rule('.auto-badge,');
 
-        expect(r).toContain('background: none');
+        expect(r).toContain('background: #fff !important');
+        expect(r).not.toContain('background: none');
         expect(r).toContain('color: #000');
         expect(r).toContain('border:');
     });
