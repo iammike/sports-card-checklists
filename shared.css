@@ -1704,12 +1704,153 @@ select, input[type="text"] {
 /* ============================================
    Print Styles
    ============================================ */
+/* A checklist you can actually take to a show. Two things drive all of it:
+   toner, and the fact that browsers print with "Background graphics" OFF by
+   default - which drops every gradient while keeping the white text sitting on
+   it, so the section headers printed blank before this. Everything below states
+   its own foreground colour rather than relying on a background surviving.
+
+   The colour tokens are re-pointed first: a dark-theme checklist injects its
+   palette into #dynamic-theme at runtime, and without this the page prints as
+   black boxes or, with backgrounds off, light grey text on white. */
 @media print {
-    .card { break-inside: avoid; }
-    .search-link { display: none; }
-    .filters { display: none; }
-    .clear-btn { display: none; }
-    body { background: white; }
+    :root {
+        --color-background: #fff;
+        --color-surface: #fff;
+        --color-surface-overlay: #fff;
+        --color-text: #000;
+        --color-text-muted: #333;
+        --color-text-light: #555;
+        --color-border: #999;
+        --card-border: #999;
+        --card-owned-bg: #fff;
+    }
+
+    body {
+        background: #fff !important;
+        color: #000 !important;
+    }
+
+    /* Chrome with no meaning on paper. .card-actions rather than .search-link:
+       hiding only the anchors left the " · " between them printing as a stray
+       dot under every card. */
+    .nav-bar,
+    .filters,
+    .clear-btn,
+    .card-actions,
+    .no-matches-state,
+    .reorder-handle,
+    .owned-toggle {
+        display: none !important;
+    }
+
+    /* The disclosure triangle is a ::before on the header itself, not an
+       element - it printed as a glyph sitting over the section name. Nothing
+       collapses on paper. */
+    .section-header.collapsible::before,
+    .group-header.collapsible::before {
+        display: none !important;
+    }
+
+    /* A title, not a hero block. */
+    .page-header {
+        background: none !important;
+        padding: 0 0 6px !important;
+        margin-bottom: 10px;
+        border-bottom: 1px solid #999;
+    }
+
+    .page-header::after { display: none !important; }
+
+    h1 {
+        font-size: 18pt;
+        background: none !important;
+        color: #000 !important;
+        -webkit-text-fill-color: #000 !important;
+    }
+
+    .subtitle { color: #333 !important; }
+
+    /* The scoreboard is worth keeping - it is what the sheet is measured
+       against - but as outlined figures rather than three filled tiles. */
+    .stat {
+        background: none !important;
+        border: 1px solid #999;
+        padding: 4px 10px !important;
+    }
+
+    .stat-value {
+        font-size: 13pt !important;
+        color: #000 !important;
+    }
+
+    .stat-label,
+    .stat-breakdown { color: #333 !important; }
+
+    /* A rule rather than a band, and never the last thing on a page. */
+    .section-header,
+    .group-header {
+        background: none !important;
+        color: #000 !important;
+        border-bottom: 2px solid #000;
+        border-radius: 0;
+        padding: 4px 2px !important;
+        break-after: avoid;
+        page-break-after: avoid;
+    }
+
+    /* The accent bar is a ::after, and it carries the checklist's theme colour -
+       so the rule above printed with an orange line laid over it. */
+    .section-header::after,
+    .group-header::after {
+        display: none !important;
+    }
+
+    .section-count { color: #333 !important; }
+
+    /* Reads as a warning colour on screen; on paper it is just a figure, and a
+       colour print costs a cartridge to say so. */
+    .stat-breakdown .needed-value,
+    .needed-value {
+        color: #333 !important;
+    }
+
+    /* Four across rather than three, and no page break through a card. */
+    .card-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        padding: 0;
+    }
+
+    .card {
+        break-inside: avoid;
+        page-break-inside: avoid;
+        border: 1px solid #999;
+        box-shadow: none !important;
+        padding: 6px;
+    }
+
+    /* Outlined, so they survive backgrounds being off and cost no toner. The
+       serial badge keeps its position; the stack does not need to float once
+       the card is this small. */
+    .auto-badge,
+    .patch-badge,
+    .relic-badge,
+    .serial-badge,
+    .price-badge {
+        background: none !important;
+        color: #000 !important;
+        border: 1px solid #666;
+        box-shadow: none !important;
+    }
+
+    /* A card with no image should cost a line, not a frame: the dashed
+       placeholder printed as an empty box the height of a real card. */
+    .card-image.placeholder {
+        display: none !important;
+    }
+
+    .card-title { color: #000 !important; }
 }
 
 /* ============================================
