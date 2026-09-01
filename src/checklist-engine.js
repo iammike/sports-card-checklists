@@ -1607,6 +1607,14 @@ class ChecklistEngine {
             sort: (list) => (this.config?.defaultSortMode
                 ? this.sortCards([...list], this.config.defaultSortMode)
                 : list),
+            // What the filters currently show, so the dialog can offer it as a
+            // scope (#745), in the shape collectRows expects for this checklist.
+            // Functions rather than values only so the export reads one source
+            // for both the label's count and the file's rows.
+            filters: {
+                labels: () => this._activeFilters().map(f => f.label),
+                visible: () => this._visibleCardsInConfigShape(),
+            },
         }));
         container.querySelectorAll('.quick-filter-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -2534,6 +2542,39 @@ class ChecklistEngine {
         // Escaped at the sink rather than in each caller: callers compose cssClass
         // from a literal plus a config-supplied category id.
         return `<div class="${sanitizeAttr(cssClass)}">${sanitizeText(label)}${badge}</div>`;
+    }
+
+    // The cards the filters currently leave visible, flat and in render order.
+    // Read off the DOM rather than recomputed: _applyFilters is what decides
+    // visibility, and a second implementation of the same predicate would be
+    // free to disagree with the grid the visitor is looking at.
+    _visibleCards() {
+        return [...document.querySelectorAll('#sections-container .card')]
+            .filter(el => !el.classList.contains('filter-hidden'))
+            .map(el => this._renderedCards[parseInt(el.dataset.cardIdx, 10)])
+            .filter(Boolean);
+    }
+
+    // The same set, in whatever shape this checklist's cards are stored in -
+    // a flat array, or the {categoryId: [...]} map collectRows walks for a
+    // category checklist. Handing it a flat array instead produced a file with
+    // nothing but a header row on every category checklist, which is most of
+    // them and includes Jayden Daniels: collectRows reads cards[cat.id], and on
+    // an array that is undefined every time (#745).
+    //
+    // Filtered by identity against this.cards rather than regrouped from the
+    // DOM: _renderedCards holds the very objects this.cards holds, so this
+    // cannot invent a grouping the config does not have, and it keeps Section
+    // populated and the includeExtra toggle meaningful.
+    _visibleCardsInConfigShape() {
+        const visible = new Set(this._visibleCards());
+        if (this._isFlat()) return (this.cards || []).filter(c => visible.has(c));
+
+        const grouped = {};
+        Object.entries(this.cards || {}).forEach(([catId, list]) => {
+            grouped[catId] = (list || []).filter(c => visible.has(c));
+        });
+        return grouped;
     }
 
     _renderCategoryCards(container, sortBy) {
