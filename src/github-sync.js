@@ -1151,6 +1151,19 @@ class GitHubSync {
         return this._readGistFile('checklists-registry.json');
     }
 
+    // The registry from the public gist, for a reader whose own gist has none
+    // (#759). Deliberately not folded into loadRegistry(): checklist-creator
+    // reads that one, edits the result and calls saveRegistry, so a public
+    // snapshot reaching it would become the merge base for a full-file rewrite -
+    // the hazard loadRegistryForWrite exists to prevent (#768). Only the display
+    // side falls back, and it does so in DynamicNav.loadRegistry().
+    async loadPublicRegistry() {
+        const gist = await this._fetchGist(true);
+        if (!gist) return null;
+        const content = gist.files['checklists-registry.json']?.content;
+        return content ? JSON.parse(content) : null;
+    }
+
     // The registry read for the paths that rewrite the whole file. loadRegistry()
     // cannot tell "there is no registry yet" from "the read failed" - both come
     // back null - and the create path seeded an empty registry from that null,

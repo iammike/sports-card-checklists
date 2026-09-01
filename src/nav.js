@@ -152,7 +152,21 @@ const DynamicNav = {
 
         // Load from gist
         if (typeof githubSync !== 'undefined') {
-            const registry = await githubSync.loadRegistry();
+            let registry = await githubSync.loadRegistry();
+
+            // A signed-in reader who is not the owner reads their *own* gist,
+            // which has no registry in it - so this came back null and the page
+            // rendered with no checklists and no nav links, while a direct
+            // checklist.html?id= still worked because the config and card-data
+            // reads have had this fallback all along (#759).
+            //
+            // Gated on being signed in: a signed-out reader already read the
+            // public gist, so a null there is a real absence and retrying it
+            // would just fetch the same thing twice.
+            if (!registry && githubSync.isLoggedIn?.()) {
+                registry = await githubSync.loadPublicRegistry();
+            }
+
             if (registry) {
                 this._registry = registry;
                 this._setCache(registry);
