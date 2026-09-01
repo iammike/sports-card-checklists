@@ -152,7 +152,20 @@ const DynamicNav = {
 
         // Load from gist
         if (typeof githubSync !== 'undefined') {
-            const registry = await githubSync.loadRegistry();
+            // A signed-in reader who is not the owner reads their *own* gist,
+            // which has no registry in it - so this came back null and the page
+            // rendered with no checklists and no nav links, while a direct
+            // checklist.html?id= still worked because the config and card-data
+            // reads have had this fallback all along (#759).
+            //
+            // Unconditional `||`, the shape the sibling reads use, rather than
+            // gated on being signed in. The retry costs a signed-out reader
+            // nothing: their first read already populated _publicGistCache, so
+            // it is a cache hit - and the one case where it is not is a *failed*
+            // public read, which is exactly when a retry is worth having.
+            const registry = await githubSync.loadRegistry()
+                || await githubSync.loadPublicRegistry?.();
+
             if (registry) {
                 this._registry = registry;
                 this._setCache(registry);

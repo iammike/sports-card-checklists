@@ -29,15 +29,18 @@ const neededText = card => card.querySelector('.value-needed').textContent;
 // aggregate row rendering unlabelled - the exact bug #775 exists to fix. These
 // pin the wiring itself.
 describe('index.html actually loads and forwards the configs (#775)', () => {
-    it('loads a config per dynamic entry, choosing the reader by auth state', () => {
+    it('loads a config per dynamic entry, falling back to the public gist', () => {
         const { start, end } = sourceOf('async function renderDynamicChecklists() {');
         const body = INDEX_HTML.slice(start, end);
 
         expect(body).toContain('for (const entry of dynamicEntries)');
-        expect(body).toContain('githubSync.loadChecklistConfig(entry.id)');
-        expect(body).toContain('githubSync.loadPublicChecklistConfig(entry.id)');
-        // Guarded on the same flag the stats read above it uses.
-        expect(body).toMatch(/loggedIn\s*\n?\s*\?\s*await githubSync\.loadChecklistConfig/);
+        // `||`, not a ternary on the auth flag (#759): a signed-in reader who is
+        // not the owner reads their own gist, where neither file exists, so both
+        // branches of the ternary returned null and every card lost the scope
+        // label this suite is about.
+        expect(body).toMatch(
+            /await githubSync\.loadChecklistConfig\(entry\.id\)\s*\n?\s*\|\|\s*await githubSync\.loadPublicChecklistConfig\(entry\.id\)/);
+        expect(body).not.toMatch(/loggedIn\s*\n?\s*\?\s*await githubSync\.loadChecklistConfig/);
     });
 
     it('returns the configs it loaded', () => {
