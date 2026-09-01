@@ -4184,8 +4184,13 @@ select, input[type="text"] {
     /* Colour toner to say something a figure already says. */
     .stat-breakdown .needed-value,
     .needed-value,
-    .section-note,
+    .section-note {
+        color: #333 !important;
+    }
+
+    /* Same theme gradient as .collection-badge, though not over card art. */
     .collection-cta {
+        background: none !important;
         color: #333 !important;
     }
 
@@ -4229,13 +4234,27 @@ select, input[type="text"] {
         border: 1px solid #666 !important;
     }
 
-    /* Outlined, so they survive backgrounds being off and cost no toner. */
+    /* Outlined rather than filled with their screen colours, which cost toner
+       and print as grey blocks. White, though, not transparent: these sit at
+       the corners of the card image, and an unfilled one prints the art
+       straight through it - "AUTO" and "$45" over a photo were unreadable.
+
+       White specifically, because "Background graphics off" - the default in
+       every print dialog - does not skip painting a background, it forces the
+       fill to white. Measured over CDP: `background: none` emits no fill
+       operator in either mode, `#fff` emits an opaque one in both. So a
+       declared background is what keeps these readable, and dropping it back to
+       `none` on the theory that the border and text suffice would undo the fix.
+
+       .collection-badge is in this list because it is the same sink: same
+       wrapper, same absolute corner, over the same card art. */
     .auto-badge,
     .patch-badge,
     .relic-badge,
     .serial-badge,
-    .price-badge {
-        background: none !important;
+    .price-badge,
+    .collection-badge {
+        background: #fff !important;
         color: #000 !important;
         border: 1px solid #666 !important;
         box-shadow: none !important;

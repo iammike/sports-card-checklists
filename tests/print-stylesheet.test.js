@@ -7,9 +7,10 @@ import { resolve } from 'path';
 // the page. Three things drive the rewrite:
 //
 //   - Toner. A checklist is printed to be carried around.
-//   - Browsers print with "Background graphics" OFF by default, which drops
-//     every gradient while keeping the white text that sat on it. Section
-//     headers printed blank.
+//   - Browsers print with "Background graphics" OFF by default. Measured over
+//     CDP, that does not skip painting a background - it forces the fill to
+//     white. So a gradient becomes a white box, and the white text that sat on
+//     it is then white on white: the section headers printed blank.
 //   - #dynamic-theme is injected AFTER shared.css, at equal specificity, so it
 //     wins. Every colour and border in the block has to be !important or it is
 //     decoration - which is exactly what the first pass shipped.
@@ -145,12 +146,40 @@ describe('the print stylesheet states its own colours (#745)', () => {
         expect(rule(selector)).toMatch(/color:\s*#[0-9a-f]{3,6}/i);
     });
 
-    it('outlines the badges instead of filling them', () => {
+    // White, not transparent: these sit at the corners of the card image, and
+    // an unfilled one prints the artwork straight through - "AUTO" over a photo
+    // was unreadable. `background: none` emits no fill in either print mode;
+    // `#fff` emits an opaque one in both, since backgrounds-off forces white
+    // rather than skipping the paint.
+    it('backs the badges in white rather than leaving them transparent', () => {
         const r = rule('.auto-badge,');
 
-        expect(r).toContain('background: none');
+        expect(r).toContain('background: #fff !important');
+        expect(r).not.toContain('background: none');
         expect(r).toContain('color: #000');
         expect(r).toContain('border:');
+    });
+
+    // Named individually, and as a list, so a badge added to .card-image-wrapper
+    // has to be added here too. .collection-badge was exactly this gap: same
+    // wrapper, same absolute corner, same card art underneath, and the print
+    // block never mentioned it.
+    it.each([
+        '.auto-badge',
+        '.patch-badge',
+        '.relic-badge',
+        '.serial-badge',
+        '.price-badge',
+        '.collection-badge',
+    ])('gives %s an opaque background', (selector) => {
+        expect(rule('.auto-badge,')).toContain(selector);
+    });
+
+    it('leaves no overlay badge with a theme gradient', () => {
+        const block = printBlock();
+
+        expect(rule('.collection-cta')).toContain('background: none');
+        expect(block).not.toMatch(/\.collection-badge[^,{]*\{[^}]*linear-gradient/);
     });
 });
 
