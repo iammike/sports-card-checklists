@@ -3,29 +3,27 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
 // #745's "printable checklist" item. The old @media print block was five lines
-// and left the nav bar, the dark page header and the gradient section bands on
-// the page. Two things drive the rewrite:
+// and left the nav bar, the dark page header and a gradient band per section on
+// the page. Three things drive the rewrite:
 //
-//   - Toner. A checklist is printed to be carried around, not admired.
+//   - Toner. A checklist is printed to be carried around.
 //   - Browsers print with "Background graphics" OFF by default, which drops
 //     every gradient while keeping the white text that sat on it. Section
-//     headers printed blank. So every rule states its own foreground colour
-//     rather than trusting a background to survive.
+//     headers printed blank.
+//   - #dynamic-theme is injected AFTER shared.css, at equal specificity, so it
+//     wins. Every colour and border in the block has to be !important or it is
+//     decoration - which is exactly what the first pass shipped.
 //
 // jsdom evaluates no media queries, so this reads the block from source. The
-// rendered output was checked separately by printing the page to PDF in headless
-// Chrome, in both the default and the dark theme.
+// rendered result was checked separately by printing to PDF in headless Chrome.
 
 const CSS = readFileSync(resolve(import.meta.dirname, '..', 'shared.css'), 'utf-8');
 
 // Comments stripped first. The rationale comments inside this block name the
-// very selectors asserted below - "'.card-actions' rather than '.search-link'"
-// among them - so an unstripped slice is satisfied by the prose, and deleting
-// the rule it explains leaves the test green. Caught by exactly that mutation.
+// very selectors asserted below, so an unstripped slice is satisfied by the
+// prose and deleting the rule it explains leaves the test green.
 const stripComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
 
-// The @media print block only, so a rule that happens to exist elsewhere in the
-// stylesheet cannot satisfy an assertion about what printing does.
 const printBlock = () => {
     const start = CSS.indexOf('@media print {');
     expect(start, '@media print').toBeGreaterThan(-1);
@@ -37,8 +35,6 @@ const printBlock = () => {
     throw new Error('unbalanced @media print');
 };
 
-// One rule out of the block, so "is it hidden" cannot be answered by a
-// different selector's display: none.
 const rule = (selector) => {
     const block = printBlock();
     const at = block.indexOf(selector);
@@ -46,49 +42,98 @@ const rule = (selector) => {
     return block.slice(at, block.indexOf('}', at));
 };
 
+// Named individually rather than as a group. A grouped `display: none` is
+// satisfied by any one member, so asserting the group through one selector
+// lets the others be deleted silently - which is how `.filters`, the single
+// most important print rule and the one the old block already had, went
+// untested through the first pass.
+const HIDDEN = [
+    '.nav-bar',            // the whole site chrome
+    '.filters',            // the filter bar
+    '.clear-btn',
+    '.no-matches-state',
+    '.add-card-btn',       // position: fixed, lands on top of page one
+    '.save-error-banner',  // position: fixed, white on red
+    '.search-links',       // and the " · " between the two anchors
+];
+
 describe('the print stylesheet drops what has no meaning on paper (#745)', () => {
-    it('hides the nav bar', () => {
-        expect(rule('.nav-bar')).toContain('display: none');
+    it.each(HIDDEN)('hides %s', (selector) => {
+        expect(rule(selector)).toContain('display: none');
     });
 
-    // Hiding only .search-link left the " · " between the two anchors printing
-    // as a stray dot under every card.
-    it('hides the whole search-links row, not just the anchors', () => {
-        expect(printBlock()).toContain('.card-actions');
-        expect(rule('.card-actions')).toContain('display: none');
-    });
-
-    // Both are generated content on the header itself, not elements: the
-    // triangle printed as a glyph over the section name, and the accent bar
-    // printed the checklist's theme colour across the rule below it.
-    it('hides the disclosure triangle and the accent bar', () => {
+    // .card-actions wraps the owned control as well as the links, so hiding the
+    // row took the one thing the sheet is carried to a show to consult - what
+    // you already own - off the page.
+    it('keeps the owned indicator, hiding only the links inside the row', () => {
         const block = printBlock();
 
-        expect(block).toContain('.section-header.collapsible::before');
-        expect(block).toContain('.section-header::after');
-        expect(rule('.section-header.collapsible::before')).toContain('display: none');
-        expect(rule('.section-header::after')).toContain('display: none');
+        expect(block).not.toMatch(/\.card-actions[^{]*\{[^}]*display:\s*none/);
+        expect(rule('.owned-badge')).toContain('color: #000');
     });
 
-    // A card with no image printed an empty dashed frame the height of a real one.
-    it('drops the no-image placeholder', () => {
-        expect(rule('.card-image.placeholder')).toContain('display: none');
+    // Both are generated content on the header itself, not elements.
+    it.each([
+        '.section-header.collapsible::before',
+        '.section-header::after',
+    ])('hides %s', (selector) => {
+        expect(rule(selector)).toContain('display: none');
+    });
+
+    // A section collapsed while browsing is persisted in localStorage, so it
+    // would print as a heading with nothing under it and - with the triangle
+    // hidden - no sign anything was missing.
+    it('expands a collapsed section rather than printing an empty heading', () => {
+        expect(rule('.collapsible-content.collapsed {')).toContain('grid-template-rows: 1fr');
+        expect(rule('.collapsible-content.collapsed > *')).toContain('visibility: visible');
+    });
+});
+
+describe('the print stylesheet outranks the injected theme (#745)', () => {
+    // The point of the whole rewrite: #dynamic-theme is a later stylesheet at
+    // equal specificity, so anything here without !important loses to it.
+    it.each([
+        ['body {', 'background: #fff !important'],
+        ['.card {', 'border: 1px solid #999 !important'],
+        ['.stat {', 'border: 1px solid #999 !important'],
+        ['.page-header {', 'border-bottom: 1px solid #999 !important'],
+        ['.section-header,', 'border-bottom: 2px solid #000 !important'],
+    ])('marks %s important', (selector, declaration) => {
+        expect(rule(selector)).toContain(declaration);
+    });
+
+    it('marks every token in the print :root important', () => {
+        const r = rule(':root');
+        const tokens = r.match(/--[\w-]+:[^;]+;/g) || [];
+
+        expect(tokens.length).toBeGreaterThan(5);
+        tokens.forEach(t => expect(t, t).toContain('!important'));
+    });
+
+    // _applyTheme writes .player-name and .group-header as direct rules, which
+    // no token re-point can reach. #ccc on white is about 1.6:1 - the player
+    // name printed as good as blank.
+    it.each([
+        ['.card-title,', 'color: #000 !important'],
+        ['.card-number,', 'color: #333 !important'],
+    ])('restates %s, which a token cannot reach', (selector, declaration) => {
+        expect(rule(selector)).toContain(declaration);
+    });
+
+    it('covers player-name specifically', () => {
+        expect(rule('.card-title,')).toContain('.player-name');
     });
 });
 
 describe('the print stylesheet states its own colours (#745)', () => {
-    // The whole point: with backgrounds off, anything relying on one is
-    // invisible. These are the elements that were white-on-gradient.
     it('gives the section headers a foreground colour and a real rule', () => {
         const r = rule('.section-header,');
 
         expect(r).toContain('color: #000');
         expect(r).toContain('background: none');
-        expect(r).toContain('border-bottom');
     });
 
-    // h1 is gradient-clipped text on a dark checklist, so it needs the fill
-    // colour reset or it prints as nothing at all.
+    // Gradient-clipped text on a dark checklist prints as nothing at all.
     it('un-clips the gradient title', () => {
         const r = rule('h1 {');
 
@@ -96,30 +141,16 @@ describe('the print stylesheet states its own colours (#745)', () => {
         expect(r).toContain('background: none');
     });
 
-    // Filled pills cost toner and print as grey blocks; outlined ones read.
+    it.each(['.subtitle', '.stat-value', '.needed-value'])('colours %s', (selector) => {
+        expect(rule(selector)).toMatch(/color:\s*#[0-9a-f]{3,6}/i);
+    });
+
     it('outlines the badges instead of filling them', () => {
         const r = rule('.auto-badge,');
 
         expect(r).toContain('background: none');
         expect(r).toContain('color: #000');
         expect(r).toContain('border:');
-    });
-});
-
-describe('the print stylesheet survives a dark checklist (#745)', () => {
-    // A dark theme injects its palette into #dynamic-theme at runtime, after
-    // shared.css - so without re-pointing the tokens the page prints as black
-    // boxes, or as pale grey text on white once backgrounds are dropped.
-    it('re-points the colour tokens inside the print block', () => {
-        const r = rule(':root');
-
-        ['--color-background', '--color-surface', '--color-text', '--color-border']
-            .forEach(token => expect(r, token).toContain(token));
-        expect(r).toContain('--color-text: #000');
-    });
-
-    it('forces the page background white regardless of the theme', () => {
-        expect(rule('body {')).toContain('background: #fff !important');
     });
 });
 
@@ -131,7 +162,6 @@ describe('the print stylesheet paginates sensibly (#745)', () => {
         expect(r).toContain('page-break-inside: avoid');
     });
 
-    // A section header alone at the foot of a page is a heading for nothing.
     it('never leaves a section header as the last thing on a page', () => {
         const r = rule('.section-header,');
 
@@ -139,7 +169,50 @@ describe('the print stylesheet paginates sensibly (#745)', () => {
         expect(r).toContain('page-break-after: avoid');
     });
 
-    it('fits more cards across than the screen does', () => {
-        expect(rule('.card-grid')).toMatch(/grid-template-columns:\s*repeat\(4/);
+    // !important because the max-width: 600px block later in the file
+    // re-declares this; a narrow print area would silently revert to two.
+    it('fits four cards across, and outranks the narrow-screen rule', () => {
+        expect(rule('.card-grid')).toMatch(/grid-template-columns:\s*repeat\(4,\s*1fr\)\s*!important/);
+    });
+
+    // The wrapper reserves its height with padding-top, so hiding the
+    // placeholder removed the label and kept a 249px blank box.
+    it('collapses the reserved image box on a card with no image', () => {
+        expect(rule('.card-image-wrapper:has(.card-image.placeholder)'))
+            .toContain('padding-top: 0 !important');
+        expect(rule('.card.no-card')).toContain('opacity: 1');
+    });
+});
+
+describe('the print stylesheet keeps what a show needs (#745)', () => {
+    // The wrapper clips, and the badges are positioned against it - so
+    // collapsing it took the price off every card with no image. Price is the
+    // reason the sheet is at a show.
+    it('lets the badges flow when the image frame collapses', () => {
+        expect(rule('.card-image-wrapper:has(.card-image.placeholder) {'))
+            .toContain('overflow: visible !important');
+        expect(rule('.card-image-wrapper:has(.card-image.placeholder) .card-badges,'))
+            .toContain('position: static !important');
+    });
+
+    // "No image" says nothing the absence of an image does not. "NO CARD" means
+    // the player has no card at all, which a blank space does not convey.
+    it('drops the no-image label but keeps the no-card one', () => {
+        expect(rule('.card-image.placeholder:not(.no-card-badge)')).toContain('display: none');
+
+        const block = printBlock();
+        expect(block).toContain('.no-card-badge {');
+        expect(rule('.no-card-badge {')).not.toContain('display: none');
+    });
+
+    // The page fades in via `animation: pageFadeIn ... both` on html, so opacity
+    // is 0 until the delay elapses. Print before then and the whole sheet is
+    // blank - found by printing a page that screenshotted correctly and
+    // produced an empty PDF.
+    it('cannot print a blank page while the fade-in is pending', () => {
+        const r = rule('html {');
+
+        expect(r).toContain('animation: none !important');
+        expect(r).toContain('opacity: 1 !important');
     });
 });
