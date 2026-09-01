@@ -184,6 +184,32 @@ describe('the print stylesheet paginates sensibly (#745)', () => {
     });
 });
 
+describe('the print stylesheet is not outranked by the narrow-screen rules (#745)', () => {
+    // The @media (max-width: 600px) block re-declares .card-grid's columns, gap
+    // and padding, h1's font-size and .card's padding - all of which the print
+    // block also sets. A small print area (A5, or wide margins) is narrow enough
+    // to match it, so whichever comes second wins. Chrome's letter-size print
+    // viewport measures wider than 600, which is why this never bit in the PDFs.
+    it('comes after every narrow-screen block in the file', () => {
+        const printAt = CSS.indexOf('@media print {');
+        const narrow = [...CSS.matchAll(/@media \(max-width/g)].map(m => m.index);
+
+        expect(narrow.length).toBeGreaterThan(0);
+        expect(Math.max(...narrow)).toBeLessThan(printAt);
+    });
+
+    // Source order settles it today; these keep it settled if anything is ever
+    // appended below the print block.
+    it.each([
+        ['h1 {', 'font-size: 18pt !important'],
+        ['.card-grid', 'gap: 8px !important'],
+        ['.card-grid', 'padding: 0 !important'],
+        ['.card {', 'padding: 6px !important'],
+    ])('marks the layout on %s important too', (selector, declaration) => {
+        expect(rule(selector)).toContain(declaration);
+    });
+});
+
 describe('the print stylesheet keeps what a show needs (#745)', () => {
     // The wrapper clips, and the badges are positioned against it - so
     // collapsing it took the price off every card with no image. Price is the

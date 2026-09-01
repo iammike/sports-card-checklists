@@ -1704,254 +1704,7 @@ select, input[type="text"] {
 /* ============================================
    Print Styles
    ============================================ */
-/* A checklist you can actually take to a show. Three things drive all of it.
 
-   Toner, since the sheet is printed to be carried around. (Card images are the
-   deliberate exception: they cost more ink than every gradient removed here,
-   and they are how you identify a card at a table.)
-
-   Browsers print with "Background graphics" OFF by default, which drops every
-   gradient while keeping the white text that sat on it - the section headers
-   printed blank. So every rule states its own foreground colour rather than
-   trusting a background to survive.
-
-   And #dynamic-theme is injected into the page *after* this stylesheet
-   (checklist.html loads shared.min.css, then the empty style tag _applyTheme
-   fills). Same selector, same specificity, later sheet - so it wins. @media
-   adds no specificity of its own. Every colour and border below is therefore
-   !important, or it is decoration: without it a dark checklist printed #ccc
-   player names on white paper, cards with a transparent border, and the orange
-   accent rule under each section header. */
-@media print {
-    /* Tokens first, but they are not enough on their own: _applyTheme also
-       writes .player-name and .group-header as direct rules, which no token
-       can reach. Those are restated below. */
-    :root {
-        --color-background: #fff !important;
-        --color-surface: #fff !important;
-        --color-surface-overlay: #fff !important;
-        --color-text: #000 !important;
-        --color-text-muted: #333 !important;
-        --color-text-light: #555 !important;
-        --color-border: #999 !important;
-        --card-border: #999 !important;
-        --card-owned-bg: #fff !important;
-    }
-
-    /* The page fades in with `animation: pageFadeIn 0.3s ease-out 0.1s both` on
-       html, and `both` means opacity is 0 until the delay elapses. Print early
-       enough - or let a print renderer snapshot before the animation advances -
-       and the entire sheet comes out blank. Found exactly that way: the same
-       page screenshotted correctly and printed to an empty PDF. */
-    html {
-        animation: none !important;
-        opacity: 1 !important;
-    }
-
-    body {
-        background: #fff !important;
-        color: #000 !important;
-    }
-
-    /* Chrome with no meaning on paper. The last two are position: fixed, so
-       they land on top of page one wherever the content happens to be. */
-    .nav-bar,
-    .filters,
-    .clear-btn,
-    .no-matches-state,
-    .add-card-btn,
-    .save-error-banner {
-        display: none !important;
-    }
-
-    /* The links, not the row they sit in. .card-actions also wraps the owned
-       control, and hiding it took the one thing a checklist is carried to a
-       show to consult - what you already have - off the sheet entirely. The
-       stray " · " that motivated hiding the row is inside .search-links, so
-       this is the selector that solves it. */
-    .search-links { display: none !important; }
-
-    /* Both are generated content on the header itself: the triangle printed as
-       a glyph over the section name, and the accent bar printed the theme
-       colour across the rule below it. */
-    .section-header.collapsible::before,
-    .group-header.collapsible::before,
-    .section-header::after,
-    .group-header::after {
-        display: none !important;
-    }
-
-    /* A section the reader collapsed while working stays collapsed in
-       localStorage, so it would print as a heading with nothing under it and -
-       now that the triangle is hidden - no sign anything was missing. Silently
-       dropping a category from a sheet taken to a show is worse than the band
-       this block set out to remove. */
-    .collapsible-content.collapsed {
-        grid-template-rows: 1fr !important;
-    }
-
-    .collapsible-content.collapsed > * {
-        visibility: visible !important;
-    }
-
-    /* A title, not a hero block. */
-    .page-header {
-        background: none !important;
-        padding: 0 0 6px !important;
-        margin-bottom: 10px;
-        border-bottom: 1px solid #999 !important;
-    }
-
-    .page-header::after { display: none !important; }
-
-    h1 {
-        font-size: 18pt;
-        background: none !important;
-        color: #000 !important;
-        /* Gradient-clipped on a dark checklist, so without this it prints as
-           nothing at all. */
-        -webkit-text-fill-color: #000 !important;
-    }
-
-    .subtitle { color: #333 !important; }
-
-    /* The scoreboard is what the sheet is measured against, but as outlined
-       figures rather than three filled tiles. */
-    .stat {
-        background: none !important;
-        border: 1px solid #999 !important;
-        padding: 4px 10px !important;
-    }
-
-    .stat-value {
-        font-size: 13pt !important;
-        color: #000 !important;
-    }
-
-    .stat-label,
-    .stat-breakdown { color: #333 !important; }
-
-    /* A rule rather than a band, and never the last thing on a page. */
-    .section-header,
-    .group-header {
-        background: none !important;
-        color: #000 !important;
-        border-bottom: 2px solid #000 !important;
-        border-radius: 0;
-        padding: 4px 2px !important;
-        break-after: avoid;
-        page-break-after: avoid;
-    }
-
-    .section-count { color: #333 !important; }
-
-    /* Colour toner to say something a figure already says. */
-    .stat-breakdown .needed-value,
-    .needed-value,
-    .section-note,
-    .collection-cta {
-        color: #333 !important;
-    }
-
-    /* Four across rather than three. !important because the 600px block later
-       in this file re-declares it, and a narrow print area - A5, or wide
-       margins - would otherwise silently revert to two. */
-    .card-grid {
-        grid-template-columns: repeat(4, 1fr) !important;
-        gap: 8px;
-        padding: 0;
-    }
-
-    .card {
-        break-inside: avoid;
-        page-break-inside: avoid;
-        border: 1px solid #999 !important;
-        box-shadow: none !important;
-        padding: 6px;
-    }
-
-    /* _applyTheme sets these directly, so the token re-point above does not
-       reach them. #ccc on white is about 1.6:1 - the player name, which is the
-       whole point of a name-based checklist, printed as good as blank. */
-    .card-title,
-    .player-name {
-        color: #000 !important;
-    }
-
-    .card-number,
-    .card-variant,
-    .card-type {
-        color: #333 !important;
-    }
-
-    /* What you already own, which is the reason the sheet is in your hand. */
-    .owned-badge {
-        color: #000 !important;
-        background: none !important;
-        border: 1px solid #666 !important;
-    }
-
-    /* Outlined, so they survive backgrounds being off and cost no toner. */
-    .auto-badge,
-    .patch-badge,
-    .relic-badge,
-    .serial-badge,
-    .price-badge {
-        background: none !important;
-        color: #000 !important;
-        border: 1px solid #666 !important;
-        box-shadow: none !important;
-    }
-
-    /* A card with no image should cost a line, not a frame. The wrapper
-       reserves its height with padding-top: 140%, so hiding the placeholder
-       removed the label and kept the box - a blank rectangle with a faint name
-       under it, worse on paper than what it replaced. Collapse the reservation
-       and let the label print in flow instead. */
-    .card-image-wrapper:has(.card-image.placeholder) {
-        padding-top: 0 !important;
-        height: auto !important;
-        /* The badges inside are absolutely positioned against this wrapper, and
-           it clips. Collapsing it without this took the price - the reason the
-           sheet is at a show at all - off every card with no image. */
-        overflow: visible !important;
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 4px;
-    }
-
-    .card-image-wrapper:has(.card-image.placeholder) .card-badges,
-    .card-image-wrapper:has(.card-image.placeholder) .price-badge,
-    .card-image-wrapper:has(.card-image.placeholder) .serial-badge {
-        position: static !important;
-        max-width: none !important;
-    }
-
-    .card-image-wrapper:has(.card-image.placeholder) .card-badges {
-        flex-direction: row !important;
-    }
-
-    /* "No image" says nothing the absence of an image does not; dropping it
-       also stops the badges - still absolutely positioned - colliding with it
-       once the frame collapses. "NO CARD" is kept: that one means the player
-       has no card at all, which is not obvious from a blank space. */
-    .card-image.placeholder:not(.no-card-badge) {
-        display: none !important;
-    }
-
-    .no-card-badge {
-        position: static !important;
-        border: none !important;
-        padding: 4px 0 !important;
-        color: #333 !important;
-    }
-
-    /* Dimmed on screen to say "not a real card"; on paper it just prints faint. */
-    .card.no-card {
-        opacity: 1 !important;
-    }
-}
 
 /* ============================================
    Responsive
@@ -4278,4 +4031,262 @@ select, input[type="text"] {
 .card-editor-owned-toggle.disabled {
     opacity: 0.4;
     pointer-events: none;
+}
+
+/* ============================================
+   Print
+   ============================================
+   Last in the file on purpose. The narrow-screen block re-declares layout this
+   block also sets - .card-grid columns, gap and padding, h1's size, .card's
+   padding - and a small print area is narrow enough to match it, so whichever
+   comes second wins. Keep this at the bottom. */
+/* A checklist you can actually take to a show. Three things drive all of it.
+
+   Toner, since the sheet is printed to be carried around. (Card images are the
+   deliberate exception: they cost more ink than every gradient removed here,
+   and they are how you identify a card at a table.)
+
+   Browsers print with "Background graphics" OFF by default, which drops every
+   gradient while keeping the white text that sat on it - the section headers
+   printed blank. So every rule states its own foreground colour rather than
+   trusting a background to survive.
+
+   And #dynamic-theme is injected into the page *after* this stylesheet
+   (checklist.html loads shared.min.css, then the empty style tag _applyTheme
+   fills). Same selector, same specificity, later sheet - so it wins. @media
+   adds no specificity of its own. Every colour and border below is therefore
+   !important, or it is decoration: without it a dark checklist printed #ccc
+   player names on white paper, cards with a transparent border, and the orange
+   accent rule under each section header. */
+@media print {
+    /* Tokens first, but they are not enough on their own: _applyTheme also
+       writes .player-name and .group-header as direct rules, which no token
+       can reach. Those are restated below. */
+    :root {
+        --color-background: #fff !important;
+        --color-surface: #fff !important;
+        --color-surface-overlay: #fff !important;
+        --color-text: #000 !important;
+        --color-text-muted: #333 !important;
+        --color-text-light: #555 !important;
+        --color-border: #999 !important;
+        --card-border: #999 !important;
+        --card-owned-bg: #fff !important;
+    }
+
+    /* The page fades in with `animation: pageFadeIn 0.3s ease-out 0.1s both` on
+       html, and `both` means opacity is 0 until the delay elapses. Print early
+       enough - or let a print renderer snapshot before the animation advances -
+       and the entire sheet comes out blank. Found exactly that way: the same
+       page screenshotted correctly and printed to an empty PDF. */
+    html {
+        animation: none !important;
+        opacity: 1 !important;
+    }
+
+    body {
+        background: #fff !important;
+        color: #000 !important;
+    }
+
+    /* Chrome with no meaning on paper. The last two are position: fixed, so
+       they land on top of page one wherever the content happens to be. */
+    .nav-bar,
+    .filters,
+    .clear-btn,
+    .no-matches-state,
+    .add-card-btn,
+    .save-error-banner {
+        display: none !important;
+    }
+
+    /* The links, not the row they sit in. .card-actions also wraps the owned
+       control, and hiding it took the one thing a checklist is carried to a
+       show to consult - what you already have - off the sheet entirely. The
+       stray " · " that motivated hiding the row is inside .search-links, so
+       this is the selector that solves it. */
+    .search-links { display: none !important; }
+
+    /* Both are generated content on the header itself: the triangle printed as
+       a glyph over the section name, and the accent bar printed the theme
+       colour across the rule below it. */
+    .section-header.collapsible::before,
+    .group-header.collapsible::before,
+    .section-header::after,
+    .group-header::after {
+        display: none !important;
+    }
+
+    /* A section the reader collapsed while working stays collapsed in
+       localStorage, so it would print as a heading with nothing under it and -
+       now that the triangle is hidden - no sign anything was missing. Silently
+       dropping a category from a sheet taken to a show is worse than the band
+       this block set out to remove. */
+    .collapsible-content.collapsed {
+        grid-template-rows: 1fr !important;
+    }
+
+    .collapsible-content.collapsed > * {
+        visibility: visible !important;
+    }
+
+    /* A title, not a hero block. */
+    .page-header {
+        background: none !important;
+        padding: 0 0 6px !important;
+        margin-bottom: 10px;
+        border-bottom: 1px solid #999 !important;
+    }
+
+    .page-header::after { display: none !important; }
+
+    h1 {
+        font-size: 18pt !important;
+        background: none !important;
+        color: #000 !important;
+        /* Gradient-clipped on a dark checklist, so without this it prints as
+           nothing at all. */
+        -webkit-text-fill-color: #000 !important;
+    }
+
+    .subtitle { color: #333 !important; }
+
+    /* The scoreboard is what the sheet is measured against, but as outlined
+       figures rather than three filled tiles. */
+    .stat {
+        background: none !important;
+        border: 1px solid #999 !important;
+        padding: 4px 10px !important;
+    }
+
+    .stat-value {
+        font-size: 13pt !important;
+        color: #000 !important;
+    }
+
+    .stat-label,
+    .stat-breakdown { color: #333 !important; }
+
+    /* A rule rather than a band, and never the last thing on a page. */
+    .section-header,
+    .group-header {
+        background: none !important;
+        color: #000 !important;
+        border-bottom: 2px solid #000 !important;
+        border-radius: 0;
+        padding: 4px 2px !important;
+        break-after: avoid;
+        page-break-after: avoid;
+    }
+
+    .section-count { color: #333 !important; }
+
+    /* Colour toner to say something a figure already says. */
+    .stat-breakdown .needed-value,
+    .needed-value,
+    .section-note,
+    .collection-cta {
+        color: #333 !important;
+    }
+
+    /* Four across rather than three. The narrow-screen block re-declares
+       grid-template-columns, gap and padding, and a small print area - A5, or
+       wide margins - is narrow enough to match it. This block is last in the
+       file so source order settles that; the !important markers keep it settled
+       if anything is ever appended below. */
+    .card-grid {
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 8px !important;
+        padding: 0 !important;
+    }
+
+    .card {
+        break-inside: avoid;
+        page-break-inside: avoid;
+        border: 1px solid #999 !important;
+        box-shadow: none !important;
+        padding: 6px !important;
+    }
+
+    /* _applyTheme sets these directly, so the token re-point above does not
+       reach them. #ccc on white is about 1.6:1 - the player name, which is the
+       whole point of a name-based checklist, printed as good as blank. */
+    .card-title,
+    .player-name {
+        color: #000 !important;
+    }
+
+    .card-number,
+    .card-variant,
+    .card-type {
+        color: #333 !important;
+    }
+
+    /* What you already own, which is the reason the sheet is in your hand. */
+    .owned-badge {
+        color: #000 !important;
+        background: none !important;
+        border: 1px solid #666 !important;
+    }
+
+    /* Outlined, so they survive backgrounds being off and cost no toner. */
+    .auto-badge,
+    .patch-badge,
+    .relic-badge,
+    .serial-badge,
+    .price-badge {
+        background: none !important;
+        color: #000 !important;
+        border: 1px solid #666 !important;
+        box-shadow: none !important;
+    }
+
+    /* A card with no image should cost a line, not a frame. The wrapper
+       reserves its height with padding-top: 140%, so hiding the placeholder
+       removed the label and kept the box - a blank rectangle with a faint name
+       under it, worse on paper than what it replaced. Collapse the reservation
+       and let the label print in flow instead. */
+    .card-image-wrapper:has(.card-image.placeholder) {
+        padding-top: 0 !important;
+        height: auto !important;
+        /* The badges inside are absolutely positioned against this wrapper, and
+           it clips. Collapsing it without this took the price - the reason the
+           sheet is at a show at all - off every card with no image. */
+        overflow: visible !important;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .card-image-wrapper:has(.card-image.placeholder) .card-badges,
+    .card-image-wrapper:has(.card-image.placeholder) .price-badge,
+    .card-image-wrapper:has(.card-image.placeholder) .serial-badge {
+        position: static !important;
+        max-width: none !important;
+    }
+
+    .card-image-wrapper:has(.card-image.placeholder) .card-badges {
+        flex-direction: row !important;
+    }
+
+    /* "No image" says nothing the absence of an image does not; dropping it
+       also stops the badges - still absolutely positioned - colliding with it
+       once the frame collapses. "NO CARD" is kept: that one means the player
+       has no card at all, which is not obvious from a blank space. */
+    .card-image.placeholder:not(.no-card-badge) {
+        display: none !important;
+    }
+
+    .no-card-badge {
+        position: static !important;
+        border: none !important;
+        padding: 4px 0 !important;
+        color: #333 !important;
+    }
+
+    /* Dimmed on screen to say "not a real card"; on paper it just prints faint. */
+    .card.no-card {
+        opacity: 1 !important;
+    }
 }
