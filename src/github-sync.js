@@ -1081,6 +1081,16 @@ class GitHubSync {
         return content ? JSON.parse(content) : null;
     }
 
+    // Read a JSON file from the public gist specifically, whatever gist is
+    // active. The mirror of _readGistFile, for the fallbacks that exist because
+    // the active gist is the reader's own and holds none of these files.
+    async _readPublicGistFile(filename) {
+        const gist = await this._fetchGist(true);
+        if (!gist) return null;
+        const content = gist.files[filename]?.content;
+        return content ? JSON.parse(content) : null;
+    }
+
     // Write a JSON file to the gist
     async _writeGistFile(filename, data) {
         if (!this.token) return false;
@@ -1155,13 +1165,12 @@ class GitHubSync {
     // (#759). Deliberately not folded into loadRegistry(): checklist-creator
     // reads that one, edits the result and calls saveRegistry, so a public
     // snapshot reaching it would become the merge base for a full-file rewrite -
-    // the hazard loadRegistryForWrite exists to prevent (#768). Only the display
-    // side falls back, and it does so in DynamicNav.loadRegistry().
+    // the hazard loadRegistryForWrite exists to prevent (#768). Worse under
+    // #633: that save writes to the *reader's* gist, after which their own read
+    // succeeds forever and this fallback never fires again, pinning them to a
+    // stale snapshot. Only the display side falls back - DynamicNav.loadRegistry.
     async loadPublicRegistry() {
-        const gist = await this._fetchGist(true);
-        if (!gist) return null;
-        const content = gist.files['checklists-registry.json']?.content;
-        return content ? JSON.parse(content) : null;
+        return this._readPublicGistFile('checklists-registry.json');
     }
 
     // The registry read for the paths that rewrite the whole file. loadRegistry()
@@ -1408,20 +1417,12 @@ class GitHubSync {
 
     // Load config from public gist (fallback when auth fails)
     async loadPublicChecklistConfig(checklistId) {
-        const filename = `${checklistId}-config.json`;
-        const gist = await this._fetchGist(true);
-        if (!gist) return null;
-        const content = gist.files[filename]?.content;
-        return content ? JSON.parse(content) : null;
+        return this._readPublicGistFile(`${checklistId}-config.json`);
     }
 
     // Load card data from public gist (fallback, or for non-logged-in users)
     async loadPublicCardData(checklistId) {
-        const filename = `${checklistId}-cards.json`;
-        const gist = await this._fetchGist(true);
-        if (!gist) return null;
-        const content = gist.files[filename]?.content;
-        return content ? JSON.parse(content) : null;
+        return this._readPublicGistFile(`${checklistId}-cards.json`);
     }
 
 }

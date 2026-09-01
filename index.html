@@ -751,12 +751,17 @@
                     const ownedIds = allOwned[entry.id] || [];
                     if (ownedIds.length === 0) continue;
 
-                    const config = isLoggedIn
-                        ? await githubSync.loadChecklistConfig(entry.id)
-                        : await githubSync.loadPublicChecklistConfig(entry.id);
-                    const cardData = isLoggedIn
-                        ? await githubSync.loadCardData(entry.id)
-                        : await githubSync.loadPublicCardData(entry.id);
+                    // `||`, not a ternary on isLoggedIn (#759): a signed-in
+                    // reader who is not the owner reads their *own* gist, which
+                    // holds none of these files, so both halves of the ternary
+                    // came back null and every entry fell out at the guard below
+                    // - leaving a reader who owns cards looking at 0 owned / $0.
+                    // _readGistFile already routes to the public gist when there
+                    // is no token, so this is correct signed in or out.
+                    const config = await githubSync.loadChecklistConfig(entry.id)
+                        || await githubSync.loadPublicChecklistConfig(entry.id);
+                    const cardData = await githubSync.loadCardData(entry.id)
+                        || await githubSync.loadPublicCardData(entry.id);
                     if (!config || !cardData) continue;
 
                     // Mirror getCardId(): an explicit card.id wins, but only if
@@ -865,9 +870,11 @@
                 // A missing config just means no scope labels for that card.
                 // computeUniqueOwned guards its identical reads the same way.
                 try {
-                    configs[entry.id] = loggedIn
-                        ? await githubSync.loadChecklistConfig(entry.id)
-                        : await githubSync.loadPublicChecklistConfig(entry.id);
+                    // Same fallback as computeUniqueOwned above (#759). Without
+                    // it a signed-in non-owner got null here and every card lost
+                    // the value-scope label #775 added.
+                    configs[entry.id] = await githubSync.loadChecklistConfig(entry.id)
+                        || await githubSync.loadPublicChecklistConfig(entry.id);
                 } catch (e) {
                     console.warn(`Could not read config for ${entry.id}:`, e);
                     configs[entry.id] = null;

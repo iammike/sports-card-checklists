@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 
 const DynamicNav = globalThis.DynamicNav;
 
@@ -28,7 +30,6 @@ let loadRegistry;
 let loadPublicRegistry;
 
 function stubSync({ own = null, pub = null, loggedIn = true } = {}) {
-    DynamicNav.clearCache();
     loadRegistry = vi.fn().mockResolvedValue(own);
     loadPublicRegistry = vi.fn().mockResolvedValue(pub);
     globalThis.githubSync = {
@@ -37,12 +38,14 @@ function stubSync({ own = null, pub = null, loggedIn = true } = {}) {
         isLoggedIn: () => loggedIn,
         getActiveGistId: () => 'gist123',
     };
+    // After the stub, not before: the sessionStorage key derives from
+    // getActiveGistId(), so clearing first clears a different key and the
+    // previous test's registry leaks into this one.
     DynamicNav.clearCache();
 }
 
 beforeEach(() => {
     stubSync();
-    DynamicNav.clearCache();
 });
 
 afterEach(() => {
@@ -51,7 +54,7 @@ afterEach(() => {
 });
 
 describe('DynamicNav.loadRegistry falls back to the public gist (#759)', () => {
-    it('returns the public registry when the reader own gist has none', async () => {
+    it('returns the public registry when their own gist has none', async () => {
         stubSync({ own: null, pub: REGISTRY });
 
         expect(await DynamicNav.loadRegistry()).toEqual(REGISTRY);
@@ -68,13 +71,16 @@ describe('DynamicNav.loadRegistry falls back to the public gist (#759)', () => {
         expect(loadPublicRegistry).not.toHaveBeenCalled();
     });
 
-    // A signed-out reader already read the public gist, so null there is a real
-    // absence and retrying fetches the same thing twice.
-    it('does not retry for a signed-out reader', async () => {
+    // No sign-in gate: the retry is a _publicGistCache hit for a signed-out
+    // reader, and the one case where it is not is a failed public read, which is
+    // when it is worth having. (A signed-out loadRegistry returning null while
+    // the public gist has a registry cannot really happen - they are the same
+    // read - so this pins the absence of the gate, not a reachable state.)
+    it('falls back for a signed-out reader too', async () => {
         stubSync({ own: null, pub: REGISTRY, loggedIn: false });
 
-        expect(await DynamicNav.loadRegistry()).toBeNull();
-        expect(loadPublicRegistry).not.toHaveBeenCalled();
+        expect(await DynamicNav.loadRegistry()).toEqual(REGISTRY);
+        expect(loadPublicRegistry).toHaveBeenCalledTimes(1);
     });
 
     it('still returns null when neither gist has one', async () => {
@@ -97,9 +103,13 @@ describe('DynamicNav.loadRegistry falls back to the public gist (#759)', () => {
         expect(loadPublicRegistry).toHaveBeenCalledTimes(1);
     });
 
-    // isLoggedIn is optional-chained because not every stub in this repo has it.
-    it('survives a githubSync with no isLoggedIn', async () => {
-        globalThis.githubSync = { loadRegistry: vi.fn().mockResolvedValue(null) };
+    // Optional-chained, because the older stubs in this repo predate the method
+    // and would otherwise throw a TypeError straight out of loadRegistry().
+    it('survives a githubSync with no loadPublicRegistry', async () => {
+        globalThis.githubSync = {
+            loadRegistry: vi.fn().mockResolvedValue(null),
+            getActiveGistId: () => 'gist123',
+        };
 
         await expect(DynamicNav.loadRegistry()).resolves.toBeNull();
     });
@@ -112,14 +122,34 @@ describe('githubSync.loadPublicRegistry (#759)', () => {
 
     // It must read the public gist explicitly, like loadPublicChecklistConfig
     // and loadPublicCardData - not whichever gist happens to be active.
-    it('reads the public gist, not the active one', async () => {
+    //
+    // The token matters: _readGistFile only passes `true` when there is none, so
+    // on a token-less instance it and _readPublicGistFile make identical calls
+    // and this assertion cannot tell them apart. Without it, swapping the helper
+    // for _readGistFile passed - which is the whole bug, since a signed-in
+    // non-owner is exactly a reader who *has* a token.
+    it('reads the public gist even when a token would point elsewhere', async () => {
         const sync = Object.create(SyncProto);
+        sync.token = 'gho_readerstoken';
         sync._fetchGist = vi.fn().mockResolvedValue({
             files: { 'checklists-registry.json': { content: JSON.stringify(REGISTRY) } },
         });
 
         expect(await sync.loadPublicRegistry()).toEqual(REGISTRY);
         expect(sync._fetchGist).toHaveBeenCalledWith(true);
+    });
+
+    // The siblings share the helper now, so they need the same guarantee.
+    it('does the same for the config and card-data fallbacks', async () => {
+        const sync = Object.create(SyncProto);
+        sync.token = 'gho_readerstoken';
+        sync._fetchGist = vi.fn().mockResolvedValue({ files: {} });
+
+        await sync.loadPublicChecklistConfig('jd');
+        await sync.loadPublicCardData('jd');
+
+        expect(sync._fetchGist).toHaveBeenCalledTimes(2);
+        sync._fetchGist.mock.calls.forEach(call => expect(call).toEqual([true]));
     });
 
     it('returns null when the public gist has no registry', async () => {
@@ -134,5 +164,30 @@ describe('githubSync.loadPublicRegistry (#759)', () => {
         sync._fetchGist = vi.fn().mockResolvedValue(null);
 
         expect(await sync.loadPublicRegistry()).toBeNull();
+    });
+});
+
+// The same bug class on the index page, which is where #759's symptoms were
+// reported. These reads chose their source with a ternary on the auth flag, so
+// for a signed-in non-owner *both* branches returned null: computeUniqueOwned
+// dropped every entry at its `if (!config || !cardData) continue`, leaving a
+// reader who owns cards looking at 0 owned / $0, and configs[] came back null so
+// every card lost the value-scope label #775 added.
+describe('the index reads fall back too (#759)', () => {
+    const INDEX_HTML = readFileSync(resolve(import.meta.dirname, '..', 'index.html'), 'utf-8');
+
+    const fallsBack = (fn, pub) => new RegExp(
+        `await githubSync\\.${fn}\\(entry\\.id\\)\\s*\\n?\\s*\\|\\|\\s*await githubSync\\.${pub}\\(entry\\.id\\)`);
+
+    it('falls back for the config and the card data behind the aggregate stats', () => {
+        const body = INDEX_HTML.slice(INDEX_HTML.indexOf('function computeUniqueOwned'));
+
+        expect(body).toMatch(fallsBack('loadChecklistConfig', 'loadPublicChecklistConfig'));
+        expect(body).toMatch(fallsBack('loadCardData', 'loadPublicCardData'));
+    });
+
+    // A ternary anywhere here is the bug: for this reader both arms are null.
+    it('leaves no auth-flag ternary on any of these reads', () => {
+        expect(INDEX_HTML).not.toMatch(/(isLoggedIn|loggedIn)\s*\n?\s*\?\s*await githubSync\.load(ChecklistConfig|CardData)/);
     });
 });
