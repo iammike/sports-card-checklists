@@ -74,9 +74,11 @@ const CardRenderer = {
         return `${base} ${auto}`.replace(/\s+/g, ' ').trim();
     },
 
-    // Generate eBay search URL
+    // Generate eBay search URL. Deliberately no LH_BIN / LH_Auction filter:
+    // the link opens on every listing type, since auctions often end cheaper
+    // than the Buy It Now asks. _sop=15 is "price + shipping: lowest first".
     getEbayUrl(searchTerm) {
-        return `https://www.ebay.com/sch/i.html?_nkw=${searchTerm.replace(/"/g, '%22')}&_sop=15&LH_BIN=1`;
+        return `https://www.ebay.com/sch/i.html?_nkw=${searchTerm.replace(/"/g, '%22')}&_sop=15`;
     },
 
     // Generate SportsCardsPro search URL

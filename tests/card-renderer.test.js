@@ -118,7 +118,12 @@ describe('CardRenderer.getEbayUrl', () => {
     const url = CardRenderer.getEbayUrl('Jayden+Daniels+Rookie');
     expect(url).toContain('ebay.com');
     expect(url).toContain('Jayden+Daniels+Rookie');
-    expect(url).toContain('LH_BIN=1');
+    expect(url).toContain('_sop=15');
+  });
+
+  it('does not restrict the listing type - auctions are often cheaper than BIN', () => {
+    const url = CardRenderer.getEbayUrl('Jayden+Daniels+Rookie');
+    expect(url).not.toMatch(/LH_BIN|LH_Auction/);
   });
 });
 
