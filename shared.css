@@ -895,8 +895,10 @@ select, input[type="text"] {
     color: var(--color-text);
 }
 
+/* Translucent, not a fixed grey: a solid light grey flashes white behind the
+   dark themes' light text. Same tint as the no-image placeholder hover. */
 .filter-btn:hover {
-    background: #f0f0f0;
+    background: rgba(128, 128, 128, 0.12);
 }
 
 .quick-filter-btn.active {
@@ -1334,9 +1336,12 @@ select, input[type="text"] {
     border: 1px dashed #ccc;
 }
 
-/* The no-card badge isn't a link, so it shouldn't pick up the link hover */
+/* The no-card badge isn't a link, so it shouldn't pick up the link hover.
+   The tint is translucent rather than a fixed grey so it shades whatever page
+   background sits behind it - light or dark theme - instead of flashing white
+   on dark checklists. The themes don't override it. */
 .card-image.placeholder:hover:not(.no-card-badge) {
-    background: #f0f0f0;
+    background: rgba(128, 128, 128, 0.12);
     color: var(--color-link, var(--color-primary));
 }
 

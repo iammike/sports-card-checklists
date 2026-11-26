@@ -933,9 +933,6 @@ class ChecklistEngine {
                 border-color: rgba(255,255,255,0.15);
                 color: rgba(255,255,255,0.4);
             }
-            .card-image.placeholder:hover {
-                background: rgba(255,255,255,0.05);
-            }
             `;
         } else {
             // Light theme overrides - keep it clean, let colors come through in accents
