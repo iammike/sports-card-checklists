@@ -311,13 +311,18 @@ class ImageEditorModal {
         this.rejectPromise = null;
         this.rotation = 0;
         // Tab-based UI state
-        this.activeTab = 'crop'; // 'crop' | 'perspective'
+        // Perspective is the default tab: correcting the corners first and then
+        // cropping the straightened result is the natural order, and it is the
+        // tab the editor is used on most.
+        this.activeTab = 'perspective'; // 'crop' | 'perspective'
         this.switching = false;
         this.perspectiveCanvas = null;
         this.perspectiveOverlay = null;
         this.cornerHandles = [];
         this.cornerPositions = []; // normalized 0-1 coordinates
-        this.savedCornerPositions = null;
+        // True while the perspective canvas holds the untouched source, so a
+        // switch to Crop with unmoved corners can hand Cropper the source itself.
+        this.perspectiveIsSource = false;
         this.originalImageSrc = null;
         this.cacheBustedSrc = null;
     }
@@ -359,13 +364,13 @@ class ImageEditorModal {
                 </div>
                 <div class="image-editor-body">
                     <div class="image-editor-tabs">
-                        <button type="button" class="image-editor-tab active" data-tab="crop">Crop & Rotate</button>
-                        <button type="button" class="image-editor-tab" data-tab="perspective">Perspective</button>
+                        <button type="button" class="image-editor-tab active" data-tab="perspective">Perspective</button>
+                        <button type="button" class="image-editor-tab" data-tab="crop">Crop & Rotate</button>
                     </div>
                     <div class="image-editor-canvas">
                         <img id="image-editor-img" src="" alt="Edit">
                     </div>
-                    <div data-tab-content="crop" class="image-editor-tab-panel">
+                    <div data-tab-content="crop" class="image-editor-tab-panel" style="display:none">
                         <div class="image-editor-controls">
                             <div class="image-editor-controls-row">
                                 <button class="image-editor-tool" data-action="rotate-left" title="Rotate 90° Left">
@@ -389,7 +394,7 @@ class ImageEditorModal {
                             </div>
                         </div>
                     </div>
-                    <div data-tab-content="perspective" class="image-editor-tab-panel" style="display:none">
+                    <div data-tab-content="perspective" class="image-editor-tab-panel">
                         <div class="perspective-controls">
                             <div class="perspective-hint">Drag the corners to correct perspective</div>
                         </div>
@@ -587,10 +592,14 @@ class ImageEditorModal {
             this.cropper = null;
         }
 
-        // Reset state
-        this.activeTab = 'crop';
+        // Reset state. A perspective canvas left over from an earlier open is
+        // dropped, and so are its corners: confirm() reads cornerPositions, and
+        // stale moved corners would send it to a transform with no canvas.
+        this.cleanupPerspective();
+        this.cornerPositions = [];
+        this.activeTab = 'perspective';
         this.switching = false;
-        this.savedCornerPositions = null;
+        this.perspectiveIsSource = false;
         this.originalImageSrc = imageSrc;
         this.baseRotation = 0;
         this.fineRotation = 0;
@@ -603,29 +612,53 @@ class ImageEditorModal {
         const isHttpUrl = imageSrc.startsWith('http');
         this.cacheBustedSrc = isHttpUrl ? imageSrc + (imageSrc.includes('?') ? '&' : '?') + '_cb=1' : imageSrc;
 
-        // Show the Crop & Rotate tab by default
-        this.updateTabUI('crop');
+        // Open on the Perspective tab. The panel is shown before the canvas is
+        // built, for the same measuring reason as in switchTab.
+        this.updateTabUI('perspective');
 
         // Show modal
         this.backdrop.classList.add('active');
 
-        // Load the image into Cropper.js
+        // The perspective tab draws on its own canvas; the <img> is Cropper's.
         const img = this.backdrop.querySelector('#image-editor-img');
-        img.crossOrigin = 'anonymous';
-        img.style.display = '';
+        img.style.display = 'none';
+        img.onload = null;
+        img.onerror = null;
+        img.removeAttribute('src');
+
+        // Until the canvas exists there is nothing for Done or a tab switch to
+        // act on, so hold both off the same way a tab switch does.
+        this.switching = true;
+        const openToken = this._openToken = {};
 
         return new Promise((resolve, reject) => {
             this.resolvePromise = resolve;
             this.rejectPromise = reject;
 
-            img.onload = () => {
-                this.cropper = new Cropper(img, this.cropperOptions);
+            const source = new Image();
+            source.crossOrigin = 'anonymous';
+            source.onload = () => {
+                // A cancel-and-reopen while this was loading owns the modal now.
+                if (this._openToken !== openToken) return;
+                try {
+                    this.setupPerspectiveCanvas(source);
+                } catch (error) {
+                    // Otherwise switching stays set and Done, Enter and the tabs
+                    // are dead with only Cancel left working.
+                    console.error('ImageEditor: could not build perspective canvas:', error);
+                    this.close();
+                    reject(new Error('Failed to load image'));
+                    return;
+                }
+                this.perspectiveIsSource = true;
+                this.switching = false;
             };
-            img.onerror = () => {
+            source.onerror = () => {
+                if (this._openToken !== openToken) return;
                 this.close();
                 reject(new Error('Failed to load image'));
             };
-            img.src = this.cacheBustedSrc;
+            source.src = this.cacheBustedSrc;
         });
     }
 
@@ -688,27 +721,25 @@ class ImageEditorModal {
         }
     }
 
-    // Output the original image without any edits
+    // Done on the Perspective tab with the corners untouched. Encodes the canvas
+    // already on screen rather than refetching the source: synchronous, so a late
+    // load cannot close a newer session, and it keeps a crop made earlier in this
+    // session, which the old refetch of the original silently discarded.
     outputOriginalImage() {
-        // Draw original onto a canvas to get a webp data URL
-        const tempImg = new Image();
-        tempImg.crossOrigin = 'anonymous';
-        tempImg.onload = () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = tempImg.naturalWidth;
-            canvas.height = tempImg.naturalHeight;
-            canvas.getContext('2d').drawImage(tempImg, 0, 0);
-            const dataUrl = canvas.toDataURL('image/webp', 0.85);
-            const resolve = this.resolvePromise;
-            this.close();
+        let dataUrl = null;
+        try {
+            dataUrl = this.perspectiveCanvas?.toDataURL('image/webp', 0.85) || null;
+        } catch (error) {
+            console.error('ImageEditor: could not encode image:', error);
+        }
+        const resolve = this.resolvePromise;
+        const reject = this.rejectPromise;
+        this.close();
+        if (dataUrl) {
             if (resolve) resolve(dataUrl);
-        };
-        tempImg.onerror = () => {
-            const reject = this.rejectPromise;
-            this.close();
-            if (reject) reject(new Error('Failed to load original image'));
-        };
-        tempImg.src = this.cacheBustedSrc;
+        } else if (reject) {
+            reject(new Error('Failed to encode image'));
+        }
     }
 
     // Cancel - always exit (no "go back" behavior)
@@ -744,12 +775,16 @@ class ImageEditorModal {
         this.switching = true;
 
         if (tabName === 'crop') {
-            // Perspective -> Crop & Rotate
-            this.savedCornerPositions = this.cornerPositions.map(p => ({ ...p }));
+            // Perspective -> Crop & Rotate. Moved corners are baked into the image
+            // handed to Cropper, so they are not carried back: restoring them onto
+            // the already-corrected image made Done warp it a second time.
 
             // Get the image to feed into Cropper
             let imageSrc;
-            if (!this.cornersAreDefault()) {
+            if (this.cornersAreDefault() && this.perspectiveIsSource) {
+                // Nothing to bake in: skip a full-size PNG encode of the canvas.
+                imageSrc = this.cacheBustedSrc;
+            } else if (!this.cornersAreDefault()) {
                 // Apply perspective transform
                 const srcCorners = this.cornerPositions.map(p => ({
                     x: p.x * this.perspectiveCanvas.width,
@@ -792,6 +827,14 @@ class ImageEditorModal {
                     },
                 });
             };
+            // Its own handler: open() no longer loads into this <img>, so there
+            // is no earlier one to fall back on, and without it a failed load
+            // would leave switching set and the editor dead.
+            img.onerror = () => {
+                const reject = this.rejectPromise;
+                this.close();
+                if (reject) reject(new Error('Failed to load image'));
+            };
             img.src = imageSrc;
         } else {
             // Crop & Rotate -> Perspective
@@ -811,21 +854,34 @@ class ImageEditorModal {
             // Load cropped (or original) image into perspective canvas
             const tempImg = new Image();
             tempImg.crossOrigin = 'anonymous';
+            // Detached, so close() cannot clear these; a cancel-and-reopen while
+            // this decodes owns the modal now and must not be touched.
+            const openToken = this._openToken;
             tempImg.onload = () => {
+                if (this._openToken !== openToken) return;
                 // Same ordering rule as the crop direction: the panel swap resizes
                 // the canvas container, so it has to land before anything measures.
                 this.activeTab = 'perspective';
                 this.updateTabUI('perspective');
-                this.setupPerspectiveCanvas(tempImg);
-                // Restore saved corner positions if available (the deferred
-                // rAF in setupPerspectiveCanvas will pick up the restored positions)
-                if (this.savedCornerPositions) {
-                    this.cornerPositions = this.savedCornerPositions.map(p => ({ ...p }));
+                try {
+                    this.setupPerspectiveCanvas(tempImg);
+                } catch (error) {
+                    console.error('ImageEditor: could not build perspective canvas:', error);
+                    const reject = this.rejectPromise;
+                    this.close();
+                    if (reject) reject(new Error('Failed to load image'));
+                    return;
                 }
+                // Built from Cropper's output, not the source.
+                this.perspectiveIsSource = false;
                 this.switching = false;
             };
+            // The cropper is already destroyed, so there is no tab to fall back to.
             tempImg.onerror = () => {
-                this.switching = false;
+                if (this._openToken !== openToken) return;
+                const reject = this.rejectPromise;
+                this.close();
+                if (reject) reject(new Error('Failed to load image'));
             };
             tempImg.src = croppedSrc || this.cacheBustedSrc;
         }
@@ -849,9 +905,19 @@ class ImageEditorModal {
         // Create perspective canvas
         this.perspectiveCanvas = document.createElement('canvas');
         this.perspectiveCanvas.className = 'perspective-canvas';
-        this.perspectiveCanvas.width = img.naturalWidth;
-        this.perspectiveCanvas.height = img.naturalHeight;
-        this.perspectiveCanvas.getContext('2d').drawImage(img, 0, 0);
+        // Capped: this now runs on every open, and a phone photo drawn at full
+        // size can exceed iOS Safari's canvas area limit (getContext then returns
+        // null) and makes the per-pixel perspective transform crawl. New uploads
+        // (processImage, processLocalFile) resize to ImageProcessor.maxSize (800px)
+        // afterwards, and editExistingImage re-uploads images already that small,
+        // so this loses nothing.
+        const scale = Math.min(1, ImageEditorModal.MAX_CANVAS_EDGE / Math.max(img.naturalWidth, img.naturalHeight));
+        this.perspectiveCanvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+        this.perspectiveCanvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+        const ctx = this.perspectiveCanvas.getContext('2d');
+        if (!ctx) throw new Error('Canvas 2D context unavailable');
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, this.perspectiveCanvas.width, this.perspectiveCanvas.height);
         container.appendChild(this.perspectiveCanvas);
 
         // Create overlay canvas for guide lines
@@ -883,7 +949,14 @@ class ImageEditorModal {
         requestAnimationFrame(() => requestAnimationFrame(update));
         // transitionend for repeat-open (image cached, loads mid-transition)
         const modal = this.backdrop.querySelector('.image-editor-modal');
-        modal.addEventListener('transitionend', () => requestAnimationFrame(update), { once: true });
+        // Only the modal's own transition: transitionend bubbles, and a child's
+        // hover transition would otherwise spend this before the modal settles.
+        const onModalSettled = (e) => {
+            if (e.target !== modal) return;
+            modal.removeEventListener('transitionend', onModalSettled);
+            requestAnimationFrame(update);
+        };
+        modal.addEventListener('transitionend', onModalSettled);
 
         // Keep handles and guide lines in sync on resize
         if (this._resizeObserver) this._resizeObserver.disconnect();
@@ -1052,13 +1125,19 @@ class ImageEditorModal {
             this.cropper = null;
         }
         this.cleanupPerspective();
-        this.activeTab = 'crop';
+        this._openToken = null;
+        this.activeTab = 'perspective';
         this.switching = false;
-        this.savedCornerPositions = null;
+        this.perspectiveIsSource = false;
+        const img = this.backdrop.querySelector('#image-editor-img');
+        if (img) { img.onload = null; img.onerror = null; }
         this.resolvePromise = null;
         this.rejectPromise = null;
     }
 }
+
+// Longest edge of the perspective working canvas, in pixels.
+ImageEditorModal.MAX_CANVAS_EDGE = 2000;
 
 // Singleton instance
 const imageEditor = new ImageEditorModal();
@@ -1066,4 +1145,5 @@ const imageEditor = new ImageEditorModal();
 
 window.ImageProcessor = ImageProcessor;
 window.ImageEditorModal = ImageEditorModal;
+window.PerspectiveTransform = PerspectiveTransform;
 window.imageEditor = imageEditor;

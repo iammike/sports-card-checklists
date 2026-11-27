@@ -191,9 +191,12 @@ describe('image editor overlay layout', () => {
         const failure = expect(opened).rejects.toThrow('Failed to load image');
         await Promise.resolve();
 
-        // Land on perspective, then switch back with a source that will not load.
-        editor.activeTab = 'perspective';
+        // open() lands on perspective and holds switching until its canvas is
+        // built from an image jsdom never loads; stand in for that load, then
+        // switch to crop with a source that will not load.
+        expect(editor.activeTab).toBe('perspective');
         editor.perspectiveCanvas = null;
+        editor.switching = false;
         editor.switchTab('crop');
 
         const img = editor.backdrop.querySelector('#image-editor-img');
