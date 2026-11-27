@@ -91,7 +91,8 @@ describe('CardEditorModal — image operation guard', () => {
       // reviewed for this fix, not just that CardEditorModal called it.
       window.imageEditor.resolvePromise = resolvePromise;
       window.imageEditor.rejectPromise = rejectPromise;
-      window.imageEditor.backdrop = { classList: { remove: () => {} } };
+      // close() also looks up the <img> to drop its load handlers.
+      window.imageEditor.backdrop = { classList: { remove: () => {} }, querySelector: () => null };
     }));
 
     const imgInput = editor.backdrop.querySelector('#editor-img');
